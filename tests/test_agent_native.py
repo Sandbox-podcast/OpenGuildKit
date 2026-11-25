@@ -5,6 +5,7 @@ import inspect
 import io
 import json
 import re
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -103,21 +104,74 @@ class CheckFastTests(unittest.TestCase):
         self.assertIn("tests/test_guard.py", selected["tests"])
         self.assertIn("tests/test_agent_native.py", selected["tests"])
         self.assertIn("tests/test_integrations.py", selected["tests"])
-        self.assertEqual(selected["commands"], ["catalog", "web-typecheck"])
+        self.assertIn("tests/test_product_docs.py", selected["tests"])
+        self.assertEqual(selected["commands"], ["catalog", "web-typecheck", "node-tests"])
         self.assertNotIn("tests/test_deleted_example.py", selected["tests"])
         self.assertEqual(selected["unattached"], [
-            "integrations/ci/package.json", "integrations/chaosfolk/README.md",
-            "integrations/github/openguildkit-guard.yml", "docs/not-a-module.md",
+            "integrations/chaosfolk/README.md", "integrations/github/openguildkit-guard.yml",
         ])
 
+    def test_documentation_workflow_script_and_coordinator_changes_each_have_a_test(self):
+        module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
+        scripts = {
+            "scripts/check_links.py": "tests/test_check_links.py",
+            "scripts/watch_editions.py": "tests/test_edition_watch.py",
+            "scripts/coverage.py": "tests/test_coverage.py",
+            "scripts/bench.py": "tests/test_performance.py",
+        }
+        for script, test in scripts.items():
+            self.assertEqual(check_fast.plan([script], module_map),
+                             {"tests": [test], "commands": [], "unattached": []}, script)
+        documents = {
+            "README.md": "tests/test_release.py",
+            "CHANGELOG.md": "tests/test_release.py",
+            "pyproject.toml": "tests/test_release.py",
+            "docs/install.md": "tests/test_product_docs.py",
+            ".github/workflows/ci.yml": "tests/test_workflows.py",
+            "examples/export-expiry/project.json": "tests/test_doc_promises.py",
+        }
+        for path, test in documents.items():
+            selected = check_fast.plan([path], module_map)
+            self.assertEqual(selected["unattached"], [], path)
+            self.assertIn(test, selected["tests"], path)
+        self.assertEqual(check_fast.plan(["integrations/ci/lib/watch.mjs"], module_map),
+                         {"tests": [], "commands": ["node-tests"], "unattached": []})
+        listed = [path.relative_to(REPO).as_posix() for folder in ("docs", ".github", "examples", "integrations/ci")
+                  for path in (REPO / folder).rglob("*")
+                  if path.is_file() and "__pycache__" not in path.parts and "node_modules" not in path.parts]
+        self.assertEqual(check_fast.plan(listed, module_map)["unattached"], [])
+
+    def test_a_pull_request_that_touches_a_script_the_readme_and_a_workflow_has_no_unattached_file(self):
+        module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        files = ("scripts/check_links.py", "README.md", ".github/workflows/ci.yml")
+        for name in files:
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_text("first\n", encoding="utf-8")
+        git = ["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+               "-c", "commit.gpgsign=false"]
+        subprocess.run([*git, "init", "-q"], check=True)
+        subprocess.run([*git, "add", "-A"], check=True)
+        subprocess.run([*git, "commit", "-qm", "base"], check=True)
+        for name in files:
+            with (root / name).open("a", encoding="utf-8") as handle:
+                handle.write("# touch\n")
+        changed = check_fast.changed_files(root, "HEAD")
+        self.assertEqual(sorted(changed), sorted(files))
+        selected = check_fast.plan(changed, module_map)
+        self.assertEqual(selected["unattached"], [])
+        for test in ("tests/test_check_links.py", "tests/test_release.py", "tests/test_workflows.py"):
+            self.assertIn(test, selected["tests"])
 
     def test_a_changed_module_with_only_removed_tests_is_unattached(self):
         module_map = {"modules": [{
             "module": "src/openguildkit/results.py",
             "tests": ["tests/test_deleted_example.py"],
-            "covers": ["examples/mapped/"],
+            "covers": ["integrations/mapped/"],
         }]}
-        changed = ["src/openguildkit/results.py", "examples/mapped/sample.md"]
+        changed = ["src/openguildkit/results.py", "integrations/mapped/sample.md"]
         self.assertEqual(check_fast.plan(changed, module_map),
                          {"tests": [], "commands": [], "unattached": changed})
 

@@ -37,6 +37,7 @@ def _tool(name: str, description: str, output: dict, *arguments: str) -> dict:
 
 _TEXT = {"type": "string"}
 _REVISION = {"type": ["string", "null"]}
+_COUNT = {"type": "integer", "minimum": 0}
 _PACK = _object_schema(id=_TEXT, version=_TEXT, scope={"type": ["array", "null"], "items": _TEXT})
 _CHECK = _object_schema(check=_TEXT, status={**_TEXT, "enum": list(RESULT_STATUSES)}, revision=_REVISION)
 TOOLS = [
@@ -49,8 +50,10 @@ TOOLS = [
           _object_schema(pack=_PACK, rule_id=_TEXT), "pack_id", "rule_id"),
     _tool("task_status", "Read a task's recorded status by ID.",
           _object_schema(id=_TEXT, status={**_TEXT, "enum": list(STATUSES)}), "task_id"),
-    _tool("task_check_results", "Read recorded check statuses and Git revisions for a task.",
-          _object_schema(id=_TEXT, revision=_REVISION, checks={"type": "array", "items": _CHECK}), "task_id"),
+    _tool("task_check_results",
+          "Read recorded check statuses and Git revisions for a task, and how many checks it leaves out.",
+          _object_schema(id=_TEXT, revision=_REVISION, checks={"type": "array", "items": _CHECK},
+                         omitted=_COUNT, failed_omitted=_COUNT), "task_id"),
 ]
 
 
@@ -118,12 +121,15 @@ def _revision(value: object) -> str | None:
 
 def _results(state: Path, task_id: str) -> dict:
     report = _load_task(state, task_id).get("result", {})
-    checks = [
-        {"check": item["check"], "status": item["status"], "revision": _revision(item.get("revision"))}
-        for item in report.get("checks", [])
-        if CHECK_ID.fullmatch(item["check"]) and item["status"] in RESULT_STATUSES
-    ]
-    return {"id": task_id, "revision": _revision(report.get("revision")), "checks": checks}
+    checks, omitted = [], []
+    for item in report.get("checks", []):
+        if CHECK_ID.fullmatch(item["check"]) and item["status"] in RESULT_STATUSES:
+            checks.append({"check": item["check"], "status": item["status"],
+                           "revision": _revision(item.get("revision"))})
+        else:
+            omitted.append(item["status"])
+    return {"id": task_id, "revision": _revision(report.get("revision")), "checks": checks,
+            "omitted": len(omitted), "failed_omitted": omitted.count("failed")}
 
 
 HANDLERS = {

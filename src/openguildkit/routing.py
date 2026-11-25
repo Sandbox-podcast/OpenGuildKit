@@ -124,11 +124,13 @@ _CONCEPTS = (
 
 
 # Phrases that claim their words without selecting a board, so that a shorter trigger inside them does
-# not fire: a "backend engineer" is a job title, not backend work.
+# not fire: a "backend engineer" is a job title, not backend work, "en vue de" is not Vue and a worker that
+# "reacts to" events is not React.
 NEUTRAL_PHRASES = (
     "backend engineer", "back-end engineer", "backend developer", "back-end developer", "frontend engineer",
     "front-end engineer", "frontend developer", "front-end developer", "full-stack engineer",
     "full-stack developer", "développeur backend", "développeur frontend", "security engineer", "qa engineer",
+    "en vue de", "point de vue", "vue sql", "react to", "react when",
 )
 
 
@@ -145,6 +147,9 @@ _SEPARATORS = re.compile(r"[/_|]")
 
 
 _PLURAL = "(?:s|es|x)?"
+
+
+_POSSESSIVE = "(?:'s)?"
 
 
 def normalize_text(value: str) -> str:
@@ -183,11 +188,12 @@ def _trigger_words(trigger: str) -> tuple[str, ...]:
 
 @lru_cache(maxsize=None)
 def trigger_pattern(trigger: str) -> re.Pattern:
-    """Match a trigger as whole words, allowing a regular plural on each word.
+    """Match a trigger as whole words, allowing a regular plural or a possessive on each word.
 
     Compiled once per process: the catalog holds more triggers than the re module caches, so reading each
     brief would otherwise compile them all again."""
-    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") for word in _trigger_words(trigger)]
+    parts = [re.escape(word) + (_PLURAL if word[-1:].isalpha() else "") + _POSSESSIVE
+             for word in _trigger_words(trigger)]
     return re.compile(r"(?<![\w-])" + r"\s+".join(parts) + r"(?![\w-])")
 
 
@@ -735,7 +741,7 @@ def touched_components(scope: dict, profile: dict) -> set[str]:
     """Components the task names in its answers, or whose folder a path of the brief falls in."""
     named = set(as_list(scope["answers"].get("components")))
     text = " ".join([scope["brief"], *(scope["answers"].get(key, "") for key in ("context", *FOLLOW_UPS))])
-    paths = [match.group(0) for match in re.finditer(r"[\w.-]+(?:/[\w.-]+)+", text)]
+    paths = [match.group(0) for match in re.finditer(r"(?<![\w.-])[\w.-]+(?:/[\w.-]+)+", text)]
     for component in profile.get("components", []):
         folder = (component.get("path") or "").strip("/")
         if folder and any(path == folder or path.startswith(folder + "/") for path in paths):

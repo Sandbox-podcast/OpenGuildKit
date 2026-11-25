@@ -1,3 +1,4 @@
+import codecs
 import json
 import os
 import shutil
@@ -9,8 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task, read_report,
-    set_status, summary, task_alerts,
+    accept_alert, alert_task_id, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task,
+    read_report, set_status, summary, task_alerts,
 )
 from openguildkit.storage import write_json
 
@@ -61,6 +62,18 @@ class AlertTests(unittest.TestCase):
         self.assertEqual((tool, alerts[0]["fix"]), ("GitHub Dependabot", "4.17.21"))
         with self.assertRaisesRegex(ValueError, "is not an npm audit"):
             parse_report(b'{"hello": 1}', "x")
+
+    def test_a_report_saved_with_a_byte_order_mark_is_read_and_another_encoding_is_named(self):
+        text = (FIXTURES / "pip-audit.json").read_text(encoding="utf-8")
+        for encoding in ("utf-8-sig", "utf-16", "utf-16-le", "utf-16-be"):
+            with self.subTest(encoding=encoding):
+                bom = {"utf-16-le": codecs.BOM_UTF16_LE, "utf-16-be": codecs.BOM_UTF16_BE}.get(encoding, b"")
+                tool, alerts = parse_report(bom + text.encode(encoding), "report.json")
+                self.assertEqual((tool, alerts[0]["package"]), ("pip-audit", "jinja2"))
+        with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-8 text"):
+            parse_report(text.replace("Jinja", "J\xe9").encode("latin-1"), "report.json")
+        with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-16 text"):
+            parse_report(codecs.BOM_UTF16_LE + text.encode("utf-16-le") + b"\x00", "report.json")
 
     def test_every_page_of_a_paginated_dependabot_export_is_read(self):
         page = json.loads((FIXTURES / "dependabot-jinja2.json").read_text(encoding="utf-8"))
@@ -200,6 +213,58 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertEqual([alert["id"] for alert in new["alerts"]], [CRITICAL])
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
             self.assertIn("(accepted)", self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN."))
+
+    def test_a_reopened_alert_loses_its_acceptance_and_blocks_again(self):
+        self.init()
+        self.cli("task", "new", "Upgrade the form parser.", "--id", "up")
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.cli("alerts", "set", CRITICAL, "--status", "confirmed", "--by", "Alex")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=CRITICAL):
+            self.cli("alerts", "accept", CRITICAL, "--by", "Camille", "--reason", "Behind a VPN.")
+        self.assertIn("1 resolved", self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertIn("1 reopened", output)
+        self.assertIn(f"acceptance removed: {CRITICAL}", output)
+        alert, = load_register(self.root / ".openguildkit")["alerts"]
+        self.assertEqual(alert["status"], "confirmed")
+        for key in ("accepted", "by", "reason", "decided_at"):
+            self.assertNotIn(key, alert)
+        self.assertNotIn("accepted by", self.cli("alerts", "list"))
+        self.assertEqual([row["alert"] for row in json.loads(self.cli("alerts", "tasks", "--json"))], [CRITICAL])
+        self.cli("alerts", "link", CRITICAL, "--task", "up")
+        [message] = blocking_alerts(load_register(self.root / ".openguildkit"), {"id": "up"})
+        self.assertIn(CRITICAL, message)
+
+    def test_an_import_says_when_another_file_of_the_scanner_resolves_the_alerts_of_the_first(self):
+        self.init()
+        self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
+        self.assertNotIn("Warning", self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json"))
+        output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
+        self.assertIn("Warning: the previous npm audit import was the file npm-audit-critical.json", output)
+        self.assertIn("resolved: " + CRITICAL, output)
+        self.assertEqual(json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--json"))["resolved"], [])
+
+    def test_two_alerts_of_a_package_with_a_long_name_get_two_tasks(self):
+        self.init()
+        package = "org.springframework.security:spring-security-oauth2-authorization-server"
+        advisories = ("GHSA-aaaa-bbbb-cccc", "GHSA-dddd-eeee-ffff")
+        vulnerabilities = [{"id": advisory, "aliases": [], "summary": "Synthetic", "database_specific": {"severity": "CRITICAL"}}
+                           for advisory in advisories]
+        write_json(self.root / "osv.json", {"results": [{"packages": [{
+            "package": {"ecosystem": "Maven", "name": package, "version": "1.0.0"}, "vulnerabilities": vulnerabilities}]}]})
+        self.cli("alerts", "import", self.root / "osv.json")
+        for advisory in advisories:
+            self.cli("alerts", "set", f"maven:{package}:{advisory}".lower(), "--status", "confirmed", "--by", "Alex")
+        opened = json.loads(self.cli("alerts", "tasks", "--open", "--json"))
+        tasks = [row["task"] for row in opened]
+        self.assertEqual(len(set(tasks)), 2)
+        self.assertTrue(all(len(task) <= 64 and task.startswith("dep-org-springframework-security") for task in tasks))
+        self.assertEqual(sorted(path.stem for path in (self.root / ".openguildkit" / "tasks").glob("dep-*.json")), sorted(tasks))
+        self.assertEqual(json.loads(self.cli("alerts", "tasks", "--json")), [])
+        self.assertEqual([alert["tasks"] for alert in json.loads(self.cli("alerts", "list", "--json"))["alerts"]],
+                         [[task] for task in tasks])
+        first = find_alert(load_register(self.root / ".openguildkit"), f"maven:{package}:{advisories[0]}")
+        self.assertEqual(alert_task_id(first), tasks[0])
 
     def test_a_person_sets_the_severity_pip_audit_leaves_unknown_and_it_then_blocks(self):
         self.init()

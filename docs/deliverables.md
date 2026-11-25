@@ -10,6 +10,8 @@ openguildkit deliverable check marketing/spring-brief.md
 openguildkit deliverable utm --url https://www.example.test/pricing --campaign spring-launch --source newsletter --medium email
 ```
 
+`deliverable check` reads a draft saved as UTF-8, with or without a byte order mark, and refuses a draft in another encoding by name.
+
 | Template | Method | Market dossier | Brains that review it |
 |---|---|---|---|
 | `campaign-brief` | `marketing-campaign-planning` | yes | marketing, communication, legal |

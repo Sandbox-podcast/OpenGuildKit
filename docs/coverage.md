@@ -14,8 +14,8 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | data | 63 | 11 | 52 | 6 | 1 | 8 | 41 |
 | design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 8 | 6 | 14 | 77 |
-| engineering | 217 | 32 | 185 | 14 | 26 | 43 | 229 |
+| devops | 69 | 22 | 47 | 8 | 6 | 14 | 78 |
+| engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -32,7 +32,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
 | qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 28 | 75 | 19 | 17 | 43 | 250 |
+| security | 103 | 28 | 75 | 19 | 17 | 43 | 251 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -47,7 +47,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | django | django | django, python | 10 |
 | docker-images | docker / dockerfile / containerfile | container-images | 6 |
 | dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 8 |
-| github-actions-ci | github actions / gh actions | github-actions-security | 4 |
+| github-actions-ci | github actions / gh actions | github-actions-security | 5 |
 | gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 7 |
 | go-postgresql | go / golang + postgresql / postgres | api-design, go-database, postgresql | 9 |
 | ios-swift | ios / ipados / swiftui / uikit | ios-app, mobile-accessibility, mobile-store-release | 15 |
@@ -86,7 +86,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-24 of 468 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 469 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -123,7 +123,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | finops-cost-management | 4 | 0 | 0 |
 | frontend-delivery | 4 | 0 | 0 |
 | gdpr | 11 | 0 | 11 |
-| github-actions-security | 4 | 1 | 0 |
+| github-actions-security | 5 | 2 | 0 |
 | gitlab-ci-security | 7 | 1 | 0 |
 | go-database | 3 | 0 | 0 |
 | health-data-protection | 7 | 0 | 0 |

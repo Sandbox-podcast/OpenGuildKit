@@ -1,12 +1,13 @@
 import json
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 
@@ -43,6 +44,34 @@ class TaskListTests(CapturedCli, unittest.TestCase):
         self.assertEqual([row["id"] for row in approved], ["request-status"])
         self.assertEqual(json.loads(self.run_cli("task", "list", "--owner", "camille martin", "--json"))[0]["id"], "request-status")
         self.assertEqual(json.loads(self.run_cli("task", "list", "--since", "2999-01-01", "--json")), [])
+
+    def test_a_period_that_is_not_a_date_is_refused_for_each_option(self):
+        """Issue 380: any text was accepted, so --until listed everything and --since listed nothing."""
+        self.run_cli("task", "new", "Show the request history.", "--id", "history")
+        for option in ("--since", "--until"):
+            for value in ("garbage", "2026-13-45", "2026-02-30", "20261125", ""):
+                with self.subTest(option=option, value=value):
+                    result = run_cli(self.root, "task", "list", option, value, expect=1)
+                    self.assertEqual(result.stdout, "")
+                    self.assertTrue(result.stderr.startswith(f"OpenGuildKit: {option}: "), result.stderr)
+                    self.assertIn("YYYY-MM-DD", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_the_period_bounds_are_inclusive_days(self):
+        self.run_cli("task", "new", "Show the request history.", "--id", "history")
+        created = json.loads(self.run_cli("task", "show", "history"))["created_at"][:10]
+        day = date.fromisoformat(created)
+
+        def listed(*period):
+            return [row["id"] for row in json.loads(self.run_cli("task", "list", *period, "--json"))]
+
+        self.assertEqual(listed("--since", created), ["history"])
+        self.assertEqual(listed("--until", created), ["history"])
+        self.assertEqual(listed("--since", created, "--until", created), ["history"])
+        self.assertEqual(listed("--since", (day - timedelta(days=1)).isoformat()), ["history"])
+        self.assertEqual(listed("--until", (day + timedelta(days=1)).isoformat()), ["history"])
+        self.assertEqual(listed("--since", (day + timedelta(days=1)).isoformat()), [])
+        self.assertEqual(listed("--until", (day - timedelta(days=1)).isoformat()), [])
 
     def test_a_follow_up_task_carries_the_previous_decision(self):
         self.approved("request-status")

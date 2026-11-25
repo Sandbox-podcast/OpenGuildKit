@@ -21,6 +21,7 @@ from .project import STATE_DIR, rule_text
 from .project_checks import failure_message
 from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check, validate_path
+from .sensitive import redact_data
 from .storage import write_text
 from .workflow import is_decision_task
 
@@ -323,12 +324,14 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
 
     A report written by the agent (`source` "report") covers rules and criteria only: command
     checks and ChaosFolk replays are recorded by `task verify` ("verify"), which runs or reads them.
-    A blank status is a question left unanswered. A named evidence that cannot be recorded (a
+    A credential in a report is replaced with a placeholder, as in a brief. A blank status is a question left unanswered. A named evidence that cannot be recorded (a
     missing file, or not-applicable where it must be supplied) is held back with the reason, under
     "_held" (each with its check and message), and the rest is recorded: the task waits for that evidence.
     """
     if task.get("status") not in ("approved", *DONE_STATUSES):
         raise ValueError("Record results for an approved task.")
+    if source == "report":
+        payload = redact_data(payload)
     fields = {"revision", "pull_request", "criteria", "checks", "packs"} | TEMPLATE_NOTES
     if source == "verify":
         fields.add("run")
@@ -423,7 +426,7 @@ def _check_source(check_id: object, known: dict, source: str) -> None:
         raise ValueError(f"{check_id} is recorded by task verify, which evaluates its check. Run task verify.")
 
 
-def merge_results(previous: dict | None, new: dict) -> dict:
+def merge_results(previous: dict | None, new: dict, source: str = "report") -> dict:
     """Later reports replace earlier outcomes check by check; a new replay replaces every earlier scenario."""
     new = {key: value for key, value in new.items() if key != "_held"}
     if not previous:
@@ -436,8 +439,10 @@ def merge_results(previous: dict | None, new: dict) -> dict:
     merged["criteria"] = new["criteria"] or previous.get("criteria", [])
     merged["checks"] = list(checks.values())
     # The pack answers are those of the latest report that gives any; a pack whose rules a later
-    # report answers one by one loses its answer, so the result reads as it stands.
-    answered = {item["check"].split(":", 1)[1].split("/", 1)[0] for item in new.get("checks", [])}
+    # report answers one by one loses its answer, so the result reads as it stands. What task verify
+    # records is no such answer.
+    answered = {item["check"].split(":", 1)[1].split("/", 1)[0] for item in new.get("checks", [])
+                if source == "report" and item["check"].startswith("rule:")}
     packs = new["packs"] if "packs" in new else [item for item in previous.get("packs", []) if item["pack"] not in answered]
     merged.pop("packs", None)
     if packs:

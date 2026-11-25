@@ -336,9 +336,18 @@ class GuardTests(CapturedCli, unittest.TestCase):
     def test_ci_reports_a_malformed_record_without_a_traceback(self):
         self.branch_with_change(guard="enforce")
         self.commit_record("fake.json", {"task": "nothing", "profile_fingerprint": "f", "decision": "oops"})
-        _, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
-        self.assertTrue(error.startswith("OpenGuildKit: .openguildkit/decisions/fake.json is not a decision record"), error)
-        self.assertNotIn("Traceback", error)
+        output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertIn("  .openguildkit/decisions/fake.json is not a decision record", output)
+        self.assertEqual(error, "")
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_outside_a_git_repository_says_so_in_one_line(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.root.parent)}):
+            output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertEqual(output, "")
+        self.assertEqual(len(error.splitlines()), 1, error)
+        self.assertTrue(error.startswith("OpenGuildKit: guard --ci needs a Git repository"), error)
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):

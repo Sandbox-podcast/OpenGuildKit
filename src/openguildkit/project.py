@@ -1384,12 +1384,14 @@ def render_instructions(profile: dict, catalog: dict) -> str:
 
 
 _MARKER_LINE = re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
+_IMPORT_LINE = re.compile(r"[ \t]*(@AGENTS\.md|@\./AGENTS\.md)[ \t]*")
 _FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
 BOM = "\ufeff"
 
 
-def _scan_markers(text: str) -> tuple[list[tuple[str, int, int]], int | None]:
-    """Find the markers outside fenced code blocks, and the line of a fence the text leaves open."""
+def _scan_markers(text: str, line_pattern: re.Pattern = _MARKER_LINE) -> tuple[list[tuple[str, int, int]], int | None]:
+    """Find the lines the pattern matches (the markers) outside fenced code blocks, and the line of a fence the
+    text leaves open."""
     found, fence, opened, offset = [], None, None, 0
     for number, line in enumerate(text.splitlines(keepends=True), start=1):
         content = line.rstrip("\r\n")
@@ -1401,7 +1403,7 @@ def _scan_markers(text: str) -> tuple[list[tuple[str, int, int]], int | None]:
                     and not content[opening.end():].strip():
                 fence = None
         else:
-            match = _MARKER_LINE.fullmatch(content)
+            match = line_pattern.fullmatch(content)
             if match:
                 found.append((match.group(1), offset, offset + len(content)))
         offset += len(line)
@@ -1477,7 +1479,7 @@ def _claude_links_to_agents(root: Path) -> bool:
 
 
 def _claude_instructions(current: str) -> str:
-    standalone_import = any(line.strip() in {"@AGENTS.md", "@./AGENTS.md"} for line in current.splitlines())
+    standalone_import = bool(_scan_markers(current, _IMPORT_LINE)[0])
     if not _marker_positions(current) and standalone_import:
         return current
     return merged_instructions(current, "@AGENTS.md", "CLAUDE.md")

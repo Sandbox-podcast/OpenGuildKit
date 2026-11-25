@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from openguildkit.decisions import decision_payload, record_digest, seal
 from openguildkit.storage import read_json, write_json
+from tests.support import run_cli
 from tests.test_team_sharing import EXAMPLE, TASK, SharingCase
 
 FIXTURE = Path(__file__).with_name("fixtures") / "upgrade" / "decision-record-v1.json"
@@ -111,6 +112,27 @@ class RecordIntegrityTests(SharingCase):
         self.assert_refused_everywhere("was changed after it was exported")
         self.forge(lambda record: record.update(schema_version=1))
         self.assert_refused_everywhere("was changed after it was exported")
+
+    def test_a_record_field_of_the_wrong_type_is_a_problem_of_the_record_not_a_traceback(self):
+        self.approved()
+        original = self.exported()
+        changes = {"schema_version": lambda record, value: record.update(schema_version=value),
+                   "consultation_id": lambda record, value: record["decision"]["payload"].update(consultation_id=value)}
+        for field, change in changes.items():
+            for value in (None, 5, 2.5, True, "2", [], {}):
+                with self.subTest(field=field, value=value):
+                    record = json.loads(json.dumps(original))
+                    change(record, value)
+                    write_json(self.record_path(), record)
+                    row, = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
+                    self.assertEqual((row["problem"]["kind"], row["problem"]["severity"]), ("invalid-record", "error"))
+                    self.assertIn(f".openguildkit/decisions/{TASK}.json", row["problem"]["message"])
+                    self.assertNotIn(TASK, json.loads(self.run_cli("guard", "--json")[0])["exported_decisions"])
+                    self.assertIn(f".openguildkit/decisions/{TASK}.json", self.run_cli("check", code=1)[1])
+                    for command in (("task", "list"), ("task", "export", TASK)):
+                        result = run_cli(self.root, *command, expect=None)
+                        self.assertNotIn("Traceback", result.stderr)
+                        self.assertIn(result.returncode, (0, 1))
 
     def test_the_record_fixture_of_an_earlier_release_still_loads(self):
         write_json(self.record_path(), read_json(FIXTURE)["record"])
@@ -272,6 +294,32 @@ class CiRecordTests(SharingCase):
         result = self.ci_with(record=record)
         self.assertEqual(result["decisions"], [])
         self.assertIn("exported by an earlier release", result["problems"][0])
+
+    def test_ci_reports_a_record_that_is_not_an_object_of_the_right_shape_and_observe_still_passes(self):
+        if shutil.which("git") is None:
+            self.skipTest("needs git")
+        result = self.ci_with(lambda record: record.update(result=5))
+        self.assertEqual((result["mode"], result["decisions"], result["ok"]), ("observe", [], False))
+        self.assertIn(f".openguildkit/decisions/{TASK}.json is not a decision record", result["problems"][0])
+        self.assertIn("result must be an object", result["problems"][0])
+        output, error = self.run_cli("guard", "--ci", "--base", "main")
+        self.assertIn("Flagged, not blocking", output)
+        self.assertEqual(error, "")
+
+    def test_ci_reports_a_record_it_cannot_read_and_observe_still_passes(self):
+        if shutil.which("git") is None:
+            self.skipTest("needs git")
+        self.ci_with()
+        for text in ("{ broken", "[1]"):
+            with self.subTest(text=text):
+                (self.state / "decisions" / f"{TASK}.json").write_text(text, encoding="utf-8")
+                self.commit("break the record", ".openguildkit/decisions")
+                result = self.ci()
+                self.assertEqual((result["mode"], result["decisions"], result["ok"]), ("observe", [], False))
+                self.assertIn(f".openguildkit/decisions/{TASK}.json is not a decision record", result["problems"][0])
+                output, error = self.run_cli("guard", "--ci", "--base", "main")
+                self.assertIn("Flagged, not blocking", output)
+                self.assertEqual(error, "")
 
     def test_ci_says_when_its_problems_do_not_fail_the_job(self):
         if shutil.which("git") is None:

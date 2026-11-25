@@ -52,6 +52,13 @@ def validate_path(path: object, label: str, *, pattern: bool = True) -> None:
         raise ValueError(f"{label} {path!r} names one file: wildcards are not allowed")
 
 
+def _validate_check_path(path: object, label: str, *, pattern: bool = True) -> None:
+    """A check path also stays out of the folders no search reads: a check never looks inside .git or .openguildkit."""
+    validate_path(path, label, pattern=pattern)
+    if SKIPPED_DIRECTORIES & {part.casefold() for part in path.split("/")}:
+        raise ValueError(f"{label} {path!r} is not searched: a check does not read inside .git or .openguildkit")
+
+
 def _is_number(value: object) -> bool:
     return type(value) in (int, float) and not (isinstance(value, float) and math.isnan(value))
 
@@ -65,11 +72,11 @@ def _validate_paths(check: dict, label: str) -> None:
     if not isinstance(paths, list) or not paths or len(paths) > MAX_PATHS:
         raise ValueError(f"{label}.paths must list 1 to {MAX_PATHS} paths")
     for index, path in enumerate(paths):
-        validate_path(path, f"{label}.paths[{index}]")
+        _validate_check_path(path, f"{label}.paths[{index}]")
 
 
 def _validate_text(check: dict, label: str) -> None:
-    _fields(check, label, {"paths", "contains", "expect"}, {"ignore_case"})
+    _fields(check, label, {"paths", "contains", "expect"}, {"ignore_case", "each"})
     _validate_paths(check, label)
     literals = check["contains"]
     if not isinstance(literals, list) or not literals or len(literals) > MAX_LITERALS:
@@ -81,6 +88,8 @@ def _validate_text(check: dict, label: str) -> None:
         raise ValueError(f"{label}.expect must be present or absent")
     if "ignore_case" in check and type(check["ignore_case"]) is not bool:
         raise ValueError(f"{label}.ignore_case must be true or false")
+    if "each" in check and (check["each"] is not True or check["expect"] != "present"):
+        raise ValueError(f"{label}.each must be true, with expect present; omit it otherwise")
 
 
 def _validate_size(check: dict, label: str) -> None:
@@ -93,7 +102,7 @@ def _validate_size(check: dict, label: str) -> None:
 
 def _validate_field(check: dict, label: str) -> None:
     _fields(check, label, {"path", "field"}, set(FIELD_OPERATORS))
-    validate_path(check["path"], f"{label}.path", pattern=False)
+    _validate_check_path(check["path"], f"{label}.path", pattern=False)
     if Path(check["path"]).suffix not in FIELD_FORMATS:
         raise ValueError(f"{label}.path must name a .json or .toml file")
     field = check["field"]
@@ -157,7 +166,8 @@ def describe_check(check: dict) -> str:
     if kind == "text":
         verb = "contains" if check["expect"] == "present" else "does not contain"
         texts = " or ".join(_show(literal) for literal in check["contains"])
-        return f"{', '.join(f'`{path}`' for path in check['paths'])} {verb} {texts}."
+        subject = "Each file of " if check.get("each") else ""
+        return f"{subject}{', '.join(f'`{path}`' for path in check['paths'])} {verb} {texts}."
     if kind == "size":
         paths = ", ".join(f"`{path}`" for path in check["paths"])
         return f"Each file matching {paths} is at most {check['max_bytes']} bytes."
@@ -271,7 +281,7 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
     files = [path for path in paths if path.is_file()]
     fold = (lambda text: text.casefold()) if check.get("ignore_case") else (lambda text: text)
     literals = [fold(literal) for literal in check["contains"]]
-    hits, skipped = [], []
+    hits, skipped, lacking = [], [], []
     for path in files:
         content = _read_bounded(path)
         name = path.relative_to(root.resolve()).as_posix()
@@ -279,9 +289,16 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
             skipped.append(name)
             continue
         text = fold(content.decode("utf-8", errors="replace"))
-        hits.extend(f"{name} contains {_show(literal)}" for literal in literals if literal in text)
+        found = [f"{name} contains {_show(literal)}" for literal in literals if literal in text]
+        hits.extend(found)
+        if not found:
+            lacking.append(name)
     if skipped:
         return False, f"Larger than {MAX_FILE_BYTES} bytes, not read: {', '.join(skipped)}."
+    if check.get("each") and files:
+        if lacking:
+            return False, f"No text of the check in {', '.join(lacking[:5])}."
+        return True, f"{len(files)} file(s) read, each contains the text."
     if check["expect"] == "present":
         if hits:
             return True, f"{'; '.join(hits[:5])}."

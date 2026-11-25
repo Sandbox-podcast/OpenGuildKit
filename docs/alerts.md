@@ -11,6 +11,8 @@ openguildkit alerts list --status open
 openguildkit alerts set npm:semver:ghsa-c2qf-rxjj-qqgw --status dismissed --by AM --reason "Only used at build time"
 ```
 
+A report is UTF-8, with or without a byte order mark, or UTF-16 with its mark, which is what PowerShell 5.1 writes for `npm audit --json > npm-audit.json`; a report in another encoding is refused with its file name and the encoding that failed.
+
 The register holds one entry per package and advisory, whatever scanner reported it. An advisory has several IDs (GHSA, CVE, PYSEC, GO, other OSV IDs); the CLI reads the aliases each report gives and merges the entries that share one. Ecosystem names are normalized (`pip` and `PyPI` are the same, `rust` and `crates.io` too). An entry is named after its GHSA ID, else its CVE, else the scanner's own ID, and any of its IDs finds it: `pypi:jinja2:cve-2024-22195` and `pypi:jinja2:pysec-2024-1` name the same entry. When one scanner gives no severity, the severity reported by another scanner for the same advisory is kept.
 
 Each alert has a status:
@@ -22,7 +24,11 @@ Each alert has a status:
 | `dismissed` | Not applicable, with the reason and who decided | `alerts set --status dismissed --by NAME --reason WHY` |
 | `resolved` | No scanner that reported it lists it anymore | An import |
 
-Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status. A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
+Importing the full report of a scanner marks the alerts that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status, without the decision of a person: the reviewer who confirmed it, and the acceptance of a risk, are removed, so a confirmed critical alert blocks its tasks again until a person accepts it again, and the import says `acceptance removed` (key `acceptance_removed` with `--json`). A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
+
+### One report per scanner
+
+The register does not know which lockfile or folder a report covers: an import resolves the alerts that the scanner listed before and the new report no longer lists, whatever file it comes from. Give each scanner one full report that covers every lockfile of the project (`osv-scanner --format json -r .` scans the whole folder). A second report of the same scanner for another lockfile, such as `npm audit` in `front/` then in `admin/`, resolves the alerts of the first one, confirmed critical ones included. When an import resolves alerts under another file name than the scanner's previous import, it prints a warning that names the previous file (`previous_file` with `--json`); a report that keeps one name, such as the `report.json` of the scheduled watch, never triggers it.
 
 ### A report that analyzed nothing
 
@@ -31,9 +37,11 @@ A clean report resolves its alerts with no other step: that is the normal case. 
 | Scanner | Analyzed | Resolves nothing when |
 |---|---|---|
 | npm audit | `metadata.dependencies.total` (or the sum of its counts) | `metadata.dependencies` is missing or counts none |
-| pip-audit | the entries of `dependencies`, vulnerable or not | `dependencies` is empty |
+| pip-audit | the entries of `dependencies` that it audited, vulnerable or not; an entry with a `skip_reason` (a dependency it could not audit) is not counted | `dependencies` is empty, or holds only skipped entries |
 | OSV-Scanner | the packages listed under `results` | `results` lists no package: OSV-Scanner lists only vulnerable packages unless it is asked to list every package it scanned |
 | GitHub Dependabot | the alerts listed, in any state | the export is an empty list: fetch the alerts of every state, so a fixed alert shows as fixed |
+
+A report that skipped a package (pip-audit's `skip_reason`) resolves none of that package's alerts, whatever the other entries show.
 
 A confirmed critical alert that an import resolved is shown to the person when they decide: the approval prompt, `task challenge` and `task decision-payload` of each task linked to it name the alert and its report, for the resolutions since the task's last decision.
 
@@ -98,7 +106,7 @@ openguildkit alerts tasks           # the confirmed alerts no task handles, with
 openguildkit alerts tasks --open    # opens each task as a draft and links its alert to it
 ```
 
-A confirmed alert that no task handles and no person accepted gets a task of its own. Its ID comes from the package and the advisory (`dep-form-parser-ghsa-xxxx-yyyy-zzzz`), so it is the same in every copy of the project and every scheduled run: the register links the alert to that ID, and whoever takes the work creates the task with it (`task new "BRIEF" --id ID`), already linked. Its brief names the alert, the affected version and the fixed one. `--json` prints the list for a script.
+A confirmed alert that no task handles and no person accepted gets a task of its own. Its ID comes from the package and the advisory (`dep-form-parser-ghsa-xxxx-yyyy-zzzz`; past 64 characters it keeps its start and ends with eight characters of a digest of the alert ID, so two alerts of a package with a long name get two tasks), so it is the same in every copy of the project and every scheduled run: the register links the alert to that ID, and whoever takes the work creates the task with it (`task new "BRIEF" --id ID`), already linked. Its brief names the alert, the affected version and the fixed one. `--json` prints the list for a script.
 
 ## Scheduled watch
 

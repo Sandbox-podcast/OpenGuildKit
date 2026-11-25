@@ -133,6 +133,17 @@ test('the GitHub flows accept an adopted profile only after the maintainer appro
   refused(sync(), /diffère de la proposition approuvée/);
 });
 
+test('the GitHub flows read a configuration that starts with a byte order mark', t => {
+  const { addPull, configure, configPath, sync } = githubFixture(t);
+  const target = addPull(7, 45);
+  configure({ profileMaintainer: 'lead' });
+  writeFileSync(configPath, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), readFileSync(configPath)]));
+
+  const result = sync({ run: true });
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.current.map(row => [row.pullRequest, row.commit, row.status]), [[7, target, 'failure']]);
+});
+
 test('an error limited to one project or one PR is reported without stopping the others', t => {
   const { root, origin, api, addPull, pulls, configure, sync } = githubFixture(t);
   const head = addPull(7, 45);

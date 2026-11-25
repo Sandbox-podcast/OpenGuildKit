@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from . import clock
 from .deliverables import project_path
 from .project import pack_scopes, rule_plan, rule_text
+from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
 from .workflow import objections
@@ -166,6 +167,17 @@ def _inside(output: Path, relative: str) -> bool:
     return True
 
 
+def _exported_files(manifest_path: Path) -> list[str]:
+    """The files the last export wrote, as its manifest lists them; a manifest without that list is refused by name."""
+    if not manifest_path.is_file():
+        return []
+    files = read_json(manifest_path).get("files")
+    if not isinstance(files, list) or not all(isinstance(path, str) for path in files):
+        raise ValueError(f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
+                         f"Restore {manifest_path.as_posix()} from git, or export to an empty folder.")
+    return files
+
+
 def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
                 sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project",
                 overview: dict | None = None) -> dict:
@@ -178,12 +190,22 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     if not_done:
         raise ValueError(f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
     manifest_path = output / MANIFEST
-    previous = read_json(manifest_path)["files"] if manifest_path.is_file() else []
+    previous = _exported_files(manifest_path)
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
         raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
-    pages = {}
+    pages, warnings, published = {}, [], {}
     for position, task in enumerate(tasks, start=1):
-        pages.update(_pages(task, position, version, sections))
+        # What leaves the project is checked again: a record written before, or by hand, may hold what the CLI now refuses.
+        shown = {**task, **{key: redact_data(task[key]) for key in ("brief", "answers", "result") if key in task}}
+        written = _pages(shown, position, version, sections)
+        if shown != task:
+            warnings.append(f"{task['id']}: replaced a possible credential with a placeholder before publishing it: {WHERE}.")
+        kinds = list(dict.fromkeys(kind for text in written.values() for kind in personal_data_kinds(text)))
+        if kinds:
+            warnings.append(f"{task['id']}: the pages contain {' and '.join(kinds)}, and Documentalist shows them to every "
+                            "reader: keep personal data out unless it is a role address.")
+        pages.update(written)
+        published[task["id"]] = shown
     summary = [f"# {project}", ""]
     if "project" in sections and overview is not None:
         consulted = list(dict.fromkeys(board for task in tasks for board in task["consultation"]["boards"]))
@@ -195,11 +217,14 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         entries = [path for path in pages if path.startswith(f"{section}/")]
         if entries:
             summary += [f"## {section.capitalize()}", ""] + [
-                f"- [{_title(read_task(state, Path(path).stem))}]({path})" for path in entries] + [""]
+                f"- [{_title(published[Path(path).stem])}]({path})" for path in entries] + [""]
     pages["SUMMARY.md"] = "\n".join(summary)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
     if openapi is not None:
-        pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
+        try:
+            pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
+        except UnicodeError as error:
+            raise ValueError(f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
     escaping = sorted(path for path in pages if not _inside(output, path))
     if escaping:
         raise ValueError(f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
@@ -212,7 +237,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     for relative in removed:
         (output / relative).unlink(missing_ok=True)
     write_json(manifest_path, {"version": version, "tasks": task_ids, "files": sorted(pages)})
-    return {"written": sorted(pages), "removed": removed, "kept": kept}
+    return {"written": sorted(pages), "removed": removed, "kept": kept, "warnings": warnings}
 
 
 def _shares_path(state: Path) -> Path:
@@ -224,8 +249,9 @@ def load_shares(state: Path) -> list[dict]:
     return read_json(path)["shares"] if path.is_file() else []
 
 
-def _shared_item(state: Path, deliverable: str) -> None:
-    """What a recipient receives: an existing file of the project, or the folder of a documentation export."""
+def _shared_item(state: Path, deliverable: str) -> str:
+    """What a recipient receives: an existing file of the project, or the folder of a documentation export. Returns its
+    path from the project root, written with `/`, once links are resolved: the register keeps no local path."""
     target = project_path(state.parent, state, deliverable, "--deliverable")
     shown = Path(deliverable).as_posix()
     if not target.exists():
@@ -234,6 +260,7 @@ def _shared_item(state: Path, deliverable: str) -> None:
     if target.is_dir() and not (target / MANIFEST).is_file():
         raise ValueError(f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
                          "share, or the folder that openguildkit docs export wrote.")
+    return target.relative_to(state.parent.resolve()).as_posix()
 
 
 def is_loopback(host: str) -> bool:
@@ -312,46 +339,54 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     """
     if not deliverable.strip() or not by.strip():
         raise ValueError("Name the deliverable and the owner of the share.")
-    _shared_item(state, deliverable.strip())
+    shared = _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
         raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
+    refuse_link_credentials(portal, "--portal")
     space = portal_space(portal)
     spellings: dict[str, str] = {}
     for address in recipients:  # One spelling per address, the first given: the register compares them without case.
         spellings.setdefault(_address(address), address)
-    share = {"id": uuid.uuid4().hex[:8], "deliverable": deliverable.strip(), "recipients": sorted(spellings.values()),
+    share = {"id": uuid.uuid4().hex[:8], "deliverable": shared, "recipients": sorted(spellings.values()),
              "until": until, "portal": portal, "space": space, "by": by.strip(),
              "created_at": clock.real_timestamp(), "revoked_at": None}
     with project_lock(state):
         shares = load_shares(state)
         # Another share of the same deliverable keeps a dedicated space dedicated after the first one is revoked.
-        if dedicated or any(item.get("dedicated") for item in _same_deliverable(shares, share)):
+        if dedicated or any(item.get("dedicated") for item in _same_deliverable(state, shares, share)):
             share["dedicated"] = True
-        _check_dedication(_space_neighbours(shares, share), share)
+        _check_dedication(_space_neighbours(state, shares, share), share)
         write_json(_shares_path(state), {"shares": [*shares, share]})
     return share
 
 
-def _deliverable_key(deliverable: str) -> str:
-    """The same deliverable written `d.md` or `./d.md` is one deliverable."""
-    return posixpath.normpath(Path(deliverable).as_posix())
+def _deliverable_key(project: Path, deliverable: str) -> str:
+    """The same deliverable written `d.md`, `./d.md` or by its absolute path, as an earlier register may hold it, is one
+    deliverable. `project` is the resolved project folder."""
+    try:
+        return (project / deliverable).resolve().relative_to(project).as_posix()
+    except ValueError:
+        return posixpath.normpath(Path(deliverable).as_posix())
 
 
-def _space_neighbours(shares: list[dict], share: dict) -> list[dict]:
+def _space_neighbours(state: Path, shares: list[dict], share: dict) -> list[dict]:
     """The shares not revoked of another deliverable through the same space: Documentalist shows a reader every
     published page of a space, so the recipients of each of them can read the other deliverables too."""
-    space, key = share_space(share), _deliverable_key(share["deliverable"])
+    project = state.parent.resolve()
+    space, key = share_space(share), _deliverable_key(project, share["deliverable"])
     return [item for item in shares
             if item["id"] != share["id"] and not item["revoked_at"] and space and share_space(item) == space
-            and _deliverable_key(item["deliverable"]) != key]
+            and _deliverable_key(project, item["deliverable"]) != key]
 
 
-def _same_deliverable(shares: list[dict], share: dict) -> list[dict]:
-    space, key = share_space(share), _deliverable_key(share["deliverable"])
+def _same_deliverable(state: Path, shares: list[dict], share: dict) -> list[dict]:
+    project = state.parent.resolve()
+    space, key = share_space(share), _deliverable_key(project, share["deliverable"])
     return [item for item in shares
-            if not item["revoked_at"] and space and share_space(item) == space and _deliverable_key(item["deliverable"]) == key]
+            if not item["revoked_at"] and space and share_space(item) == space
+            and _deliverable_key(project, item["deliverable"]) == key]
 
 
 def _check_dedication(neighbours: list[dict], share: dict) -> None:
@@ -370,7 +405,7 @@ def _check_dedication(neighbours: list[dict], share: dict) -> None:
 
 def space_neighbours(state: Path, share: dict) -> list[dict]:
     """The shares not revoked of other deliverables through the share's space."""
-    return _space_neighbours(load_shares(state), share)
+    return _space_neighbours(state, load_shares(state), share)
 
 
 def _share_end(until: str) -> date:
@@ -450,7 +485,7 @@ def share_status(state: Path, today: date | None = None) -> list[dict]:
     for share in shares:
         row = {**share, "space": share_space(share), "remove": [], "kept": {}, "dedicated": bool(share.get("dedicated")),
                "also_in_space": [] if share["revoked_at"] else
-               sorted({item["deliverable"] for item in _space_neighbours(shares, share)})}
+               sorted({item["deliverable"] for item in _space_neighbours(state, shares, share)})}
         observed = _observation(observations, share, row["space"])
         if observed:
             recipients = {_address(address) for address in share["recipients"]}

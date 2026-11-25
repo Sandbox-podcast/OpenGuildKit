@@ -14,7 +14,7 @@ export const REFUSAL_FR: Record<string, string> = {
   'external-action-at-terminal': 'Autoriser une action externe demande une personne devant son terminal.',
   'alert-accept-at-terminal': 'Accepter le risque d’une alerte confirmée se fait par une personne, dans son terminal.',
   'alert-severity-at-terminal': 'Fixer la sévérité d’une alerte se fait par une personne, dans son terminal.',
-  'alert-status-at-terminal': 'Écarter une alerte critique ou haute se fait par une personne, dans son terminal, avec ses initiales et la raison.',
+  'alert-status-at-terminal': 'Écarter une alerte critique, ou revenir sur une alerte critique confirmée, se fait par une personne, dans son terminal, avec ses initiales et la raison.',
   'withdraw-at-terminal': 'Retirer une approbation se fait par une personne, dans son terminal.',
   'person-at-terminal': 'Cette décision demande une personne devant son terminal : l’interface ne l’enregistre pas.',
   'weakens-protection': 'Ce changement affaiblit une protection du profil : c’est la décision d’une personne, dans son terminal. Rien n’a été écrit.',

@@ -10,7 +10,7 @@ export function mergeGithub({ base, execute, ruleset, appId, ...options }, {
   const { project, pullRequest, commit } = options.selection;
   if (!/^[a-z\d][a-z\d-]*\/[a-z\d_.-]+$/i.test(project) ||
       !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !gitSha.test(commit) || !base) {
-    throw new Error('Dépôt GitHub, PR, SHA complet et branche cible requis.');
+    throw new Error('A GitHub repository, a PR, a full SHA and a target branch are required.');
   }
   const endpoint = `repos/${project}/pulls/${pullRequest}`;
   const readCandidate = () => {
@@ -18,7 +18,7 @@ export function mergeGithub({ base, execute, ruleset, appId, ...options }, {
     if (pr.state !== 'open' || pr.draft !== false || pr.head?.sha !== commit ||
         pr.base?.ref !== base || !gitSha.test(pr.base?.sha) ||
         pr.base?.repo?.full_name?.toLowerCase() !== project.toLowerCase()) {
-      throw new Error('La PR ouverte et prête à fusionner ne correspond plus au SHA ou à la branche cible demandés.');
+      throw new Error('The PR is no longer open and ready to merge at the requested SHA and target branch.');
     }
     return pr.base.sha;
   };
@@ -48,7 +48,7 @@ export function mergeGithub({ base, execute, ruleset, appId, ...options }, {
   const latest = reconcile({ ...gateOptions, run: false });
   const [current] = latest.current;
   if (readCandidate() !== baseCommit) {
-    throw new Error('La branche cible a évolué pendant le contrôle. Relancer la demande de fusion.');
+    throw new Error('The target branch changed during the check. Run the merge request again.');
   }
   if (ruleset !== undefined && !inspectMergeProtection({ repo: project, base, ruleset, appId }, api).approved) {
     return result(current, [], { exitCode: 2, reason: 'inactive-branch-protection' });
@@ -58,7 +58,7 @@ export function mergeGithub({ base, execute, ruleset, appId, ...options }, {
   if (finalOutcome.exitCode) return result(current, errors, finalOutcome);
   const merge = api(`${endpoint}/merge`, '-X', 'PUT', '-f', `sha=${commit}`);
   if (merge.merged !== true || !gitSha.test(merge.sha)) {
-    throw new Error('GitHub n’a pas confirmé la fusion.');
+    throw new Error('GitHub did not confirm the merge.');
   }
   return result(current, errors, finalOutcome, { commit: merge.sha, head: commit });
 }

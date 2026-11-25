@@ -826,7 +826,10 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
         return 0
     if action == "check":
         path = project_path(root, state, args.path, "deliverable check")
-        text = path.read_text(encoding="utf-8")
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except UnicodeError as error:
+            raise ValueError(f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
             raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")
@@ -874,6 +877,8 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             print(f"removed {path}")
         for path in result["kept"]:
             print(f"kept {path}: not a page this export wrote inside {args.output.as_posix()}, left in place")
+        for warning in result["warnings"]:
+            print(f"OpenGuildKit: {warning}", file=sys.stderr)
         return 0
     if args.share_action == "add":
         if not (args.deliverable and args.until and args.portal and args.by):

@@ -95,6 +95,20 @@ class CatalogLockTests(CliTestCase):
         self.assertIn(named, applied)
         self.assertIn(named, self.run_cli("sync").stdout)
 
+    def test_a_lock_entry_that_is_not_an_object_is_refused_with_the_file_and_the_command(self):
+        self.init_example()
+        lock = self.read_lock()
+        for entry in (5, "text", [], None):
+            with self.subTest(entry=entry):
+                lock["records"]["packs"] = {"agent-workflow": entry}
+                self.lock_path().write_text(json.dumps(lock), encoding="utf-8")
+                for command in (("check",), ("update",)):
+                    error = self.run_cli(*command, expect=1).stderr
+                    self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                    self.assertIn("catalog.lock.json: packs/agent-workflow is not an object", error)
+                    self.assertIn("Restore the file from Git, or delete it and run openguildkit update --apply", error)
+                    self.assertNotIn("Traceback", error)
+
     def test_check_asks_for_update_when_the_lock_is_older_than_the_installed_catalog(self):
         self.init_example()
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK_ID)

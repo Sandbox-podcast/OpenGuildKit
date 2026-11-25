@@ -145,7 +145,9 @@ EXAMPLES = [
                          "--library $fixtures/storybook/company-package.json"),
     Example("storybook", "storybook import --company-index $fixtures/storybook/company-index.json "
                          "--library $fixtures/storybook/company-package.json --json"),
-    Example("storybook", "storybook extract --src src"), Example("storybook", "storybook extract --src src --json"),
+    # The source folder is the project's own: a relative `src` would be read from the folder the tests run in.
+    Example("storybook", "storybook extract --src $root/src"),
+    Example("storybook", "storybook extract --src $root/src --json"),
     Example("extracted", "storybook propose"), Example("extracted", "storybook propose --json"),
     Example("proposed", "storybook generate"), Example("proposed", "storybook generate --json"),
     # The task, from its brief to its closing.
@@ -214,6 +216,9 @@ EXCEPTIONS = {
     "tools list --json": (309_000, "The whole tool registry for a program to read."),
     "features list --json": (20_000, "Each feature with its options and their servers, for a program to read; "
                                      "`features list` prints 5 KB."),
+    "storybook extract --src $root/src --json": (12_000, "The whole inventory of the sources it scanned, every token and "
+                                                         "component with its origin, for a program to read; it grows "
+                                                         "with the project."),
     "task brief request-status --scope": (23_000, "The whole project scope as JSON with every rule text, which the "
                                                   "consultation names instead of printing; asked for on purpose."),
     "task challenge request-status": (16_000, "The decision brief the person reads before approving: every board's "

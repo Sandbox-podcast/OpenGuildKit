@@ -217,6 +217,14 @@ class ProfileCommandTests(unittest.TestCase):
                 _, error = self.run_cli("profile", *arguments, "--by", "Sam", "--reason", "x", code=1)
                 self.assertIn(message, error)
 
+    def test_changing_the_approval_mode_says_to_apply_the_host_settings(self):
+        signers = ("--signers", ".openguildkit/allowed_signers", "--approver", "camille@example.test")
+        output, _ = self.typed("set", "approval", "signed", *signers, "--by", "Camille", "--reason", "Audit",
+                               confirm="signed")
+        self.assertIn("Run openguildkit host apply, then openguildkit host check", output)
+        output, _ = self.typed("set", "approval", "local", "--by", "Camille", "--reason", "Pilot over", confirm="local")
+        self.assertIn("Run openguildkit host apply, then openguildkit host check", output)
+
     def test_each_protection_of_the_profile_is_lowered_only_at_a_terminal(self):
         signers = ("--signers", ".openguildkit/allowed_signers", "--approver", "camille@example.test")
         self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests")
