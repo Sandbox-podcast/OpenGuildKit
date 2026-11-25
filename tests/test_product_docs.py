@@ -78,6 +78,16 @@ class WebPagesTests(unittest.TestCase):
             with self.subTest(page=path.relative_to(REPO).as_posix()):
                 self.assertEqual(counted.findall(_read(path)), [])
 
+    def test_no_page_gives_a_loopback_address_that_openguildkit_ui_refuses(self):
+        # Since #281 the server answers only under the host name it printed (ogk-....localhost): on 127.0.0.1 the
+        # page shows only the invitation to open the printed address, so OGK_API and measure:project need its origin.
+        pages = [path for folder in ("web", "docs") for path in sorted((REPO / folder).rglob("*.md"))
+                 if "node_modules" not in path.parts]
+        refused = re.compile(r"OGK_API=http://127\.0\.0\.1|http://127\.0\.0\.1:[0-9]+/\?key=")
+        for path in pages:
+            with self.subTest(page=path.relative_to(REPO).as_posix()):
+                self.assertEqual(refused.findall(_read(path)), [])
+
 
 class RoadmapTests(unittest.TestCase):
     def test_available_names_what_shipped_and_the_three_systems(self):
