@@ -1252,6 +1252,10 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
 
 
 SENSITIVE_GROUP = "Data protection, security or AI rules skipped, failed or declared not applicable as a pack"
+# The other titles of the closing that other readers (the retrospective) tell apart.
+NOT_RUN_GROUP = "Project checks that could not run in this environment"
+OTHER_RULES_GROUP = "Other rules skipped or failed"
+VERDICTS_GROUP = "Board verdicts at approval that asked for changes"
 NO_COMMAND = ("No project check command ran for this task: the profile lists none (checks in "
               ".openguildkit/project.json), so nothing was run to verify the change.")
 
@@ -1309,7 +1313,7 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
     groups = [
         (SENSITIVE_GROUP, sensitive),
         ("Board blocks not lifted", _blocks_not_lifted(task)),
-        ("Project checks that could not run in this environment", [
+        (NOT_RUN_GROUP, [
             f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
             for item in result.get("checks", []) if item.get("cannot_run")]),
         ("Blockers waived rather than cleared", [
@@ -1319,14 +1323,14 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
         ("Named evidence handed to a follow-up task", [
             f"{item['check']} is handed to task {item['task']}, provided by {item['owner']} (recorded by {item['by']})"
             for item in result.get("deferred", [])]),
-        ("Other rules skipped or failed", other),
+        (OTHER_RULES_GROUP, other),
         ("Warnings on the result", list(result.get("warnings", []))),
     ]
     found = [{"group": title, "points": points} for title, points in groups if points]
     verdicts = [f"{entry['id']} said {entry['challenge']['verdict']}" for entry in task.get("review", {}).get("boards", [])
                 if entry.get("challenge", {}).get("verdict") == "revise"]
     if found and verdicts:
-        found.append({"group": "Board verdicts at approval that asked for changes", "points": verdicts})
+        found.append({"group": VERDICTS_GROUP, "points": verdicts})
     return found
 
 

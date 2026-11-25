@@ -1,12 +1,17 @@
 """The profile changes after setup through openguildkit profile, with who, when and why, never by hand."""
 
+import copy
 import json
 import re
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.catalog import load_catalog
+from openguildkit.profile_cli import check_proposal
+from openguildkit.project import load_profile, validate_profile
 from openguildkit.storage import write_json
 from tests.support import run_cli
 
@@ -330,6 +335,67 @@ class ProfileCommandTests(unittest.TestCase):
         self.assertIn("Norm gdpr-personal-data now concerns the project", output)
         self.assertNotIn("gdpr-personal-data", self.profile().get("patterns", []))
         self.assertIn("No open task was consulted under the previous profile.", output)
+
+
+class ProposalCheckTests(unittest.TestCase):
+    """check_proposal says what a profile command would write, without writing it: the retrospective only proposes
+    commands it knows the profile accepts (issue #423)."""
+
+    def setUp(self):
+        self.catalog = load_catalog()
+        answers = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+        self.answers = {**answers, "boards": ["product", "qa", "security", "legal"]}
+        self.profile = validate_profile(self.answers, self.catalog)
+
+    def test_it_gives_the_profile_the_command_would_write_and_what_it_weakens(self):
+        updated, weakens = check_proposal(self.profile, self.catalog, "remove", "check", "npm test")
+        self.assertNotIn("npm test", updated["checks"])
+        self.assertEqual(weakens, ["check command npm test removed"])
+        updated, weakens = check_proposal(self.profile, self.catalog, "add", "required-rule", "python/follow-python-style")
+        self.assertEqual((updated["required_rules"], weakens), (["python/follow-python-style"], []))
+        updated, weakens = check_proposal(self.profile, self.catalog, "decline", None, "python-fastapi-postgresql")
+        self.assertEqual([item["id"] for item in updated["declined"]], ["python-fastapi-postgresql"])
+        self.assertNotIn("python-fastapi-postgresql", updated["patterns"])
+        self.assertEqual(weakens, [])
+        self.assertEqual(check_proposal(self.profile, self.catalog, "remove", "board", "security")[1],
+                         ["board security no longer advises"])
+
+    def test_it_refuses_what_the_command_refuses(self):
+        for arguments, message in ((("remove", "check", "make"), "not in the profile's checks"),
+                                   (("add", "required-rule", "python/no-such-rule"), "Unknown required rule"),
+                                   (("decline", None, "no-such-pattern"), "Unknown pattern"),
+                                   (("remove", "board", "design"), "not in the profile's boards"),
+                                   (("remove", "pack", "agent-workflow"), "cannot be removed")):
+            with self.subTest(arguments), self.assertRaisesRegex(ValueError, message):
+                check_proposal(self.profile, self.catalog, *arguments)
+
+    def test_it_writes_nothing_and_leaves_the_profile_it_was_given_alone(self):
+        before = copy.deepcopy(self.profile)
+        check_proposal(self.profile, self.catalog, "remove", "check", "npm test")
+        check_proposal(self.profile, self.catalog, "decline", None, "python-fastapi-postgresql")
+        self.assertEqual(self.profile, before)
+
+    def test_it_gives_the_profile_the_real_command_writes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "project"
+            root.mkdir()
+            write_json(root / "answers.json", self.answers)
+            run_cli(root, "init", "--answers", root / "answers.json")
+            for action, field, value in (("remove", "check", "npm test"), ("add", "required-rule", "python/follow-python-style"),
+                                         ("decline", None, "python-fastapi-postgresql"), ("remove", "board", "qa")):
+                with self.subTest(action=action, value=value):
+                    saved = load_profile(root / ".openguildkit", self.catalog)
+                    expected, _ = check_proposal(saved, self.catalog, action, field, value)
+                    trial = Path(folder) / f"trial-{action}-{value.replace('/', '-').replace(' ', '-')}"
+                    shutil.copytree(root, trial)
+                    words = ["profile", action, *([field] if field else []), value, "--by", "CM", "--reason", "Trial"]
+                    run_cli(trial, *words, typed=value)
+                    written = json.loads((trial / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+                    # The who and why of a decline are the person's: the check holds placeholders.
+                    anonymous = lambda profile: {
+                        key: [{"id": item["id"], "on": item["on"]} for item in value] if key == "declined" else value
+                        for key, value in profile.items() if key != "changes"}
+                    self.assertEqual(anonymous(written), anonymous(expected))
 
 
 if __name__ == "__main__":

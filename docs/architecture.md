@@ -72,6 +72,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
 | `results.py` | Records what was delivered for an approved task and the checks that prove it. |
+| `retro.py` | The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type. |
 | `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
 | `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |

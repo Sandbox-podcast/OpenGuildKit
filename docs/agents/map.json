@@ -565,11 +565,13 @@
         "weakening_changes",
         "Weakening",
         "InvalidProfile",
-        "voided_approvals"
+        "voided_approvals",
+        "check_proposal"
       ],
       "tests": [
         "tests/test_architecture.py",
-        "tests/test_gemini_host.py"
+        "tests/test_gemini_host.py",
+        "tests/test_profile_commands.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -755,6 +757,24 @@
         "tests/test_results.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/retro.py",
+      "role": "The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type.",
+      "entry": [
+        "facts_of_task",
+        "facts_of_record",
+        "task_retro",
+        "recurrences",
+        "proposals",
+        "project_summary",
+        "render_task",
+        "render_project"
+      ],
+      "tests": [
+        "tests/test_retro.py"
+      ],
+      "doc": "docs/workflow.md"
     },
     {
       "module": "src/openguildkit/routing.py",
@@ -1022,7 +1042,8 @@
         "tests/test_clock.py",
         "tests/test_closing_points.py",
         "tests/test_deliberation.py",
-        "tests/test_performance.py"
+        "tests/test_performance.py",
+        "tests/test_retro.py"
       ],
       "doc": "docs/architecture.md"
     },

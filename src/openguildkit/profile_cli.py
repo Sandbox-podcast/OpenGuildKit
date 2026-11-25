@@ -8,6 +8,7 @@ terminal and a typed confirmation. The approvals a change voids are named before
 """
 
 import sys
+from argparse import Namespace
 from pathlib import Path
 
 from .clock import today
@@ -312,6 +313,19 @@ def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str]:
         updated = _change_list(profile, args.field, args.values, action == "add", catalog)
         return updated, f"{action} {args.field} {', '.join(args.values)}"
     return _set(profile, args, catalog), _set_change(args)
+
+
+def check_proposal(profile: dict, catalog: dict, action: str, field: str | None, value: str) -> tuple[dict, list[str]]:
+    """The profile a command would write and what it weakens, or the ValueError the command would raise.
+
+    action is add, remove or decline: field names the list for add and remove and is None for decline, whose value is a
+    pattern. Nothing is written and the profile given is left as it is: the retrospective proposes only a command that
+    this accepts, and the confirmation at a terminal that a weakening needs (write_change) is still the person's.
+    """
+    args = Namespace(profile_action=action, pattern=value, field=field, values=[value], by="NAME", reason="WHY")
+    edited, _ = _changed(profile, args, catalog)
+    updated = validate_profile(edited, catalog)
+    return updated, [text for text, _ in weakening_changes(profile, updated, catalog)]
 
 
 class Weakening(ValueError):
