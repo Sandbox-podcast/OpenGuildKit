@@ -328,7 +328,7 @@ test('keep the executed proof when the active policy changes and skip sync when 
     loadConfig: () => ++reads === 1 ? config : { ...config, projects: [] },
   });
   assert.deepEqual(closed.current, []);
-  assert.match(closed.errors[0].message, /références courantes/);
+  assert.match(closed.errors[0].message, /no longer matches the current references/);
   assert.equal(JSON.parse(readFileSync(closed.executedEvidence[0].path)).evidence.state, 'failure');
 });
 

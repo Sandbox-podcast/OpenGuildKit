@@ -12,7 +12,7 @@ const filesOf = folder => readdirSync(join(packageRoot, folder), { recursive: tr
   .map(name => join(folder, name)).filter(path => statSync(join(packageRoot, path)).isFile());
 
 test('the questions and error messages of onboard, reconcile and watch are in English', () => {
-  for (const name of ['onboard']) {
+  for (const name of ['onboard', 'reconcile']) {
     const source = read(`lib/${name}.mjs`);
     assert.doesNotMatch(source, /[^\x00-\x7f]/, name);
     assert.doesNotMatch(source, frenchWords, name);

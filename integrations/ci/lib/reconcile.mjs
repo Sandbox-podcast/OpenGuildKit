@@ -27,10 +27,10 @@ function storeOnce(path, value) {
 
 function resolveRef(repo, ref) {
   if (typeof ref !== 'string' || !ref.startsWith('refs/')) {
-    throw new Error('Référence Git complète attendue (refs/…).');
+    throw new Error('A full Git reference is expected (refs/...).');
   }
   const commit = git(repo, 'rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`).toString().trim();
-  if (!gitSha.test(commit)) throw new Error(`SHA Git invalide : ${ref}`);
+  if (!gitSha.test(commit)) throw new Error(`Invalid Git SHA: ${ref}`);
   return commit;
 }
 
@@ -53,7 +53,7 @@ function projectEntries(project, folder, { policyRepo, policyTip, registry, regi
   const { policyPath, adoption } = parseProfile(profile.bytes);
   const approvers = project.waiverApprovers ?? [];
   if (!Array.isArray(approvers) || !approvers.every(item => typeof item === 'string' && item.trim())) {
-    throw new Error(`Approbateurs de dérogations invalides pour ${project.id}.`);
+    throw new Error(`Invalid waiver approvers for ${project.id}.`);
   }
   const policy = fileRevision(policyRepo, policyTip, policyPath);
   const { id: rule } = parseJsonObject(policy.bytes, policyPath);
@@ -62,12 +62,12 @@ function projectEntries(project, folder, { policyRepo, policyTip, registry, regi
   for (const pr of project.pullRequests) {
     try {
       if (!Number.isSafeInteger(pr.number) || pr.number < 1 || numbers.has(pr.number)) {
-        throw new Error(`Numéro de PR invalide ou dupliqué pour ${project.id}.`);
+        throw new Error(`Invalid or duplicate PR number for ${project.id}.`);
       }
       numbers.add(pr.number);
       const commit = resolveRef(targetRepo, pr.ref);
       if (pr.sha !== undefined && commit !== pr.sha) {
-        throw new Error(`La PR ${project.id}#${pr.number} a évolué pendant la lecture des références.`);
+        throw new Error(`PR ${project.id}#${pr.number} changed while the references were being read.`);
       }
       const inputs = {
         project: project.id,
@@ -97,7 +97,7 @@ function snapshot(config, folder, kitVersion) {
   const policyTip = resolveRef(policyRepo, config.policyRepo.ref);
   const waiversPath = config.policyRepo.waiversPath;
   if (waiversPath !== undefined && !isGitPath(waiversPath)) {
-    throw new Error('Chemin Git du registre de dérogations invalide.');
+    throw new Error('Invalid Git path for the waiver registry.');
   }
   const waiverFile = waiversPath === undefined ? null : fileRevision(policyRepo, policyTip, waiversPath);
   const registry = waiverFile ? parseWaivers(waiverFile.bytes) : [];
@@ -107,7 +107,7 @@ function snapshot(config, folder, kitVersion) {
   const projects = new Set();
   for (const project of config.projects) {
     if (typeof project.id !== 'string' || !project.id.trim() || projects.has(project.id)) {
-      throw new Error('Chaque projet doit avoir un identifiant distinct.');
+      throw new Error('Each project must have a distinct ID.');
     }
     projects.add(project.id);
     // The GitHub commands list open PRs. A local configuration without pullRequests has nothing to evaluate.
@@ -143,12 +143,12 @@ function currentVerdict(stateDir, { key, inputs, mode, approvers, registry, regi
 }
 
 export function recordEvidence(stateDir, key, evidence) {
-  if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('Identifiant de contrôle invalide.');
+  if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('Invalid work ID.');
   const inputs = readJson(join(stateDir, 'work', `${key}.json`));
   if (workKey(inputs) !== key || !['success', 'failure'].includes(evidence.state) ||
       ['commit', 'policyCommit', 'profileCommit', 'profileSha256', 'kitVersion', 'rule']
         .some(field => inputs[field] !== evidence[field])) {
-    throw new Error('La preuve ne correspond pas aux références du contrôle planifié.');
+    throw new Error('The evidence does not match the references of the planned check.');
   }
   const path = join(stateDir, 'evidence', key, `${evidence.state}.json`);
   const recorded = storeOnce(path, { inputs, evidence });
@@ -171,10 +171,10 @@ export function reconcile({ configPath, stateDir, run, kitVersion,
     if (related.length) throw new Error(related.map(error => error.message).join(' '));
     const [entry] = chosen.entries;
     if (chosen.entries.length !== 1 || entry.inputs.commit !== selection.commit) {
-      throw new Error('La PR ou le commit demandé ne correspond plus aux références courantes.');
+      throw new Error('The requested PR or commit no longer matches the current references.');
     }
     if (selection.mode && entry.mode !== selection.mode) {
-      throw new Error('Le profil approuvé doit être en mode obligatoire pour utiliser gate.');
+      throw new Error('The approved profile must be in required mode to use gate.');
     }
     return { entries: chosen.entries, errors: [] };
   };
