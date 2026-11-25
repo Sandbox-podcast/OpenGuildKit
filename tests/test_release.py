@@ -95,7 +95,6 @@ class VersionTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertRegex(docs, rf"openguildkit (?:--project [^ ]+ )?{re.escape(command)}\b")
 
-
     def test_the_release_steps_name_every_versioned_file(self):
         named = set(release_files())
         for required in ("pyproject.toml", "integrations/ci/package.json", "docs/install.md",
