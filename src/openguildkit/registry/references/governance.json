@@ -954,6 +954,48 @@
       ]
     },
     {
+      "id": "iso-sae-21434",
+      "title": "ISO/SAE 21434:2021",
+      "title_en": "ISO/SAE 21434:2021, Road vehicles, Cybersecurity engineering",
+      "edition": "2021",
+      "category": "Qualité et sûreté sectorielles",
+      "kind": "norme",
+      "brains": [
+        "security",
+        "engineering"
+      ],
+      "summary": "Définit des exigences d'ingénierie de la cybersécurité pour les systèmes électriques et électroniques des véhicules routiers, de la conception à la fin de vie.",
+      "applies_when": "Pour des équipes qui développent ou modifient des systèmes de véhicules routiers ; norme payante qu'un constructeur ou un client peut demander comme preuve de processus ; le règlement ONU n° 155 ne la cite que comme exemple dans une note.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/standard/70918.html",
+          "checked": "2026-11-25",
+          "title": "ISO — ISO/SAE 21434:2021 Road vehicles, Cybersecurity engineering"
+        }
+      ]
+    },
+    {
+      "id": "iso-24089",
+      "title": "ISO 24089:2023",
+      "title_en": "ISO 24089:2023, Road vehicles, Software update engineering",
+      "edition": "2023",
+      "category": "Qualité et sûreté sectorielles",
+      "kind": "norme",
+      "brains": [
+        "engineering",
+        "security"
+      ],
+      "summary": "Fixe des exigences et des recommandations d'ingénierie des mises à jour logicielles des véhicules routiers, au niveau de l'organisation et du projet.",
+      "applies_when": "Pour des constructeurs, fournisseurs et partenaires qui préparent et déploient des paquets de mises à jour d'un véhicule ; norme payante distincte du règlement ONU n° 156 : elle ne dit pas qu'un type de véhicule est approuvé.",
+      "sources": [
+        {
+          "url": "https://committee.iso.org/standard/77796.html",
+          "checked": "2026-11-25",
+          "title": "ISO — ISO 24089:2023 Road vehicles, Software update engineering"
+        }
+      ]
+    },
+    {
       "id": "do-178c",
       "title": "RTCA DO-178C",
       "category": "Qualité et sûreté sectorielles",

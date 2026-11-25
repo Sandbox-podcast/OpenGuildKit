@@ -47,6 +47,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit task verify` keeps the pack answers of a result, whatever machine checks the packs carry: only a report that answers a pack's rules one by one replaces its pack answer.
 - `openguildkit task checks` shows the answer of a rule that a whole-pack answer covers, in the text and in `--json`, instead of "not reported".
 - `openguildkit task list --since` and `--until` refuse a value that is not a real day written YYYY-MM-DD, instead of listing nothing or everything.
+- New sector `automotive`, which preselects the new regulation patterns `unece-r155-vehicle-cybersecurity` and `unece-r156-software-updates` and their packs `unece-r155` 1.0.0 (14 rules: the cyber security management system, risk assessment, mitigations and tests, monitoring and the annual report, suppliers) and `unece-r156` 1.0.0 (15 rules: software versions and RXSWIN, impact on type approval, secure delivery, over-the-air updates). The rules say whether they concern the vehicle manufacturer or a supplier, and the sector asks first what the organization is, whether the market applies UN Regulation No 156 (Regulation (EU) 2019/2144 lists No 155 only) and whether the Cyber Resilience Act applies to software outside the vehicle (it leaves out products covered by that regulation). New references `unece-r155`, `unece-r156`, `iso-sae-21434` and `iso-24089`: the two paid standards link the publisher's page and no rule quotes them.
 
 ## 0.17.0
 

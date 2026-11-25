@@ -11,6 +11,7 @@ from unittest.mock import patch
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _interactive_init, main
 from openguildkit.patterns import recommend_patterns
+from openguildkit.references import load_references
 from openguildkit.project import (
     init_questions,
     profile_recommendations,
@@ -311,6 +312,14 @@ class AutomotiveSectorTests(unittest.TestCase):
             for rule in self.catalog["packs"][pack_id]["rules"]:
                 with self.subTest(pack=pack_id, rule=rule["id"]):
                     self.assertNotRegex(f"{rule['instruction']} {rule['verification']}", r"\bISO\b|\bSAE\b|\bIEC\b")
+        references = {reference["id"]: reference for family in load_references().values()
+                      for reference in family["references"]}
+        for reference_id, edition in (("iso-sae-21434", "2021"), ("iso-24089", "2023")):
+            with self.subTest(reference=reference_id):
+                self.assertEqual(references[reference_id]["kind"], "norme")
+                self.assertEqual(references[reference_id]["edition"], edition)
+                self.assertNotIn("packs", references[reference_id])
+                self.assertTrue(all("iso.org" in source["url"] for source in references[reference_id]["sources"]))
 
     def test_vehicle_packs_say_who_a_rule_concerns_cite_the_text_and_claim_no_compliance(self):
         for pack_id in VEHICLE_PACKS:

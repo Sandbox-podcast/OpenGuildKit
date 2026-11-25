@@ -501,6 +501,16 @@
       "checked": null,
       "status": "from-catalog"
     },
+    "iso-24089": {
+      "family": "governance",
+      "edition": "2023",
+      "page": "https://committee.iso.org/standard/77796.html",
+      "seen": "2023",
+      "seen_on": "2026-11-25",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
     "iso-24495-1": {
       "family": "docs",
       "edition": "2023",
@@ -817,6 +827,16 @@
       "page": "https://www.iso.org/standard/74393.html",
       "seen": "2022",
       "seen_on": "2026-11-20",
+      "seen_in": "catalog",
+      "checked": null,
+      "status": "from-catalog"
+    },
+    "iso-sae-21434": {
+      "family": "governance",
+      "edition": "2021",
+      "page": "https://committee.iso.org/standard/70918.html",
+      "seen": "2021",
+      "seen_on": "2026-11-25",
       "seen_in": "catalog",
       "checked": null,
       "status": "from-catalog"
