@@ -407,6 +407,55 @@ One file per task means two people never edit the same record. When a pull bring
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds. For a task that exists here only as an exported record, it prints that record and says so on stderr. `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.
 
+## Retrospective
+
+```bash
+openguildkit task retro request-status       # what one closed task set aside, left open or waived
+openguildkit task retro --all                # what comes back in the project's closed tasks, with the profile command a person could type
+openguildkit task retro --all --min 2 --json # a lower minimum, for a program
+```
+
+A retrospective reads and counts; it records nothing. It writes no file and changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
+
+### What it reads
+
+- The task records in `.openguildkit/tasks/` whose status is `done` or `done-with-reservations`. An unreadable record is left out and counted: `task list` names it.
+- The exported decision records in `.openguildkit/decisions/` of closed tasks that have no task record here (a teammate's tasks, or a deleted `tasks/` folder). A record counts only if it says the task was completed and its `record_sha256` holds; one that does not is left out and counted, and `check` names it. A task with both a task record and an exported record counts once, by its task record.
+
+No field that holds a person is printed: not the approver, the person who closed the task, the owners of the rules set aside, nor who waived a blocker, and the name in parentheses at the end of a line of the closing is taken out. The `task list` of the same project shows the approver and the closer, so the retrospective reveals no name that it did not already. What people typed in a reason, a finding or a reservation is copied as recorded: a name typed there is printed.
+
+### One task
+
+`task retro ID` gives four lists. Text is short, one line for each group of findings, and `--json` gives each rule, committee, reservation and waiver.
+
+| List | What it holds | Where it comes from |
+|---|---|---|
+| Rules not applied | The rules and named evidence the result declared `skipped` or `not-applicable`, with the reason recorded; those that `failed`, with the evidence given; a pack declared as a whole; then the packs and evidence the task was not asked, with the reason `relevance.py` gave | `result.checks`, `result.packs` and `result.closing.not_concerned`. An exported record keeps the reason of a rule set aside but only the status of a rule that failed |
+| Committees | The boards convened whose verdict was `proceed`, with no blocker, that neither raised nor received an objection | `consultation.boards`, `review` and the objections that `task respond` recorded or, when it never ran, those the review gives, as `task challenge` shows them |
+| Open reservations | The open points of the closing, as it wrote them, most serious first (the skipped and failed rules are only counted: the first list gives them) | `result.closing.open_points` |
+| Blockers waived | Each blocker covered by a waiver rather than cleared: its board, finding, reason, scope and end date | `blocker_resolutions` and `verification_blocker_resolutions`, or `blockers` of an exported record |
+
+Two limits. A rule has no waiver in OpenGuildKit, since a waiver covers a blocker (fourth list), so the first list holds the rules a person set aside or that failed. And a committee is listed only when it said `proceed` and nothing else: one that asked for changes, said it lacked evidence, blocked, or whose advice another board objected to is not, because each did something. The list says nothing about the value of a recommendation's text, only that the committee raised no blocker or objection. An exported record keeps each board's verdict but not the objections between boards, so for a task known only by its record the output says that the committees are not in it, and the full record where the task was closed gives them.
+
+The proposal behind this command also listed the questions that had no effect on routing. That list is not offered: a task record keeps the answers and the reasons each board was selected, never which answer led to which board, and nothing records what routing would have done with another answer. Computing it again would use today's catalog, not the one the task was consulted under, and would say what no record says.
+
+### The project
+
+`task retro --all` counts what comes back in at least `--min N` closed tasks (3 by default). A finding counts once per task, so the number is a number of tasks, not of occurrences. Three, the number the proposal named, because a repeat in two tasks is often one team's habit twice in a row, and the minimum is there to lower: `--min 1` lists everything a closed task set aside.
+
+| Finding | Counted as | Profile command written for it |
+|---|---|---|
+| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. None for one rule: no profile command declines a single rule |
+| A rule that failed | The same rule, whatever the evidence | `profile add required-rule PACK/RULE`, or `PACK` for a pack that failed as a whole |
+| A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
+| A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
+
+A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by NAME` and `--reason WHY` are the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
+
+A recurrence is a question for the team, not a verdict: a rule skipped three times for one reason may be a rule the project does not need, or a habit worth changing. The declines already in the profile are not counted, since they stand for every task consulted after them.
+
+If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
+
 ## Exit codes
 
 | Code | Meaning |

@@ -629,6 +629,12 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(summary["recurrences"], [])
         self.assertIn("--min 2", "\n".join(render_project(summary)))
 
+    def test_a_minimum_of_one_with_nothing_set_aside_says_there_is_nothing_to_count(self):
+        profile, catalog = profile_and_catalog()
+        text = "\n".join(render_project(project_summary([facts_of_task(closed("t1"))], 1, profile, catalog, {})))
+        self.assertIn("Nothing to count", text)
+        self.assertNotIn("lower minimum", text)
+
     def test_no_closed_task_is_said_with_the_command_that_lists_the_tasks(self):
         profile, catalog = profile_and_catalog()
         text = "\n".join(render_project(project_summary([], 3, profile, catalog, {})))

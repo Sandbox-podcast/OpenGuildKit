@@ -303,9 +303,8 @@ def _candidates(item: dict, profile: dict, catalog: dict):
         yield "remove", "check", item["check_command"], None
 
 
-def _proposal(item: dict, profile: dict, catalog: dict) -> dict:
-    """The first command the profile accepts whose effect is the one wanted, or none."""
-    before = set(resolved_profile(profile, catalog)["packs"])
+def _proposal(item: dict, profile: dict, catalog: dict, before: set[str]) -> dict:
+    """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force."""
     for action, field, value, pack in _candidates(item, profile, catalog):
         try:
             updated, weakens = check_proposal(profile, catalog, action, field, value)
@@ -326,7 +325,8 @@ def _proposal(item: dict, profile: dict, catalog: dict) -> dict:
 def proposals(found: list[dict], profile: dict, catalog: dict) -> list[dict]:
     """Each finding with the profile command that answers it, written and never run, or without one when the profile
     accepts none: a command is given only if the profile takes it and it does what the finding asks."""
-    return [{**item, **_proposal(item, profile, catalog)} for item in found]
+    before = set(resolved_profile(profile, catalog)["packs"])
+    return [{**item, **_proposal(item, profile, catalog, before)} for item in found]
 
 
 def project_summary(all_facts: list[dict], minimum: int, profile: dict, catalog: dict, ignored: dict) -> dict:
@@ -501,10 +501,12 @@ def render_project(summary: dict) -> list[str]:
              f"{_plural(tasks['from_exported_records'], 'exported record')}). A finding counts once per task and is "
              f"shown when it comes back in at least {minimum} (--min N changes that). It writes nothing.", *notes]
     found = summary["recurrences"]
+    if not found and minimum == 1:
+        return [*lines, "Nothing to count: no closed task set a rule aside, left a reservation open or had a committee "
+                        "that brought nothing."]
     if not found:
-        lower = max(minimum - 1, 1)
-        return [*lines, f"Nothing comes back in {minimum} tasks or more." + (
-            f" Try a lower minimum: openguildkit task retro --all --min {lower}." if minimum > 1 else "")]
+        return [*lines, f"Nothing comes back in {minimum} tasks or more. Try a lower minimum: openguildkit task retro "
+                        f"--all --min {minimum - 1}."]
     rules = _rule_findings([item for item in found if item["kind"] == "rule"])
     committees = [[f"  {item['board']}: no blocker or objection in {item['count']} of the {item['convened_in']} "
                    f"task{'' if item['convened_in'] == 1 else 's'} where it was convened ({_ids(item['tasks'])})",
@@ -516,6 +518,5 @@ def render_project(summary: dict) -> list[str]:
     lines.append("None of these commands was run. A command that lowers a protection is the person's decision, typed "
                  "at an interactive terminal; --by and --reason are theirs to fill in."
                  if any(item["command"] for item in found) else
-                 "No profile command answers these findings: the profile has none that declines one rule or settles "
-                 "a reservation.")
+                 "No profile command answers these findings as the profile stands.")
     return lines

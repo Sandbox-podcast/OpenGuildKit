@@ -772,6 +772,7 @@
         "render_project"
       ],
       "tests": [
+        "tests/e2e/test_task_retro.py",
         "tests/test_retro.py"
       ],
       "doc": "docs/workflow.md"
@@ -1056,7 +1057,9 @@
         "run"
       ],
       "tests": [
-        "tests/test_architecture.py"
+        "tests/e2e/test_task_retro.py",
+        "tests/test_architecture.py",
+        "tests/test_next_steps.py"
       ],
       "doc": "docs/architecture.md"
     },

@@ -31,7 +31,7 @@ ARGUMENTS = {
     "revoke": ["--by", "A", "--reason", "r"], "handoff": [], "decision-payload": ["--by", "A", "--reason", "r"],
     "show": [], "checks": [], "verify": [], "result": ["--template"], "complete": [], "runs": [], "alerts": [],
     "export": [], "authorize": ["--action", "other", "--target", "example.test", "--deny", "--by", "A", "--reason", "r"],
-    "consult": ["--answers", "answers.json"],
+    "retro": [], "consult": ["--answers", "answers.json"],
 }
 # The commands that can run on a task in each status.
 RUNS_IN = {"draft": {"questions", "route", "consult"}, "consulting": {"pass", "submit", "progress", "review", "consult"}}

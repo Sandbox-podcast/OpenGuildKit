@@ -190,6 +190,9 @@ EXAMPLES = [
     Example("resulted", "task complete request-status --by CM", typed=TASK),
     Example("done", "task show request-status --closing"),
     Example("done", "task export request-status"),
+    # The retrospective of one task, and of the project once the same findings come back in several tasks.
+    Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
+    Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
 ]
 
 # What no example runs, with the reason.
@@ -326,7 +329,7 @@ class Projects:
         "briefed": ("approved", "draft_deliverable"), "shared": ("briefed", "share_deliverable"),
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
-        "done": ("resulted", "complete"),
+        "done": ("resulted", "complete"), "recurring": ("done", "close_more"),
     }
     NEEDS_GIT = {"git", "ci"}
 
@@ -455,8 +458,8 @@ class Projects:
         write_json(root / "review.json", review)
         write_json(root / "security.json", next(entry for entry in review["boards"] if entry["id"] == "security"))
 
-    def example_review(self, root: Path) -> dict:
-        template = json.loads(run_cli(root, "task", "template", TASK).stdout)
+    def example_review(self, root: Path, task_id: str = TASK) -> dict:
+        template = json.loads(run_cli(root, "task", "template", task_id).stdout)
         return {"consultation_id": template["consultation_id"],
                 **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
 
@@ -516,6 +519,29 @@ class Projects:
         run_cli(root, "task", "result", TASK, "--file", root / "result.json")
 
     def complete(self, root): run_cli(root, "task", "complete", TASK, "--by", "CM", typed=TASK)
+
+    def close_more(self, root: Path) -> None:
+        """Three more closed tasks that skip one rule for the same reason and fail another, so that the retrospective of
+        the project has findings to print: the rules the task asks are passed but those two."""
+        for task_id in ("second", "third", "fourth"):
+            run_cli(root, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
+            run_cli(root, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
+            write_json(root / "review.json", self.example_review(root, task_id))
+            run_cli(root, "task", "review", task_id, "--file", root / "review.json")
+            run_cli(root, "task", "decide", task_id, "--approve", "--by", "Camille", "--reason", "Agreed", typed=task_id)
+            run_cli(root, "task", "verify", task_id)
+            outcomes = {"rule:react/reuse-ui-components": {"status": "skipped", "reason": "Handled by the platform team.",
+                                                           "owner": "CM"},
+                        "rule:typescript/strict-type-checking": {"status": "failed", "evidence": "tsc reports errors."}}
+            checks = [{"check": check["id"], **outcomes.get(check["id"], {"status": "passed", "evidence": "Reviewed."})}
+                      for check in json.loads(run_cli(root, "task", "checks", task_id, "--json").stdout)
+                      if check["kind"] == "rule"]
+            write_json(root / "result.json", {
+                "pull_request": "https://github.com/example/portal/pull/7", "checks": checks,
+                "criteria": [{"criterion": "Users only see their own requests.", "status": "met",
+                              "evidence": "tests/test_access.py"}]})
+            run_cli(root, "task", "result", task_id, "--file", root / "result.json")
+            run_cli(root, "task", "complete", task_id, "--by", "CM", typed=task_id)
 
 
 def substituted(value, values):

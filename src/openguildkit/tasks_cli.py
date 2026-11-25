@@ -17,7 +17,7 @@ from .catalog import board_replacements
 from .consultation import board_brief, pack_rules
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
-    ignored_by_git, payload_text, reconsult_command, verify_signature,
+    ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
 )
 from .guard import export_decision, export_withdrawal, exported_decisions, record_of_another_task, untracked_files
 from .hosts import host_controls
@@ -28,6 +28,9 @@ from .project import STATE_DIR, WORK_DIR, Fingerprints, load_profile, task_scope
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
+from .retro import (
+    DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
+)
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
@@ -106,6 +109,16 @@ def add_parser(commands) -> None:
     listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
+    retro = actions.add_parser("retro", help="Read what a closed task, or every closed task, left to learn: rules set "
+                                             "aside, committees that said nothing, reservations, waived blockers. "
+                                             "It writes nothing.")
+    retro.add_argument("id", nargs="?", help="Task ID of a closed task, or none with --all.")
+    retro.add_argument("--all", action="store_true",
+                       help="Count what comes back in the project's closed tasks, with the profile command a person "
+                            "could type for some of it.")
+    retro.add_argument("--min", type=int, dest="minimum", metavar="N",
+                       help=f"With --all, in how many closed tasks a finding must come back (default {DEFAULT_MINIMUM}).")
+    retro.add_argument("--json", action="store_true", help="Print the retrospective as JSON.")
     for action, description in ACTION_HELP.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
@@ -1397,12 +1410,89 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
                 print(f"    note: {row['note']}")
 
 
+def _retro_record(root: Path, state: Path, task_id: str) -> dict:
+    """The facts of a closed task known here only by its exported record, or why the record cannot be read."""
+    path = state / DECISIONS_DIR / f"{task_id}.json"
+    record = read_json(path)
+    where = path.relative_to(root).as_posix()
+    if not isinstance(record, dict) or record.get("record_sha256") != record_digest(record):
+        raise ValueError(f"The exported record {where} does not match its digest: it was changed after it was "
+                         "exported. Restore it from git, or run openguildkit check to see what it reports.")
+    try:
+        return facts_of_record(record)
+    except ValueError:
+        raise ValueError(f"The exported record {where} was written before task {task_id} was completed, so it has no "
+                         "closing to read. Look at it with openguildkit task list --decisions; once the task is "
+                         f"closed, openguildkit task export {task_id} writes it.") from None
+
+
+def _closed_facts(state: Path) -> tuple[list[dict], dict]:
+    """The facts of every closed task of the project, the task records first and the exported records of the others,
+    and how many records were left out. A task record read here is the one its exported record repeats."""
+    facts, held, ignored = [], set(), {"unreadable_task_records": 0, "exported_records_not_holding": 0}
+    for path in sorted((state / "tasks").glob("*.json")):
+        try:
+            task = read_task(state, path.stem)
+        except ValueError:
+            ignored["unreadable_task_records"] += 1
+            continue
+        held.add((task["id"], task["created_at"]))
+        if task["status"] in DONE_STATUSES:
+            facts.append(facts_of_task(task))
+    for _, record in exported_records(state):
+        if record is None:
+            ignored["exported_records_not_holding"] += 1
+        elif record.get("completed") is True and record.get("status") in DONE_STATUSES:
+            if record.get("record_sha256") != record_digest(record):
+                ignored["exported_records_not_holding"] += 1
+            elif (record["task"], record.get("task_created_at") or "") not in held:
+                facts.append(facts_of_record(record))
+    return facts, ignored
+
+
+def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+    """The retrospective of one closed task, or with --all of the project: read from the records, never written."""
+    if bool(args.id) == args.all:
+        raise ValueError("Name the closed task to read, openguildkit task retro ID, or count the whole project with "
+                         "openguildkit task retro --all (task retro ID reads one task and --all counts them all)."
+                         if not args.id else
+                         "task retro ID reads one task and --all counts the project: give one of them.")
+    if args.minimum is not None and not args.all:
+        raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+    minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
+    if minimum < 1:
+        raise ValueError("--min counts tasks: give a number of 1 or more.")
+    if args.all:
+        facts, ignored = _closed_facts(state)
+        summary = project_summary(facts, minimum, profile, catalog, ignored)
+        if args.json:
+            print_json(summary)
+        else:
+            print("\n".join(render_project(summary)))
+        return
+    if task_path(state, args.id).is_file():
+        task = read_task(state, args.id)
+        if task["status"] not in DONE_STATUSES:
+            # Said without judging the approval, which would ask Git: the retrospective starts no process.
+            raise ValueError(state_refusal(task, "Only a closed task has a retrospective."))
+        facts = facts_of_task(task)
+    elif (state / DECISIONS_DIR / f"{args.id}.json").is_file():
+        facts = _retro_record(root, state, args.id)
+    else:
+        read_task(state, args.id)  # says the task is unknown, with the closest ID and the command that lists them
+    retro = task_retro(facts)
+    if args.json:
+        print_json(retro)
+    else:
+        print("\n".join(render_task(retro)))
+
+
 def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The task record as JSON, or only the open points its closing left."""
     print_json(_closing_points(task, args.id) if args.closing else task)
 
 
-# What runs each action on an existing task. new and list come before the task is read.
+# What runs each action on an existing task. new, list and retro come before the task is read.
 HANDLERS = {
     "show": _show, "questions": _questions, "brief": _brief, "template": _template, "blockers": _blockers,
     "clear": _resolve, "waive": _resolve, "checks": _checks, "verify": _outcome, "result": _outcome,
@@ -1431,6 +1521,8 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
         return _new(args, root, state, profile, catalog)
     if action == "list":
         return _list(args, root, state, profile, catalog)
+    if action == "retro":
+        return _retro(args, root, state, profile, catalog)
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
