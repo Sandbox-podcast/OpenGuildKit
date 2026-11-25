@@ -14,10 +14,10 @@ from datetime import date
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
-from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 from . import clock
-from .publishing import load_shares, portal_space, share_space
+from .publishing import _loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 
 
@@ -140,6 +140,18 @@ def _rows(shares: list[dict], space: str, invited: list[str] | None, expirations
     return result
 
 
+def _opener(origin: str):
+    """Open Documentalist directly when it runs on this machine.
+
+    build_opener otherwise installs the environment proxy. http is accepted only for an instance on
+    this machine because that traffic stays here; a proxy would receive the account password in clear.
+    """
+    handlers = [_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar())]
+    if _loopback(urlsplit(origin).hostname or ""):
+        handlers.append(ProxyHandler({}))
+    return build_opener(*handlers)
+
+
 def verify_portal(state: Path, portal: str, user: str) -> dict:
     origin, space, slug = _origin(portal)
     shares = load_shares(state)
@@ -148,7 +160,7 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     if not sys.stdin.isatty():
         raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
-    opener = build_opener(_NoRedirect(), HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    opener = _opener(origin)
     logged_in = False
     source, problem, invited, expirations, no_end_dates = "local-register", None, None, None, False
     try:
