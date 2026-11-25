@@ -599,6 +599,65 @@
       ]
     },
     {
+      "id": "unece-r155",
+      "title": "Règlement ONU n° 155 (cybersécurité des véhicules)",
+      "title_en": "UN Regulation No 155, vehicle cyber security and cyber security management system",
+      "category": "Réglementations et exigences sectorielles",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "security"
+      ],
+      "summary": "Demande au constructeur un système de gestion de la cybersécurité et, pour chaque type de véhicule, une évaluation des risques, des mesures, des essais, une surveillance et un rapport annuel à l'autorité d'homologation.",
+      "applies_when": "Pour un type de véhicule soumis à l'homologation de l'UE (règlement (UE) 2019/2144) ou d'une autre partie contractante ; l'homologation et le certificat sont ceux du constructeur, un fournisseur y répond par contrat ; un logiciel hors du véhicule n'entre pas dans ce texte.",
+      "pattern": "unece-r155-vehicle-cybersecurity",
+      "packs": [
+        "unece-r155"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+          "checked": "2026-11-25",
+          "title": "Règlement ONU n° 155 — texte consolidé jusqu'au Supplément 3 (JO 2025/5)"
+        },
+        {
+          "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-155.en.xml",
+          "checked": "2026-11-25",
+          "title": "Nations unies, Recueil des traités — Règlement ONU n° 155"
+        }
+      ]
+    },
+    {
+      "id": "unece-r156",
+      "title": "Règlement ONU n° 156 (mises à jour logicielles des véhicules)",
+      "title_en": "UN Regulation No 156, vehicle software update and software update management system",
+      "category": "Réglementations et exigences sectorielles",
+      "kind": "réglementation",
+      "brains": [
+        "legal",
+        "engineering",
+        "qa"
+      ],
+      "summary": "Demande au constructeur un système de gestion des mises à jour logicielles : identification des versions, évaluation de l'effet sur l'homologation, protection de la livraison et, pour les mises à jour à distance, exécution sûre et information du conducteur.",
+      "applies_when": "Pour un type de véhicule approuvé par une autorité qui applique ce règlement ; le règlement (UE) 2019/2144 ne le liste pas dans sa version consolidée du 2 août 2026, il faut donc demander quelle autorité l'exige ; le texte d'origine a été modifié depuis (Recueil des traités).",
+      "pattern": "unece-r156-software-updates",
+      "packs": [
+        "unece-r156"
+      ],
+      "sources": [
+        {
+          "url": "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+          "checked": "2026-11-25",
+          "title": "Règlement ONU n° 156 — texte d'origine (JO 2021/388)"
+        },
+        {
+          "url": "https://treaties.un.org/doc/Publication/MTDSG/Volume%20I/Chapter%20XI/XI-B-16-156.en.xml",
+          "checked": "2026-11-25",
+          "title": "Nations unies, Recueil des traités — Règlement ONU n° 156"
+        }
+      ]
+    },
+    {
       "id": "eidas",
       "title": "eIDAS et cadre européen d'identité numérique",
       "title_en": "eIDAS and the European Digital Identity Framework",

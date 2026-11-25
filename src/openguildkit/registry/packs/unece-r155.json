@@ -1,0 +1,114 @@
+{
+  "id": "unece-r155",
+  "title": "UN Regulation No 155, vehicle cybersecurity",
+  "version": "1.0.0",
+  "description": "Questions for the legal, cyber security, privacy and type-approval owners and repository checks for road vehicle software under UN Regulation No 155, which Regulation (EU) 2019/2144 cites in Annex II row D4 for the EU type-approval of categories M, N and O (refusal to grant type-approval from 6 July 2022, prohibition of registration from 7 July 2024) and which other contracting parties of the 1958 Agreement can apply. Written from the text of the Official Journal, consolidated up to Supplement 3 (2025/5) and original (2021/387): the application for approval and the Certificate of Compliance for the cyber security management system (CSMS) are the vehicle manufacturer's (paragraphs 3.1, 3.2.3 and 6); a supplier answers to the manufacturer, which must manage supplier-related risks and dependencies (paragraphs 7.2.2.5 and 7.3.2), so a rule that begins \"When the organization is the vehicle manufacturer\" or \"When the organization is the supplier\" says whom it concerns, and the others concern the team that develops the change. It does not cover software outside the vehicle, and the Cyber Resilience Act does not apply to products covered by Regulation (EU) 2019/2144 (Art. 2(2)(c)). The rules of threat-modeling, vendor-due-diligence and incident-response overlap what it asks of the risk assessment, the suppliers and the monitoring: it adds the paragraphs of the Regulation. A supplement can change the text: read the current one. These rules do not establish compliance.",
+  "sources": [
+    {
+      "title": "UN Regulation No 155, cyber security and cyber security management system, consolidated text up to Supplement 3 (OJ 2025/5)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "UN Regulation No 155, cyber security and cyber security management system, original text (OJ 2021/387)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/387/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2019/2144 on type-approval requirements for motor vehicles, consolidated text of 2 August 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    }
+  ],
+  "rules": [
+    {
+      "id": "confirm-r155-role",
+      "instruction": "Ask the legal owner whether the organization is the vehicle manufacturer that applies for the cyber security approval of the vehicle type and holds the Certificate of Compliance for the CSMS (paragraphs 3.1, 3.2.3 and 6), or a supplier of a system, component or software that a manufacturer integrates, and record which duties each side holds.",
+      "verification": "Link the recorded answer, with the manufacturer's name and the vehicle types concerned, from the change.",
+      "manual": "The role in the approval is a legal and contractual assessment."
+    },
+    {
+      "id": "notify-type-modification",
+      "instruction": "When the change affects the technical performance of a vehicle type with respect to cyber security, or the documentation the Regulation requires, ask the type-approval owner to notify the approval authority that approved the type (paragraph 8.1).",
+      "verification": "Link the notification and the authority's answer, or the owner's recorded reason it is not needed, from the change.",
+      "manual": "The notification goes from the manufacturer to the approval authority and lives outside the repository."
+    },
+    {
+      "id": "keep-csms-certificate",
+      "instruction": "When the organization is the vehicle manufacturer, ask the cyber security owner for the Certificate of Compliance for the CSMS that covers the vehicle type, which stays valid for three years at most (paragraph 6.7), and record its expiry date: its expiry or withdrawal counts as a modification of the approval (paragraph 6.11).",
+      "verification": "Link the reference and the expiry date of the certificate from the change.",
+      "manual": "An approval authority issues the certificate to the manufacturer and it is kept outside the repository."
+    },
+    {
+      "id": "update-risk-assessment",
+      "instruction": "When the change adds or alters an element of the vehicle type, an interface or a connection to an external system, update the risk assessment of the vehicle type: identify the critical elements, consider every threat of Annex 5 Part A and any other relevant threat, and treat each identified risk (paragraphs 7.2.2.2 (b), (c) and (f), and 7.3.3).",
+      "verification": "Open the updated risk assessment and find, for the changed element, each threat of Annex 5 Part A with its categorisation and its treatment.",
+      "manual": "The risk assessment is a document that the engineers and the cyber security owner judge together."
+    },
+    {
+      "id": "apply-mitigations",
+      "instruction": "For each risk the assessment treats, implement the proportionate mitigations of Annex 5 Parts B and C that are relevant, or another appropriate mitigation with the reason the listed one is not relevant or not sufficient (paragraph 7.3.4).",
+      "verification": "Check in the risk assessment that each treated risk names its mitigation and the code or the test that implements it.",
+      "manual": "Whether a mitigation is relevant and sufficient is an engineering judgement recorded in the risk assessment."
+    },
+    {
+      "id": "test-security-measures",
+      "instruction": "Add tests that verify the effectiveness of the security measures of the changed element, and run them before the type approval the change concerns (paragraph 7.3.6).",
+      "verification": "Run the tests and find their results linked from the risk assessment.",
+      "manual": "The effectiveness of a measure shows when the tests run on the elements of the vehicle type."
+    },
+    {
+      "id": "secure-aftermarket-environment",
+      "instruction": "When the vehicle type provides a dedicated environment for the storage and execution of aftermarket software, services, applications or data, put in place appropriate and proportionate measures to secure it (paragraph 7.3.5).",
+      "verification": "Open the risk assessment and find the dedicated environment with its measures and the tests that cover them.",
+      "manual": "The measures are judged in the risk assessment and shown in a test of the vehicle."
+    },
+    {
+      "id": "provide-detection-and-forensics",
+      "instruction": "Provide in the vehicle type the measures that detect and prevent cyber-attacks against vehicles of the type, that support the manufacturer's monitoring of threats, vulnerabilities and cyber-attacks, and that give the data forensic capability to analyse attempted or successful cyber-attacks (paragraph 7.3.7 (a), (b) and (c)).",
+      "verification": "Run the test that plays an attack scenario of the risk assessment and find the detection event and the forensic data it produces.",
+      "manual": "Detection and forensic data show only when an attack scenario runs on a vehicle or a representative bench."
+    },
+    {
+      "id": "run-monitoring-after-registration",
+      "instruction": "When the organization is the vehicle manufacturer, ask the cyber security owner for the process that monitors for, detects and responds to cyber-attacks, cyber threats and vulnerabilities on vehicles of the type, includes vehicles after their first registration, assesses whether the measures stay effective and keeps the risk assessment current, and for the timeframe in which a threat or vulnerability that requires a response is mitigated, which must be reasonable (paragraphs 7.2.2.2 (f) and (g), 7.2.2.3 and 7.2.2.4 (a)).",
+      "verification": "Open the process and find one recorded threat or vulnerability with its categorisation, its response and their dates.",
+      "manual": "Monitoring is an operating process kept outside the repository, and the paragraph gives no number for the timeframe."
+    },
+    {
+      "id": "limit-monitoring-data",
+      "instruction": "When the monitoring analyses vehicle data and logs, ask the privacy owner whether they identify an owner or a driver and on which ground, consent in particular, they are collected, and record it (paragraph 7.2.2.4 (b)).",
+      "verification": "Link the privacy owner's recorded answer and find the data fields the monitoring collects.",
+      "manual": "Privacy rights and the ground of a collection are a legal assessment."
+    },
+    {
+      "id": "report-monitoring-to-authority",
+      "instruction": "When the organization is the vehicle manufacturer, ask the cyber security owner who reports to the approval authority or the Technical Service, at least once a year or more frequently if relevant, the outcome of the monitoring including new cyber-attacks, and confirms that the mitigations stay effective (paragraph 7.4.1).",
+      "verification": "Link the latest report, or the dated plan of the next one.",
+      "manual": "The report goes from the manufacturer to the approval authority."
+    },
+    {
+      "id": "manage-supplier-dependencies",
+      "instruction": "When the organization is the vehicle manufacturer and the change uses software, a component or a service from a supplier, a service provider or one of its sub-organisations, list it as a dependency of the CSMS and as a supplier-related risk of the vehicle type, and ask for the cyber security information and test results that the risk assessment needs (paragraphs 7.2.2.5 and 7.3.2).",
+      "verification": "Open the list of dependencies and find, for the supplier, the information received and the risk of the assessment that it feeds.",
+      "manual": "Supplier information and contracts are kept outside the repository."
+    },
+    {
+      "id": "agree-supplier-obligations",
+      "instruction": "When the organization is the supplier of a system, component or software that a vehicle manufacturer integrates, ask the manufacturer which cyber security requirements, test evidence and monitoring information its CSMS and risk assessment need from the supplier (paragraphs 7.2.2.5 and 7.3.2), and record them in the contract or the interface agreement, with the confidentiality of the know-how that may be made available for checks (paragraph 3.2.2).",
+      "verification": "Link the clause of the contract or the interface agreement that lists them.",
+      "manual": "The obligations between manufacturer and supplier are agreed in a contract."
+    },
+    {
+      "id": "use-consensus-cryptography",
+      "instruction": "Make the changed element use cryptographic modules in line with consensus standards, and record the justification for each module that is not (paragraph 7.3.8).",
+      "verification": "Open the list of the cryptographic modules of the change and find, for each one, the standard it follows or the recorded justification.",
+      "manual": "Whether a module follows a consensus standard is judged on its documentation."
+    }
+  ]
+}

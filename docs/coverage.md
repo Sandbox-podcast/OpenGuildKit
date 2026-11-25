@@ -15,13 +15,13 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | design | 26 | 5 | 21 | 10 | 5 | 17 | 69 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 8 | 6 | 14 | 78 |
-| engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
+| engineering | 218 | 33 | 185 | 15 | 26 | 44 | 245 |
 | finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
 | frontend | 8 | 3 | 5 | 2 | 0 | 4 | 19 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 23 | 33 | 18 | 1 | 21 | 137 |
+| legal | 58 | 25 | 33 | 20 | 1 | 23 | 166 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 7 | 15 | 8 | 0 | 8 | 17 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 18 | 0 | 18 | 63 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 50 | 8 | 42 | 7 | 20 | 31 | 165 |
+| qa | 51 | 9 | 42 | 8 | 20 | 32 | 180 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 103 | 28 | 75 | 19 | 17 | 43 | 251 |
+| security | 104 | 29 | 75 | 20 | 17 | 44 | 265 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -74,6 +74,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 | Sector | Preselected patterns | Packs | Rules |
 |---|---|---|---:|
+| automotive | unece-r155-vehicle-cybersecurity, unece-r156-software-updates | unece-r155, unece-r156 | 29 |
 | critical-infrastructure | nis2-essential-entity | incident-notification, nis2 | 13 |
 | e-commerce | european-accessibility-act, online-consumer-sales | european-accessibility-act, online-consumer-sales, web-accessibility | 21 |
 | education | minors-data-protection | minors-data-protection | 7 |
@@ -86,7 +87,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-25 of 469 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 498 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -186,6 +187,8 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | test-strategy | 3 | 0 | 0 |
 | threat-modeling | 3 | 0 | 0 |
 | typescript | 4 | 1 | 0 |
+| unece-r155 | 14 | 0 | 14 |
+| unece-r156 | 15 | 0 | 15 |
 | user-research-practice | 2 | 0 | 0 |
 | vat-and-e-invoicing | 4 | 0 | 0 |
 | vendor-due-diligence | 5 | 0 | 0 |

@@ -1,0 +1,61 @@
+{
+  "id": "automotive",
+  "title": "Automotive",
+  "description": "Adapt reviews to vehicle manufacturers, to their tier 1 and tier 2 suppliers, and to the software that updates, maintains or manages road vehicles.",
+  "context": [
+    "Ask the legal owner what the organization is for each vehicle type it works on: the vehicle manufacturer that applies for the type-approval, a tier 1 supplier that sells a system, a component or software to a manufacturer, a tier 2 supplier of a tier 1, or the maker of software that stays outside the vehicle, such as fleet management or workshop and maintenance tools. UN Regulations No 155 and No 156 put the application for approval and the management systems on the vehicle manufacturer (paragraphs 3.1 and 7.2.2 of R155, paragraphs 3.1 and 7.1 of R156): a supplier meets them through the manufacturer's management of its dependencies and through its contract, so record which side holds each duty.",
+    "This sector preselects the unece-r155-vehicle-cybersecurity and unece-r156-software-updates patterns. Regulation (EU) 2019/2144 lists UN Regulation No 155 in Annex I for categories M, N and O and cites it in Annex II row D4, with refusal to grant EU type-approval from 6 July 2022 and prohibition of the registration of vehicles from 7 July 2024 (note B). Its consolidated text of 2 August 2026 does not list UN Regulation No 156, although recital 27 of Regulation (EU) 2024/2847 counts software updates among the cybersecurity requirements that Regulation (EU) 2019/2144 introduces: ask the type-approval owner whether the approval authority of each market served applies UN Regulation No 156 to the vehicle types concerned, and decline the unece-r156-software-updates pattern when none does.",
+    "Regulation (EU) 2024/2847 does not apply to products with digital elements to which Regulation (EU) 2019/2144 applies (Art. 2(2)(c); recital 27 names the type-approval of vehicles and of their systems and components), so this sector does not preselect cyber-resilience-act-product. For software that is not such a product, such as fleet management or workshop and maintenance tools, ask the legal owner whether it is a product with digital elements within Art. 3(1) and select the pattern when it is; paragraph 1.3 of R155 leaves other rules on replacement parts and components untouched.",
+    "For vehicles of category L, ask the type-approval owner to read Commission Delegated Regulation (EU) 2025/1455: it applies UN Regulation No 155 to categories L1e to L7e, except L1e vehicles designed to pedal, from 11 December 2027 for new vehicle types and 11 June 2029 for existing ones; the dates above are those of categories M, N and O.",
+    "Ask the security owner whether the organization manufactures motor vehicles, trailers or semi-trailers, an activity listed in NIS 2 Annex II point 5(e) (NACE Rev. 2 section C division 29), and whether the national law transposing Directive (EU) 2022/2555 makes it an essential or important entity; select the nis2-essential-entity pattern when it does. This sector does not preselect it, since the size of the entity and the national law decide.",
+    "Ask the privacy owner whether the vehicle data and logs that reach the manufacturer's monitoring identify an owner or a driver: paragraph 7.2.2.4(b) of R155 asks that the capability to analyse them respects the privacy rights of owners and drivers, particularly with respect to consent. Answer yes to the personal data question to preselect the gdpr-personal-data pattern.",
+    "Ask the quality owner which of ISO/SAE 21434 (cybersecurity engineering), ISO 24089 (software update engineering) and ISO 26262 (functional safety) the organization applies. They are paid standards: this catalog links the publisher's pages and reproduces nothing of them, and the vehicle patterns do not rely on their content. In the consolidated text of R155, ISO 26262 and ISO/SAE 21434 appear only as examples in a footnote to paragraph 5.3.1(a), on the knowledge of approval authority staff, and paragraph 7.1.2.1 of R156 asks the manufacturer to document the relevant standards it used; ISO 26262 concerns functional safety, which the vehicle patterns do not cover."
+  ],
+  "sources": [
+    {
+      "title": "Regulation (EU) 2019/2144 on type-approval requirements for motor vehicles, consolidated text of 2 August 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2019/2144/2026-08-02/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "UN Regulation No 155, cyber security and cyber security management system, consolidated text up to Supplement 3 (OJ 2025/5)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2025/5/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "UN Regulation No 156, software update and software update management system, original text (OJ 2021/388)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2021/388/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Regulation (EU) 2024/2847, Cyber Resilience Act",
+      "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R2847",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Commission Delegated Regulation (EU) 2025/1455, protection of L-category vehicles against cyberattacks",
+      "url": "https://eur-lex.europa.eu/eli/reg_del/2025/1455/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "Directive (EU) 2022/2555 (NIS 2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "ISO/SAE 21434:2021, Road vehicles, Cybersecurity engineering (ISO catalogue page)",
+      "url": "https://committee.iso.org/standard/70918.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "ISO 24089:2023, Road vehicles, Software update engineering (ISO catalogue page)",
+      "url": "https://committee.iso.org/standard/77796.html",
+      "checked": "2026-11-25"
+    },
+    {
+      "title": "ISO 26262-1:2018, Road vehicles, Functional safety, Part 1: Vocabulary (ISO catalogue page)",
+      "url": "https://committee.iso.org/standard/68383.html",
+      "checked": "2026-11-25"
+    }
+  ]
+}
