@@ -8,7 +8,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 
 | Brain | References | Applied | Documentary | Methods | Stack patterns | Packs | Rules |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| backend | 12 | 5 | 7 | 2 | 0 | 3 | 11 |
+| backend | 12 | 5 | 7 | 3 | 0 | 5 | 22 |
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | data | 63 | 11 | 52 | 6 | 1 | 8 | 41 |
@@ -16,12 +16,12 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 10 | 6 | 16 | 93 |
 | engineering | 217 | 32 | 185 | 14 | 26 | 43 | 230 |
-| finance | 23 | 14 | 9 | 11 | 1 | 13 | 50 |
+| finance | 23 | 14 | 9 | 12 | 1 | 14 | 57 |
 | frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
 | it-and-workplace | 7 | 5 | 2 | 1 | 0 | 2 | 8 |
 | leadership | 25 | 9 | 16 | 11 | 0 | 11 | 24 |
-| legal | 56 | 26 | 30 | 22 | 1 | 25 | 168 |
+| legal | 56 | 26 | 30 | 23 | 1 | 26 | 175 |
 | localisation | 10 | 4 | 6 | 1 | 0 | 1 | 5 |
 | marketing | 22 | 8 | 14 | 9 | 0 | 9 | 25 |
 | operations | 21 | 6 | 15 | 11 | 0 | 11 | 26 |
@@ -86,7 +86,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-25 of 500 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+25 of 507 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -122,6 +122,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
 | france-cookies-and-trackers | 8 | 0 | 8 |
+| france-e-invoicing | 7 | 0 | 7 |
 | france-health-data-hosting | 8 | 0 | 8 |
 | france-public-sector-security | 7 | 0 | 7 |
 | france-rgaa-accessibility | 8 | 0 | 8 |

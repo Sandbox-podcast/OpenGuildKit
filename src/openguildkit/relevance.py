@@ -86,7 +86,7 @@ SUBJECTS = {
         {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
     **{pack: ("money", _MONEY) for pack in (
-        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "financial-planning",
+        "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "france-e-invoicing", "financial-planning",
         "deal-approval")},
     "pci-dss": ("payment card data", [{"data": ["regulated"]}, {"concerns": ["money"], "mentions": ["card payments"]}]),
     **{pack: ("personal data", _PERSONAL) for pack in (
@@ -174,6 +174,8 @@ LEGAL_BASIS = {
     "france-public-sector-security": "regulated data, infrastructure, credentials, or personal data on a customer or "
                                      "service surface: Art. 3 and 4 of décret n° 2010-112 and Art. 4-3 of décret "
                                      "n° 2019-1088 hold a public authority to a risk analysis and a homologation.",
+    "france-e-invoicing": "money: the DGFiP e-invoicing and e-reporting reform of impots.gouv.fr covers the invoices "
+                          "and the transaction and payment data of businesses liable to French VAT.",
     "web-accessibility": "the user interface: WCAG 2.2, through EN 301 549, is the test of Directive (EU) 2016/2102 "
                          "and of the accessibility requirements a customer-facing screen meets.",
 }

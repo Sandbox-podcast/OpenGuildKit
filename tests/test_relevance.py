@@ -350,7 +350,7 @@ class SubjectTests(RelevanceCase):
         regulatory |= {"incident-notification", "notice-and-action", "pay-transparency", "iso-27001"}
         self.assertEqual(regulatory - set(LEGAL_BASIS), set())
         for pack, reason in LEGAL_BASIS.items():
-            self.assertRegex(reason, r"Art\. |Annex|PCI DSS|WCAG", pack)
+            self.assertRegex(reason, r"Art\. |Annex|PCI DSS|WCAG|impots\.gouv\.fr", pack)
 
 
 if __name__ == "__main__":
