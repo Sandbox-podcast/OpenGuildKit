@@ -336,9 +336,9 @@ class GuardTests(CapturedCli, unittest.TestCase):
     def test_ci_reports_a_malformed_record_without_a_traceback(self):
         self.branch_with_change(guard="enforce")
         self.commit_record("fake.json", {"task": "nothing", "profile_fingerprint": "f", "decision": "oops"})
-        _, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
-        self.assertTrue(error.startswith("OpenGuildKit: .openguildkit/decisions/fake.json is not a decision record"), error)
-        self.assertNotIn("Traceback", error)
+        output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertIn("  .openguildkit/decisions/fake.json is not a decision record", output)
+        self.assertEqual(error, "")
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):

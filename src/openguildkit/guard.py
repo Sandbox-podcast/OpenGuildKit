@@ -434,7 +434,8 @@ def _same_task(record: object, task: dict) -> bool:
     payload = record.get("decision", {}).get("payload") if isinstance(record.get("decision"), dict) else None
     ids = {task.get("consultation", {}).get("id"), *(item.get("consultation", {}).get("id") for item in task["rounds"])}
     ids.discard(None)
-    return isinstance(payload, dict) and payload.get("consultation_id") in ids
+    consultation = payload.get("consultation_id") if isinstance(payload, dict) else None
+    return isinstance(consultation, str) and consultation in ids
 
 
 def record_of_another_task(state: Path, task: dict) -> Path | None:
@@ -506,6 +507,12 @@ def _record_shape(record: dict, relative: str) -> None:
         problem = "decision.seal, decision.by and decision.reason must be text"
     elif not isinstance(decision.get("payload", {}), dict):
         problem = "decision.payload must be an object"
+    elif not isinstance(decision.get("payload", {}).get("consultation_id", ""), str):
+        problem = "decision.payload.consultation_id must be text"
+    elif isinstance(record.get("schema_version", 1), bool) or not isinstance(record.get("schema_version", 1), int):
+        problem = "schema_version must be a whole number"
+    elif "result" in record and not isinstance(record["result"], dict):
+        problem = "result must be an object"
     elif record.get("files") is not None and (not isinstance(record["files"], list)
                                               or not all(isinstance(item, str) for item in record["files"])):
         problem = "files must be a list of paths"
@@ -886,7 +893,8 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     (the project gitignore leaves .openguildkit/tasks/ out) cannot be re-hashed here: task complete checks
     it on the machine that still has the file.
     """
-    journals = (record.get("result") or {}).get("journals")
+    result = record.get("result")
+    journals = result.get("journals") if isinstance(result, dict) else None
     if not isinstance(journals, list):
         return None
     mismatched = []
@@ -947,8 +955,18 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                                 f"named after its task, and no record elsewhere covers a change. Move it to "
                                 f"{prefix}TASK.json or remove it.")
                 continue
-            record = read_json(path)
-            _record_shape(record, relative)
+            try:
+                record = read_json(path)
+            except (OSError, ValueError):
+                problems.append(conflict_message(path, relative) or (
+                    f"{relative} is not a decision record written by openguildkit task export. "
+                    "Export the decision again or remove the file."))
+                continue
+            try:
+                _record_shape(record, relative)
+            except ValueError as error:
+                problems.append(str(error))
+                continue
             problem = _record_problem(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
             # A waiver that expired opens its blocker again: the record no longer covers the change.
             problem = problem or expired_waiver_problem(record, relative)
