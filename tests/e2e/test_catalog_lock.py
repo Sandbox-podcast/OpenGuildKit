@@ -106,7 +106,7 @@ class CatalogLockTests(CliTestCase):
                     error = self.run_cli(*command, expect=1).stderr
                     self.assertTrue(error.startswith("OpenGuildKit: "), error)
                     self.assertIn("catalog.lock.json: packs/agent-workflow is not an object", error)
-                    self.assertIn("openguildkit update --apply", error)
+                    self.assertIn("Restore the file from Git, or delete it and run openguildkit update --apply", error)
                     self.assertNotIn("Traceback", error)
 
     def test_check_asks_for_update_when_the_lock_is_older_than_the_installed_catalog(self):

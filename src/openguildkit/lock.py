@@ -71,7 +71,8 @@ def _validated_lock(path: Path) -> dict:
             raise ValueError(f"Unknown collection {collection!r} in {path}.")
         for record_id, record in entries.items():
             if not isinstance(record, dict):
-                raise ValueError(f"{path}: {collection}/{record_id} is not an object. Run openguildkit update --apply.")
+                raise ValueError(f"{path}: {collection}/{record_id} is not an object. Restore the file from Git, or delete it and "
+                                 "run openguildkit update --apply, which locks the catalog installed on this machine.")
             try:
                 validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
             except CatalogError as error:
