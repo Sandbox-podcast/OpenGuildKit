@@ -29,6 +29,8 @@ STACKS = {
     "flutter": ["Dart 3.5", "Flutter 3.22"],
     "dbt": ["dbt >=1.10.0,<3.0.0"],
     "apache-airflow": ["Python 3.12", "Apache Airflow 3.4.0"],
+    "elixir-mix": ["Elixir ~> 1.18"],
+    "phoenix": ["Elixir ~> 1.18", "Phoenix ~> 1.8.1"],
     "gitlab-ci-security": ["AWS", "GitLab CI", "Docker"],
     "docker-images": ["AWS", "GitLab CI", "Docker"],
     "aws-iam": ["AWS", "GitLab CI", "Docker"],
@@ -38,7 +40,7 @@ PACKS = {
     "laravel": "laravel", "symfony": "symfony", "ios-swift": "ios-app", "android-kotlin": "android-app",
     "kotlin-ktor": "ktor-server", "rust-cargo": "rust-cargo", "svelte": "svelte", "sveltekit": "sveltekit",
     "react-native": "react-native", "expo": "expo", "flutter": "flutter", "dbt": "dbt",
-    "apache-airflow": "apache-airflow",
+    "apache-airflow": "apache-airflow", "elixir-mix": "elixir-mix", "phoenix": "phoenix",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
@@ -85,6 +87,9 @@ REPOSITORIES = {
     "flutter": {"pubspec.yaml": "name: shop\nenvironment:\n  sdk: ^3.5.0\ndependencies:\n  flutter:\n    sdk: flutter\n"},
     "dbt": {"dbt_project.yml": "name: shop\nrequire-dbt-version: \">=1.10.0,<3.0.0\"\n"},
     "apache-airflow": {"requirements.txt": "apache-airflow==3.4.0\n", "dags/orders.py": "from airflow.sdk import dag\n"},
+    "elixir-mix": {"mix.exs": 'def project, do: [app: :jobs, elixir: "~> 1.18"]\n'},
+    "phoenix": {"mix.exs": 'def project, do: [app: :shop, elixir: "~> 1.18"]\n'
+                           'defp deps, do: [{:phoenix, "~> 1.8.1"}]\n'},
     "ios-swift": {
         "Shop.xcodeproj/project.pbxproj": "{ buildSettings = { SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; }\n",
     },
@@ -183,7 +188,8 @@ class StackPatternTests(unittest.TestCase):
         }
         new_packs = {*PACKS.values(), *(pack for packs in EXTRA_PACKS.values() for pack in packs),
                      "mobile-accessibility", "mobile-store-release", "kotlin-service", "rust-dependencies"}
-        new_packs |= {"svelte", "sveltekit", "react-native", "expo", "flutter", "dbt", "apache-airflow"}
+        new_packs |= {"svelte", "sveltekit", "react-native", "expo", "flutter", "dbt", "apache-airflow",
+                      "elixir-mix", "phoenix"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -237,6 +243,15 @@ class StackPatternTests(unittest.TestCase):
         self.assertNotIn("apache-airflow", self.matched({"stack": ["dbt"]}))
         self.assertEqual(self.catalog["patterns"]["dbt"]["references"], ["dbt", "dbt-model-contracts"])
 
+    def test_elixir_and_phoenix_match_only_their_own_stack(self):
+        for stack in (["Erlang"], ["Ruby", "Rails"], ["Python", "Django"]):
+            with self.subTest(stack=stack):
+                self.assertFalse({"elixir-mix", "phoenix"} & self.matched({"stack": stack}))
+        self.assertNotIn("phoenix", self.matched({"stack": ["Elixir 1.18"]}))
+        # Phoenix stands for its platform: the Mix rules come with it.
+        profile = validate_profile({"name": "Shop", "stack": ["Phoenix 1.8"]}, self.catalog)
+        self.assertLessEqual({"phoenix", "elixir-mix"}, set(resolved_profile(profile, self.catalog)["packs"]))
+
     def test_framework_packs_reuse_the_generic_packs_instead_of_repeating_them(self):
         self.assertIn("python", self.catalog["packs"]["django"]["depends_on"])
         self.assertIn("typescript", self.catalog["packs"]["angular"]["depends_on"])
@@ -279,6 +294,7 @@ class StackDetectionTests(unittest.TestCase):
             "flutter": {"Dart ^3.5.0", "Flutter"},
             "dbt": {"dbt >=1.10.0,<3.0.0"},
             "apache-airflow": {"Python", "Apache Airflow 3.4.0"},
+            "phoenix": {"Elixir ~> 1.18", "Phoenix ~> 1.8.1"},
         }
         for pattern_id, expected in stacks.items():
             with self.subTest(pattern=pattern_id):

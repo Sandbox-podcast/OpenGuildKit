@@ -15,7 +15,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | design | 26 | 6 | 20 | 11 | 8 | 21 | 92 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 10 | 7 | 17 | 99 |
-| engineering | 221 | 42 | 179 | 15 | 37 | 58 | 331 |
+| engineering | 221 | 42 | 179 | 15 | 39 | 60 | 340 |
 | finance | 23 | 14 | 9 | 12 | 1 | 14 | 57 |
 | frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 51 | 10 | 41 | 10 | 29 | 47 | 269 |
+| qa | 51 | 10 | 41 | 10 | 31 | 49 | 278 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 106 | 31 | 75 | 24 | 25 | 61 | 383 |
+| security | 106 | 31 | 75 | 24 | 27 | 63 | 392 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -50,6 +50,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | django | django | django, python | 10 |
 | docker-images | docker / dockerfile / containerfile | container-images | 6 |
 | dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 8 |
+| elixir-mix | elixir | elixir-mix | 4 |
 | expo | expo | expo, react, react-native | 14 |
 | flutter | flutter | flutter, mobile-accessibility, mobile-store-release | 15 |
 | github-actions-ci | github actions / gh actions | github-actions-security | 5 |
@@ -63,6 +64,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | nextjs-react | next.js | nextjs, react | 11 |
 | node-express | express / express.js | api-design, express | 10 |
 | pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 14 |
+| phoenix | phoenix | elixir-mix, phoenix | 9 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
@@ -99,7 +101,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-51 of 651 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+57 of 660 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -132,6 +134,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | device-and-access-lifecycle | 4 | 0 | 0 |
 | django | 7 | 1 | 0 |
 | dora | 7 | 0 | 7 |
+| elixir-mix | 4 | 3 | 0 |
 | employee-offboarding | 4 | 0 | 0 |
 | enterprise-risk-review | 2 | 0 | 0 |
 | eu-ai-act | 8 | 0 | 8 |
@@ -184,6 +187,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | partner-program | 4 | 0 | 0 |
 | pay-transparency | 5 | 0 | 0 |
 | pci-dss | 14 | 1 | 13 |
+| phoenix | 5 | 3 | 0 |
 | playwright | 4 | 0 | 0 |
 | postgresql | 3 | 0 | 0 |
 | product-discovery | 1 | 0 | 0 |

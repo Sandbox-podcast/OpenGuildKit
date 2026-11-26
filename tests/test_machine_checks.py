@@ -148,6 +148,10 @@ class StackCheckTests(unittest.TestCase):
         "dbt": ("dbt_project.yml", "name: shop\nrequire-dbt-version: \">=1.10.0,<3.0.0\"\n", "name: shop\n"),
         "apache-airflow": ("tests/test_dags.py", "from airflow.dag_processing.dagbag import DagBag\n",
                            "def test_nothing():\n    pass\n"),
+        "elixir-mix": (".github/workflows/ci.yml", "      - run: mix format --check-formatted\n",
+                       "      - run: mix test\n"),
+        "phoenix": ("lib/shop_web/router.ex", "pipeline :browser do\n  plug :protect_from_forgery\nend\n",
+                    "pipeline :browser do\n  plug :fetch_session\nend\n"),
         "agentic-application-security": (".mcp.json", '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@1.4.2"]}}}',
                                          '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@latest"]}}}'),
     }

@@ -1,0 +1,88 @@
+{
+  "id": "phoenix",
+  "title": "Phoenix applications",
+  "version": "1.0.0",
+  "description": "For a Phoenix application: CSRF protection and secure browser headers in the browser pipeline, no user input through raw/1, parameterized Ecto fragments and secrets loaded at runtime; builds on the elixir-mix pack.",
+  "sources": [
+    {
+      "title": "Phoenix v1.8.17 guides, security",
+      "url": "https://phoenix.hexdocs.pm/security.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Phoenix v1.8.17, Phoenix.Controller: put_secure_browser_headers",
+      "url": "https://phoenix.hexdocs.pm/Phoenix.Controller.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Phoenix v1.8.17 guides, deployment",
+      "url": "https://phoenix.hexdocs.pm/deployment.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "depends_on": [
+    "elixir-mix"
+  ],
+  "rules": [
+    {
+      "id": "keep-csrf-protection",
+      "instruction": "Keep `plug :protect_from_forgery` in the router's `:browser` pipeline, as a new Phoenix project has it, and route every browser form through that pipeline.",
+      "verification": "task verify checks that a router names `protect_from_forgery`; also check that the routes the change adds for browser forms go through the `:browser` pipeline.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "lib/**/router.ex",
+          "*/lib/**/router.ex",
+          "apps/*/lib/**/router.ex"
+        ],
+        "contains": [
+          "protect_from_forgery"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "keep-secure-browser-headers",
+      "instruction": "Keep `plug :put_secure_browser_headers` in the `:browser` pipeline: unless already set, it sends a `content-security-policy` of `base-uri 'self'; frame-ancestors 'self';`, a `referrer-policy`, `x-content-type-options: nosniff` and `x-permitted-cross-domain-policies: none`.",
+      "verification": "task verify checks that a router names `put_secure_browser_headers`; also check the headers of a page of the running application.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "lib/**/router.ex",
+          "*/lib/**/router.ex",
+          "apps/*/lib/**/router.ex"
+        ],
+        "contains": [
+          "put_secure_browser_headers"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "never-pass-user-input-to-raw",
+      "instruction": "Never pass user input to `raw/1`: Phoenix escapes user input in templates by default, and the security guide forbids this one way around it.",
+      "verification": "Search the change for `raw(` and check that none of its arguments comes from a user or an outside system."
+    },
+    {
+      "id": "pin-values-in-ecto-fragments",
+      "instruction": "Pass outside values into an Ecto query or a `fragment` with the pin operator `^`, so that Ecto parameterizes them into the query instead of writing them into its SQL text.",
+      "verification": "Review each Ecto query and `fragment` the change adds and check that every value from a user or an outside system is pinned with `^`."
+    },
+    {
+      "id": "load-secrets-at-runtime",
+      "instruction": "Load secrets such as `SECRET_KEY_BASE` (generated with `mix phx.gen.secret`) and `DATABASE_URL` from environment variables in `config/runtime.exs`, which reads them at boot. A file that holds a secret written in full stays out of version control.",
+      "verification": "task verify checks that `config/runtime.exs` reads environment variables with `System.get_env`; also check that no committed config file holds a secret.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "config/runtime.exs",
+          "*/config/runtime.exs"
+        ],
+        "contains": [
+          "System.get_env"
+        ],
+        "expect": "present"
+      }
+    }
+  ]
+}

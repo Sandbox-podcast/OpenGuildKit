@@ -1,0 +1,92 @@
+{
+  "id": "elixir-mix",
+  "title": "Elixir projects built with Mix",
+  "version": "1.0.0",
+  "description": "For an Elixir project built with Mix: a committed mix.lock, warnings that fail the build, checked formatting and the Hex audit of retired and vulnerable packages.",
+  "sources": [
+    {
+      "title": "Elixir v1.20.5 documentation, library guidelines: mix.lock",
+      "url": "https://elixir.hexdocs.pm/library-guidelines.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Mix v1.20.5, mix deps.get",
+      "url": "https://mix.hexdocs.pm/Mix.Tasks.Deps.Get.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Mix v1.20.5, mix compile.elixir",
+      "url": "https://mix.hexdocs.pm/Mix.Tasks.Compile.Elixir.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Mix v1.20.5, mix format",
+      "url": "https://mix.hexdocs.pm/Mix.Tasks.Format.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Hex documentation, mix hex.audit",
+      "url": "https://hex.hexdocs.pm/Mix.Tasks.Hex.Audit.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "rules": [
+    {
+      "id": "commit-mix-lock",
+      "instruction": "Commit `mix.lock` so that every build fetches the same dependencies, and run `mix deps.get --check-locked` in CI, which fails when the lockfile has pending changes.",
+      "verification": "task verify checks that `mix.lock` exists; also check that a change to the dependencies of `mix.exs` updates `mix.lock` in the same change.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "mix.lock",
+          "*/mix.lock"
+        ]
+      }
+    },
+    {
+      "id": "fail-the-build-on-warnings",
+      "instruction": "Compile in CI with `mix compile --warnings-as-errors`, which exits with a non-zero status when compilation has a warning, and fix each warning the change brings.",
+      "verification": "task verify checks that the CI configuration or `mix.exs` passes `--warnings-as-errors`; also check that the compilation of the change prints no warning.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          "Makefile",
+          "mix.exs",
+          "*/mix.exs"
+        ],
+        "contains": [
+          "--warnings-as-errors"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "check-formatting",
+      "instruction": "Keep the formatter's settings in `.formatter.exs` and run `mix format --check-formatted` in CI, so that unformatted code is rejected.",
+      "verification": "task verify checks that the CI configuration or `mix.exs` runs `--check-formatted`; also run `mix format --check-formatted` on the change.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".github/workflows/*.yml",
+          ".github/workflows/*.yaml",
+          ".gitlab-ci.yml",
+          "Makefile",
+          "mix.exs",
+          "*/mix.exs"
+        ],
+        "contains": [
+          "--check-formatted"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "audit-hex-dependencies",
+      "instruction": "Run `mix hex.audit` in CI: it fails when a locked Hex package is retired or has a security advisory. Replace or update the package, or list it in the audit's ignores with the reason and an owner in the change.",
+      "verification": "Run `mix hex.audit` and check that it exits with 0, or that each ignored advisory or retirement has a reason and an owner in the change."
+    }
+  ]
+}

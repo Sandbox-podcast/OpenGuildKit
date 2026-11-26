@@ -142,6 +142,11 @@ _KTOR_BOM = re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
 _KTOR_SETTINGS_CATALOG = re.compile(
     r"""create\(\s*["'](\w+)["']\s*\)\s*\{\s*from\(\s*["']io\.ktor:ktor-version-catalog:([^"']+)["']""")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
+# A Mix project's Elixir requirement and its Phoenix dependency; text after a # is a comment.
+_MIX_ELIXIR = re.compile(r'(?m)^[^#\n]*\belixir:[ \t]*"([^"\n]+)"')
+_MIX_PHOENIX = re.compile(r'(?m)^[^#\n]*\{[ \t]*:phoenix[ \t]*,[ \t]*(?:"([^"\n]+)")?')
+# What Mix writes next to mix.exs: the fetched dependencies and the build, each with mix.exs files of its own.
+MIX_OUTPUT = ("deps", "_build")
 _AIRFLOW_IMPORT = re.compile(r"(?m)^[ \t]*(?:from|import)[ \t]+airflow\b")
 _DBT_VERSION = re.compile(r"""(?m)^require-dbt-version:[ \t]*(\[[^\]\n]*\]|"[^"\n]*"|'[^'\n]*')""")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
@@ -670,6 +675,17 @@ def _kubernetes(component: _Component, path: Path, label: str) -> None:
             component.add("Flux", None, label)
 
 
+def _mix(component: _Component, path: Path, label: str) -> None:
+    """A mix.exs makes an Elixir project, with the version its `elixir:` requirement gives; a `{:phoenix, ...}`
+    dependency makes it a Phoenix application. Phoenix's own libraries (phoenix_html, phoenix_pubsub) alone do not."""
+    text = _read_text(path) or ""
+    elixir = _MIX_ELIXIR.search(text)
+    component.add("Elixir", declared_version(elixir.group(1)) if elixir else None, label)
+    phoenix = _MIX_PHOENIX.search(text)
+    if phoenix:
+        component.add("Phoenix", declared_version(phoenix.group(1)), label)
+
+
 def _dbt_project(component: _Component, path: Path, label: str) -> None:
     """A dbt project; its version is the range `require-dbt-version` declares, as a string or a list of strings."""
     found = _DBT_VERSION.search(_read_text(path) or "")
@@ -732,6 +748,8 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _composer(component, path, label)
     elif name == "Cargo.toml":
         _cargo(component, path, label)
+    elif name == "mix.exs":
+        _mix(component, path, label)
     elif name == "pubspec.yaml":
         _pubspec(component, path, label)
     elif name == "Package.swift":
@@ -801,6 +819,8 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
         if "Cargo.toml" in files:
             for member in _cargo_members(directory):
                 module_roots[member] = relative
+        if "mix.exs" in files:
+            folders[:] = [name for name in folders if name not in MIX_OUTPUT]
         relative = _kustomize_base(module_roots.get(directory, relative), names)
         found += [((*parts, name), "file", directory / name, relative) for name in files]
         for name in [name for name in folders if name.endswith(".xcodeproj")]:

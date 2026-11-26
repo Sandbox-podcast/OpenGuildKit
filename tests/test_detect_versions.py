@@ -252,6 +252,32 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertEqual({component for pattern in matched if pattern["id"] == "dbt"
                           for component in pattern["components"]}, {"ranged", "listed", "open"})
 
+    def test_elixir_and_phoenix_are_read_from_mix_exs_and_its_dependencies_are_skipped(self):
+        write(self.root, "web/mix.exs",
+              'defmodule Shop.MixProject do\n  use Mix.Project\n\n  def project do\n'
+              '    [app: :shop, version: "0.1.0", elixir: "~> 1.18", deps: deps()]\n  end\n\n'
+              '  defp deps do\n    [\n      {:phoenix, "~> 1.8.1"},\n      {:phoenix_html, "~> 4.1"},\n'
+              '      {:ecto_sql, "~> 3.10"}\n    ]\n  end\nend\n')
+        # Phoenix's companion libraries alone, and a commented dependency, make no Phoenix application.
+        write(self.root, "worker/mix.exs",
+              'defmodule Worker.MixProject do\n  use Mix.Project\n'
+              '  def project, do: [app: :worker, elixir: "~> 1.15"]\n'
+              '  defp deps do\n    [\n      {:phoenix_pubsub, "~> 2.1"},\n'
+              '      # {:phoenix, "~> 1.7"},\n    ]\n  end\nend\n')
+        # Mix fetches each dependency into deps/ and compiles into _build/, both with their own mix.exs.
+        write(self.root, "web/deps/phoenix/mix.exs",
+              'defmodule Phoenix.MixProject do\n  def project, do: [elixir: "~> 1.15"]\nend\n')
+        write(self.root, "web/_build/dev/lib/plug/mix.exs", 'defmodule Plug.MixProject do\nend\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["web"], ["Elixir ~> 1.18", "Phoenix ~> 1.8.1"])
+        self.assertEqual(stacks["worker"], ["Elixir ~> 1.15"])
+        self.assertEqual(set(stacks), {"web", "worker"})
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        where = {pattern["id"]: set(pattern["components"]) for pattern in matched}
+        self.assertEqual(where.get("elixir-mix"), {"web", "worker"})
+        self.assertEqual(where.get("phoenix"), {"web"})
+
     def test_an_old_style_kotlin_version_variable_is_read(self):
         write(self.root, "app/build.gradle",
               "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"
