@@ -8,7 +8,7 @@ OpenGuildKit est un framework open source pour les équipes qui développent ave
 
 Le questionnaire, les commandes et tout ce que la CLI affiche sont en anglais, comme la documentation, sauf celle de l'interface web (`web/`), écrite en français comme ses écrans. Tu peux écrire tes demandes en français : le choix des boards lit le français, et « formulaire de paiement » appelle le design et la finance. L'agent te pose les questions dans ta langue. Le [glossaire](docs/glossary.md) traduit les mots du produit.
 
-https://github.com/user-attachments/assets/8a6ec7e6-e7c3-4f95-bd21-6dcd1d960d8f
+https://github.com/user-attachments/assets/d4e4e58d-fa36-41c1-8c8e-2a18d33faa72
 
 ## Essayer la démo
 
