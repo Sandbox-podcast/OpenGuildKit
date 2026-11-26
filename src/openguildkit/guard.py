@@ -23,6 +23,7 @@ from .decisions import (
     revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
+from .org_catalog import organization_in
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
@@ -367,7 +368,8 @@ def project_loader(project: Path | None, catalog_in_force=None):
         if catalog_in_force is not None:
             catalog = catalog_in_force(state)
         else:
-            catalog = apply_lock(load_catalog(state / "catalog"), read_lock(state))
+            lock = read_lock(state)
+            catalog = apply_lock(load_catalog(state / "catalog", organization=organization_in(lock, state)), lock)
         return root, state, load_profile(state, catalog), catalog
 
     return load

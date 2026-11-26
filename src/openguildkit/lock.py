@@ -13,6 +13,7 @@ from .catalog import (
     validate_entry,
 )
 from .ci import read_policy_pack
+from .org_catalog import organization_in, validate_pin
 from .patterns import pattern_selection
 from .project import RuleError, check_instructions, selected_packs
 from .storage import file_signature, read_json, write_json
@@ -79,6 +80,8 @@ def _validated_lock(path: Path) -> dict:
                 raise ValueError(f"{path}: {collection}/{record_id}: {error}") from error
             if record.get("id") != record_id:
                 raise ValueError(f"{path}: {collection}/{record_id} has a different id.")
+    if "organization" in lock:
+        validate_pin(lock["organization"], str(path))
     return lock
 
 
@@ -92,8 +95,10 @@ def central_policy(args) -> tuple[str, dict] | None:
 
 
 def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
-    """The installed catalog with project additions, and the IDs that ship with OpenGuildKit."""
-    live = load_catalog(state / "catalog", central_policy=central_policy(args))
+    """The installed catalog with the organization's records, if the lock pins an organization catalog, and the
+    project's additions; and the IDs that ship with OpenGuildKit."""
+    organization = organization_in(read_lock(state), state)
+    live = load_catalog(state / "catalog", central_policy=central_policy(args), organization=organization)
     bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
     return live, bundled
 
@@ -149,7 +154,7 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
     return effective
 
 
-def _used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
+def used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
     patterns = [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
     return {
         "packs": selected_packs(profile, catalog),
@@ -167,7 +172,7 @@ def _lockable(bundled: dict[str, set[str]], lock: dict | None) -> dict[str, set[
 
 def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     """The bundled or already locked records the profile uses, taken from the given catalog."""
-    used = _used_ids(profile, catalog)
+    used = used_ids(profile, catalog)
     lockable = _lockable(bundled, lock)
     overlaid = overlaid_boards(catalog)
     return {
@@ -182,11 +187,15 @@ def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], l
 
 
 def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
-    return {
+    """The lock of the records the profile uses; the organization catalog it pins, if any, stays pinned."""
+    built = {
         "schema_version": 1,
         "generated_by": f"openguildkit {package_version()}",
         "records": locked_records(profile, catalog, bundled, lock),
     }
+    if lock and "organization" in lock:
+        built["organization"] = json_copy(lock["organization"])
+    return built
 
 
 def unshipped_records(lock: dict, bundled: dict[str, set[str]]) -> list[str]:

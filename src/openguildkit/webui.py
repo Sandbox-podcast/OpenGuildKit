@@ -31,8 +31,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_cli
-from .catalog import load_catalog
-from .lock import package_version
+from .lock import installed_catalog, package_version
 from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
@@ -804,7 +803,7 @@ def _decision_line(value, field: str, default: str) -> str:
 
 def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:
     """What a hand-edited profile weakens, by the profile commands' own rule, each with the command to type."""
-    return profile_cli.weakening_changes(before, after, load_catalog(root / ".openguildkit" / "catalog"))
+    return profile_cli.weakening_changes(before, after, installed_catalog(None, root / ".openguildkit")[0])
 
 
 class LocalServer(ThreadingHTTPServer):

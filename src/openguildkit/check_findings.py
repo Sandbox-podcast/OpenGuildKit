@@ -22,6 +22,8 @@ _RULES = {
                                "The installed catalog changes the rules of records the project has locked."),
     "source-undated": ("Source without a checked date", "A project record cites a source without a checked date."),
     "brain-replaced": ("Bundled brain replaced", "The project catalog replaces parts of a bundled brain."),
+    "catalog-org-replaced": ("Organization record replaced",
+                            "The project catalog replaces a record of the organization catalog and no person accepted it."),
     "approvals-not-signed": ("Approvals not signed",
                              "Approvals are only sealed locally, so nothing proves who gave them."),
     "task-unreadable": ("Task record unreadable", "A task record cannot be read."),
@@ -104,8 +106,10 @@ class Report:
                 self.add(problem["code"], "error", problem["message"], row["path"])
 
     def boards(self, replaced: dict[str, str]) -> None:
-        for board_id, message in replaced.items():
-            self.add("brain-replaced", "warning", message, f"{STATE_DIR}/catalog/boards/{board_id}.json")
+        """Bundled brains the project completes, by ID, and organization records it replaces, by collection/id."""
+        for key, message in replaced.items():
+            code, path = ("catalog-org-replaced", key) if "/" in key else ("brain-replaced", f"boards/{key}")
+            self.add(code, "warning", message, f"{STATE_DIR}/catalog/{path}.json")
 
     def sharing(self, issues: list[tuple[str, str, str | None]]) -> None:
         for kind, message, path in issues:

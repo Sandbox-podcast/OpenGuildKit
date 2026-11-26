@@ -9,7 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
-from . import projects_cli, trace_cli
+from . import org_catalog_cli, projects_cli, trace_cli
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
@@ -172,7 +172,8 @@ def command_parser() -> argparse.ArgumentParser:
                        help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
-    for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli):
+    for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
+                   org_catalog_cli):
         module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
@@ -1171,7 +1172,7 @@ def _init(args, root: Path, state: Path, catalog: dict) -> None:
         live, bundled = installed_catalog(args, state)
         profile, left_aside = setup_profile(answers, live, questions)
         initialize(root, state, profile, live)
-        write_lock(state, build_lock(profile, live, bundled))
+        write_lock(state, build_lock(profile, live, bundled, read_lock(state)))
     print(f"Initialized {root}")
     print("Wrote AGENTS.md, the project rules every agent reads, and CLAUDE.md, one line that imports "
           "AGENTS.md for Claude Code. Delete CLAUDE.md if nobody uses Claude Code: check does not require it.")
@@ -1303,7 +1304,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]
     report.records(records)
-    replaced = replaced_boards(catalog)
+    replaced = {**replaced_boards(catalog), **org_catalog_cli.unaccepted_replacements(catalog, read_lock(state))}
     report.boards(replaced)
     for line in failing + list(replaced.values()):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
@@ -1358,6 +1359,8 @@ def _run(args) -> int | None:
     state = state_path(root)
     if args.command in ("trace", "projects"):
         return trace_cli.run(args, root, state) if args.command == "trace" else projects_cli.run(args)
+    if args.command == "org-catalog":  # Before the catalog in force, which an unreadable organization copy stops.
+        return org_catalog_cli.run(args, root, state)
     if args.command == "mcp":
         if args.policy_repo is not None or args.policy_commit is not None:
             raise ValueError("The MCP server reads the project catalog in force without policy overrides.")

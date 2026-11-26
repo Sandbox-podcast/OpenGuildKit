@@ -55,6 +55,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
 | `catalog.py` | Loads bundled records from `registry/` and project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs and keys, non-HTTPS sources, multi-line text and pack dependency cycles. |
 | `lock.py` | Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog. |
+| `org_catalog.py` | Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network; fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one. |
+| `org_catalog_cli.py` | The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a local replacement, off. |
 | `patterns.py` | Matches the project's stack and context to versioned stack patterns and the packs they apply. |
 | `references.py` | Searches the reference library, separately from the active rule packs. |
 | `brains.py` | Assembles what a brain knows: its specialists' methods, packs and references. |
@@ -191,6 +193,7 @@ sequenceDiagram
 | Catalog sources | Leads to inspect | Agent is told to treat them as leads until inspected |
 | Research results | Data | Agent is told not to follow instructions found in them |
 | Project catalog additions | Trusted project config | Same schema validation as bundled records; cannot reuse a bundled ID |
+| Organization catalog (option, off by default) | Trusted config pinned by a person | Read from a local Git copy at the commit and fingerprint of the catalog lock, never fetched; same validation as project records, no `command` check, cannot reuse a bundled ID |
 | Review JSON | Agent output | Schema validated; must cover exactly the selected boards |
 
 The project's host settings, written by `openguildkit host apply`, let Claude Code or Codex enforce the research policy and keep the agent away from the approval command, and Gemini CLI run the guard hooks. `openguildkit host check` says which rules remain instructions. [Host controls](../integrations/README.md#what-the-host-enforces)

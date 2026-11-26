@@ -123,6 +123,7 @@
         "tests/test_machine_checks.py",
         "tests/test_monorepo_instructions.py",
         "tests/test_new_brains.py",
+        "tests/test_org_catalog.py",
         "tests/test_pack_rules.py",
         "tests/test_pass_relevance.py",
         "tests/test_patterns.py",
@@ -156,6 +157,7 @@
         "Report"
       ],
       "tests": [
+        "tests/test_org_catalog.py",
         "tests/test_sarif_commands.py"
       ],
       "doc": "docs/architecture.md"
@@ -211,6 +213,7 @@
         "tests/test_install_script.py",
         "tests/test_integrations.py",
         "tests/test_next_steps.py",
+        "tests/test_org_catalog.py",
         "tests/test_performance.py",
         "tests/test_product_docs.py",
         "tests/test_project_checks.py",
@@ -424,7 +427,8 @@
         "tests/test_task_index.py",
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
-        "tests/test_evidence_fingerprints.py"
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_org_catalog.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -506,6 +510,7 @@
       ],
       "tests": [
         "tests/test_new_brains.py",
+        "tests/test_org_catalog.py",
         "tests/test_other_host.py",
         "tests/test_performance.py",
         "tests/test_source_dates.py",
@@ -577,6 +582,35 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/org_catalog.py",
+      "role": "Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network; fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one.",
+      "entry": [
+        "read_files",
+        "organization_in",
+        "validate_pin",
+        "changes",
+        "replacements"
+      ],
+      "tests": [
+        "tests/test_command_output_budget.py",
+        "tests/test_org_catalog.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/org_catalog_cli.py",
+      "role": "The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a local replacement, off.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_command_output_budget.py",
+        "tests/test_org_catalog.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/owners.py",
       "role": "Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record.",
       "entry": [
@@ -643,7 +677,8 @@
         "tests/test_architecture.py",
         "tests/test_gemini_host.py",
         "tests/test_profile_commands.py",
-        "tests/test_light_lane.py"
+        "tests/test_light_lane.py",
+        "tests/test_org_catalog.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1247,6 +1282,7 @@
         "tests/e2e/test_concurrency.py",
         "tests/test_approval_lifecycle.py",
         "tests/test_next_steps.py",
+        "tests/test_org_catalog.py",
         "tests/test_performance.py",
         "tests/test_webui.py"
       ],

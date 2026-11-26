@@ -521,7 +521,20 @@ def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
     if profile.get("light_paths"):
         steps.append("The short lane is not carried: the person runs openguildkit profile set light-paths GLOB "
                      f"{PERSON} at a terminal there.")
-    return answers, steps
+    return answers, _organization_steps(catalog) + steps
+
+
+def _organization_steps(catalog: dict) -> list[str]:
+    """What profile export says of the organization catalog (RFC #446): it is pinned in the lock, not the answers."""
+    organization = catalog.get("organization")
+    if organization is None:
+        return []
+    steps = [f"The organization catalog is not carried: before init there, the person runs openguildkit org-catalog "
+             f"set --repo PATH --commit {organization['commit']} {PERSON} at a terminal, PATH being their copy."]
+    if organization["replaced"]:
+        steps.append(f"This project's own records that replace organization records stay here: "
+                     f"{', '.join(organization['replaced'])}.")
+    return steps
 
 
 def export(args, state: Path) -> int:
