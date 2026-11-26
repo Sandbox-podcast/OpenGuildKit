@@ -9,6 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
+from . import trace_cli
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
@@ -171,12 +172,8 @@ def command_parser() -> argparse.ArgumentParser:
                        help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
-    tools_cli.add_parser(commands)
-    features_cli.add_parser(commands)
-    profile_cli.add_parser(commands)
-    alerts_cli.add_parser(commands)
-    market_cli.add_parser(commands)
-    storybook_cli.add_parser(commands)
+    for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli):
+        module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
@@ -1359,6 +1356,8 @@ def _run(args) -> int | None:
         raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)
     state = state_path(root)
+    if args.command == "trace":
+        return trace_cli.run(args, root, state)
     if args.command == "mcp":
         if args.policy_repo is not None or args.policy_commit is not None:
             raise ValueError("The MCP server reads the project catalog in force without policy overrides.")

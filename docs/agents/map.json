@@ -1153,6 +1153,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/trace_cli.py",
+      "role": "The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_command_output_budget.py",
+        "tests/test_trace.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/webui.py",
       "role": "The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal.",
       "entry": [

@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.cli import command_parser
+from openguildkit.decisions import record_digest
 from openguildkit.storage import write_json
 
 from tests.support import run_cli
@@ -199,6 +200,8 @@ EXAMPLES = [
     # The retrospective of one task, and of the project once the same findings come back in several tasks.
     Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
+    # From a file to the decisions that cover it.
+    Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
 ]
 
 # What no example runs, with the reason.
@@ -337,9 +340,9 @@ class Projects:
         "briefed": ("approved", "draft_deliverable"), "shared": ("briefed", "share_deliverable"),
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
-        "done": ("resulted", "complete"), "recurring": ("done", "close_more"),
+        "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
     }
-    NEEDS_GIT = {"git", "ci"}
+    NEEDS_GIT = {"git", "ci", "exported"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -527,6 +530,15 @@ class Projects:
         run_cli(root, "task", "result", TASK, "--file", root / "result.json")
 
     def complete(self, root): run_cli(root, "task", "complete", TASK, "--by", "CM", typed=TASK)
+
+    def export(self, root: Path) -> None:
+        """The closed task's record, in a Git repository, listing README.md as the files of its change."""
+        run_cli(root, "task", "export", TASK)
+        path = root / ".openguildkit" / "decisions" / f"{TASK}.json"
+        record = {**json.loads(path.read_text(encoding="utf-8")), "files": ["README.md"]}
+        record.pop("record_sha256")
+        write_json(path, {**record, "record_sha256": record_digest(record)})
+        commit_everything(root)
 
     def close_more(self, root: Path) -> None:
         """Three more closed tasks that skip one rule for the same reason and fail another, so that the retrospective of

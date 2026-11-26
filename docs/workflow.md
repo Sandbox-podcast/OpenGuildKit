@@ -485,6 +485,21 @@ Task IDs are chosen in each copy. When two people open a task with the same ID b
 
 One file per task means two people never edit the same record. When a pull brings a conflict in the code, read the pulled records of the tasks that touch the same files (`task list --decisions`, then `task show ID`): their brief, review summary and board recommendations say what the other change was approved to do (the full approved scope stays in the teammate's task record), and a merge that goes beyond either needs its own task.
 
+## From a file to its decisions
+
+```bash
+openguildkit trace src/api/auth.py          # the decisions that cover the file, most recent first
+openguildkit trace src/api/auth.py --json   # each decision with its checks, evidence and standing
+```
+
+A pull request reviewer, a security officer or an auditor asks which decision covers a file and whether the file changed since. `trace` reads the records of `.openguildkit/decisions/`, teammates' included, and prints one line for each record whose `files` list the path: the task, its status, the day of the approval, the approver's initials, the delivered revision (or the pull request), and how many checks passed and failed. The line under it names the record and whether it still holds, in the words of `task list --decisions`: a withdrawn approval (`task revoke`, then `task export`) says who withdrew it and that the record covers nothing; a record that no longer matches its digests or its rules says why. A check log whose sha256 no longer matches the record is named as evidence changed since the export.
+
+A file of the folder that is not a record, or a record without its list of files, is printed as `[unreadable]`: it may cover the path, so fix or remove it and trace again. A record exported outside Git lists no files and covers no path.
+
+Then Git says whether the file changed after the most recent decision: after its delivered revision when this history holds it, otherwise after the commit that last wrote its record. A commit on the file after that point prints `Changed since the last decision (commit abc1234): no decision covers this change.` Outside a Git repository, or when the record is neither committed nor names a revision of this history, the check is skipped and the command says so. The last line gives `openguildkit task show ID` for the most recent decision; a file that no record lists gets one line and `openguildkit task new`.
+
+The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
+
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds. For a task that exists here only as an exported record, it prints that record and says so on stderr. `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.
