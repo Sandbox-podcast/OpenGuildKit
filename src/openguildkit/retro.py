@@ -3,16 +3,19 @@
 `task retro ID` says what one closed task set aside, which committees brought nothing, what it left open and which
 blockers it waived. `task retro --all` counts what comes back in several closed tasks and, for some findings, names the
 profile command a person could type. Everything is a count taken from a task record (`.openguildkit/tasks/`) or from an
-exported decision record (`.openguildkit/decisions/`): no model, no estimate, no file written, no field that holds a
-person. The functions take and return dicts; reading the records is the command's part (tasks_cli.py).
+exported decision record (`.openguildkit/decisions/`): no model, no estimate, no field that holds a person, and no file
+written unless the person asks for a draft rule pack with --draft-rules (draft_pack, write_draft). The functions take and
+return dicts; reading the records is the command's part (tasks_cli.py).
 """
 
 import re
+from pathlib import Path
 
 from .patterns import pattern_selection
 from .profile_cli import check_proposal
-from .project import resolved_profile
+from .project import DRAFT_MARK, resolved_profile
 from .shell import shell_command
+from .storage import write_json
 from .tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
 from .workflow import exported_blockers, objections
 
@@ -289,7 +292,8 @@ def _active_patterns(profile: dict) -> list[str]:
 
 def _candidates(item: dict, profile: dict, catalog: dict):
     """The profile commands that could answer a finding, as (action, field, value, pack it must stop), most direct
-    first. No command declines one rule, settles a reservation or adds a committee's silence to the profile."""
+    first. One rule set aside in at least DEFAULT_MINIMUM tasks can be declined alone (profile decline rule, RFC #447),
+    whatever --min says; no command settles a reservation or adds a committee's silence to the profile."""
     if item["kind"] == "rule" and item["status"] == "failed":
         if item["check"].startswith(("rule:", "pack:")):
             yield "add", "required-rule", item["check"].split(":", 1)[1], None
@@ -300,6 +304,8 @@ def _candidates(item: dict, profile: dict, catalog: dict):
                     if pack in _dict(catalog["patterns"].get(pattern)).get("packs", [])]
         if len(bringing) == 1:
             yield "decline", None, bringing[0], pack
+    elif item["kind"] == "rule" and item["check"].startswith("rule:") and item["count"] >= DEFAULT_MINIMUM:
+        yield "decline", "rule", item["check"].removeprefix("rule:"), None
     elif item["kind"] == "committee" and item["convened_in"] == item["count"]:
         yield "remove", "board", item["board"], None
     elif item["kind"] == "reservation" and item.get("check_command"):
@@ -535,7 +541,8 @@ def render_project(summary: dict) -> list[str]:
     lines = [f"Retrospective of the project: {_plural(tasks['read'], 'closed task')} read "
              f"({_plural(tasks['from_task_records'], 'task record')}, "
              f"{_plural(tasks['from_exported_records'], 'exported record')}). A finding counts once per task and is "
-             f"shown when it comes back in at least {minimum} (--min N changes that). It writes nothing.", *notes]
+             f"shown when it comes back in at least {minimum} (--min N changes that). "
+             f"{'It writes only the draft named below.' if summary.get('draft') else 'It writes nothing.'}", *notes]
     found = summary["recurrences"]
     if not found and minimum == 1:
         return [*lines, "Nothing to count: no closed task set a rule aside, left a reservation open or had a committee "
@@ -557,3 +564,59 @@ def render_project(summary: dict) -> list[str]:
                  if any(item["command"] for item in found) else
                  "No profile command answers these findings as the profile stands.")
     return lines
+
+
+def _rule_id(point: str, taken: set[str]) -> str:
+    """A rule ID in the catalog format from the first words of a reservation, unique in the draft."""
+    words = re.findall(r"[a-z0-9]+", point.casefold())[:6]
+    base = "-".join(words)[:48].strip("-") or "rule"
+    rule_id, number = base, 2
+    while rule_id in taken:
+        rule_id, number = f"{base}-{number}", number + 1
+    taken.add(rule_id)
+    return rule_id
+
+
+def draft_pack(found: list[dict], day: str) -> dict | None:
+    """A project pack in the catalog format, marked as a draft, with one rule to write for each reservation that comes
+    back, or None when none does. Rules set aside or failed have their profile command; a reservation has none, and a
+    project rule is what would keep it from coming back. Every rule is a TODO for a person to write: the draft says what
+    came back and in which tasks, never what to do about it, and no profile uses it while its description is the draft's
+    (project.validate_profile)."""
+    points = [item for item in found if item["kind"] == "reservation"]
+    if not points:
+        return None
+    taken: set[str] = set()
+    rules = [{"id": _rule_id(item["point"], taken),
+              "instruction": f"TODO: an action an agent can take so that this stops coming back: {_clip(item['point'])} "
+                             f"in {item['count']} tasks ({_ids(item['tasks'])}).",
+              "verification": "TODO: how a person checks it in a task record or a pull request."} for item in points]
+    return {"id": f"retro-draft-{day}", "title": "TODO: name of the project rule pack", "version": "0.1.0",
+            "description": f"{DRAFT_MARK} on {day}, not active: write each rule, replace each TODO and this description, "
+                           "then copy the file to .openguildkit/catalog/packs/ and add the pack with openguildkit "
+                           "profile add pack.",
+            "sources": [], "rules": rules}
+
+
+def write_draft(root: Path, state: Path, folder: Path, pack: dict) -> str:
+    """Write the draft in a folder of the project outside .openguildkit/, where no catalog reads it, never over a file;
+    the path as the project names it."""
+    from .deliverables import project_path  # only --draft-rules needs it: the CLI starts without deliverables
+
+    path = project_path(root, state, folder, "--draft-rules") / f"{pack['id']}.json"
+    shown = path.relative_to(root.resolve()).as_posix()
+    if path.exists():
+        raise ValueError(f"{shown} already exists: review it, rename it or remove it before writing another draft "
+                         "today. Nothing was written.")
+    write_json(path, pack)
+    return shown
+
+
+def render_draft(draft: dict | None, minimum: int) -> list[str]:
+    """What --draft-rules wrote, and what the person does next."""
+    if draft is None:
+        return [f"No draft written: no reservation comes back in {minimum} tasks or more, and a rule set aside or "
+                "failed has its profile command above."]
+    return [f"Draft rule pack written: {draft['path']} ({_plural(draft['rules'], 'rule')} to write, not active). Next: "
+            "write each rule and replace each TODO and the description, copy the file to .openguildkit/catalog/packs/, "
+            f"then openguildkit profile add pack {draft['pack']} --by NAME --reason WHY."]

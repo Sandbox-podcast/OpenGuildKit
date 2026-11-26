@@ -473,7 +473,7 @@ class ReportTests(unittest.TestCase):
 RULE_LIKE = re.compile(r"^(?:decision|instructions|host|catalog|task|source|brain|approvals|evidence|guard)-[a-z]+(?:-[a-z]+)*$")
 # The modules that write a rule code, and the words of theirs that look like one and are not: the `task decision-payload`
 # command, and the kind of sharing issue that is not a finding.
-WRITERS = ("check_findings.py", "cli.py", "guard.py", "lock.py", "project.py", "tasks_cli.py")
+WRITERS = ("check_findings.py", "cli.py", "guard.py", "lock.py", "project.py", "requester.py", "tasks_cli.py")
 NOT_CODES = {"decision-payload", "task-absent"}
 
 

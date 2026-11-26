@@ -6,13 +6,13 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock, delivered_review, light_lane
+from . import clock, delivered_review, light_lane, requester
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
     verify_signature,
 )
-from .project import Fingerprints, fingerprint_holds, profile_fingerprint, task_scope_profile
+from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .relevance import sensitive_area
 from .sensitive import redact_credentials, redact_data
 from .results import (
@@ -301,7 +301,7 @@ def waits_line(waiting: list[dict]) -> str:
 
 
 def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None,
-                lane: dict | None = None, after: list[str] | None = None) -> str:
+                lane: dict | None = None, after: list[str] | None = None, requested_by: str | None = None) -> str:
     brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
         raise ValueError("The task ID is empty. Omit --id to generate one.")
@@ -317,6 +317,8 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
         "status": "draft",
         "rounds": [],
         **(lane or {}),
+        # Who asked for the work (requester.py): written only when named, so a task without one is as before.
+        **({"requested_by": requested_by} if requested_by is not None else {}),
     }
     if after:
         record["after"] = list(dependencies(state, task_id, after))
@@ -441,7 +443,7 @@ def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
     except ValueError:
         return ["the task's components changed"]
     before = {pack["id"]: pack for pack in scope.get("packs", [])}
-    after = {pack_id: catalog["packs"][pack_id] for pack_id in current["packs"]}
+    after = {pack_id: rules_in_force(catalog["packs"][pack_id], current) for pack_id in current["packs"]}
     changes = [f"pack {pack_id} added" for pack_id in after if pack_id not in before]
     changes += [f"pack {pack_id} removed" for pack_id in before if pack_id not in after]
     for pack_id in [pack_id for pack_id in after if pack_id in before]:
@@ -917,7 +919,7 @@ def decision_text(task: dict, profile: dict, previous: dict | None = None, regis
     decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), the check
     commands task verify will run with those changed since the project's last approval, and the task's confirmed
     critical alerts that an import resolved since its last decision."""
-    lines = light_lane.decision_lines(task) + decision_summary(task) + check_command_lines(task, profile, previous)
+    lines = (requester.brief_line(task, profile) + light_lane.decision_lines(task) + decision_summary(task)) + check_command_lines(task, profile, previous)
     if register is not None:
         since = task["rounds"][-1]["decision"]["at"] if task["rounds"] else None
         lines += [resolution_line(alert) for alert in resolved_by_import(register, task, since)]
@@ -1474,9 +1476,10 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
-    confirmed_removals: list[str] | None = None,
+    confirmed_removals: list[str] | None = None, separate: bool = False,
 ) -> dict:
-    """Record the person's decision. Approving needs their confirmation of each protected board removed."""
+    """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
+    says that the profile separated the requester from the approver: the approval and its seal record it."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1500,8 +1503,10 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
-        payload = decision_payload(task, by, reason, base_revision)
+        payload = decision_payload(task, by, reason, base_revision, separate=separate)
         decision.update(base_revision=base_revision, seal=seal(payload))
+        if separate:
+            decision["separate_requester"] = True
         if signature is not None:
             decision.update(signer=signature["signer"], signature=signature["text"])
         if pending_removals(task):

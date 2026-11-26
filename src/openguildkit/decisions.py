@@ -95,8 +95,10 @@ PAYLOAD_VERSION = 3
 PAYLOAD_VERSIONS = (3, 2, 1)
 
 
-def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION) -> dict:
-    """What an approval covers. The approver signs exactly this object in signed mode."""
+def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
+                     separate: bool = False) -> dict:
+    """What an approval covers. The approver signs exactly this object in signed mode. separate says that the profile
+    separated the requester from the approver when it was given (requester.py)."""
     payload = {
         "task": task["id"],
         "outcome": "approved",
@@ -120,6 +122,12 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
     # The short lane and its paths are part of what the person approves, and the signer reads them in clear.
     if task.get("lane"):
         payload.update(lane=task["lane"], paths=task["paths"])
+    # Who asked for the work, and whether the requester was kept from approving: only when named or on, so that an
+    # approval without them covers exactly what it covered before.
+    if isinstance(task.get("requested_by"), str):
+        payload["requested_by"] = task["requested_by"]
+    if separate:
+        payload["separate_requester"] = True
     if version >= 2:
         payload["shared_sha256"] = task_shared_digest(task)
     if version >= 3:
@@ -346,7 +354,8 @@ def check_decision_seal(task: dict) -> dict:
         raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
     for version in PAYLOAD_VERSIONS:
-        payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version)
+        payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version,
+                                   separate=decision.get("separate_requester") is True)
         if seal(payload) == decision["seal"]:
             return payload
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")

@@ -33,6 +33,7 @@ The tool deletes none of these on its own. A file Git tracks keeps every earlier
 | `waivers.allowed_by` | `.openguildkit/project.json` | `profile set waivers allowed` | who may waive a blocker |
 | the same declines, adoptions, approvers and waiver holders, as sentences | the managed block of `AGENTS.md` | `init`, `sync`, every `profile` command | the agent reads the rules in force |
 | `decision.by`, `decision.payload.by`, `decision.signer`, `rounds[].decision.by` | `.openguildkit/decisions/ID.json` | `task export` | who approved, or requested changes in an earlier round |
+| `requested_by`, `decision.payload.requested_by` | `.openguildkit/decisions/ID.json` | `task export`, from `task new --requested-by` | who asked for the work, so that a project that separates the requester from the approver can check they differ ([requester and approver](workflow.md#requester-and-approver)) |
 | `blockers[].owner`, `blockers[].resolution.by`, `blockers[].resolution.signer` | `.openguildkit/decisions/ID.json` | `task export`, from the review and from `task clear` or `task waive` | who must resolve a blocker, and who did |
 | `result.check_exceptions[].owner`, `result.evidence_not_applicable[].owner`, `result.evidence_supplied[].confirmed_by`, `result.packs[].owner` | `.openguildkit/decisions/ID.json` | `task export`, from the result file | who set a rule aside, or provided or confirmed a document |
 | `result.deferred[].by`, `result.closing.by` | `.openguildkit/decisions/ID.json` | `task export`, from `task complete --by` | who handed evidence to a follow-up task, who closed over open points |
@@ -103,7 +104,7 @@ Without the new digest, `check` exits 1 and `guard --ci` reports that the record
 
 #### The approver
 
-`decision.by`, `decision.payload.by`, `rounds[].decision.by` and `decision.signer` are inside the seal, and in a signed project inside what the approver signed. No path keeps the approval valid under another name:
+`decision.by`, `decision.payload.by`, `rounds[].decision.by` and `decision.signer` are inside the seal, and so are `requested_by` and `decision.payload.requested_by` when the task names its requester, and in a signed project inside what the approver signed. No path keeps the approval valid under another name:
 
 - replaced without a new seal, `check` and `task list --decisions` report "the seal does not match the approval it records", and `guard --ci` fails under `enforce`;
 - with the seal recomputed (and the payload's `shared_sha256` too, when an earlier round names them), which anyone can do for a local approval, `check` passes, but `guard --ci` compares the record with the base branch and reports "task ID already had another approval on the base revision";

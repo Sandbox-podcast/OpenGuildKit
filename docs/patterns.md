@@ -52,6 +52,8 @@ The agent never edits `.openguildkit/project.json`; the person and the agent cha
 ```sh
 openguildkit profile adopt gdpr-personal-data --by CM --reason "The sign-up form stores emails"
 openguildkit profile decline deal-desk --by CM --reason "No sales team"
+openguildkit profile decline rule python/declare-package-metadata --by CM --reason "Not a published package"
+openguildkit profile adopt rule python/declare-package-metadata --by CM --reason "We publish it now"
 openguildkit profile add check "python -m pytest" --by SL --reason "Tests run offline"
 openguildkit profile remove tool Slack --by SL --reason "Not used"
 openguildkit profile set host codex --by SL --reason "The team moved to Codex"
@@ -60,6 +62,8 @@ openguildkit profile set approval signed --signers .openguildkit/allowed_signers
 openguildkit profile set waivers allowed --allowed-by CM --max-days 30 --by CM --reason "Pilot"
 openguildkit profile set light-paths 'docs/**' 'tests/**' --by CM --reason "A typo in the docs or a test needs one reviewer"
 ```
+
+`profile decline rule PACK/RULE` sets one rule aside while its pack stays in force (RFC #447). It lowers a protection, so the person types it at an interactive terminal and confirms with the rule's name, like any change that weakens a protection. The profile keeps it under `declined_rules` with who, when and why, and the history under `changes`. From then on no task is asked the rule: the consultation leaves it out of its pack, so `task checks`, `task result`, `task verify` and `check` do not ask or run it, and the tasks consulted before are named, since their approval rested on it. `AGENTS.md` leaves the rule out of its pack's list and names it under the profile decisions, with who, when, why and the command that restores it: an agent reads at every turn that the rule is not asked and why, rather than a rule it is told to skip, and does not ask for it again. The rule is written `PACK/RULE`, as `AGENTS.md` lists it, or `rule:PACK/RULE`, as `task checks` prints it; an unknown rule is refused with the closest one. A rule of a pack that is not in force, a rule of `agent-workflow`, and the last rule of a pack in force (remove the pack or decline its pattern instead) are refused. A rule the profile requires, by itself or through its pack in `required_rules`, is refused with the command that removes it from the required rules first; and a declined rule cannot be made required until `profile adopt rule PACK/RULE` restores it. A profile that declines no rule has no `declined_rules` field and reads, fingerprints and writes `AGENTS.md` as before. The web page cannot decline a rule, and `profile export` does not carry one: the person declines it again in the other repository.
 
 `openguildkit profile export > answers.json` reads the profile without changing it and prints the setup answers that give another repository the same patterns, packs, boards and settings, for `openguildkit init --answers answers.json` there. Names, the history, the signers file and the settings that lower a protection stay behind ([reuse the profile in another repository](workflow.md#reuse-the-profile-in-another-repository)).
 

@@ -10,10 +10,11 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, delivered_review, light_lane
+from . import alerts_cli, delivered_review, light_lane, requester
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
+from .clock import today
 from .consultation import board_brief, pack_rules
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
@@ -32,7 +33,8 @@ from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
 from .retro import (
-    DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
+    DEFAULT_MINIMUM, draft_pack, facts_of_record, facts_of_task, project_summary, render_draft, render_project,
+    render_task, task_retro, write_draft,
 )
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs, evidence_state,
@@ -106,6 +108,9 @@ def add_parser(commands) -> None:
     new.add_argument("--after", action="append", metavar="TASK",
                      help="A task this one waits for; repeat it for each. task list --ready leaves the task out until "
                           "they are done.")
+    new.add_argument("--requested-by", metavar="NAME",
+                     help="The person who asked for the work; required when the profile separates the requester from "
+                          "the approver, who cannot then be the same person.")
     new.add_argument("--lane", choices=(light_lane.LANE,),
                      help="Open the task in the short lane, which a person turned on in the profile: one board, no "
                           "questionnaire, limited to --paths.")
@@ -133,6 +138,10 @@ def add_parser(commands) -> None:
     retro.add_argument("--min", type=int, dest="minimum", metavar="N",
                        help=f"With --all, in how many closed tasks a finding must come back (default {DEFAULT_MINIMUM}).")
     retro.add_argument("--json", action="store_true", help="Print the retrospective as JSON.")
+    retro.add_argument("--draft-rules", type=Path, metavar="FOLDER",
+                       help="With --all, also write a draft project rule pack in FOLDER (inside the project, outside "
+                            ".openguildkit/), one rule to write for each reservation that comes back; not active until "
+                            "a person reviews it and adds it to the project catalog.")
     for action, description in ACTION_HELP.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
@@ -534,6 +543,9 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
     if args.approve and (lane := light_lane.lane_problem(task, profile)):
         raise ValueError(lane)
+    if args.approve and (same := requester.approval_problem(task, profile, args.by, args.signer)):
+        raise ValueError(same)
+    separate = requester.active(profile)
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
@@ -544,14 +556,16 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
                 f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
             )
         text = args.signature.read_text(encoding="utf-8")
-        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base), text, args.signer)
+        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base, separate=separate), text,
+                         args.signer)
         signature = {"signer": args.signer, "text": text}
     register = load_register(state)
     blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
-    result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals)
+    result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals,
+                             separate=args.approve and separate)
     if args.approve:
         if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
@@ -1375,9 +1389,14 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
         if decided:
             raise ValueError(decided)
         raise TaskStateError("Record the boards' review before preparing a decision.")
+    # The signer is not known yet: decide compares the requester to the signer as well.
+    same = requester.approval_problem(task, profile, args.by)
+    if same:
+        raise ValueError(same)
     # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
     print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
-    text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root)))
+    text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root),
+                                         separate=requester.active(profile)))
     if args.output:
         # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
         args.output.write_bytes(text.encode("utf-8"))
@@ -1432,13 +1451,14 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = light_lane.declare(args.lane, args.paths, profile)
+    requested_by = requester.declared(args.requested_by, profile)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
             raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                              f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                              f"with openguildkit task show {args.id}, and choose another ID.")
-        task_id = create_task(state, brief, args.id, args.follows, lane, args.after)
+        task_id = create_task(state, brief, args.id, args.follows, lane, args.after, requested_by)
         statuses = {name: read_task(state, name)["status"] for name in dict.fromkeys(args.after or [])}
     print(task_id)
     if statuses:
@@ -1548,16 +1568,25 @@ def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
                          "task retro ID reads one task and --all counts the project: give one of them.")
     if args.minimum is not None and not args.all:
         raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+    if args.draft_rules is not None and not args.all:
+        raise ValueError("--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
+                         "task retro --all.")
     minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
     if minimum < 1:
         raise ValueError("--min counts tasks: give a number of 1 or more.")
     if args.all:
         facts, ignored = _closed_facts(state)
         summary = project_summary(facts, minimum, profile, catalog, ignored)
+        lines = []
+        if args.draft_rules is not None:
+            pack = draft_pack(summary["recurrences"], today().isoformat())
+            summary["draft"] = pack and {"path": write_draft(root, state, args.draft_rules, pack), "pack": pack["id"],
+                                         "rules": len(pack["rules"])}
+            lines = render_draft(summary["draft"], minimum)
         if args.json:
             print_json(summary)
         else:
-            print("\n".join(render_project(summary)))
+            print("\n".join([*render_project(summary), *lines]))
         return
     if task_path(state, args.id).is_file():
         task = read_task(state, args.id)

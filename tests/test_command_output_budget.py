@@ -92,12 +92,23 @@ EXAMPLES = [
     Example("init", "profile add tool Jira --by CM --reason Tracker"),
     Example("init", "profile remove convention 'Use Conventional Commits for commit messages.' --by CM --reason Trim"),
     Example("init", "profile set guard observe --by CM --reason Pilot"),
+    Example("init", "profile decline rule python/declare-package-metadata --by CM --reason Unpublished",
+            typed="python/declare-package-metadata"),
+    Example("ruled", "profile adopt rule python/declare-package-metadata --by CM --reason Published"),
+    Example("init", "profile set separate-requester on --by CM --reason Pilot", typed="on"),
     Example("init", "profile export"),
     Example("init", "features list"), Example("init", "features list --json"),
     Example("init", "features enable jira --by CM --reason Logs"),
     Example("featured", "features disable jira --by CM --reason Moved"),
     Example("ci", "--policy-repo $policy --policy-commit $policy_commit ci-check --target-repo $target "
                   "--commit $target_commit"),
+    # An organization catalog (RFC #446), pinned at a commit of a local Git copy.
+    Example("org", "org-catalog show"), Example("org", "org-catalog show --json"),
+    Example("init", "org-catalog set --repo $org --commit $org_commit"),
+    Example("init", "org-catalog set --repo $org --commit $org_commit --json"),
+    Example("init", "org-catalog set --repo $org --commit $org_commit --by CM --reason Pilot", typed="$org_short"),
+    Example("replaced", "org-catalog accept packs/org-review --by CM --reason Stricter", typed="packs/org-review"),
+    Example("org", "org-catalog off --by CM --reason Done", typed="off"),
     # Tools and their servers.
     Example("init", "tools list"), Example("init", "tools list --json"),
     Example("init", "tools show github"), Example("init", "tools show github --json"),
@@ -161,6 +172,7 @@ EXAMPLES = [
     Example("proposed", "storybook generate"), Example("proposed", "storybook generate --json"),
     # The task, from its brief to its closing.
     Example("init", "task new 'Show customers their request status' --id status"),
+    Example("init", "task new 'Show customers their request status' --id asked --requested-by 'Camille Martin'"),
     Example("draft", "task list"), Example("draft", "task list --json"), Example("done", "task list --decisions"),
     Example("draft", "task new 'Send the status by email' --id email --after request-status"),
     Example("draft", "task list --ready"), Example("draft", "task list --ready --json"),
@@ -208,6 +220,7 @@ EXAMPLES = [
     # The retrospective of one task, and of the project once the same findings come back in several tasks.
     Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
+    Example("recurring", "task retro --all --draft-rules drafts"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.
@@ -340,7 +353,9 @@ class Projects:
         "bare": (None, None),
         "init": ("bare", "init_project"), "claude": ("bare", "init_claude"), "enforced": ("bare", "init_enforced"),
         "observed": ("bare", "init_observed"), "ci": ("bare", "init_ci"), "suspect": ("claude", "plant_findings"),
+        "org": ("init", "pin_org"), "replaced": ("org", "replace_org_record"),
         "featured": ("init", "enable_feature"), "tooled": ("init", "connect_tool"), "market": ("init", "open_dossier"),
+        "featured": ("init", "enable_feature"), "ruled": ("init", "decline_rule"), "tooled": ("init", "connect_tool"), "market": ("init", "open_dossier"),
         "competitor": ("market", "add_competitor"), "watched": ("competitor", "watch_source"),
         "paused": ("watched", "pause_source"), "provided": ("watched", "provide_source"),
         "storybook": ("init", "add_storybook"), "extracted": ("storybook", "extract"), "proposed": ("extracted", "propose"),
@@ -354,7 +369,7 @@ class Projects:
         "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
         "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci", "exported", "delivered"}
+    NEEDS_GIT = {"git", "ci", "exported", "delivered", "org", "replaced"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -384,13 +399,16 @@ class Projects:
         return root
 
     def run(self, example: Example) -> subprocess.CompletedProcess:
+        if "$org" in example.command:
+            self.organization_repo()
         root = self.fresh(example.stage)
         try:
             values = {**self.values, "root": root}
             argv = [Template(word).safe_substitute(values) for word in shlex.split(example.command)]
             messages = "".join(json.dumps(substituted(message, values)) + "\n" for message in example.sends)
+            typed = Template(example.typed).safe_substitute(values) if example.typed else example.typed
             return run_cli(root, *argv, expect=None, subprocess_mode=example.process,
-                           stdin=None if example.typed else messages, typed=example.typed)
+                           stdin=None if example.typed else messages, typed=typed)
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
@@ -440,7 +458,33 @@ class Projects:
         run_cli(root, "--policy-repo", self.values["policy"], "--policy-commit", self.values["policy_commit"],
                 "init", "--answers", root / "project.json")
 
+    def organization_repo(self) -> None:
+        """A local Git copy of an organization catalog with one pack, made once for every example that names it."""
+        if "org" in self.values:
+            return
+        self.values["org"] = self.base / "org"
+        pack = {"id": "org-review", "title": "Organization review", "version": "1.0.0", "sources": [],
+                "description": "For every service of the organization: a shared review rule.",
+                "rules": [{"id": "shared-rule", "instruction": "Follow the shared rule.", "verification": "Read it."}]}
+        (self.values["org"] / "packs").mkdir(parents=True)
+        write_json(self.values["org"] / "packs" / "org-review.json", pack)
+        self.values["org_commit"] = commit_everything(self.values["org"])
+        self.values["org_short"] = self.values["org_commit"][:12]
+
+    def pin_org(self, root: Path) -> None:
+        self.organization_repo()
+        run_cli(root, "org-catalog", "set", "--repo", self.values["org"], "--commit", self.values["org_commit"],
+                "--by", "CM", "--reason", "Pilot", typed=self.values["org_short"])
+
+    def replace_org_record(self, root: Path) -> None:
+        record = json.loads((self.values["org"] / "packs" / "org-review.json").read_text(encoding="utf-8"))
+        write_json(root / ".openguildkit" / "catalog" / "packs" / "org-review.json", {**record, "version": "1.0.1"})
+
     def enable_feature(self, root): run_cli(root, "features", "enable", "jira", "--by", "CM", "--reason", "Logs")
+    def decline_rule(self, root):
+        run_cli(root, "profile", "decline", "rule", "python/declare-package-metadata", "--by", "CM", "--reason", "Pilot",
+                typed="python/declare-package-metadata")
+
     def connect_tool(self, root): run_cli(root, "tools", "apply", "github", "--host", "claude-code", "--yes")
     def open_dossier(self, root): run_cli(root, "market", "new", "portals", "--market", "B2B help desks")
 

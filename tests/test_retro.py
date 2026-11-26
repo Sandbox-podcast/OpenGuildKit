@@ -16,8 +16,10 @@ from openguildkit.catalog import load_catalog
 from openguildkit.cli import command_parser
 from openguildkit.consultation import consult
 from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.catalog import validate_entry
+from openguildkit.project import DRAFT_MARK
 from openguildkit.retro import (
-    DEFAULT_MINIMUM, MAX_REASON, facts_of_record, facts_of_task, project_summary, proposals, recurrences,
+    DEFAULT_MINIMUM, MAX_REASON, draft_pack, facts_of_record, facts_of_task, project_summary, proposals, recurrences,
     render_project, render_task, task_retro,
 )
 from openguildkit.tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP, record_review
@@ -504,12 +506,25 @@ class ProposalTests(unittest.TestCase):
                             required_rules=["python/follow-python-style"])
         self.assertIsNone(item["command"])
 
-    def test_one_rule_set_aside_has_no_profile_command_since_none_declines_a_single_rule(self):
+    def test_one_rule_set_aside_in_three_tasks_can_be_declined_with_its_reason_at_a_terminal(self):
         for status in ("skipped", "not-applicable"):
             item = self.propose(finding("rule", check="rule:react/reuse-ui-components", status=status, reason="Why."))
-            self.assertIsNone(item["command"], status)
+            self.assertEqual(item["command"], "openguildkit profile decline rule react/reuse-ui-components --by NAME "
+                                              f"--reason 'task retro: rule:react/reuse-ui-components {status} in 3 "
+                                              "tasks (a, b, c): Why.'", status)
+            self.assertTrue(item["needs_terminal"])
+            self.parses(item["command"])
         self.assertIsNone(self.propose(finding("rule", check="evidence:gdpr/ropa/record", status="not-applicable",
                                                reason="Why."))["command"])
+
+    def test_a_rule_set_aside_in_fewer_than_three_tasks_required_or_declined_gets_no_decline(self):
+        two = {**finding("rule", check="rule:react/reuse-ui-components", status="skipped", reason="Why."),
+               "count": 2, "tasks": ["a", "b"]}
+        self.assertIsNone(self.propose(two)["command"])
+        rule = finding("rule", check="rule:react/reuse-ui-components", status="skipped", reason="Why.")
+        self.assertIsNone(self.propose(rule, required_rules=["react"])["command"])
+        declined = [{"id": "react/reuse-ui-components", "by": "CM", "on": "2026-11-21", "reason": "Platform."}]
+        self.assertIsNone(self.propose(rule, declined_rules=declined)["command"])
 
     def test_a_pack_that_only_a_pattern_brings_leaves_with_that_pattern_and_the_others_it_drops_are_named(self):
         item = self.propose(finding("rule", check="pack:fastapi", status="not-applicable", reason="Not used."))
@@ -653,7 +668,8 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(summary["tasks"], {"read": 3, "from_task_records": 3, "from_exported_records": 0})
 
     def test_rules_set_aside_the_same_way_in_the_same_tasks_share_one_line_while_the_json_keeps_each(self):
-        profile, catalog = profile_and_catalog()
+        # Required rules: no command declines them, so the lines that share a reason and tasks are grouped.
+        profile, catalog = profile_and_catalog(required_rules=["postgresql", "react"])
         tasks = [closed(f"t{number}", checks=[
             skipped("rule:postgresql/protect-data-invariants", "Schema untouched.", "not-applicable"),
             skipped("rule:postgresql/stage-schema-migrations", "Schema untouched.", "not-applicable"),
@@ -690,6 +706,47 @@ class RenderTests(unittest.TestCase):
         text = "\n".join(render_project(summary))
         self.assertIn("1 task record unreadable", text)
         self.assertIn("2 exported records do not match their digest", text)
+
+
+class DraftPackTests(unittest.TestCase):
+    """task retro --all --draft-rules: a project pack in the catalog format, marked draft, from what comes back."""
+
+    def reservations(self):
+        tasks = [closed(f"t{number}", groups=[group("Decisions to follow up", "The API has no rate limit yet."),
+                                              group("Other", "Docs were not updated.")]) for number in (1, 2, 3)]
+        return recurrences([facts_of_task(task) for task in tasks], 3)
+
+    def test_each_reservation_that_comes_back_is_a_rule_to_write_in_a_pack_the_catalog_reads(self):
+        pack = draft_pack(self.reservations(), "2026-11-26")
+        validate_entry("packs", pack)
+        self.assertEqual(pack["id"], "retro-draft-2026-11-26")
+        self.assertTrue(pack["description"].startswith(DRAFT_MARK))
+        self.assertIn("not active", pack["description"])
+        self.assertEqual(len(pack["rules"]), 2)
+        self.assertEqual(len({rule["id"] for rule in pack["rules"]}), 2)
+        for rule in pack["rules"]:
+            self.assertTrue(rule["instruction"].startswith("TODO:"))
+            self.assertTrue(rule["verification"].startswith("TODO:"))
+        self.assertIn("The API has no rate limit yet in 3 tasks (t1, t2, t3)", pack["rules"][0]["instruction"]
+                      + pack["rules"][1]["instruction"])
+        for name in NAMES:
+            self.assertNotIn(name, json.dumps(pack))
+
+    def test_rules_set_aside_committees_or_nothing_that_comes_back_give_no_draft(self):
+        self.assertIsNone(draft_pack([], "2026-11-26"))
+        rules = recurrences([facts_of_task(set_aside(f"t{number}")) for number in (1, 2, 3)], 3)
+        self.assertTrue(rules)
+        self.assertIsNone(draft_pack(rules, "2026-11-26"))
+
+    def test_a_profile_refuses_a_draft_pack_until_its_description_is_rewritten(self):
+        profile, catalog = profile_and_catalog()
+        pack = draft_pack(self.reservations(), "2026-11-26")
+        catalog = {**catalog, "packs": {**catalog["packs"], pack["id"]: pack}}
+        with self.assertRaisesRegex(ValueError, "draft written by task retro"):
+            validate_profile({**profile, "packs": [*profile["packs"], pack["id"]]}, catalog)
+        reviewed = {**pack, "description": "Rules the team wrote after its retrospective."}
+        catalog["packs"][pack["id"]] = reviewed
+        self.assertIn(pack["id"], validate_profile({**profile, "packs": [*profile["packs"], pack["id"]]}, catalog)["packs"])
 
 
 if __name__ == "__main__":

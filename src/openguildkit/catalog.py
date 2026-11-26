@@ -1,6 +1,7 @@
 """Load and validate OpenGuildKit's declarative knowledge catalog."""
 
 import copy
+import hashlib
 import json
 import os
 import re
@@ -496,8 +497,10 @@ def _validate_overlay(overlay: Any) -> None:
             validate_list(source[key], key)
 
 
-def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled: bool) -> tuple[dict, bool]:
-    """Validate one record file. A project board with the ID of a bundled one completes it."""
+def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled: bool,
+                replaceable: frozenset = frozenset()) -> tuple[dict, bool]:
+    """Validate one record file. A project board with the ID of a bundled one completes it; a project record with the
+    ID of an organization record (replaceable) replaces it."""
     record_id = entry.get("id") if isinstance(entry, dict) else None
     overlay = collection == "boards" and not bundled and record_id in entries
     if overlay:
@@ -508,7 +511,7 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
         # Only the project's own catalog may run commands: it already controls its check commands.
         validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
         merged = entry
-        if record_id in entries:
+        if record_id in entries and record_id not in replaceable:
             raise CatalogError(f"duplicate {collection} ID {record_id!r}")
         if collection == "boards" and not bundled and "review" not in entry:
             raise CatalogError(MISSING_REVIEW)
@@ -590,14 +593,15 @@ def _registry():
     return package_file("registry")
 
 
-def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list) -> None:
+def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list,
+                  replaceable: frozenset = frozenset()) -> None:
     """Validate the record files of one folder and add them to entries."""
     for path in sorted(directory.iterdir(), key=lambda item: item.name):
         if not path.name.endswith(".json"):
             continue
         try:
             entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
-            entry, overlay = _load_entry(collection, path, entry, entries, bundled)
+            entry, overlay = _load_entry(collection, path, entry, entries, bundled, replaceable)
         except RecursionError as exc:
             raise CatalogError(f"{path}: JSON nested too deeply") from exc
         except (OSError, ValueError) as exc:
@@ -670,21 +674,61 @@ def json_copy(value: Any) -> Any:
     return copy.deepcopy(value)
 
 
-def _merged_records(builtin, project: Path | None) -> dict[str, dict[str, dict[str, Any]]]:
-    """The bundled records with the project's, each validated, ordered by ID."""
+def _organization_records(collection: str, organization: dict, entries: dict) -> dict[str, dict]:
+    """Validate the files of an organization catalog read at its commit and add them to entries, by ID. They pass the
+    checks of a project record, but run no command, and add records: an ID that ships with OpenGuildKit is refused."""
+    added = {}
+    for name, data in organization["files"].get(collection, []):
+        label = f"{organization['commit'][:12]}:{name}"
+        try:
+            entry = json.loads(data.decode("utf-8-sig"), object_pairs_hook=unique_fields)
+            validate_entry(collection, entry)
+            record_id = entry["id"]
+            if record_id in entries:
+                raise CatalogError(f"{collection} ID {record_id!r} ships with OpenGuildKit: an organization catalog "
+                                   "adds records, so give this one an ID of its own")
+            if collection == "boards" and "review" not in entry:
+                raise CatalogError(MISSING_REVIEW)
+            if name.rpartition("/")[2] != f"{record_id}.json":
+                raise CatalogError(f"name the file {record_id}.json after its id")
+        except RecursionError as exc:
+            raise CatalogError(f"{label}: JSON nested too deeply") from exc
+        except ValueError as exc:
+            raise CatalogError(f"{label} (organization catalog): {exc}") from exc
+        entries[record_id] = added[record_id] = entry
+    return added
+
+
+def record_digest(record: dict) -> str:
+    """The digest of one record's JSON, whatever the order of its keys."""
+    canonical = json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _merged_records(builtin, project: Path | None, organization: dict | None = None) -> dict[str, dict[str, dict[str, Any]]]:
+    """The bundled records with the organization's, if the project follows one, then the project's, each validated,
+    ordered by ID. A project record that replaces or completes an organization record is listed as replaced."""
     bundled = json_copy(_validated_bundled(builtin))
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
     overlays: list[str] = []
+    provided: dict[str, list[str]] = {}
+    replaced: dict[str, str] = {}
     for collection in COLLECTION_FIELDS:
         entries = bundled[collection]
+        added = _organization_records(collection, organization, entries) if organization is not None else {}
         directory = project.joinpath(collection) if project is not None else None
         if directory is not None and directory.is_dir():
-            _read_records(collection, directory, entries, False, overlays)
+            _read_records(collection, directory, entries, False, overlays, frozenset(added))
         elif directory is not None and directory.is_file():
             raise CatalogError(f"{directory} must be a directory")
         catalog[collection] = dict(sorted(entries.items()))
+        provided[collection] = sorted(added)
+        replaced.update({f"{collection}/{record_id}": record_digest(record) for record_id, record in sorted(added.items())
+                         if entries[record_id] is not record})
     if overlays:
         catalog["overlays"] = {"boards": sorted(overlays)}
+    if organization is not None:
+        catalog["organization"] = {"commit": organization["commit"], "records": provided, "replaced": replaced}
     return catalog
 
 
@@ -714,18 +758,23 @@ def _check_links(catalog: dict) -> None:
 
 
 def load_catalog(
-    extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None
+    extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None, organization: dict | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
-    """Load bundled records and optional project additions, ordered by ID. Each call gets its own copy; records
-    already validated in this process are not validated again while their files are unchanged."""
+    """Load bundled records, an organization catalog's and optional project additions, ordered by ID. Each call gets
+    its own copy; records already validated in this process are not validated again while their files are unchanged.
+
+    organization, from org_catalog.read_files, holds the files read at a pinned commit; without it (the
+    default) nothing changes. The catalog then carries an "organization" entry: the IDs it provides and the
+    project records that replace one of them."""
     builtin = _registry()
     _validated_bundled(builtin)
     if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
         raise CatalogError(f"{extra_dir} must be a directory")
     project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
-    key = (str(builtin), str(project), _records_signature(project))
+    key = (str(builtin), str(project), _records_signature(project),
+           (organization["commit"], organization["fingerprint"]) if organization is not None else None)
     if key not in _MERGED:
-        merged = _merged_records(builtin, project)
+        merged = _merged_records(builtin, project, organization)
         if len(_MERGED) >= _MERGED_KEPT:
             _MERGED.clear()
         _MERGED[key] = merged
@@ -741,7 +790,7 @@ def undated_sources(records: dict[str, dict[str, dict[str, Any]]]) -> list[str]:
     return [
         f"{collection}/{record_id}"
         for collection, entries in records.items()
-        if collection != "overlays"
+        if collection not in ("overlays", "organization")
         for record_id, record in entries.items()
         if any("checked" not in source for source in record.get("sources", []))
     ]

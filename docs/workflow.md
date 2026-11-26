@@ -489,6 +489,40 @@ The lane was proposed as an RFC (#422), and these points are open for the pull r
 - whether the lane should be refused outside a Git repository (it is not: there, nothing compares the changed files with the paths, as for the checks the full path makes);
 - whether an agent may open a task in the lane by itself: it can, since nothing in `task new` is the person's act, and the lane is declared by a person at the approval, which shows the lane and the paths and seals them; the alternative is to ask for the person's initials at the opening.
 
+## Requester and approver
+
+RFC #445 asks whether the person who asks for a change may also approve it. Until the project decides, OpenGuildKit offers an option, `separate-requester`, which is off in every project: a project that leaves it off behaves exactly as before, and its task records, sealed and signed approvals and exported records read and verify as they did.
+
+### Record who asked
+
+`task new` takes the person who asked for the work, whether or not the option is on:
+
+```bash
+openguildkit task new "Add a retry to the export job" --id export-retry --requested-by "Ann Lee"
+```
+
+The task records `requested_by`; the decision brief (the approval prompt, `task challenge` and `task decision-payload`) shows `Requested by Ann Lee.`; the approval's seal covers it, so a requester changed in the task file voids the approval; and `task export` writes `requested_by` in the record and in its payload. A task opened without `--requested-by` records nothing and seals what it sealed before.
+
+### Turn it on
+
+A person types it at their terminal, with who and why, and types `on` to confirm:
+
+```bash
+openguildkit profile set separate-requester on --by CM --reason "The person who asks does not approve"
+```
+
+Turning it on or off changes who may approve, so both follow the rule of every setting that touches the protection (`light-paths`, `approval signed`): a person at an interactive terminal, a typed confirmation, and an agent without a terminal is refused with the command to type and nothing is written. The web page cannot change it either. The profile keeps who, when and why in `changes`, AGENTS.md tells the agent to open each task with `--requested-by`, and `profile export` does not carry it (it prints the command to type in the other repository). The option is not part of what an approval rests on, so turning it on or off voids no approval.
+
+### What it enforces
+
+- **`task new`** refuses a task without `--requested-by NAME` and writes nothing.
+- **`task decide --approve`** refuses an approval whose `--by` names the requester, compared without case or spaces (`Ann Lee`, ` ann  LEE ` and `AnnLee` are the same person), and says to have another person approve it. `task decision-payload` refuses the same name before anyone signs. A request for changes stays open to the requester.
+- **A task opened before the option** names no requester and cannot be approved while the option is on: open the work again with `--requested-by`.
+- **Signed approvals** also compare the requester to the signer's principal (`--signer`). The code does not link a principal to a person's name: a requester recorded as `Ann Lee` who signs as `ann@example.org` is not caught. Record the requester by the principal they sign with when the project signs its approvals.
+- **The seal** of an approval given with the option on records `"separate_requester": true`, and the exported record carries it in `decision`.
+- **`guard --ci`** reads the option at the base revision, as it reads `light_paths`, so a pull request cannot turn it off for itself. When it is on there, a record whose approver (`by`, or the signer) is its requester is refused (`decision-requester-approved`), and so is a new record that names no requester (`decision-requester-missing`). A record whose `requested_by` differs from the sealed one is invalid (`decision-record-invalid`).
+- **Tasks for dependency alerts** (`alerts tasks --open`) name `openguildkit alerts` as their requester when the option is on: the watch asked for them, and any person approves them.
+
 ## Dependency alerts
 
 The CLI does not scan dependencies. It reads the JSON report of a scanner the project already uses into the project's alert register, `.openguildkit/alerts.json`, and links the report's alerts to the task:
@@ -603,9 +637,10 @@ A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuil
 openguildkit task retro request-status       # what one closed task set aside, left open or waived
 openguildkit task retro --all                # what comes back in the project's closed tasks, with the profile command a person could type
 openguildkit task retro --all --min 2 --json # a lower minimum, for a program
+openguildkit task retro --all --draft-rules drafts  # also a draft project rule pack, for a person to write
 ```
 
-A retrospective reads and counts; it records nothing. It writes no file and changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
+A retrospective reads and counts; it records nothing. Unless the person asks for a [draft rule pack](#a-draft-project-rule) with `--draft-rules`, it writes no file, and it changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
 
 ### What it reads
 
@@ -635,7 +670,7 @@ The proposal behind this command also listed the questions that had no effect on
 
 | Finding | Counted as | Profile command written for it |
 |---|---|---|
-| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. None for one rule: no profile command declines a single rule |
+| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. For one rule set aside in at least 3 tasks, whatever `--min` says, `profile decline rule PACK/RULE` (RFC #447), typed at a terminal; none for a rule the profile requires or already declines, or for a named evidence |
 | A rule that failed | The same rule, whatever the evidence | `profile add required-rule PACK/RULE`, or `PACK` for a pack that failed as a whole |
 | A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
 | A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
@@ -647,6 +682,15 @@ The `--reason` comes filled in with what comes back and the tasks behind it, for
 A recurrence is a question for the team, not a verdict: a rule skipped three times for one reason may be a rule the project does not need, or a habit worth changing. The declines already in the profile are not counted, since they stand for every task consulted after them.
 
 If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
+
+### A draft project rule
+
+A reservation that comes back has no profile command: no setting of the profile keeps it from coming back, a rule of the project might. `task retro --all --draft-rules FOLDER` also writes a project rule pack in draft, one rule per reservation that comes back, for a person to write (RFC #447). Without the option the retrospective stays read-only.
+
+- The file is `FOLDER/retro-draft-YYYY-MM-DD.json`, in the [catalog format](catalog-format.md#packs): the catalog reads it as it is once copied. `FOLDER` is a path inside the project and outside `.openguildkit/`, so no catalog reads the draft where it is written, and an existing file is never overwritten.
+- It is marked draft: its description starts with `DRAFT written by openguildkit task retro`, and each rule's instruction and verification start with `TODO:`, with the reservation as recorded and the tasks behind it. The draft says what came back, never what to do about it: that is for the person to write.
+- It is never active on its own. A profile refuses a pack whose description is still the draft's, whether `profile add pack` adds it or a pattern brings it: the person writes each rule, replaces each `TODO:` and the description, copies the file to `.openguildkit/catalog/packs/`, then runs `openguildkit profile add pack ID --by NAME --reason WHY`.
+- A rule set aside or failed has its profile command instead, and a committee that brought nothing is a question for the team, not a rule: neither is drafted. When no reservation comes back, nothing is written and the output says so. `--json` gives the file, the pack ID and its number of rules under `draft`.
 
 ### Every month in CI
 

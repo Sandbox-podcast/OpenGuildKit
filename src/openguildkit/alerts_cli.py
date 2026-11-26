@@ -3,13 +3,14 @@
 import sys
 from pathlib import Path
 
+from . import requester
 from .alerts import (
     REVIEW_STATUSES, SEVERITIES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
     load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
     task_brief, unhandled_alerts,
 )
 from .results import DONE_STATUSES
-from .storage import json_text, project_lock, write_json
+from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
 from .terminal import interactive
 
@@ -113,6 +114,16 @@ def _review(register: dict, alert_id: str, status: str, by: str, reason: str) ->
     return set_status(register, alert_id, status, by, reason)
 
 
+def _alert_requester(state: Path) -> str | None:
+    """The requester of a task opened for an alert, when the profile separates the requester from the approver: the
+    watch asked for it, not a person, so any person may approve it. None otherwise, so that the task is as before."""
+    try:
+        profile = read_json(state / "project.json")
+    except (OSError, ValueError):
+        return None
+    return requester.ALERT_REQUESTER if isinstance(profile, dict) and requester.active(profile) else None
+
+
 def _alert_tasks(args, state: Path) -> None:
     """One task per confirmed alert that no task handles: the same ID in every copy and every scheduled run, so the
     register links the alert to it as soon as the task is opened, here or by the scheduled watch."""
@@ -124,7 +135,7 @@ def _alert_tasks(args, state: Path) -> None:
                    "brief": task_brief(alert)}
             if args.open:
                 if not task_path(state, row["task"]).is_file():
-                    create_task(state, row["brief"], row["task"])
+                    create_task(state, row["brief"], row["task"], requested_by=_alert_requester(state))
                 register = link_alert(register, alert["id"], row["task"])
             rows.append(row)
         if args.open and rows:

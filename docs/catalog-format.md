@@ -271,6 +271,27 @@ The file name is the category, one of the 27 that `tools.py` admits: `issue-trac
 
 A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry. `registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account). Mock data is fictional: no real person, company or address, emails on `example.test`.
 
+## Organization catalog
+
+An option, off by default (RFC #446, not decided yet): several repositories can follow the same catalog of an organization, pinned at a commit of a local Git copy. A project that does not set one reads and writes exactly what it did before, and runs no Git command for it.
+
+The organization's repository holds `packs/`, `boards/`, `sectors/` and `patterns/` at its root, in the format of a project catalog. Its records pass the same checks as a project's, with two differences: a pack may not declare a `command` check, since nothing read from another repository runs, and an ID that ships with OpenGuildKit is refused, since an organization catalog adds records. References, deliverables, tools and tool mocks are not read from it.
+
+OpenGuildKit never fetches. The person keeps the copy up to date (`git -C ../org-catalog fetch`), and OpenGuildKit reads the files at the pinned commit with `git ls-tree` and `git cat-file`, whatever branch the copy has checked out.
+
+```bash
+openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA              # what the commit adds, removes and changes
+openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA --by NAME --reason WHY   # pin it, at a terminal
+openguildkit profile add pack ORG_PACK --by NAME --reason WHY                     # use one of its packs
+openguildkit org-catalog show                                                     # what the project follows and replaces
+```
+
+- **The pin.** `set` with `--by` and `--reason` asks the person to type the first 12 characters of the commit, then writes the instructions and, in `.openguildkit/catalog.lock.json`, an `organization` entry: the path of the copy (relative to the project root when it can be), the full commit, the `sha256:` fingerprint of the files read, who pinned it, when and why. Changing the commit is the same command: it lists the records added, removed and changed, with the version of each pack, and the tasks consulted under the previous rules. A commit that drops a record the profile uses is refused. `update --apply` and `sync` keep the pin. A new repository can be pinned before `init`, so that `init --answers` reads the organization's packs; `profile export` names the commit to pin there.
+- **Order.** The bundled catalog, then the organization's records, then the project's own `.openguildkit/catalog/`. The catalog lock does not copy the organization's records: the commit and the fingerprint already fix them.
+- **A local replacement.** A project record with the ID of an organization record replaces it (a project board completes it, as it completes a bundled one). `check` says so, as a warning with the SARIF code `catalog-org-replaced`, and `org-catalog show` lists it, until a person runs `openguildkit org-catalog accept COLLECTION/ID --by NAME --reason WHY` at a terminal. The acceptance holds for that edition of the organization record: when a new commit changes it, `check` says so again.
+- **When it cannot be read.** If the copy is missing, the commit is not in it, or the files no longer match the fingerprint, every command that reads the catalog stops, `check` included, with the command that fixes it: `git -C PATH fetch`, or `org-catalog set` with the right path or commit. `guard --ci` reads the base revision in a temporary folder, so a relative path of the copy does not resolve there: give `set` an absolute path on a CI runner, or leave the option off there.
+- **Off.** `openguildkit org-catalog off --by NAME --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records.
+
 ## Source dates
 
 Every source carries `checked`, a date written `YYYY-MM-DD`, placed right after its `url`:

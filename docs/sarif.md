@@ -80,6 +80,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `warning`, on `.openguildkit/catalog/boards/ID.json`. The project catalog replaces the title, the description or a specialist of a bundled brain. Check that the person accepted this change to the brain's review.
 
+#### `catalog-org-replaced`
+
+`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by NAME --reason WHY` at a terminal.
+
 #### `approvals-not-signed`
 
 `warning` for `check`, which says it when the guard is `enforce` and approvals are only sealed locally; on the profile. A local seal only detects accidental edits. For `guard --ci` it is a `note` on the same condition, and an `error` (a `warning` outside `enforce`) with `--require-signed`. Require signed approvals ([signed approvals](workflow.md#signed-approvals)).
@@ -157,6 +161,14 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 #### `decision-lane-outside`
 
 `error`, `guard --ci` only, on the exported decision. A short-lane record lists changed files outside its paths or the `light_paths` of the base revision, or the base revision has no `light_paths`: a pull request cannot widen or turn on the lane it is judged by ([short lane](workflow.md#short-lane)). Open a task on the full path for that work.
+
+#### `decision-requester-approved`
+
+`error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver (`separate-requester on`), and the record was approved by its requester, under the name given or as the signer ([requester and approver](workflow.md#requester-and-approver)). Have another person approve the task, then export it again.
+
+#### `decision-requester-missing`
+
+`error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver, and a record the base revision does not carry names no requester. Open the work with `task new --requested-by NAME` and have another person approve it.
 
 #### `evidence-journal-changed`
 
