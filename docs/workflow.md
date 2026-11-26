@@ -648,6 +648,16 @@ A recurrence is a question for the team, not a verdict: a rule skipped three tim
 
 If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
 
+### Every month in CI
+
+[`integrations/github/openguildkit-retro.yml`](../integrations/github/openguildkit-retro.yml) runs `task retro --all --json` on the first day of each month, on GitHub Actions. Copy it to `.github/workflows/` and set the release your project uses. The retrospective reads the exported records too, so it counts the closed tasks whose decision the project commits in `.openguildkit/decisions/` even when `.openguildkit/tasks/` is not committed.
+
+- When nothing comes back, it opens no issue.
+- When a finding comes back, it opens one issue, `OpenGuildKit retrospective YYYY-MM`, with each finding, its number of tasks and the profile command a person could type, never run.
+- A retrospective issue still open from an earlier month is updated and renamed instead, so there is one at a time. Once a person closes the issue of the month, a second run that month opens no other.
+
+The job asks for `contents: read` and `issues: write` and nothing else: it writes nothing to the repository. What people typed in a reason or a reservation reaches the issue, with each `@` broken so that it notifies nobody. Add `--min N` to the command in the template to change the minimum.
+
 ## Exit codes
 
 | Code | Meaning |

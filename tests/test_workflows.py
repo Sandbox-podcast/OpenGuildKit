@@ -166,6 +166,115 @@ class PinnedActionsTest(unittest.TestCase):
         self.assertIn('--version "$OPENGUILDKIT_TAG"', install["run"])
 
 
+class RetroTemplateTest(unittest.TestCase):
+    """The monthly retrospective template, its issue step run with a fake gh and the real jq."""
+
+    TEMPLATE = ROOT / "integrations" / "github" / "openguildkit-retro.yml"
+    STEP = "Open or update the retrospective issue"
+    FAKE_GH = """#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_LOG"
+case "$1 $2" in
+    "issue list") cat "$FAKE_ISSUES" ;;
+    "issue create" | "issue edit")
+        while [ $# -gt 0 ]; do
+            if [ "$1" = "--body-file" ]; then cat "$2" > "$FAKE_LOG.body"; fi
+            shift
+        done ;;
+esac
+"""
+
+    def setUp(self):
+        self.workflow = parse(self.TEMPLATE)
+        self.job = self.workflow["jobs"]["retro"]
+
+    def test_runs_monthly_with_a_time_limit_and_the_narrowest_permissions(self):
+        self.assertEqual(self.workflow["permissions"], {"contents": "read", "issues": "write"})
+        cron = self.workflow["on"]["schedule"][0]["cron"].split()
+        self.assertEqual(cron[2:], ["1", "*", "*"], "once a month, on the first day")
+        self.assertIn("workflow_dispatch", self.workflow["on"])
+        self.assertLessEqual(int(self.job["timeout-minutes"]), 15)
+        checkout = next(step for step in steps(self.job) if str(step.get("uses", "")).startswith("actions/checkout@"))
+        self.assertEqual(checkout["with"]["persist-credentials"], "false")
+        script = run_text(self.job)
+        self.assertIn("openguildkit task retro --all --json > retro.json", script)
+        for writes in ("git push", "git commit", "profile ", "pull-requests"):
+            self.assertNotIn(writes, script.replace("profile command", ""))
+
+    @staticmethod
+    def _month() -> str:
+        """The month the step names, read the way the step reads it, with date on the runner."""
+        return subprocess.run(["date", "-u", "+%Y-%m"], capture_output=True, text=True, check=True).stdout.strip()
+
+    def _issue_step(self, recurrences, issues, tasks=4):
+        temp = Path(tempfile.mkdtemp(prefix="ogk-retro-"))
+        self.addCleanup(shutil.rmtree, temp, True)
+        fake = temp / "bin" / "gh"
+        fake.parent.mkdir()
+        fake.write_text(self.FAKE_GH, encoding="utf-8")
+        fake.chmod(0o755)
+        (temp / "issues.json").write_text(json.dumps(issues), encoding="utf-8")
+        summary = {"minimum": 3, "tasks": {"read": tasks}, "recurrences": recurrences}
+        (temp / "retro.json").write_text(json.dumps(summary), encoding="utf-8")
+        step = next(step for step in steps(self.job) if step.get("name") == self.STEP)
+        log = temp / "gh.log"
+        environment = {**os.environ, "PATH": f"{fake.parent}{os.pathsep}{os.environ['PATH']}",
+                       "FAKE_LOG": str(log), "FAKE_ISSUES": str(temp / "issues.json"), "GH_TOKEN": "fake"}
+        result = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=temp, env=environment, capture_output=True,
+                                text=True, timeout=60, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+        body = (temp / "gh.log.body").read_text(encoding="utf-8") if (temp / "gh.log.body").exists() else None
+        return calls, body, result.stdout
+
+    RULE = {"kind": "rule", "label": "pack:gdpr skipped", "count": 3, "tasks": ["a", "b", "c"],
+            "command": "openguildkit profile remove pack gdpr --by NAME --reason WHY", "needs_terminal": True,
+            "also_drops": []}
+    COMMITTEE = {"kind": "committee", "label": "design @someone", "count": 4, "tasks": ["a", "b", "c", "d"],
+                 "command": None, "needs_terminal": False, "also_drops": []}
+
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_nothing_that_comes_back_opens_no_issue(self):
+        calls, body, out = self._issue_step([], [])
+        self.assertEqual(calls, [])
+        self.assertIn("no issue", out)
+
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_a_recurrence_opens_one_issue_of_the_month_with_the_commands_to_type(self):
+        month = self._month()
+        calls, body, _ = self._issue_step([self.RULE, self.COMMITTEE], [{"number": 7, "title": "Other", "state": "OPEN"}])
+        self.assertEqual([call.split(" --")[0] for call in calls], ["issue list", "issue create"])
+        self.assertIn(f"--title OpenGuildKit retrospective {month}", calls[1])
+        self.assertIn("pack:gdpr skipped", body)
+        self.assertIn("`openguildkit profile remove pack gdpr --by NAME --reason WHY`", body)
+        self.assertIn("interactive terminal", body)
+        self.assertIn("3 tasks", body)
+        self.assertNotIn("@someone", body, "a name typed in a finding must not notify anyone")
+        self.assertIn("not run", body)
+
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_the_issue_still_open_from_an_earlier_month_is_updated_not_duplicated(self):
+        month = self._month()
+        calls, body, _ = self._issue_step([self.RULE], [{"number": 12, "title": "OpenGuildKit retrospective 2020-01",
+                                                         "state": "OPEN"}])
+        self.assertEqual([call.split(" --")[0] for call in calls], ["issue list", "issue edit 12"])
+        self.assertIn(f"--title OpenGuildKit retrospective {month}", calls[1])
+        self.assertIn("pack:gdpr skipped", body)
+
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_the_issue_of_this_month_closed_by_a_person_is_not_opened_again(self):
+        month = self._month()
+        calls, body, out = self._issue_step([self.RULE], [{"number": 15, "title": f"OpenGuildKit retrospective {month}",
+                                                           "state": "CLOSED"}])
+        self.assertEqual([call.split(" --")[0] for call in calls], ["issue list"])
+        self.assertIn("#15", out)
+
+    def test_the_workflow_guide_describes_the_template_next_to_task_retro(self):
+        guide = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
+        section = guide.split("## Retrospective", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("integrations/github/openguildkit-retro.yml", section)
+        self.assertIn("issues: write", section)
+
+
 class ReleaseWorkflowTest(unittest.TestCase):
     def setUp(self):
         self.workflow = parse(ROOT / ".github" / "workflows" / "release.yml")

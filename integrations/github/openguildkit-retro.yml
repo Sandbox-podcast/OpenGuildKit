@@ -1,0 +1,85 @@
+# Copy to .github/workflows/openguildkit-retro.yml in a project that uses OpenGuildKit. On the first day of each
+# month it runs `openguildkit task retro --all --json`, which counts what comes back in the closed tasks of
+# .openguildkit/tasks/ and in the decisions exported to .openguildkit/decisions/ (3 tasks by default: add
+# --min N to change it). Only when a finding comes back does it open the issue "OpenGuildKit retrospective
+# YYYY-MM", with each finding and the profile command a person could type. The retrospective issue still open from
+# an earlier month is updated instead, so there is one at a time; once a person closes this month's issue, the
+# month opens no other. The job writes nothing to the repository and runs none of the commands it lists: a person
+# reads the issue and types the ones the team agrees with (docs/workflow.md#retrospective).
+name: OpenGuildKit retrospective
+
+on:
+  schedule:
+    - cron: "23 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  retro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Set the release your project uses. install.sh of that release checks the wheel against the release's
+        # SHA256SUMS.txt before installing it with pipx, and fails otherwise (docs/install.md).
+        env:
+          OPENGUILDKIT_TAG: v0.17.0
+        run: |
+          curl -fsSL "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/install.sh" \
+            | sh -s -- --version "$OPENGUILDKIT_TAG"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          PATH="$HOME/.local/bin:$PATH" openguildkit --version
+      - name: Count what comes back in the closed tasks
+        run: openguildkit task retro --all --json > retro.json
+      - name: Open or update the retrospective issue
+        # What people typed in a reason or a reservation is copied into the issue; an @ in it is broken so that
+        # the issue notifies nobody. At most 50 findings are listed, with the command that gives the rest.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(jq '.recurrences | length' retro.json)
+          if [ "$count" -eq 0 ]; then
+            echo "Nothing comes back in the $(jq '.tasks.read' retro.json) closed tasks: no issue."
+            exit 0
+          fi
+          title="OpenGuildKit retrospective $(date -u +%Y-%m)"
+          jq -r '
+            def safe: gsub("@"; "@​");
+            "`openguildkit task retro --all` finds \(.recurrences | length) finding(s) that come back in at least \(.minimum) of the \(.tasks.read) closed tasks.",
+            "",
+            (.recurrences[:50][] |
+              "- **\(.kind)** \(.label | safe): \(.count) tasks (\(.tasks | join(", ") | safe))"
+              + (if .command then
+                  "\n  A person may type: `\(.command | safe)`"
+                  + (if .needs_terminal then ", at an interactive terminal: it lowers a protection" else "" end)
+                  + (if (.also_drops | length) > 0 then "; it also drops \(.also_drops | join(", "))" else "" end)
+                else "" end)),
+            (if (.recurrences | length) > 50 then "\n\(.recurrences | length - 50) more: run `openguildkit task retro --all`." else empty end),
+            "",
+            "Each command is written, not run: fill in `--by` and `--reason` and type it only if the team agrees. A recurrence is a question for the team, not a verdict."
+          ' retro.json > body.md
+          issues=$(gh issue list --state all --limit 500 --json number,title,state)
+          same=$(jq -r --arg title "$title" '[.[] | select(.title == $title)][0] | if . then "\(.number) \(.state)" else "" end' <<<"$issues")
+          if [ -n "$same" ] && [ "${same#* }" != OPEN ]; then
+            echo "#${same% *} of this month is closed: no other issue this month."
+            exit 0
+          fi
+          open=${same% *}
+          if [ -z "$open" ]; then
+            open=$(jq -r '[.[] | select(.state == "OPEN" and (.title | test("^OpenGuildKit retrospective [0-9]{4}-[0-9]{2}$")))][0].number // empty' <<<"$issues")
+          fi
+          if [ -n "$open" ]; then
+            gh issue edit "$open" --title "$title" --body-file body.md
+            echo "Updated #$open: $title"
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi
