@@ -11,9 +11,10 @@ from pathlib import Path
 
 from . import clock, light_lane
 from .consultation import (
-    CHOICES, EVIDENCE_SOURCES, answer_lines, json_section, market_references, one_based, scope_lines,
+    CHOICES, CONTEST_ITEM, EVIDENCE_SOURCES, answer_lines, json_section, market_references, one_based, scope_lines,
     storybook_references, tool_references,
 )
+from .questionnaire import ASSUMPTIONS
 from .routing import normalize_text, trigger_matches
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 
@@ -332,6 +333,28 @@ def _validate_challenge(
     }
 
 
+def _contested(items: object, count: int, path: str, problems: list[str]) -> list[dict]:
+    """The task's assumptions a board contests: each names one by its number, counted from 1, and says why."""
+    if not isinstance(items, list):
+        problems.append(f"{path}: got {_received(items)}; expected a list of {json.dumps(CONTEST_ITEM)}, empty when "
+                        "the board contests no assumption.")
+        return []
+    contested = []
+    for position, item in enumerate(items, start=1):
+        item_path = f"{path}[{position}]"
+        if not _keys(item, set(CONTEST_ITEM), set(), item_path, problems):
+            continue
+        number = item["assumption"]
+        if type(number) is not int or not 1 <= number <= count:
+            problems.append(f"{item_path}.assumption: got {_received(number)}; the number of a listed assumption, "
+                            f"1 to {count}.")
+            continue
+        reason = _checked(problems, _text, item["reason"], f"{item_path}.reason")
+        if reason:
+            contested.append({"assumption": number, "reason": reason})
+    return contested
+
+
 EXECUTION_MODES = ("subagents", "sequential", "mixed", "unspecified")
 
 
@@ -352,8 +375,10 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     templates = {item["id"]: item for item in consultation.get("review_template", {}).get("boards", [])}
     template = templates.get(board_id, {})
     fields = {"id", "recommendation", "evidence", "open_questions"} | ({"challenge", "reviewer"} & template.keys())
+    assumed = consultation.get("scope", {}).get("answers", {}).get(ASSUMPTIONS, [])
     problems = []
-    _keys(entry, fields, set(), board_id, problems)
+    _keys(entry, fields, {"contested_assumptions"} if assumed else set(), board_id, problems)
+    contested = entry.get("contested_assumptions", []) if assumed and isinstance(entry, dict) else []
     credentials = []
     if root is not None:
         credentials = [one_based(problem) for problem in
@@ -390,6 +415,9 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
             board_id, entry["challenge"], template["challenge"], [item or {} for item in checked], structured, problems,
             not_concerned,
         )
+    contested = _contested(contested, len(assumed), f"{board_id}.contested_assumptions", problems)
+    if contested:
+        result["contested_assumptions"] = contested
     # A field another check already refuses is reported once, by that check.
     reported = {problem.split(": ", 1)[0] for problem in problems}
     problems.extend(problem for problem in credentials if problem.split(": ", 1)[0] not in reported)
@@ -857,6 +885,7 @@ def decision_summary(task: dict) -> list[str]:
                      f"the real systems: {', '.join(synthetic)}.")
     lines += _board_change_lines(task)
     lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]
+    lines += _assumption_lines(task, review)
     if deliberation:
         lines.append(f"Deliberation: {len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open. "
                      f"{RESOLUTION_RULE}")
@@ -873,6 +902,30 @@ def decision_summary(task: dict) -> list[str]:
                          f"decide them yourself; task deliberate has the boards answer first. {RESOLUTION_RULE}")
         lines += [f"Objection not deliberated: {item['id']}: {item['point']}" for item in pending]
     lines += _blocker_lines(task)
+    return lines
+
+
+def assumptions_read(task: dict, review: dict) -> list[dict]:
+    """The task's working assumptions with the boards that contest each, the contested first, then in their order."""
+    assumed = task["consultation"]["scope"].get("answers", {}).get(ASSUMPTIONS, [])
+    items = [{"number": number, "text": text, "contested": []} for number, text in enumerate(assumed, start=1)]
+    for entry in review["boards"]:
+        for item in entry.get("contested_assumptions", []):
+            items[item["assumption"] - 1]["contested"].append({"board": entry["id"], "reason": item["reason"]})
+    return sorted(items, key=lambda item: not item["contested"])
+
+
+def _assumption_lines(task: dict, review: dict) -> list[str]:
+    """The assumptions apart, before the person types the task ID: approving accepts what is still assumed."""
+    items = assumptions_read(task, review)
+    if not items:
+        return []
+    lines = [f"Assumptions not confirmed ({len(items)}): approving accepts them as they are."]
+    for item in items:
+        boards = ", ".join(contest["board"] for contest in item["contested"])
+        reasons = " ".join(f"{contest['board']}: {contest['reason']}" for contest in item["contested"])
+        lines.append(f"Assumption {item['number']}, contested by {boards}: {item['text']} ({reasons})" if boards
+                     else f"Assumption {item['number']}: {item['text']}")
     return lines
 
 
@@ -907,6 +960,9 @@ def challenge_report(task: dict, lines: list[str] | None = None) -> str:
     points = task["consultation"]["scope"].get("open_points")
     if points:
         report["open_points"] = points
+    assumed = assumptions_read(task, review)
+    if assumed:
+        report["assumptions"] = assumed
     deliberation = task.get("deliberation")
     if deliberation:
         # Each objection once, with its status and both boards' answers; the lines above only name it.

@@ -270,6 +270,7 @@
       ],
       "tests": [
         "tests/test_agent_native.py",
+        "tests/test_assumptions.py",
         "tests/test_blocker_clearances.py",
         "tests/test_blockers.py",
         "tests/test_board_entries.py",
@@ -736,6 +737,7 @@
         "open_points"
       ],
       "tests": [
+        "tests/test_assumptions.py",
         "tests/test_brain_selection.py",
         "tests/test_first_run.py",
         "tests/test_questions.py",
@@ -1212,6 +1214,7 @@
         "review_warnings"
       ],
       "tests": [
+        "tests/test_assumptions.py",
         "tests/test_blocker_clearances.py",
         "tests/test_blockers.py",
         "tests/test_board_entries.py",

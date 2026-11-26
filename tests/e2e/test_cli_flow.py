@@ -417,7 +417,7 @@ class TaskFlowTests(CliTestCase):
         self.run_cli("task", "new", "Improve exports", "--id", "vague")
         answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
         plan = json.loads(self.run_cli("task", "questions", "vague", "--answers", answers).stdout)
-        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "concerns", "outcome"])
+        self.assertEqual([item["id"] for item in plan["follow_ups"]], ["affected", "assumptions", "concerns", "outcome"])
         answers = self.write_json("vague.json", {"kind": "feature", "surface": ["customer", "service"], "data": "none",
                                                  "research": "local", "concerns": ["none"]})
         self.assertTrue(all(item["prompt"].endswith("?") for item in plan["follow_ups"]))

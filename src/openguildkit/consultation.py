@@ -12,7 +12,7 @@ from .catalog import rule_check
 from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
 from .project import rule_text
-from .questionnaire import SURFACE_MEANINGS, as_list, open_points, validate_answers
+from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
 from .rule_checks import describe_check
@@ -137,7 +137,20 @@ def answer_lines(scope: dict) -> list[str]:
     for field in ("outcome", "affected", "options", "context"):
         if answers.get(field):
             lines.append(f"- {field.capitalize()}: {answers[field]}")
-    return lines
+    return lines + assumption_lines(answers)
+
+
+def assumption_lines(answers: dict) -> list[str]:
+    """The working assumptions apart from the answers, numbered as a board contests them; none prints nothing."""
+    assumptions = answers.get(ASSUMPTIONS, [])
+    if not assumptions:
+        return []
+    return [f"- Assumptions not confirmed ({len(assumptions)}):",
+            *(f"  {number}. {text}" for number, text in enumerate(assumptions, start=1))]
+
+
+# A board contests an assumption in its entry with this item; the person reads it first when deciding.
+CONTEST_ITEM = {"assumption": 1, "reason": ""}
 
 
 def _named(entry: object) -> str:
@@ -331,8 +344,10 @@ def _lens_scope(lens: dict, surfaces: list[str]) -> list[str]:
 
 
 def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str] | None = None,
-                    concerns: list[str] | None = None) -> dict:
+                    concerns: list[str] | None = None, assumptions: bool = False) -> dict:
     entry = {"id": board["id"], "recommendation": "", "evidence": [], "open_questions": []}
+    if assumptions:
+        entry["contested_assumptions"] = []
     if reviewer:
         entry["reviewer"] = reviewer
     if "review" in board:
@@ -581,7 +596,8 @@ def consult(
             "summary": "",
             "boards": [
                 _board_template(boards[board_id], delegations.get(board_id), answers["surface"],
-                                as_list(answers.get("concerns"))) for board_id in routing
+                                as_list(answers.get("concerns")), bool(answers.get(ASSUMPTIONS)))
+                for board_id in routing
             ],
             "evidence_item": EVIDENCE_ITEM,
             "blocker_item": BLOCKER_ITEM,
@@ -839,6 +855,9 @@ def board_brief(consultation: dict, board_id: str, shared_from: str | None = Non
         f"{task_id}: {scope['brief'].strip()}",
         "",
         *answer_lines(scope),
+        *([f"- To contest an assumption, add {json.dumps(CONTEST_ITEM)} to \"contested_assumptions\" in the "
+           "entry, with its number and why: the person reads it first when deciding."]
+          if scope["answers"].get(ASSUMPTIONS) else []),
         *(["- Components: " + "; ".join(f"{item['id']} ({item.get('path') or item['id']})"
                                          for item in scope["components"] if isinstance(item, dict))]
           if scope.get("components") else []),

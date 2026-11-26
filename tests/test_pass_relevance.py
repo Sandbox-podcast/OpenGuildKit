@@ -248,7 +248,7 @@ class PassRelevanceTests(ProjectCase):
         self.cli("task", "new", "Fix the date column of the support requests export: it ignores the time zone.",
                  "--id", "typed")
         typed = iter(["bug", "service", "personal", "local", "?", "Dates follow the customer's time zone.",
-                      "Customers who export their requests", ""])
+                      "Customers who export their requests", "", ""])
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=lambda: next(typed)):
             self.cli("task", "consult", "typed")
         self.assertEqual(json.loads(self.cli("task", "show", "typed"))["answers"]["concerns"], ["unsure"])

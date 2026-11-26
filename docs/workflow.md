@@ -70,6 +70,27 @@ A question is essential for the cases where the boards cannot review without it:
 
 The consultation stays short so that an agent can keep it in context: the task and its answers, the project scope once (stack, components, packs named with their number of rules, conventions, checks, host controls), the open points, and one line per board with why it was selected. It does not repeat the rule texts (`AGENTS.md` names each rule by its ID and leaves its text out, as it leaves out the verification and the sources of the packs: a pass prints the rules that concern the task), nor each board's brief, which its pass prints. What it leaves out stays available: `task brief ID --pack PACK` prints one pack in full, `task brief ID --scope` prints the whole scope as JSON with every rule text, `task brief ID --board BOARD` prints a board's pass, and `openguildkit brains --id BOARD` the board's full reading list. For a bug, when the brief names a file or a function (`src/export.js`, `exportCsv()`, `` `toRow` ``) that the project does not contain, the consultation says so in one line, so that the boards check the brief before reviewing code that is not there.
 
+### Assumptions not confirmed
+
+What scoping takes for granted without anyone confirming it goes in `assumptions`, a list of sentences, apart from the answers the person gave (#436):
+
+```json
+{
+  "kind": "feature",
+  "surface": "customer",
+  "data": "personal",
+  "research": "local",
+  "concerns": ["none"],
+  "assumptions": ["Requests are linked to accounts by the customer ID.", "Support agents keep their current view."]
+}
+```
+
+- **Asking.** While `outcome` or `affected` is asked and still empty, `task questions ID --answers FILE --follow-ups` lists `assumptions` in `follow_ups`: what is assumed in their place is worth writing down. At the terminal, `task consult` asks it after the other follow-ups; Enter skips it.
+- **Checking.** Anything other than a list of non-empty sentences is refused with the shape to write. An empty list records nothing.
+- **The boards.** The consultation, each board pass and the handoff list them, numbered, under `Assumptions not confirmed (N)`. A pass's entry has `"contested_assumptions": []`: a board that disputes one adds `{"assumption": 2, "reason": "..."}`, with the number of a listed assumption. Another number, or the key in a task without assumptions, is refused.
+- **The person.** `task challenge`, `task decision-payload` and the approval prompt of `task decide --approve` print `Assumptions not confirmed (N)` apart, before the request to type the task ID, the contested ones first with the boards that contest them and why. The JSON of `task challenge` has them under `assumptions`. Nothing blocks: approving accepts them as they are.
+- **What does not change.** Answers without `assumptions`, and every task recorded before, read and print as before.
+
 ### How boards are selected
 
 Answers route to boards first:
