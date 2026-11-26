@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import owners, workflow
+from openguildkit import owners
 from openguildkit.storage import write_json
 
 from tests.support import CapturedCli
@@ -119,8 +119,7 @@ class LocationTests(unittest.TestCase):
 
 
 class DisplayTests(CapturedCli, unittest.TestCase):
-    """What task challenge and task handoff print, built by workflow.challenge_report and workflow.handoff from the
-    approved task. Their commands pass the project root once tasks_cli.py gives it (see docs/workflow.md)."""
+    """What task challenge and task handoff print for an approved task."""
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -133,7 +132,7 @@ class DisplayTests(CapturedCli, unittest.TestCase):
         (self.root / "web").mkdir()
 
     def approved(self, brief):
-        """The decision brief and the handoff of an approved task, as their commands build them with the root."""
+        """What task challenge and task handoff print for the task, approved in between."""
         self.run_cli("task", "new", brief, "--id", TASK)
         write_json(self.root / "answers.json", json.loads((EXAMPLE / "answers.json").read_text()))
         self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json")
@@ -142,12 +141,10 @@ class DisplayTests(CapturedCli, unittest.TestCase):
         review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
         write_json(self.root / "review.json", review)
         self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
-        challenge = workflow.challenge_report(json.loads(self.run_cli("task", "show", TASK)[0]), None, self.root)
-        self.run_cli("task", "challenge", TASK)
+        challenge = self.run_cli("task", "challenge", TASK)[0]
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=[TASK]):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
-        self.run_cli("task", "handoff", TASK)
-        handoff = workflow.handoff(json.loads(self.run_cli("task", "show", TASK)[0]), root=self.root)
+        handoff = self.run_cli("task", "handoff", TASK)[0]
         return challenge, handoff
 
     def test_the_decision_brief_and_the_handoff_name_the_owners_and_no_record_keeps_them(self):

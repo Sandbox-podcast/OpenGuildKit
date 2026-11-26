@@ -1167,7 +1167,7 @@ def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task
         print(recall)
     lines = (decision_text(task, profile, last_approval(state), load_register(state))
              if "review" in task else None)
-    print(challenge_report(task, lines), end="")
+    print(challenge_report(task, lines, root), end="")
 
 
 def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1409,7 +1409,7 @@ def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         checks = expected_checks(task, profile, _relevance(root, task, profile, catalog))
     if task.get("status") == "approved":
         evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
-    output = handoff(task, evidence, checks)
+    output = handoff(task, evidence, checks, root)
     require_instructions(args, root, state, profile, catalog)
     waits = waiting_for(task, {name: _status_of(state, name) for name in task.get("after", [])})
     if task["status"] == "approved" and waits:

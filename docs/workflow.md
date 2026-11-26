@@ -289,7 +289,6 @@ Code owners, read from .github/CODEOWNERS (shown here, never recorded): api/ @te
 - **Shown, never recorded.** Owners are often people's names or emails ([personal data](personal-data.md)). Whether a committed record may keep them is an open decision (Q9 of the benchmark), so they stay out of the task record, the exported decision record and every file the CLI writes: they are read again from CODEOWNERS at each display.
 - **What does not change.** A project without CODEOWNERS sees nothing more.
 
-Status of the wiring: the line is built by `workflow.challenge_report` and `workflow.handoff` when they receive the project root. The two calls in `tasks_cli.py` (`_challenge` and `_handoff`) do not pass it yet, so the commands do not print the line until they do.
 
 ## 6. Report the results
 
