@@ -532,8 +532,13 @@ def board_replacements(catalog: dict) -> list[str]:
     A project may replace them (docs/catalog-format.md), and a weaker security brain reads like the bundled one:
     check and task consult print these lines so that the person sees what the project changed.
     """
+    return list(replaced_boards(catalog).values())
+
+
+def replaced_boards(catalog: dict) -> dict[str, str]:
+    """The line board_replacements prints, by the ID of the brain it is about."""
     bundled = _validated_bundled(_registry())["boards"]
-    lines = []
+    lines = {}
     for board_id in sorted(overlaid_boards(catalog)):
         before, after = bundled.get(board_id), catalog["boards"].get(board_id)
         if before is None or after is None:
@@ -547,9 +552,9 @@ def board_replacements(catalog: dict) -> list[str]:
         if replaced:
             changes.append(f"specialist(s) replaced: {', '.join(replaced)}")
         if changes:
-            lines.append(f"the project catalog replaces parts of the bundled brain {board_id} "
-                         f"(.openguildkit/catalog/boards/{board_id}.json): {'; '.join(changes)}. Check that the "
-                         "person accepted this change to the brain's review.")
+            lines[board_id] = (f"the project catalog replaces parts of the bundled brain {board_id} "
+                               f"(.openguildkit/catalog/boards/{board_id}.json): {'; '.join(changes)}. Check that the "
+                               "person accepted this change to the brain's review.")
     return lines
 
 

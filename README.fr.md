@@ -187,6 +187,8 @@ openguildkit brains --id product
 - [Brains métier et notes de décision](docs/brains.md)
 - [Dossiers marché et veille concurrentielle](docs/market.md)
 - [Alertes de dépendances et veille des vulnérabilités](docs/alerts.md)
+- [Analyser les fichiers qu'un agent lit, et lister les outils d'agents et les serveurs MCP d'un projet](docs/host-scan.md)
+- [Sortie SARIF de `check` et `guard --ci` pour l'analyse de code](docs/sarif.md)
 - [Livrables métier issus des tâches approuvées](docs/deliverables.md)
 - [Storybook du projet, design system de l'entreprise et extraction](docs/storybook.md)
 - [Documentation du projet et partage avec Documentalist](docs/documentation.md)

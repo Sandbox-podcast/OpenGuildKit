@@ -31,6 +31,7 @@ _PRODUCT = [{"surface": ["customer"], "kind": ["feature"]}]
 _SERVICE = [{"surface": ["service"]}]
 _INFRASTRUCTURE = [{"surface": ["infrastructure"]}]
 _AI = [{"concerns": ["ai", "people-decisions"]}]
+_AI_AGENT = [{"concerns": ["ai"]}, {"mentions": ["agents and MCP"]}]
 _MONEY = [{"concerns": ["money"]}]
 _PERSONAL = [{"data": ["personal", "regulated"]}]
 # Personal data on a surface that users or services reach: the information these controls protect.
@@ -49,6 +50,10 @@ MENTIONS = {
     "hiring": ("hire", "hiring", "recruit", "recruiting", "recruitment", "recruter", "recrutement", "embauche",
                "embaucher", "candidate", "candidat", "candidature", "applicant", "interview", "entretien d'embauche",
                "job posting", "job offer", "offre d'emploi", "job description", "fiche de poste"),
+    # A support agent or a sales agent is a person: only the AI agent and the protocols and frameworks that build one.
+    "agents and MCP": ("mcp", "model context protocol", "ai agent", "llm agent", "agentic", "agent ia", "agentique",
+                       "tool calling", "function calling", "langgraph", "crewai", "autogen", "openai agents",
+                       "pydantic ai", "claude agent sdk"),
 }
 # The subject of each bundled pack: a list of alternatives, each a set of conditions that must all match. The
 # task answers kind, surface, data and concerns match when one of their values is listed; "boards" matches when
@@ -86,6 +91,8 @@ SUBJECTS = {
     "finops-cost-management": ("cloud and vendor spending", [
         {"surface": ["infrastructure"]}, {"surface": ["business"], "concerns": ["money"], "boards": ["finance", "devops"]}]),
     **{pack: ("AI", _AI) for pack in ("llm-evaluations", "nist-ai-risk", "eu-ai-act")},
+    # Concern ai names it; so does a brief that speaks of an MCP server or an AI agent, which no answer does.
+    "agentic-application-security": ("an AI agent or an MCP server", [*_AI_AGENT]),
     **{pack: ("money", _MONEY) for pack in (
         "revenue-recognition", "saas-metrics", "vat-and-e-invoicing", "france-e-invoicing", "financial-planning",
         "deal-approval")},
@@ -309,7 +316,8 @@ SENSITIVE = {
                         "france-cookies-and-trackers", "backend-data-safety", "pci-dss"),
     "security": ("secure-sdlc", "owasp-asvs", "threat-modeling", "supply-chain", "iso-27001", "aws-iam",
                  "container-images", "github-actions-security", "gitlab-ci-security", "nis2", "dora",
-                 "cyber-resilience-act", "incident-notification", "france-public-sector-security"),
+                 "cyber-resilience-act", "incident-notification", "france-public-sector-security",
+                 "agentic-application-security"),
     "AI": ("llm-evaluations", "nist-ai-risk", "eu-ai-act"),
 }
 # Who provides the named evidence of a pack: the document belongs to them, never to the agent.

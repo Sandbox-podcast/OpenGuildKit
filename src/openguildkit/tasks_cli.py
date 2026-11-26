@@ -364,18 +364,22 @@ def _print_decision_rows(rows: list[dict]) -> None:
         print(f"    {'; '.join(notes)}")
 
 
-def sharing_warnings(root: Path, state: Path, records: list[dict], tasks: dict | None = None) -> list[str]:
+def sharing_issues(root: Path, state: Path, records: list[dict], tasks: dict | None = None) -> list[tuple[str, str, str | None]]:
     """What git will not carry to a teammate: tasks named only by exported records, evidence left out of the repository.
 
-    tasks holds the task records the caller already read, by ID; without it they are read here."""
-    warnings = []
+    Each issue is its kind (task-absent, task-id-clash or evidence-unshared), the line check prints and the file it is
+    about, None when it names none. tasks holds the task records the caller already read, by ID; without it they are
+    read here."""
+    issues = []
     absent = sorted({row["task"] for row in records if row["status"] != "unreadable" and not row["local"]})
     if absent:
-        warnings.append(
+        issues.append((
+            "task-absent",
             f"exported decisions name tasks absent from this copy: {', '.join(absent)}. That is normal for a teammate's "
-            "task; if the tasks folder was deleted, these records are what remains (openguildkit task list --decisions)."
-        )
-    warnings += [_clash_message(task_id, path) for task_id, path in _id_clashes(root, state).items()]
+            "task; if the tasks folder was deleted, these records are what remains (openguildkit task list --decisions).",
+            None,
+        ))
+    issues += [("task-id-clash", _clash_message(task_id, path), path) for task_id, path in _id_clashes(root, state).items()]
     cited = {}
     if tasks is not None:
         cited = {task_id: cited_evidence(task) for task_id, task in sorted(tasks.items())}
@@ -385,7 +389,7 @@ def sharing_warnings(root: Path, state: Path, records: list[dict], tasks: dict |
                 cited[path.stem] = cited_evidence(read_task(state, path.stem))
             except ValueError:
                 continue
-    return warnings + _unshared_evidence(root, cited)
+    return issues + _unshared_evidence(root, cited)
 
 
 def _id_clashes(root: Path, state: Path) -> dict[str, str]:
@@ -414,19 +418,21 @@ def _clash_message(task_id: str, path: str) -> str:
             "NEW-ID (see docs/workflow.md, \"When two copies use the same task ID\").")
 
 
-def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[str]:
+def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
     """Evidence a reviewer cannot open from the repository: ignored by git or kept under .openguildkit/tasks/."""
-    warnings = []
+    issues = []
     ignored = ignored_by_git(root, sorted({path for paths in cited.values() for path in paths}))
     local_only = f"{STATE_DIR}/tasks/"
     for task_id, paths in cited.items():
         unshared = [path for path in paths if path in ignored or path.replace("\\", "/").startswith(local_only)]
         if unshared:
-            warnings.append(
+            issues.append((
+                "evidence-unshared",
                 f"task {task_id} cites evidence a reviewer cannot open from the repository (ignored by git or kept under "
-                f"{local_only}): {', '.join(unshared)}. Move it to a committed folder and record it again."
-            )
-    return warnings
+                f"{local_only}): {', '.join(unshared)}. Move it to a committed folder and record it again.",
+                f"{STATE_DIR}/tasks/{task_id}.json",
+            ))
+    return issues
 
 
 def _prompt_task_questions(brief: str) -> dict:

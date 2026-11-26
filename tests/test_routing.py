@@ -45,6 +45,17 @@ class RoutingTests(unittest.TestCase):
                 for board in case.get("must_not", []):
                     self.assertNotIn(board, selected, f"{board} should not review: {selected}")
 
+    def test_a_brief_about_an_mcp_server_reaches_security_and_engineering(self):
+        # No answer names the credentials, the data or the AI system an MCP server exposes tools over: the words do.
+        brief = "Add an MCP server to our product"
+        for text in (brief, "Ajouter un serveur MCP à notre produit", "Connect our agents through the Model Context Protocol"):
+            with self.subTest(brief=text):
+                self.assertIn("security", text_routes(self.boards, text))
+        answers = {**NEUTRAL, "kind": "feature", "surface": ["service"], "data": "none", "concerns": ["none"]}
+        routing = self.route(brief, answers)["routing"]
+        self.assertLessEqual({"security", "engineering"}, set(routing))
+        self.assertEqual({"marketing", "legal", "finance"} & set(text_routes(self.boards, brief)), set())
+
     def test_a_consultation_routes_the_table_through_the_same_reading(self):
         # select_boards, which task consult and task route call, selects every board the table expects.
         for case in CASES:

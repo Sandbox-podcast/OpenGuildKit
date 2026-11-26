@@ -14,7 +14,7 @@ from .catalog import (
 )
 from .ci import read_policy_pack
 from .patterns import pattern_selection
-from .project import check_instructions, selected_packs
+from .project import RuleError, check_instructions, selected_packs
 from .storage import file_signature, read_json, write_json
 
 LOCK_FILE = "catalog.lock.json"
@@ -115,10 +115,10 @@ def require_instructions(args, root: Path, state: Path, profile: dict, catalog: 
     """Refuse out-of-date instructions, naming update rather than sync when they follow a newer installed catalog."""
     try:
         check_instructions(root, profile, catalog)
-    except ValueError:
+    except ValueError as error:
         lock = read_lock(state)
         if lock is not None and _instructions_match(root, profile, update_target(installed_catalog(args, state)[0], lock)):
-            raise ValueError(LOCK_OLDER) from None
+            raise RuleError(LOCK_OLDER, "instructions-ahead-of-lock", getattr(error, "files", ())) from None
         raise
 
 

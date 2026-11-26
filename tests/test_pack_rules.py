@@ -1,12 +1,15 @@
 """Pack rules that must not weaken their source, repeat each other or stay out of reach."""
 
 import re
+import tempfile
 import unittest
+from pathlib import Path
 
 from openguildkit.brains import brain_knowledge
 from openguildkit.catalog import load_catalog
 from openguildkit.project import render_instructions, resolved_profile, rule_plan, validate_profile
 from openguildkit.references import find_references, load_references, with_pattern_references
+from openguildkit.rule_checks import evaluate_check
 
 REGULATORY_PACKS = ("gdpr", "nis2", "dora", "cyber-resilience-act", "eu-ai-act")
 # Words that only a French title would contain; an English title has none of them.
@@ -120,6 +123,87 @@ class PackRuleTests(unittest.TestCase):
                    if "access" in rule["id"] and ("remov" in rule["id"] or "depart" in rule["id"])]
         self.assertEqual(removal, ["employee-offboarding/schedule-access-removal"])
         self.assertIn("employee-offboarding", self.catalog["packs"]["device-and-access-lifecycle"]["depends_on"])
+
+
+# The ten risks of the OWASP Top 10 for Agentic Applications 2026, with the identifiers its page gives them
+# (genai.owasp.org, read on 25 November 2026). Each one is answered by a rule of the agentic security pack.
+OWASP_AGENTIC_RISKS = {
+    "ASI01": "Agent Goal Hijack", "ASI02": "Tool Misuse and Exploitation", "ASI03": "Identity and Privilege Abuse",
+    "ASI04": "Agentic Supply Chain Vulnerabilities", "ASI05": "Unexpected Code Execution (RCE)",
+    "ASI06": "Memory & Context Poisoning", "ASI07": "Insecure Inter-Agent Communication",
+    "ASI08": "Cascading Failures", "ASI09": "Human-Agent Trust Exploitation", "ASI10": "Rogue Agents",
+}
+MCP_RULES = ("pin-mcp-server-versions", "expose-minimal-mcp-tools", "keep-mcp-tokens-inside-the-server-boundary",
+             "treat-mcp-metadata-and-results-as-untrusted", "bind-local-mcp-servers-to-loopback")
+AGENTIC_REFERENCES = ("owasp-agentic-top-10", "model-context-protocol", "agent-tool-permissions", "human-in-the-loop",
+                      "agent-execution-limits", "agent-memory", "agent2agent")
+
+
+class AgenticSecurityPackTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = load_catalog()
+        cls.pack = cls.catalog["packs"]["agentic-application-security"]
+        cls.pattern = cls.catalog["patterns"]["agentic-application-security"]
+
+    def test_each_risk_of_the_owasp_list_is_answered_by_a_rule_that_names_it(self):
+        for risk in OWASP_AGENTIC_RISKS:
+            with self.subTest(risk=risk):
+                rules = [rule["id"] for rule in self.pack["rules"] if risk in rule["instruction"]]
+                self.assertTrue(rules, f"no rule names {risk}")
+        cited = set(re.findall(r"\bASI\d{2}\b", " ".join(rule["instruction"] for rule in self.pack["rules"])))
+        self.assertEqual(cited - set(OWASP_AGENTIC_RISKS), set())
+
+    def test_the_pack_has_twelve_to_sixteen_rules_with_the_mcp_ones_among_them(self):
+        ids = [rule["id"] for rule in self.pack["rules"]]
+        self.assertTrue(12 <= len(ids) <= 16, ids)
+        self.assertLessEqual(set(MCP_RULES), set(ids))
+        for rule in self.pack["rules"]:
+            with self.subTest(rule=rule["id"]):
+                self.assertRegex(rule["id"], r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+                self.assertNotIn("manual", rule)
+
+    def test_the_pack_starts_with_its_context_and_claims_no_conformity(self):
+        self.assertTrue(self.pack["description"].startswith("For a project that builds"))
+        text = " ".join([self.pack["description"], self.pattern["description"],
+                         *(f"{rule['instruction']} {rule['verification']}" for rule in self.pack["rules"])]).casefold()
+        for word in ("compliant", "compliance with", "certified", "certification of", "guarantee", "ensures conformity"):
+            self.assertNotIn(word, text)
+        self.assertTrue(all(source["checked"] == "2026-11-25" for source in self.pack["sources"]))
+        self.assertTrue(all(source["url"].startswith("https://") for source in self.pack["sources"]))
+
+    def test_the_pattern_reaches_the_pack_through_the_mcp_sdks_and_the_agent_frameworks(self):
+        self.assertIn("agentic-application-security", self.pattern["packs"])
+        group = {alias.casefold() for alias in self.pattern["match"]["stack"][0]}
+        for name in ("mcp", "langgraph", "crewai", "openai agents sdk", "pydantic ai", "claude agent sdk", "autogen"):
+            self.assertIn(name, group)
+        self.assertEqual(len(self.pattern["match"]["stack"]), 1)
+
+    def test_every_reference_the_pack_applies_names_it_and_is_listed_by_the_pattern(self):
+        families = load_references()
+        records = {record["id"]: record for family in families.values() for record in family["references"]}
+        self.assertEqual(set(self.pattern["references"]), set(AGENTIC_REFERENCES))
+        for reference_id in AGENTIC_REFERENCES:
+            with self.subTest(reference=reference_id):
+                self.assertIn("agentic-application-security", records[reference_id]["packs"])
+
+    def test_the_mcp_pinning_check_flags_a_floating_version_and_passes_without_an_mcp_file(self):
+        check = next(rule["check"] for rule in self.pack["rules"] if rule["id"] == "pin-mcp-server-versions")
+        cases = (
+            ({}, "passed"),
+            ({".mcp.json": '{"mcpServers": {"a": {"command": "npx", "args": ["a-mcp@1.4.2"]}}}'}, "passed"),
+            ({".mcp.json": '{"mcpServers": {"a": {"command": "npx", "args": ["a-mcp@latest"]}}}'}, "failed"),
+            ({".mcp.json": '{"mcpServers": {"a": {"command": "docker", "args": ["run", "-i", "acme/a-mcp:latest"]}}}'},
+             "failed"),
+            ({".codex/config.toml": '[mcp_servers.a]\ncommand = "npx"\nargs = ["a-mcp@latest"]\n'}, "failed"),
+        )
+        for files, expected in cases:
+            with self.subTest(files=files), tempfile.TemporaryDirectory() as directory:
+                for relative, content in files.items():
+                    path = Path(directory, relative)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content, encoding="utf-8")
+                self.assertEqual(evaluate_check(Path(directory), check)["status"], expected)
 
 
 if __name__ == "__main__":

@@ -148,6 +148,19 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/check_findings.py",
+      "role": "Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output.",
+      "entry": [
+        "RULES",
+        "APPROVAL_CODES",
+        "Report"
+      ],
+      "tests": [
+        "tests/test_sarif_commands.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/ci.py",
       "role": "Reads versioned evidence from Git and evaluates the central policy's field check.",
       "entry": [
@@ -192,6 +205,8 @@
         "tests/test_entry_pages.py",
         "tests/test_first_contribution.py",
         "tests/test_first_run.py",
+        "tests/test_host_scan.py",
+        "tests/test_host_surfaces.py",
         "tests/test_integrations.py",
         "tests/test_next_steps.py",
         "tests/test_performance.py",
@@ -204,6 +219,7 @@
         "tests/test_robustness.py",
         "tests/test_rule_checks.py",
         "tests/test_sample_project.py",
+        "tests/test_sarif_commands.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_storybook_extract.py",
@@ -374,6 +390,7 @@
         "tests/test_clock.py",
         "tests/test_guard.py",
         "tests/test_record_lifecycle.py",
+        "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_task_index.py"
       ],
@@ -386,11 +403,13 @@
         "signers_rule",
         "approval_warning",
         "host_controls",
-        "apply_host_settings"
+        "apply_host_settings",
+        "board_control"
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
         "tests/test_host_research.py",
+        "tests/test_host_surfaces.py",
         "tests/test_hosts.py",
         "tests/test_next_steps.py"
       ],
@@ -558,7 +577,8 @@
         "is_norm",
         "norm_reason",
         "init_questions",
-        "unsure_answers"
+        "unsure_answers",
+        "managed_block_lines"
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
@@ -572,6 +592,8 @@
         "tests/test_core.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_host_scan.py",
+        "tests/test_host_surfaces.py",
         "tests/test_instruction_files.py",
         "tests/test_monorepo_instructions.py",
         "tests/test_pack_rules.py",
@@ -767,6 +789,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/sarif.py",
+      "role": "Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run.",
+      "entry": [
+        "finding",
+        "fingerprint",
+        "to_sarif",
+        "sarif_text"
+      ],
+      "tests": [
+        "tests/test_sarif.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/sensitive.py",
       "role": "Recognizes credentials and personal data in what people and agents give the CLI.",
       "entry": [
@@ -934,6 +970,22 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/surfaces.py",
+      "role": "Lists the agent tools, MCP servers and permissive settings a project shows, and reads its instruction files and settings for hidden characters, phrases that cancel the rules and downloads piped into an interpreter (`host scan`), offline and read-only.",
+      "entry": [
+        "discover",
+        "scan",
+        "scan_report",
+        "render_scan",
+        "scan_exit_code"
+      ],
+      "tests": [
+        "tests/test_host_scan.py",
+        "tests/test_host_surfaces.py"
+      ],
+      "doc": "docs/host-scan.md"
+    },
+    {
       "module": "src/openguildkit/task_index.py",
       "role": "Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit.",
       "entry": [
@@ -972,7 +1024,7 @@
       "role": "The `task` command, from `task new` to `task export`, including the approval a person types at a terminal.",
       "entry": [
         "add_parser",
-        "sharing_warnings",
+        "sharing_issues",
         "run"
       ],
       "tests": [

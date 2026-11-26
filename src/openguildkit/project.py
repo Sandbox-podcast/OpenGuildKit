@@ -1401,6 +1401,15 @@ def _marker_positions(text: str) -> list[tuple[str, int, int]]:
     return _scan_markers(text)[0]
 
 
+def managed_block_lines(text: str) -> tuple[int, int] | None:
+    """The first and last line (counted from 1, markers included) of the block OpenGuildKit manages, or None when the
+    text has no block or malformed markers."""
+    matches = _marker_positions(text)
+    if [kind for kind, _, _ in matches] != [BEGIN, END]:
+        return None
+    return text.count("\n", 0, matches[0][1]) + 1, text.count("\n", 0, matches[1][2]) + 1
+
+
 def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") -> str:
     """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"
@@ -1504,6 +1513,36 @@ def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
     write_json(path, profile)
 
 
+class RuleError(ValueError):
+    """A problem `check` reports under a rule of docs/sarif.md.
+
+    `code` is the rule's stable code, None when the findings were already reported one by one; `files` are the files
+    the problem concerns, relative to the project root. The message is the one the command prints.
+    """
+
+    def __init__(self, message: str, code: str | None, files: tuple[str, ...] | list[str] = ()):
+        super().__init__(message)
+        self.code = code
+        self.files = tuple(files)
+
+
+def _outdated(test) -> bool:
+    try:
+        return bool(test())
+    except ValueError:
+        return False  # A file that cannot be merged is reported by its own message, not listed here.
+
+
+def _outdated_files(generated: str, current: str, claude: str, linked: bool, ignore: str) -> list[str]:
+    """The instructions files that no longer match the profile, for the finding that names them."""
+    checks = (
+        ("AGENTS.md", lambda: current != merged_instructions(current, generated)),
+        ("CLAUDE.md", lambda: not linked and claude != _claude_instructions(claude)),
+        (f"{STATE_DIR}/.gitignore", lambda: not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())),
+    )
+    return [name for name, test in checks if _outdated(test)]
+
+
 def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     current = _instruction_text(root / "AGENTS.md")
     linked = _claude_links_to_agents(root)
@@ -1512,13 +1551,15 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     generated = render_instructions(profile, catalog)
     edited = hand_edits(current, generated)
     if edited:
-        raise ValueError(
+        raise RuleError(
             f"The OpenGuildKit block of AGENTS.md was edited by hand ({len(edited)} line(s), first: {edited[0][:80]}). "
-            "openguildkit sync replaces the block: move your own text outside the markers first."
+            "openguildkit sync replaces the block: move your own text outside the markers first.",
+            "instructions-edited", ["AGENTS.md"],
         )
     if (
         current != merged_instructions(current, generated)
         or (not linked and claude != _claude_instructions(claude))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):
-        raise ValueError("OpenGuildKit instructions are out of date. Run openguildkit sync.")
+        raise RuleError("OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
+                        _outdated_files(generated, current, claude, linked, ignore))
