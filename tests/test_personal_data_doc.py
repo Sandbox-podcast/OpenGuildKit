@@ -87,9 +87,9 @@ class FieldInventoryTests(unittest.TestCase):
                          "and how to remove it; or list it among the fields named like a person that hold none.")
 
     def test_a_new_field_fails_until_the_page_names_it(self):
-        added = person_fields(['record = {"requested_by": by.strip(), "at": timestamp()}'])
-        self.assertEqual(added, {"requested_by"})
-        self.assertEqual(unnamed(self.fields | added, self.page), ["requested_by"])
+        added = person_fields(['record = {"sponsored_by": by.strip(), "at": timestamp()}'])
+        self.assertEqual(added, {"sponsored_by"})
+        self.assertEqual(unnamed(self.fields | added, self.page), ["sponsored_by"])
 
     def test_every_name_the_page_remembers_in_the_browser_is_on_the_page(self):
         keys = {key for path in sorted(WEB_SOURCE.rglob("*.ts*")) for key in REMEMBERED.findall(_read(path))}

@@ -12,7 +12,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
-from . import light_lane
+from . import light_lane, requester
 from .clock import today
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
@@ -37,6 +37,7 @@ SET_FIELDS = {
     "personal-data": ("yes", "no"), "people-decisions": ("yes", "no"), "sector": None,
     "approval": ("local", "signed"), "waivers": ("none", "allowed"), "ask-every-rule": ("yes", "no"),
     "light-paths": None,  # Paths, not a choice: set apart in _set.
+    "separate-requester": ("on", "off"),
 }
 # The options of profile set, each with the setting and value it belongs to.
 SET_OPTIONS = {"signers": ("approval", "signed"), "approver": ("approval", "signed"),
@@ -99,7 +100,8 @@ def add_parser(commands) -> None:
         command.add_argument("values", nargs="+", metavar="VALUE", help="IDs, tool names or check commands.")
     setter = actions.add_parser(
         "set", help="Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule "
-                    "is asked, the paths of the short lane, or a setup answer.")
+                    "is asked, the paths of the short lane, whether the requester of a task may approve it, or a "
+                    "setup answer.")
     setter.add_argument("field", choices=sorted(SET_FIELDS), help="The setting to change.")
     setter.add_argument("value", help="Its new value (light-paths: a folder or file glob such as 'docs/**', or none).")
     setter.add_argument("more", nargs="*", metavar="PATH", help="light-paths: more paths.")
@@ -128,10 +130,11 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     security or legal board removed, personal data set to no, a host whose settings enforce less, signed
     approvals turned off or on, an approver added or the signers file moved, waivers allowed or widened, a
     required rule, required board or check command removed, every rule no longer asked, a path added to the short
-    lane. The profile commands and the web page ask this."""
+    lane, the separation of the requester and the approver turned on or off. The profile commands and the web page ask
+    this."""
     person = ["--by", "NAME", "--reason", "WHY"]
     changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person),
-               *_light_changes(before, after, person)]
+               *_light_changes(before, after, person), *_requester_changes(before, after, person)]
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
     if GUARD_LEVEL.get(new_guard, 0) < GUARD_LEVEL.get(old_guard, 0):
         changes.append((f"guard {old_guard} -> {new_guard}", ["profile", "set", "guard", str(new_guard), *person]))
@@ -243,6 +246,19 @@ def _light_changes(before: dict, after: dict, person: list[str]) -> list[tuple[s
         return []
     what = f"short lane widened: {', '.join(added)} added" if old else f"short lane turned on for {', '.join(added)}"
     return [(what, ["profile", "set", "light-paths", *new, *person])]
+
+
+def _requester_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+    """The separation of the requester and the approver turned on or off. Either way it changes who may approve, so
+    only a person turns it, at a terminal, as for signed approvals."""
+    old, new = requester.active(before), requester.active(after)
+    if old == new:
+        return []
+    if new:
+        return [("requester separation turned on: task new needs --requested-by and the requester cannot approve",
+                 ["profile", "set", "separate-requester", "on", *person])]
+    return [("requester separation turned off: the requester of a task may approve it",
+             ["profile", "set", "separate-requester", "off", *person])]
 
 
 def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
@@ -367,6 +383,8 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
         return "waivers", {"allowed_by": options["allowed_by"], "max_days": options["max_days"]}
     if field == "ask-every-rule":
         return "ask_every_rule", True if value == "yes" else None
+    if field == "separate-requester":
+        return requester.FIELD, True if value == "on" else None
     if field == "light-paths":
         if value == "none":
             if options["paths"][1:]:
@@ -607,6 +625,9 @@ def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
     if _waiver_policy(profile):
         steps.append("Waivers are not carried: the person runs openguildkit profile set waivers allowed --allowed-by "
                      f"NAME --max-days DAYS {PERSON} at a terminal there.")
+    if requester.active(profile):
+        steps.append("Requester separation is not carried: the person runs openguildkit profile set separate-requester "
+                     f"on {PERSON} at a terminal there.")
     if profile.get("light_paths"):
         steps.append("The short lane is not carried: the person runs openguildkit profile set light-paths GLOB "
                      f"{PERSON} at a terminal there.")
@@ -659,6 +680,9 @@ def run(args, root: Path, state: Path) -> int:
     if updated.get("light_paths") and args.profile_action == "set" and args.field == "light-paths":
         print(f'Short lane: openguildkit task new "BRIEF" --id ID --lane light --paths '
               f'{shell_word(updated["light_paths"][0])} (docs/workflow.md, "Short lane").')
+    if requester.active(updated) and args.profile_action == "set" and args.field == "separate-requester":
+        print(f'Requester and approver: openguildkit task new "BRIEF" --requested-by NAME; another person approves the '
+              f"task ({requester.SECTION}).")
     return 0
 
 

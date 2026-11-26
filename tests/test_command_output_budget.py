@@ -95,6 +95,7 @@ EXAMPLES = [
     Example("init", "profile decline rule python/declare-package-metadata --by CM --reason Unpublished",
             typed="python/declare-package-metadata"),
     Example("ruled", "profile adopt rule python/declare-package-metadata --by CM --reason Published"),
+    Example("init", "profile set separate-requester on --by CM --reason Pilot", typed="on"),
     Example("init", "profile export"),
     Example("init", "features list"), Example("init", "features list --json"),
     Example("init", "features enable jira --by CM --reason Logs"),
@@ -171,6 +172,7 @@ EXAMPLES = [
     Example("proposed", "storybook generate"), Example("proposed", "storybook generate --json"),
     # The task, from its brief to its closing.
     Example("init", "task new 'Show customers their request status' --id status"),
+    Example("init", "task new 'Show customers their request status' --id asked --requested-by 'Camille Martin'"),
     Example("draft", "task list"), Example("draft", "task list --json"), Example("done", "task list --decisions"),
     Example("draft", "task new 'Send the status by email' --id email --after request-status"),
     Example("draft", "task list --ready"), Example("draft", "task list --ready --json"),

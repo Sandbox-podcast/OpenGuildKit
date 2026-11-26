@@ -53,6 +53,12 @@ _RULES = {
                                  "Changed files are in no decision record of the change."),
     "decision-lane-outside": ("Short-lane decision outside its lane",
                               "A short-lane decision covers files outside its paths, or the base revision has no lane."),
+    "decision-requester-approved": ("Requester approved their own task",
+                                    "The base revision separates the requester from the approver, and a decision "
+                                    "was approved by its requester."),
+    "decision-requester-missing": ("Decision without a requester",
+                                   "The base revision separates the requester from the approver, and a new decision "
+                                   "names no requester."),
     "evidence-journal-changed": ("Evidence journal changed",
                                  "A journal cited as evidence no longer matches the hash recorded with it."),
     "guard-no-base-profile": ("No profile on the base revision",

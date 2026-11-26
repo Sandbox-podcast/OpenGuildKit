@@ -689,7 +689,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
-        "light_paths", "declined_rules",
+        "light_paths", "declined_rules", "separate_requester",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -794,6 +794,11 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     # The short lane (light_lane.py): absent, or an empty list, means it is off.
     if answers.get("light_paths"):
         profile["light_paths"] = light_lane.normalize_entries(answers["light_paths"], "light_paths")
+    # The requester and the approver (requester.py, RFC #445): absent means off; only true is written.
+    if "separate_requester" in answers:
+        if answers["separate_requester"] is not True:
+            raise ValueError("separate_requester must be true, or absent when the option is off")
+        profile["separate_requester"] = True
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
         raise ValueError("ask_every_rule must be true or false")
@@ -1238,10 +1243,10 @@ def check_component(command: str, components: list[dict]) -> str | None:
 
 # Profile fields that change neither the rules, nor the checks, nor the boards of a task: changing one leaves every
 # approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval,
-# waiver and short lane settings are read when they act (the signature, for one, is verified again by every reader of
+# waiver, short lane and requester settings are read when they act (the signature, for one, is verified again by every reader of
 # an approval, and the lane's paths by the edit hook, task complete and guard --ci).
 APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers",
-                           "light_paths")
+                           "light_paths", "separate_requester")
 
 
 def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
@@ -1400,6 +1405,10 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             f"Approvals must be signed by {', '.join(profile['approval']['approvers'])} with a key listed in "
             f"`{profile['approval']['allowed_signers']}`."
         )
+    if profile.get("separate_requester") is True:
+        lines.extend(["", "### Requester and approver", ""])
+        lines.append("Open each task with `--requested-by NAME`, the person who asked for the work; that person "
+                     "cannot approve it, another person does.")
     if profile.get("waivers"):
         lines.extend(["", "### Waivers", ""])
         lines.append(

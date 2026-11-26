@@ -162,6 +162,14 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`, `guard --ci` only, on the exported decision. A short-lane record lists changed files outside its paths or the `light_paths` of the base revision, or the base revision has no `light_paths`: a pull request cannot widen or turn on the lane it is judged by ([short lane](workflow.md#short-lane)). Open a task on the full path for that work.
 
+#### `decision-requester-approved`
+
+`error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver (`separate-requester on`), and the record was approved by its requester, under the name given or as the signer ([requester and approver](workflow.md#requester-and-approver)). Have another person approve the task, then export it again.
+
+#### `decision-requester-missing`
+
+`error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver, and a record the base revision does not carry names no requester. Open the work with `task new --requested-by NAME` and have another person approve it.
+
 #### `evidence-journal-changed`
 
 `error`, on the exported decision. A journal that the record cites as evidence no longer matches the SHA-256 recorded with it.

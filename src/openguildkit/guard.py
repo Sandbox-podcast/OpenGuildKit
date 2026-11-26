@@ -14,7 +14,7 @@ import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from . import light_lane
+from . import light_lane, requester
 from .catalog import load_catalog
 from .delivered_review import exported_review
 from .decisions import (
@@ -408,6 +408,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
         "schema_version": RECORD_VERSION,
         "task": task["id"],
         "brief": task["brief"],
+        **({"requested_by": task["requested_by"]} if "requested_by" in task else {}),
         "status": task["status"],
         **({"waiting_for": task["waiting_for"]} if task.get("waiting_for") else {}),
         "profile_fingerprint": task["profile_fingerprint"],
@@ -416,7 +417,8 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
         "boards": exported_boards(task["review"]),
         # Evidence read from a mock is synthetic: the record says so to anyone who reads it later.
         **({"mock_evidence": mock_evidence(task)} if mock_evidence(task) else {}),
-        "decision": {key: decision[key] for key in ("by", "reason", "at", "seal", "base_revision") if key in decision},
+        "decision": {key: decision[key] for key in ("by", "reason", "at", "seal", "base_revision", "separate_requester")
+                     if key in decision},
         # A record exported before completion says so; task complete asks for a new export.
         "completed": "completed_at" in task,
     }
@@ -604,6 +606,8 @@ def _record_shape(record: dict, relative: str) -> None:
     elif ("lane" in record or "paths" in record) and (record.get("lane") != "light" or not isinstance(record.get("paths"), list)
                                                       or not all(isinstance(item, str) for item in record["paths"])):
         problem = "lane and paths go together: the lane is light and paths a list of paths"
+    elif "requested_by" in record and not isinstance(record["requested_by"], str):
+        problem = "requested_by must be text"
     elif "withdrawn" in record and (not isinstance(record["withdrawn"], dict) or not all(
             isinstance(record["withdrawn"].get(key), str) for key in ("by", "reason", "at"))):
         problem = "withdrawn must name who withdrew the approval, why and when (by, reason, at)"
@@ -689,6 +693,9 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     if (record.get("lane"), record.get("paths")) != (payload.get("lane"), payload.get("paths")):
         return "decision-record-invalid", (f"{relative}: the lane or the paths of the record are not those that were "
                                            f"approved. {export_again}")
+    if record.get("requested_by") != payload.get("requested_by"):
+        return "decision-record-invalid", (f"{relative}: the requester of the record is not the one that was approved. "
+                                           f"{export_again}")
     shown = shared_digest(record.get("brief"), record.get("summary"), record.get("boards"), record.get("rounds", []))
     if "shared_sha256" in payload and payload["shared_sha256"] != shown:
         return "decision-record-invalid", (
@@ -1109,7 +1116,12 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                 problems.append(flag("evidence-journal-changed", journal, relative))
             if outside:
                 problems.append(flag("decision-lane-outside", f"{relative}: {outside}", relative))
-            if not fault and not journal and not outside:
+            # The base revision's profile says whether the requester may approve: a change cannot turn that off for itself.
+            same = None if fault or not requester.active(profile) else requester.record_problem(
+                record, record["task"] not in earlier)
+            if same:
+                problems.append(flag(same[0], f"{relative}: {same[1]}", relative))
+            if not fault and not journal and not outside and not same:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")

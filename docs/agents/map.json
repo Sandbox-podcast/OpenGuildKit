@@ -62,7 +62,8 @@
         "consultation_task"
       ],
       "tests": [
-        "tests/test_architecture.py"
+        "tests/test_architecture.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -158,7 +159,9 @@
       ],
       "tests": [
         "tests/test_org_catalog.py",
-        "tests/test_sarif_commands.py"
+        "tests/test_sarif_commands.py",
+        "tests/test_sarif_commands.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -315,7 +318,8 @@
         "tests/test_light_lane.py",
         "tests/test_personal_data_doc.py",
         "tests/test_record_integrity.py",
-        "tests/test_record_lifecycle.py"
+        "tests/test_record_lifecycle.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -429,7 +433,8 @@
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
         "tests/test_evidence_fingerprints.py",
-        "tests/test_org_catalog.py"
+        "tests/test_org_catalog.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -680,7 +685,8 @@
         "tests/test_profile_commands.py",
         "tests/test_light_lane.py",
         "tests/test_org_catalog.py",
-        "tests/test_rule_decline.py"
+        "tests/test_rule_decline.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -730,7 +736,8 @@
         "tests/test_source_dates.py",
         "tests/test_stack_patterns.py",
         "tests/test_upgrades.py",
-        "tests/test_rule_decline.py"
+        "tests/test_rule_decline.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -863,6 +870,22 @@
       "tests": [
         "tests/test_pass_relevance.py",
         "tests/test_relevance.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/requester.py",
+      "role": "The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445).",
+      "entry": [
+        "active",
+        "same_person",
+        "declared",
+        "approval_problem",
+        "brief_line",
+        "record_problem"
+      ],
+      "tests": [
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1179,7 +1202,8 @@
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
         "tests/test_task_dependencies.py",
-        "tests/test_evidence_fingerprints.py"
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1201,7 +1225,8 @@
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
         "tests/test_task_dependencies.py",
-        "tests/test_evidence_fingerprints.py"
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_requester.py"
       ],
       "doc": "docs/architecture.md"
     },
