@@ -422,7 +422,8 @@
         "tests/test_setup_questionnaire.py",
         "tests/test_task_index.py",
         "tests/test_delivered_review.py",
-        "tests/test_before_delivered_review.py"
+        "tests/test_before_delivered_review.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -840,7 +841,8 @@
       "tests": [
         "tests/test_recorded_values.py",
         "tests/test_relevance.py",
-        "tests/test_results.py"
+        "tests/test_results.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1136,7 +1138,8 @@
         "tests/test_light_lane.py",
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
-        "tests/test_task_dependencies.py"
+        "tests/test_task_dependencies.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1157,7 +1160,8 @@
         "tests/test_unhooked_hosts.py",
         "tests/test_delivered_review.py",
         "tests/test_before_delivered_review.py",
-        "tests/test_task_dependencies.py"
+        "tests/test_task_dependencies.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1270,7 +1274,8 @@
         "tests/test_deliberation.py",
         "tests/test_light_lane.py",
         "tests/test_output_size.py",
-        "tests/test_owners.py"
+        "tests/test_owners.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     }

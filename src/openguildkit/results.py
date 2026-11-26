@@ -207,6 +207,35 @@ def _evidence_reference(value: str, check_id: str) -> str:
     return value
 
 
+# Folders a folder's fingerprint leaves out: Git's own and the tool's records, which change with every command.
+_UNLISTED = {".git", STATE_DIR}
+
+
+def evidence_fingerprint(root: Path, value: str) -> str:
+    """What task clear and task result record of an evidence: the SHA-256 of a file's bytes, of the list of a
+    folder's files (their names, not their content), or "external" for an https link no one here can check."""
+    if value.startswith("https://"):
+        return "external"
+    path = root / value
+    if path.is_dir():
+        names = sorted(item.relative_to(path).as_posix() for item in path.rglob("*")
+                       if item.is_file() and not _UNLISTED & set(item.relative_to(path).parts))
+        return "sha256:" + hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def evidence_state(root: Path, value: str, fingerprint: str | None) -> str:
+    """unchanged, changed or missing since the fingerprint was recorded; external for a link; no fingerprint for an
+    evidence recorded before fingerprints were."""
+    if fingerprint is None:
+        return "no fingerprint"
+    if fingerprint == "external":
+        return "external"
+    if not (root / value).exists():
+        return "missing"
+    return "unchanged" if evidence_fingerprint(root, value) == fingerprint else "changed"
+
+
 def _text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must contain text.")
@@ -402,6 +431,8 @@ def _check_entry(task: dict, item: object, known: dict, source: str, root: Path 
         if root is not None and item["status"] == "passed" and not value.startswith("https://") and not (
                 root / value).exists():
             return entry, f"{item['check']}: {value} does not exist in the project."
+        if root is not None and item["status"] == "passed":
+            entry["fingerprint"] = evidence_fingerprint(root, value)
     if item.get("cannot_run") is True and source == "verify" and check.get("kind") == "command":
         entry["cannot_run"] = True
     for key in ("exit_code", "seconds", "revision", "chaosfolk_status", "message", "sha256", "journal"):

@@ -35,7 +35,7 @@ from .retro import (
     DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
 )
 from .results import (
-    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
+    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs, evidence_state,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
     expected_checks, keep_declarations, missing_scenarios, outcomes, result_template, run_command_checks,
     set_aside_rules,
@@ -903,6 +903,10 @@ def _template(args, root: Path, state: Path, profile: dict, catalog: dict, task:
 def _blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The review's blockers and how each was resolved."""
     items = blocker_list(task)
+    for item in items:
+        resolution = item["resolution"]
+        if resolution and resolution["kind"] == "cleared" and "fingerprint" in resolution:
+            item["evidence_state"] = evidence_state(root, resolution["evidence"], resolution["fingerprint"])
     if args.json:
         print_json(items)
     elif not items:
@@ -919,12 +923,20 @@ def _blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task:
             if item.get("owner"):
                 print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
             if resolution and resolution["kind"] == "cleared":
-                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}")
+                state = EVIDENCE_WORDS[item.get("evidence_state", "no fingerprint")]
+                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}; {state}")
             if expired:
                 print(f"    waived by {resolution['by']}: {resolution['reason']} (scope: {resolution['scope']}); "
                       "the blocker is open again")
             if resolution and resolution.get("recorded_from") == "no terminal":
                 print("    recorded without a terminal")
+
+
+EVIDENCE_WORDS = {"unchanged": "fingerprint: unchanged since it was cleared",
+                  "changed": "fingerprint: changed since it was cleared",
+                  "missing": "fingerprint: the evidence is missing since it was cleared",
+                  "external": "fingerprint: external link, cannot be checked",
+                  "no fingerprint": "no fingerprint: cleared before OpenGuildKit recorded one"}
 
 
 def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1481,6 +1493,8 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             print(f"    next: {row['next']}")
             if row.get("note"):
                 print(f"    note: {row['note']}")
+            for line in row.get("evidence_changed", []):
+                print(f"    changed evidence: {line}")
             if row.get("waiting_for"):
                 print(f"    waits for: {', '.join(item['task'] + ' (' + item['status'] + ')' for item in row['waiting_for'])}")
 

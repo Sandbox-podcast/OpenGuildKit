@@ -1026,7 +1026,8 @@ def blocker_list(task: dict) -> list[dict]:
     return items
 
 
-_SHARED_RESOLUTION = ("kind", "by", "at", "recorded_from", "evidence", "supports", "reason", "scope", "until", "signer")
+_SHARED_RESOLUTION = ("kind", "by", "at", "recorded_from", "evidence", "supports", "fingerprint", "reason", "scope",
+                      "until", "signer")
 
 
 def exported_blockers(task: dict) -> list[dict]:

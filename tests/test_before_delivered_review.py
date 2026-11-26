@@ -7,6 +7,7 @@ draft) and what each command printed then.
 """
 
 import json
+import re
 import shlex
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ from unittest.mock import patch
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
+NO_FINGERPRINT = "no fingerprint: cleared before OpenGuildKit recorded one"
 BEFORE = json.loads((REPO / "tests" / "fixtures" / "upgrade" / "before-delivered-review.json").read_text(encoding="utf-8"))
 
 
@@ -41,7 +43,17 @@ class BeforeDeliveredReviewTests(unittest.TestCase):
     def test_every_command_prints_what_it_printed_before(self):
         for name, expected in BEFORE["expected"].items():
             with self.subTest(command=name):
-                self.assertEqual(self.run_old(name), (expected["code"], expected["stdout"], expected["stderr"]))
+                stdout = expected["stdout"]
+                if name.startswith("task blockers") and "--json" not in name:
+                    # The one addition (#433): a clearance says the state of its evidence, here that it has none.
+                    stdout = re.sub(r"(?m)^(    evidence: .*)$", r"\1; " + NO_FINGERPRINT, stdout)
+                self.assertEqual(self.run_old(name), (expected["code"], stdout, expected["stderr"]))
+
+    def test_an_old_clearance_reads_without_error_and_says_it_has_no_fingerprint(self):
+        _, output, _ = self.run_old("task blockers cleared-task")
+        self.assertEqual(output.count(NO_FINGERPRINT), 2)
+        _, output, _ = self.run_old("task list --json")
+        self.assertNotIn("evidence_changed", output)
 
     def test_an_exported_record_of_the_old_code_is_written_again_byte_for_byte(self):
         target = self.root / "again.json"

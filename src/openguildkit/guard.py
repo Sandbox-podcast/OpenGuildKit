@@ -27,7 +27,9 @@ from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, expired_waiver_problem, read_task, task_path
+from .tasks import (
+    STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
+)
 from .terminal import interactive
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
@@ -471,6 +473,10 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     blockers = exported_blockers(task)
     if blockers:
         record["blockers"] = blockers
+    # The state of each evidence at the export, once one has a fingerprint (task clear, task result).
+    states = evidence_states(task, root)
+    if states:
+        record["evidence_states"] = states
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
     # The regulations and patterns the profile declined when the task was consulted, with who, when and why.
