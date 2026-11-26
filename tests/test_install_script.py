@@ -229,16 +229,16 @@ class ReleaseAssetsTest(unittest.TestCase):
         for name in ("install.sh", "install.ps1"):
             self.assertIn(f"--pattern {name}", check)
 
-    def test_templates_install_with_the_script_of_a_pinned_release(self):
+    def test_templates_keep_the_pinned_hash_until_a_release_ships_the_script(self):
+        """The release this repository announces predates install.sh: the templates switch at the next one."""
         for template in sorted((ROOT / "integrations" / "github").glob("*.yml")):
             with self.subTest(template=template.name):
                 install = next(step for job in parse(template)["jobs"].values() for step in steps(job)
                                if step.get("name") == "Install OpenGuildKit")
-                self.assertRegex(install["env"]["OPENGUILDKIT_TAG"], r"^v\d+\.\d+\.\d+$")
-                self.assertNotIn("OPENGUILDKIT_WHEEL_SHA256", install["env"])
-                self.assertIn("releases/download/$OPENGUILDKIT_TAG/install.sh", install["run"])
-                self.assertIn('sh -s -- --version "$OPENGUILDKIT_TAG"', install["run"])
-                self.assertIn("openguildkit --version", install["run"])
+                self.assertIn("OPENGUILDKIT_WHEEL_SHA256", install["env"])
+                self.assertIn("sha256sum --strict -c", install["run"])
+        for page in ("docs/install.md", "GOVERNANCE.md"):
+            self.assertIn("the first release that ships `install.sh`", (ROOT / page).read_text(encoding="utf-8"), page)
 
 
 class InstallDocsTest(unittest.TestCase):
