@@ -866,9 +866,10 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
     templates = load_deliverables(catalog, state / "catalog" / "deliverables")
     action = args.deliverable_action
     if action == "list":
+        width = max((len(key) for key in templates), default=0)
         for template in templates.values():
             method = f" (method {template['method']})" if template.get("method") else ""
-            print(f"{template['id']:<24} {template['title']}{method} [{', '.join(template['brains'])}]")
+            print(f"{template['id']:<{width}} {template['title']}{method} [{', '.join(template['brains'])}]")
         return 0
     if action == "utm":
         names = ("source", "medium", "campaign", "content", "term")

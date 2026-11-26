@@ -190,6 +190,11 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertIn("approved or completed task", error)
         self.assertIn("approved or completed task", (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8"))
 
+    def test_the_list_aligns_every_title_after_the_longest_template_id(self):
+        listing, _ = self.run_cli("deliverable", "list")
+        columns = {len(line) - len(line.split(" ", 1)[1].lstrip()) for line in listing.splitlines()}
+        self.assertEqual(len(columns), 1, listing)
+
     def test_marketing_templates_cover_the_work_of_a_software_publisher(self):
         catalog = load_catalog()
         templates = load_deliverables(catalog)
