@@ -5,7 +5,9 @@ export type TaskStatus = 'draft' | 'consulting' | 'reviewed' | 'approved' | 'cha
 /** A row of `task list --json`. approval_problem and severity say that the task's approval no longer holds (error) or
  * that a completed task was approved under other rules (note); closed_by names who closed it with reservations.
  * A record the CLI cannot read (a merge conflict) has the status unreadable, its ID and the error as next, nothing else. */
-export interface TaskListItem { id: string; status: TaskStatus; created?: string; owner?: string | null; brief?: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string }
+export interface TaskListItem { id: string; status: TaskStatus; created?: string; owner?: string | null; brief?: string; next: string; follows?: string; approval_problem?: string; severity?: 'error' | 'note'; closed_by?: string;
+  /** The tasks it waits for (task new --after), and those not done yet with their status; a task gone is "unknown". */
+  after?: string[]; waiting_for?: { task: string; status: string }[] }
 
 export interface Evidence { source: string; ref: string; supports: string }
 export interface Specialist { id: string; finding: string; basis: string; evidence_refs: number[] }
@@ -45,6 +47,8 @@ export interface TaskRecord {
   rounds: { brief?: string; answers?: Answers; consultation?: Consultation; review?: Review; decision?: Decision; archived_at?: string }[];
   answers?: Answers;
   follows?: { task: string; brief: string; status: string; decision?: Decision };
+  /** The tasks this one waits for (task new --after). */
+  after?: string[];
   consultation?: Consultation;
   review?: Review;
   decision?: Decision;

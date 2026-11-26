@@ -1135,7 +1135,8 @@
         "tests/test_retro.py",
         "tests/test_light_lane.py",
         "tests/test_delivered_review.py",
-        "tests/test_before_delivered_review.py"
+        "tests/test_before_delivered_review.py",
+        "tests/test_task_dependencies.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1155,7 +1156,8 @@
         "tests/test_light_lane.py",
         "tests/test_unhooked_hosts.py",
         "tests/test_delivered_review.py",
-        "tests/test_before_delivered_review.py"
+        "tests/test_before_delivered_review.py",
+        "tests/test_task_dependencies.py"
       ],
       "doc": "docs/architecture.md"
     },

@@ -163,6 +163,7 @@ _RECORD = {
         "runs?": [{"tool": str, "outcomes": {"*": str}}],
     },
     "follows?": {"task": str, "brief": str, "status": str, "decision": _DECISION},
+    "after?": [str],
     "authorizations?": [{"action": str, "target": str, "decision": str, "by": str, "reason": str}],
     "dependency_alerts?": {"alerts?": [dict]},
     "delivered_review?": {"boards": {"*": {
@@ -254,8 +255,53 @@ def validate_brief(brief: str) -> str:
     return redact_credentials(brief)
 
 
+def _dependency_cycle(state: Path, task_id: str, after: list[str]) -> list[str] | None:
+    """The chain of --after links that would lead from a new task back to itself, if any: a task can only wait for
+    one that is gone and whose ID is taken again."""
+    def walk(current: str, path: list[str]) -> list[str] | None:
+        if current == task_id:
+            return path
+        if current in seen:
+            return None
+        seen.add(current)
+        try:
+            waits = read_task(state, current).get("after", [])
+        except ValueError:
+            return None
+        return next((found for name in waits if (found := walk(name, [*path, name]))), None)
+    seen: set[str] = set()
+    return next((found for name in after if (found := walk(name, [task_id, name]))), None)
+
+
+def dependencies(state: Path, task_id: str, after: list[str]) -> dict[str, str]:
+    """The tasks a new task waits for, with their status; an unknown ID, the task itself or a cycle is refused."""
+    found = {}
+    for name in dict.fromkeys(after):
+        if name == task_id:
+            raise ValueError(f"A task cannot wait for itself: {task_id}.")
+        found[name] = read_task(state, name)["status"]
+    cycle = _dependency_cycle(state, task_id, list(found))
+    if cycle:
+        raise ValueError(f"Task {task_id} cannot wait for {cycle[1]}: that would close a cycle "
+                         f"({' -> '.join(cycle)}). Remove that --after.")
+    return found
+
+
+def waiting_for(task: dict, statuses: dict[str, str]) -> list[dict]:
+    """The tasks this one waits for that are not done yet, with their status; one that no longer exists still holds
+    it back, as unknown."""
+    return [{"task": name, "status": statuses.get(name, "unknown")} for name in task.get("after", [])
+            if statuses.get(name) not in DONE_STATUSES]
+
+
+def waits_line(waiting: list[dict]) -> str:
+    """auth-flow (draft) and api-schema (approved)."""
+    names = [f"{item['task']} ({item['status']})" for item in waiting]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + f" and {names[-1]}"
+
+
 def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None,
-                lane: dict | None = None) -> str:
+                lane: dict | None = None, after: list[str] | None = None) -> str:
     brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
         raise ValueError("The task ID is empty. Omit --id to generate one.")
@@ -272,6 +318,8 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
         "rounds": [],
         **(lane or {}),
     }
+    if after:
+        record["after"] = list(dependencies(state, task_id, after))
     if follows is not None:
         previous = read_task(state, follows)
         if "decision" not in previous:
@@ -560,13 +608,14 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     rows = []
     if not directory.is_dir():
         return rows
-    entries = []
+    entries, statuses = [], {}
     for path in sorted(directory.glob("*.json")):
         try:
             task = read_task(state, path.stem)
         except ValueError as error:
             entries.append({"id": path.stem, "status": "unreadable", "next": str(error)})
             continue
+        statuses[task["id"]] = task["status"]
         if read is not None:
             read[task["id"]] = task
         day = task["created_at"][:10]
@@ -613,6 +662,11 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
             row["follows"] = task["follows"]["task"]
         if light_lane.is_light(task):
             row.update(lane=task["lane"], paths=task["paths"])
+        if task.get("after"):
+            row["after"] = task["after"]
+            waiting = waiting_for(task, statuses)
+            if waiting:
+                row["waiting_for"] = waiting
         rows.append(row)
     return rows
 

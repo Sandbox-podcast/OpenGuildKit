@@ -51,7 +51,7 @@ from .tasks import (
     next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
     record_consultation, record_decision, record_deliberation, record_result, record_review, require_approval,
     require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
-    submit_pass, task_path, timestamp, verification_blocker_problems,
+    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line,
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
@@ -103,6 +103,9 @@ def add_parser(commands) -> None:
     new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
     new.add_argument("--id", help="Use a readable lowercase task ID.")
     new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
+    new.add_argument("--after", action="append", metavar="TASK",
+                     help="A task this one waits for; repeat it for each. task list --ready leaves the task out until "
+                          "they are done.")
     new.add_argument("--lane", choices=(light_lane.LANE,),
                      help="Open the task in the short lane, which a person turned on in the profile: one board, no "
                           "questionnaire, limited to --paths.")
@@ -115,6 +118,8 @@ def add_parser(commands) -> None:
                                          "change request or the withdrawal of an approval.")
     listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
     listing.add_argument("--until", help="Created on or before YYYY-MM-DD.")
+    listing.add_argument("--ready", action="store_true",
+                         help="Only open tasks whose dependencies (task new --after) are all done.")
     listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
@@ -1394,7 +1399,18 @@ def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
     output = handoff(task, evidence, checks)
     require_instructions(args, root, state, profile, catalog)
+    waits = waiting_for(task, {name: _status_of(state, name) for name in task.get("after", [])})
+    if task["status"] == "approved" and waits:
+        print(f"Waits for {waits_line(waits)}: deliver {'it' if len(waits) == 1 else 'them'} first; the order stays "
+              "the person's decision.")
     print(output)
+
+
+def _status_of(state: Path, task_id: str) -> str:
+    try:
+        return read_task(state, task_id)["status"]
+    except ValueError:
+        return "unknown"
 
 
 def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
@@ -1410,8 +1426,13 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                              f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                              f"with openguildkit task show {args.id}, and choose another ID.")
-        task_id = create_task(state, brief, args.id, args.follows, lane)
+        task_id = create_task(state, brief, args.id, args.follows, lane, args.after)
+        statuses = {name: read_task(state, name)["status"] for name in dict.fromkeys(args.after or [])}
     print(task_id)
+    if statuses:
+        waits = waiting_for({"after": list(statuses)}, statuses)
+        print(f"Waits for {waits_line(waits)}." if waits else f"Its dependencies are done: {', '.join(statuses)}.",
+              file=sys.stderr)
     _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
@@ -1435,6 +1456,8 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         return
     rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
                       root=root)
+    if args.ready:
+        rows = [row for row in rows if row["status"] not in (*DONE_STATUSES, "unreadable") and not row.get("waiting_for")]
     clashes = _id_clashes(root, state)
     for row in rows:
         if row["id"] in clashes:
@@ -1458,6 +1481,8 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             print(f"    next: {row['next']}")
             if row.get("note"):
                 print(f"    note: {row['note']}")
+            if row.get("waiting_for"):
+                print(f"    waits for: {', '.join(item['task'] + ' (' + item['status'] + ')' for item in row['waiting_for'])}")
 
 
 def _retro_record(root: Path, state: Path, task_id: str) -> dict:

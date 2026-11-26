@@ -398,6 +398,18 @@ The board returns one JSON file: `{"board": "security", "findings": [{"file": "a
 
 At the closing, each blocking finding, each finding classed `decision`, and each review of an earlier revision than the delivered one is an open point of the group "Findings on the delivered diff": the task closes as `done-with-reservations`, and `task show ID --closing` prints them again. `task export` carries the findings, board by board, under `delivered_review`. A task whose diff no board reviewed closes and exports as before, and records written before this review read the same. The review needs a project in Git with an approval that named its revision; a task of kind `decision` delivers no diff.
 
+## Dependencies between tasks
+
+When a decision is split into several tasks, a task can wait for others:
+
+```bash
+openguildkit task new "Show the status page" --id portal --after api-schema --after auth-flow
+```
+
+`task new` prints the ID, then says on standard error what the task waits for and the status of each: `Waits for api-schema (approved) and auth-flow (draft).` It refuses an unknown ID (with the closest one), the task itself and a cycle, which only a task deleted and opened again under the same ID can close. The record keeps the IDs under `after`; a task without `--after` is written as before, and `--follows`, the link to an earlier decision, is unchanged.
+
+`task list` adds a line `waits for: auth-flow (draft)` under each task held back, and `--json` gives each such row `after` and `waiting_for`, the tasks not done yet with their status. A task is done when its status is `done` or `done-with-reservations`; one whose record is gone still holds the task back, as `unknown`. `task list --ready` lists only the open tasks nothing holds back. The handoff of an approved task that still waits for another starts with `Waits for auth-flow (draft): deliver it first; the order stays the person's decision.`: it blocks nothing. In the web interface, the card of a task held back says how many tasks it waits for, and its sheet lists them with their status.
+
 ## Short lane
 
 The six steps above are the same for a typo and for a feature. When a safeguard is that heavy for a trivial change, a team's first reaction is to turn it off (`"guard": "off"`). The short lane is an opt-in way through the workflow for a change a person declares trivial, and it takes out only what has no meaning for one reviewing board. It is off in every project until a person turns it on, and a project that never does behaves exactly as before.

@@ -162,6 +162,8 @@ EXAMPLES = [
     # The task, from its brief to its closing.
     Example("init", "task new 'Show customers their request status' --id status"),
     Example("draft", "task list"), Example("draft", "task list --json"), Example("done", "task list --decisions"),
+    Example("draft", "task new 'Send the status by email' --id email --after request-status"),
+    Example("draft", "task list --ready"), Example("draft", "task list --ready --json"),
     Example("draft", "task questions request-status --answers $example/answers.json"),
     Example("draft", "task route request-status --answers $example/answers.json"),
     Example("draft", "task route request-status --answers $example/answers.json --json"),
