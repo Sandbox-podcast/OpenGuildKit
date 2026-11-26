@@ -91,6 +91,7 @@ EXAMPLES = [
     Example("init", "profile add tool Jira --by CM --reason Tracker"),
     Example("init", "profile remove convention 'Use Conventional Commits for commit messages.' --by CM --reason Trim"),
     Example("init", "profile set guard observe --by CM --reason Pilot"),
+    Example("init", "profile export"),
     Example("init", "features list"), Example("init", "features list --json"),
     Example("init", "features enable jira --by CM --reason Logs"),
     Example("featured", "features disable jira --by CM --reason Moved"),

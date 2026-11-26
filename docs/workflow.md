@@ -464,6 +464,21 @@ openguildkit task show status-filter        # a task known here only by its expo
 
 `guard --json` reports in `covered_by` the approved tasks of this copy that cover new edits: a teammate's approval does not authorize your agent's edits, so a pulled record never fills it. `exported_decisions` lists the exported records that match the current rules; in CI, `guard --ci` checks the records the pull request adds, and that each changed file is in the `files` of one of them ([the CI check](../integrations/README.md#the-board-before-every-change)).
 
+### Reuse the profile in another repository
+
+A team that equips a second repository runs, in the first one:
+
+```bash
+openguildkit profile export > answers.json   # then, in the second repository:
+openguildkit init --answers answers.json
+```
+
+`profile export` writes, in the format of `init --questions`, the sector, stack, roles, the answers on personal data, the patterns, the packs (with `"replace_default_packs": true`, so the same packs apply), the boards, the required boards and rules, `ask_every_rule`, the tools, the host, the guard, the research policy, the conventions and the pack resolutions. The new project takes the second folder's name. It reads the profile and writes nothing.
+
+It never carries what belongs to people or to the first repository, and says so on its last lines: the project name, the history of changes, people's names, the signers file, component paths (each pattern applies to the whole new project until the person scopes it), check commands (add the second repository's with `openguildkit profile add check`) and the host's tool connections (`tools apply` writes them per repository). A credential in a convention or a resolution reason is replaced with a placeholder.
+
+A setting that names a person, or that lowers a protection, is left out and typed again by the person at a terminal in the second repository, like any change that weakens a protection. The command prints each one with what to type: signed approvals (`openguildkit profile set approval signed --signers PATH --approver NAME`), a waiver policy, the short lane, a guard below `observe` (the new project starts at `observe`; `openguildkit profile set guard off --by NAME --reason WHY` lowers it), and public research. A norm the first repository declined comes back active, since its decline names who decided: the person declines it again with `openguildkit profile decline ID --by NAME --reason WHY`.
+
 ### When two copies use the same task ID
 
 Task IDs are chosen in each copy. When two people open a task with the same ID before pulling, both export `.openguildkit/decisions/ID.json` and git reports a conflict in that file. `check` and `task list --decisions` then name the file as a git merge conflict, with each side's label and approver. Keep the teammate's side (`git checkout --theirs .openguildkit/decisions/ID.json`, then `git add`), open your own work under another ID with `openguildkit task new "BRIEF" --id NEW-ID`, and take it through consultation and approval again: an approval is bound to its task ID. Until then, `check` and `task list` say that your local task and the record of the same ID are different tasks, and `task export` refuses to replace the teammate's record.
