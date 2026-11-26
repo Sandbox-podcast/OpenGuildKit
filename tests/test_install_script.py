@@ -155,6 +155,13 @@ class InstallerRun:
         self.assertNotIn("Installed with", result.stdout)
 
 
+class LineEndingTest(unittest.TestCase):
+    def test_git_checks_out_the_shell_scripts_with_lf_on_every_platform(self):
+        attributes = (SH.parent.parent / ".gitattributes").read_text(encoding="utf-8").splitlines()
+        self.assertIn("*.sh text eol=lf", attributes)
+        self.assertNotIn(b"\r", SH.read_bytes())
+
+
 @unittest.skipIf(os.name == "nt", "the POSIX installer runs on Linux and macOS")
 class PosixShellTest(InstallerRun, unittest.TestCase):
     command = ["/bin/sh", str(SH)]
@@ -170,6 +177,7 @@ class PosixShellTest(InstallerRun, unittest.TestCase):
         self.assertEqual(self.installed(), "")
 
 
+@unittest.skipIf(os.name == "nt", "the POSIX installer runs on Linux and macOS")
 @unittest.skipUnless(shutil.which("dash"), "dash is not installed")
 class DashTest(InstallerRun, unittest.TestCase):
     """dash has no bash extension: the script stays POSIX sh."""

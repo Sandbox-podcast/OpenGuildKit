@@ -20,6 +20,15 @@ function Stop-Install([string]$Message) {
     throw "openguildkit install: $Message"
 }
 
+# Invoke-WebRequest reads http and https only: a file:// address, which the tests give, is copied from disk.
+function Save-Url([string]$Url, [string]$OutFile) {
+    if ($Url.StartsWith("file://")) {
+        Copy-Item -LiteralPath ([System.Uri]$Url).LocalPath -Destination $OutFile -ErrorAction Stop
+    } else {
+        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+    }
+}
+
 $Releases = if ($env:OPENGUILDKIT_RELEASES_URL) { $env:OPENGUILDKIT_RELEASES_URL } else { "https://github.com/Sandbox-podcast/OpenGuildKit/releases" }
 $Version = $Version.TrimStart("v")
 if ($Version -and ($Version -notmatch '^[0-9A-Za-z+-][0-9A-Za-z.+-]*$' -or $Version.Contains(".."))) {
@@ -49,7 +58,7 @@ try {
     }
     $Sums = Join-Path $Work "SHA256SUMS.txt"
     try {
-        Invoke-WebRequest -Uri $SumsUrl -OutFile $Sums -UseBasicParsing
+        Save-Url $SumsUrl $Sums
     } catch {
         Stop-Install "could not download SHA256SUMS.txt of the $Where ($SumsUrl). Check the version on $Releases."
     }
@@ -67,7 +76,7 @@ try {
     $WheelUrl = "$Releases/download/v$Version/$Wheel"
     $WheelPath = Join-Path $Work $Wheel
     try {
-        Invoke-WebRequest -Uri $WheelUrl -OutFile $WheelPath -UseBasicParsing
+        Save-Url $WheelUrl $WheelPath
     } catch {
         Stop-Install "could not download $Wheel of release v$Version ($WheelUrl)."
     }

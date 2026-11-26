@@ -32,6 +32,7 @@ EXTRA = {
     "scripts/coverage.py": ["tests/test_coverage.py"],
     "scripts/install.sh": ["tests/test_install_script.py"],
     "scripts/install.ps1": ["tests/test_install_script.py"],
+    ".gitattributes": ["tests/test_install_script.py"],
     "scripts/edition-watch.json": ["tests/test_edition_watch.py"],
     "scripts/watch_editions.py": ["tests/test_edition_watch.py"],
     "docs/agents/map.json": ["tests/test_agent_native.py"],

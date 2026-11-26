@@ -26,7 +26,7 @@ class ClearedCase(ApprovalCase):
         super().setUp()
         self.init()
         (self.root / "docs").mkdir()
-        (self.root / "docs" / "proof.md").write_text("Two accounts tested.\n", encoding="utf-8")
+        (self.root / "docs" / "proof.md").write_bytes(b"Two accounts tested.\n")
         self.approve("sx", verification_blocker=True)
 
 
@@ -73,7 +73,7 @@ class FingerprintTests(ClearedCase):
         self.assertIn("fingerprint: changed since it was cleared", self.run_cli("task", "blockers", "sx")[0])
         item, = [item for item in json.loads(self.run_cli("task", "blockers", "sx", "--json")[0])]
         self.assertEqual(item["evidence_state"], "changed")
-        (self.root / "docs" / "proof.md").write_text("Two accounts tested.\n", encoding="utf-8")
+        (self.root / "docs" / "proof.md").write_bytes(b"Two accounts tested.\n")
         self.assertNotIn("changed evidence", self.run_cli("task", "list")[0])
 
     def test_the_closing_keeps_a_changed_evidence_open_and_the_export_says_its_state(self):
@@ -96,7 +96,7 @@ class FingerprintTests(ClearedCase):
     def test_a_restored_evidence_leaves_the_closing_as_it_was(self):
         self.clear()
         (self.root / "docs" / "proof.md").write_text("Rewritten after the clearance.\n", encoding="utf-8")
-        (self.root / "docs" / "proof.md").write_text("Two accounts tested.\n", encoding="utf-8")
+        (self.root / "docs" / "proof.md").write_bytes(b"Two accounts tested.\n")
         self.complete()
         self.assertEqual(self.task("sx")["status"], "done")
         self.run_cli("task", "export", "sx")
