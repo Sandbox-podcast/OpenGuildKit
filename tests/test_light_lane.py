@@ -1006,7 +1006,7 @@ class BeforeTheShortLaneTests(unittest.TestCase):
             with self.subTest(command=name):
                 stdin = STDIN.get(name)
                 result = run_cli(self.root, *shlex.split(name), expect=None,
-                                 stdin=stdin.replace("$PROJECT", str(self.root)) if stdin is not None else None)
+                                 stdin=stdin.replace('"$PROJECT', json.dumps(str(self.root))[:-1]) if stdin else stdin)
                 self.assertEqual(result.returncode, expected["code"])
                 self.assertEqual(result.stdout.replace(str(self.root), "$PROJECT"), expected["stdout"])
                 self.assertEqual(result.stderr.replace(str(self.root), "$PROJECT"), expected["stderr"])

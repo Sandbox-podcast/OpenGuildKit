@@ -535,6 +535,9 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
         print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
     print("  To change it: openguildkit profile set guard off|observe|enforce --by NAME --reason WHY "
           "(lowering it is typed by the person at a terminal).")
+    if mode != "off" and (profile.get("approval") or {}).get("mode") != "signed":
+        print("  Approvals are sealed locally: a seal catches an accidental edit, not an agent that writes files. "
+              "To require signed ones: openguildkit profile set approval signed (docs/workflow.md#signed-approvals).")
     if left_aside:
         names = "; ".join(f"{item['id']} ({item.get('path', '.')}): {', '.join(item['stack'])}" for item in left_aside)
         print(f"OpenGuildKit: the answers give no components, so these detected ones are left aside: {names}. "
