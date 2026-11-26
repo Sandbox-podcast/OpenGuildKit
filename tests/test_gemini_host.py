@@ -630,7 +630,7 @@ class GeminiDocumentationTests(unittest.TestCase):
 
     def test_the_decisions_for_cursor_and_copilot_are_written_with_their_reason(self):
         text = README.read_text(encoding="utf-8")
-        for words in ("https://cursor.com/docs/agent/hooks", "https://docs.github.com/en/copilot/reference/hooks-configuration",
+        for words in ("https://cursor.com/docs/agent/hooks", "https://docs.github.com/en/copilot/reference/hooks-reference",
                       "no page shows the arguments of an edit"):
             with self.subTest(words=words):
                 self.assertIn(words, text)

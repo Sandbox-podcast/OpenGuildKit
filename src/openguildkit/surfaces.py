@@ -22,7 +22,7 @@ from itertools import groupby, islice
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .hosts import HOOK_HOSTS, board_control
+from .hosts import HOOK_HOSTS, UNHOOKED_TOOLS, board_control, unhooked_detail, unhooked_source
 from .project import managed_block_lines
 from .sensitive import looks_like_credential, redact_credentials
 from .tools import load_tools
@@ -458,9 +458,8 @@ TOOLS = (
     _tool("claude-code", "Claude Code", ("CLAUDE.md", ".claude", ".mcp.json"), None, imports=True),
     _tool("cline", "Cline", (".clinerules",), None),
     _tool("codex", "Codex", (".codex",), "Codex"),
-    _tool("copilot", "GitHub Copilot", (".github/copilot-instructions.md", ".github/instructions"), "GitHub Copilot",
-          note=' as "Coding agent"'),
-    _tool("cursor", "Cursor", (".cursor", ".cursorrules"), "Cursor"),
+    _tool("copilot", "GitHub Copilot", UNHOOKED_TOOLS["copilot"]["files"], "GitHub Copilot", note=' as "Coding agent"'),
+    _tool("cursor", "Cursor", UNHOOKED_TOOLS["cursor"]["files"], "Cursor"),
     _tool("gemini-cli", "Gemini CLI", ("GEMINI.md", ".gemini"), "Gemini CLI",
           note="; its default context file is GEMINI.md, and AGENTS.md needs its context.fileName setting"),
     _tool("goose", "goose", (".goosehints",), "goose"),
@@ -518,6 +517,8 @@ def _coverage(root: Path, tool: dict, profile: dict) -> dict:
     """What OpenGuildKit covers for a tool. Claude Code, Codex and Gemini CLI: what host check says of the guard hooks, for
     the guard of the profile; every other tool has no hook."""
     guard, host = profile.get("guard", "off"), profile.get("host", "other")
+    if tool["id"] in UNHOOKED_TOOLS:
+        return {"status": "none", "detail": unhooked_detail(tool["id"]), "source": unhooked_source(tool["id"])}
     if tool["id"] not in HOOK_HOSTS:
         return {"status": "none", "detail": f"no hook blocks an edit; {CI_ONLY}"}
     if guard == "off":
@@ -897,7 +898,7 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None)
         if coverage["status"] != "enforced":
             found.append(_finding(
                 "surface-uncovered", "warning" if profile.get("guard") == "enforce" else "note",
-                f"{tool['id']}: {', '.join(files)} present, and {coverage['detail']}.", files[0], None))
+                f"{tool['id']}: {', '.join(files)} present, and {coverage['detail'].rstrip('.')}.", files[0], None))
     return {"surfaces": present, "mcp_servers": sorted(servers, key=lambda item: (item["file"], item["name"])),
             "findings": sorted(found, key=_order), "skipped": configs.skipped}
 
@@ -919,7 +920,13 @@ def _plural(count: int, word: str) -> str:
 def _tool_lines(tools: list[dict]) -> list[str]:
     width = max(len(item["id"]) for item in tools)
     return [f"Agent tools present (AGENTS.md reading from the agents.md list, read {AGENTS_MD_SOURCE['read']}):"] + [
-        f"  {item['id']:<{width}}  {COVERAGE_SHORT[item['coverage']['status']]}; {item['agents_md_text']}" for item in tools]
+        f"  {item['id']:<{width}}  {_short(item['coverage'])}; {item['agents_md_text']}" for item in tools]
+
+
+def _short(coverage: dict) -> str:
+    if "source" in coverage:
+        return f"no edit blocked, guard --ci is the only barrier (hook docs read {coverage['source']['read']})"
+    return COVERAGE_SHORT[coverage["status"]]
 
 
 def _server_lines(servers: list[dict]) -> list[str]:

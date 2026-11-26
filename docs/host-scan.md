@@ -38,7 +38,7 @@ A tool is present when one of its files is. These are the file names OpenGuildKi
 | `claude-code` Claude Code | `CLAUDE.md`, `.claude`, `.mcp.json` | not listed; reads `CLAUDE.md`, where OpenGuildKit writes an import of `AGENTS.md` |
 | `cline` Cline | `.clinerules` | not documented as reading AGENTS.md |
 | `codex` Codex | `.codex` | listed |
-| `copilot` GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions` | listed, as "Coding agent" |
+| `copilot` GitHub Copilot | `.github/copilot-instructions.md`, `.github/instructions`, `.github/hooks` | listed, as "Coding agent" |
 | `cursor` Cursor | `.cursor`, `.cursorrules` | listed |
 | `gemini-cli` Gemini CLI | `GEMINI.md`, `.gemini` | listed (its default context file is `GEMINI.md`: OpenGuildKit writes an import of `AGENTS.md` there when the profile's host is `gemini-cli`) |
 | `goose` goose | `.goosehints` | listed |
@@ -57,7 +57,8 @@ Since the managed block of `AGENTS.md` reaches every tool that reads the file, t
 **What OpenGuildKit covers for each tool.**
 
 - `claude-code`, `codex` and `gemini-cli`: what `host check` says about the hooks of the guard, for the guard of the profile. With `"guard": "off"` no hook runs (`host check` says nothing about hooks then). With `observe` or `enforce`, the status is the one of the control "The board is consulted before each change": `enforced` when the hooks are installed and can run, `missing` otherwise. `host apply` installs the hooks of the profile's host only: a project of host `claude-code` that also holds a `.codex` or `.gemini` folder has no Codex or Gemini CLI hook, and the scan says so. The hooks of Gemini CLI are those of [its section](../integrations/README.md#gemini-cli), not seen in a live session.
-- every other tool: no hook blocks an edit made through it, and the CI check (`guard --ci`) is the only barrier. Cursor and GitHub Copilot document a hook that can refuse a tool, but no page read shows the arguments of their edit tools, so OpenGuildKit installs none ([what was read](../integrations/README.md#hooks-of-other-tools-what-was-read-and-why-none-was-added), 2026-11-25).
+- `cursor` and `copilot`: they document a hook that can refuse a tool before it runs, but their pages, read on 2026-11-26, give no path of the file an edit tool is about to change ([Cursor hooks](https://cursor.com/docs/agent/hooks); GitHub Copilot [hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference) and [CLI hooks reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference)), so OpenGuildKit installs no hook for them ([what was read](../integrations/README.md#hooks-of-other-tools-what-was-read-and-why-none-was-added)). Their line says `no edit blocked, guard --ci is the only barrier (hook docs read 2026-11-26)`; `--json` carries the pages and the day under `coverage.source`, and `host check` prints the same sentence as a rule `by instruction`.
+- every other tool: no hook blocks an edit made through it, and the CI check (`guard --ci`) is the only barrier.
 
 A present tool whose hooks are not enforced is a `surface-uncovered` finding: a `note`, a `warning` when the profile says `"guard": "enforce"`. It is information, not an error: only `--strict` makes it fail the command.
 

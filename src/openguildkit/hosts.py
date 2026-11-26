@@ -6,6 +6,7 @@ and tells the requester which rules remain instructions or human checks.
 """
 
 import json
+import os
 import re
 import shutil
 import tomllib
@@ -16,6 +17,30 @@ from .storage import write_text
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
 # The hosts whose hooks `host apply` writes and `host check` reports.
 HOOK_HOSTS = ("claude-code", "codex", "gemini-cli")
+# Agent tools with a hook that can refuse a tool, whose pages, read on the day given, document no path of the file an
+# edit tool is about to change in the input of that hook (integrations/README.md, "Hooks of other tools"). The guard
+# needs that path, so they are not hosts: host check and host scan say what is left when their files are present.
+UNHOOKED_TOOLS = {
+    "cursor": {"name": "Cursor", "files": (".cursor", ".cursorrules"),
+               "pages": ("https://cursor.com/docs/agent/hooks",), "read": "2026-11-26"},
+    "copilot": {"name": "GitHub Copilot",
+                "files": (".github/copilot-instructions.md", ".github/instructions", ".github/hooks"),
+                "pages": ("https://docs.github.com/en/copilot/reference/hooks-reference",
+                          "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference"),
+                "read": "2026-11-26"},
+}
+
+
+def unhooked_detail(tool_id: str) -> str:
+    """The sentence host check and host scan print for a tool of UNHOOKED_TOOLS."""
+    tool = UNHOOKED_TOOLS[tool_id]
+    return (f"{tool['name']} reads the AGENTS.md instructions, but no hook blocks an edit made through it: guard --ci is the "
+            f"only barrier (its hook pages, read {tool['read']}, give no edited file path: {', '.join(tool['pages'])}).")
+
+
+def unhooked_source(tool_id: str) -> dict:
+    tool = UNHOOKED_TOOLS[tool_id]
+    return {"pages": list(tool["pages"]), "read": tool["read"]}
 LAUNCHERS = (("openguildkit",), ("python", "-m", "openguildkit"), ("python3", "-m", "openguildkit"), ("py", "-m", "openguildkit"))
 # Approving a task and withdrawing an approval (task revoke) are the person's acts at a terminal.
 APPROVAL_COMMANDS = tuple((*launcher, "task", action) for action in ("decide", "revoke") for launcher in LAUNCHERS[:3])
@@ -392,8 +417,9 @@ def approval_warning(profile: dict) -> str | None:
             "(docs/workflow.md#signed-approvals).")
 
 
-def host_controls(root: Path, profile: dict) -> list[dict]:
-    """Say, for each project rule, whether the host enforces it, could but does not, or cannot."""
+def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
+    """Say, for each project rule, whether the host enforces it, could but does not, or cannot. With other_tools, also
+    one line for each tool of UNHOOKED_TOOLS whose files the project holds (host check; a consultation leaves them)."""
     host = profile.get("host", "other")
     local_only = profile.get("research", "local-only") == "local-only"
     controls = []
@@ -469,6 +495,12 @@ def host_controls(root: Path, profile: dict) -> list[dict]:
         "external-actions", "External actions outside the authorized scope need a recorded decision", "human",
         "The agent asks the requester, who records the decision with openguildkit task authorize.",
     ))
+    for tool_id, tool in UNHOOKED_TOOLS.items() if other_tools else ():
+        files = [path for path in tool["files"] if os.path.lexists(root / path)]
+        if files:
+            control = _control(f"tool-{tool_id}", f"{tool['name']} edits are not blocked ({', '.join(files)} present)",
+                               "instruction", unhooked_detail(tool_id))
+            controls.append({**control, "files": files, "source": unhooked_source(tool_id)})
     return controls
 
 

@@ -1207,7 +1207,7 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         catalog = project_catalog(args, state)
         profile = load_profile(state, catalog)
         require_instructions(args, root, state, profile, catalog)
-        controls = host_controls(root, profile)
+        controls = host_controls(root, profile, other_tools=False)
         market = None
         if args.market:
             public = profile.get("research") == "public-sources" and answers.get("research") == "public"
