@@ -680,6 +680,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/projects_cli.py",
+      "role": "The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_command_output_budget.py",
+        "tests/test_projects.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/prompts.py",
       "role": "Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`.",
       "entry": [

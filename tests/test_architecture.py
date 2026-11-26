@@ -5,7 +5,9 @@ import inspect
 import unittest
 from pathlib import Path
 
-from openguildkit import alerts_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli, trace_cli
+from openguildkit import (
+    alerts_cli, market_cli, profile_cli, projects_cli, storybook_cli, tasks_cli, tools_cli, trace_cli,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "src" / "openguildkit"
@@ -55,7 +57,7 @@ class ModuleShapeTests(unittest.TestCase):
     def test_each_command_module_adds_its_parser_and_runs_without_functions_of_the_cli(self):
         # The same pair everywhere: add_parser(commands), then run(args, ...) with paths and loaded records only.
         allowed = {"args", "root", "state", "profile", "catalog"}
-        for module in (alerts_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli, trace_cli):
+        for module in (alerts_cli, market_cli, profile_cli, projects_cli, storybook_cli, tasks_cli, tools_cli, trace_cli):
             with self.subTest(module=module.__name__):
                 self.assertEqual(list(inspect.signature(module.add_parser).parameters), ["commands"])
                 parameters = list(inspect.signature(module.run).parameters)

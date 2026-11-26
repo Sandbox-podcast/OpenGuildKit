@@ -500,6 +500,23 @@ Then Git says whether the file changed after the most recent decision: after its
 
 The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
 
+## Several projects at once
+
+```bash
+openguildkit projects ~/code                      # each project among the subfolders of ~/code
+openguildkit projects ~/code/*                    # the folders the shell names, one by one
+openguildkit projects ~/code --search "refund"    # briefs, decision reasons and rule IDs that hold the text
+openguildkit projects ~/code --json               # every project and every match, for a program
+```
+
+A tech lead or a security officer who looks after several repositories sees where to act without opening each one. `projects` takes folders: a project itself, or a folder whose subfolders are projects (one level down; hidden folders are skipped). Without a folder it reads the current one. It prints one line per project: the guard mode, whether approvals are signed, the tasks by status, the approvals that no longer hold, the open points (the blockers a reviewed task still waits on and the points a task closed with reservations left open), the critical alerts confirmed in the alert register, and whether `openguildkit check` passes, with its last line when it fails. The last line gives the `check` command of the first project that fails it.
+
+A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuildKit projects (N): ...`), a path that does not exist on its own line, and a project whose profile, catalog lock or alert register cannot be read on its own line with the reason (`cannot be read: ...`): the other projects are still listed, and the command ends with exit code 0.
+
+`--search TEXT` finds the text, case aside, in the first line of each task's brief, its decision reason and the rule IDs of its result (`rule:python/follow-python-style (failed)`), in the tasks of each copy and then in the exported records of the tasks it does not hold. Each match names its project. The first 50 are printed; `--json` gives them all.
+
+`projects` writes nothing and registers no project anywhere: it reads each project as its own commands do, runs `check` in the same process, and takes the folders again at each run. The web interface runs it on its own project only, since a path outside the project is refused there.
+
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds. For a task that exists here only as an exported record, it prints that record and says so on stderr. `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.

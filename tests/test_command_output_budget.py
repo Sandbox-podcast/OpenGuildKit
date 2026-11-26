@@ -202,6 +202,9 @@ EXAMPLES = [
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
+    # Several projects at once: this one, its parent folder with the other runs, and a search across them.
+    Example("done", "projects $root"), Example("done", "projects $root --json"),
+    Example("done", "projects $root --search status"),
 ]
 
 # What no example runs, with the reason.
