@@ -521,6 +521,48 @@ def declined_ids(profile: dict) -> list[str]:
     return [entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("declined", [])]
 
 
+# A pack whose description starts with this is a draft that task retro --all --draft-rules wrote: no profile uses it
+# until a person has reviewed it and rewritten its description.
+DRAFT_MARK = "DRAFT written by openguildkit task retro"
+
+
+def _declined_rules(value, required: list[str]) -> list[dict]:
+    """Single rules a person set aside (profile decline rule PACK/RULE), each with who, when and why. A rule the
+    catalog no longer has is kept: it sets nothing aside, and the person restores it with profile adopt rule."""
+    if not isinstance(value, list):
+        raise ValueError("declined_rules must be a list")
+    entries, seen = [], set()
+    for entry in value:
+        if not isinstance(entry, dict) or set(entry) != {"id", *DECISION_FIELDS}:
+            raise ValueError('A declined_rules entry is {"id": "PACK/RULE", "by", "on", "reason"}')
+        rule = entry["id"]
+        pack_id, _, rule_id = rule.partition("/") if isinstance(rule, str) else ("", "", "")
+        if not pack_id or not rule_id or "/" in rule_id:
+            raise ValueError(f"A declined rule is named PACK/RULE, as openguildkit catalog lists it: {rule!r} is not")
+        both = [item for item in required if item in (pack_id, rule)]
+        if both:
+            raise ValueError(f"Rule {rule} is both required and declined: remove {both[0]} from the required rules "
+                             f"(openguildkit profile remove required-rule {both[0]}) or restore the rule "
+                             f"(openguildkit profile adopt rule {rule}).")
+        if rule not in seen:
+            seen.add(rule)
+            entries.append({"id": rule, **_decision(entry, f"declined rule {rule}")})
+    return entries
+
+
+def declined_rule_ids(profile: dict) -> list[str]:
+    return [entry["id"] for entry in profile.get("declined_rules", [])]
+
+
+def rules_in_force(pack: dict, profile: dict) -> dict:
+    """The pack as a task of this profile is asked it: without the rules the person declined. The same pack when
+    none of its rules is declined, so that a project that declines none reads exactly the catalog."""
+    declined = {rule.partition("/")[2] for rule in declined_rule_ids(profile) if rule.partition("/")[0] == pack["id"]}
+    if not declined:
+        return pack
+    return {**pack, "rules": [rule for rule in pack["rules"] if rule["id"] not in declined]}
+
+
 def _changes(value) -> list[dict]:
     """The history of profile commands: who changed what, on which day and why."""
     if not isinstance(value, list):
@@ -647,7 +689,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
-        "light_paths",
+        "light_paths", "declined_rules",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -719,6 +761,14 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
             raise ValueError(f"Unknown required rule {item}: use PACK or PACK/RULE from openguildkit catalog")
     if required_rules:
         profile["required_rules"] = required_rules
+    declined_rules = _declined_rules(answers.get("declined_rules", []), required_rules)
+    if declined_rules:
+        profile["declined_rules"] = declined_rules
+    drafts = [pack_id for pack_id in selected_packs(profile, catalog)
+              if str(catalog["packs"][pack_id].get("description", "")).startswith(DRAFT_MARK)]
+    if drafts:
+        raise ValueError(f"Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and "
+                         "rewrite its description before a profile uses it.")
     approval = answers.get("approval")
     if approval is not None:
         if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
@@ -1058,8 +1108,8 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
     provenance = pack_provenance(profile, catalog)
     selected = selected_packs(profile, catalog)
     patterns = [catalog["patterns"][pattern_id] for pattern_id in pattern_ids(profile)]
-    count = sum(len(catalog["packs"][pack_id]["rules"]) for pack_id in resolved["packs"])
-    return {
+    count = sum(len(rules_in_force(catalog["packs"][pack_id], profile)["rules"]) for pack_id in resolved["packs"])
+    plan = {
         "rule_count": count,
         "rule_warning": (
             f"{count} rules in force. A task is asked only the rules that concern it, but each pattern adds rules "
@@ -1085,7 +1135,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
                 "version": catalog["packs"][pack_id]["version"],
                 "provenance": provenance.get(pack_id, []),
                 "scope": scopes.get(pack_id),
-                "rules": [rule["id"] for rule in catalog["packs"][pack_id]["rules"]],
+                "rules": [rule["id"] for rule in rules_in_force(catalog["packs"][pack_id], profile)["rules"]],
             }
             for pack_id in resolved["packs"]
         ],
@@ -1094,6 +1144,9 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
         "conventions": profile.get("conventions", []),
         "checks": profile.get("checks", []),
     }
+    if profile.get("declined_rules"):
+        plan["declined_rules"] = profile["declined_rules"]
+    return plan
 
 
 def require_resolved_conflicts(profile: dict, catalog: dict) -> None:
@@ -1197,6 +1250,8 @@ def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
     advice = {key: value for key, value in profile.items() if key != "changes" and key not in neutral}
     if "declined" in advice:
         advice["declined"] = declined_ids(profile)
+    if "declined_rules" in advice:
+        advice["declined_rules"] = sorted(declined_rule_ids(profile))
     return advice
 
 
@@ -1276,6 +1331,10 @@ def profile_decision_lines(profile: dict, catalog: dict) -> list[str]:
         verb, _, target = change["change"].partition(" ")
         if verb == "adopt" and target in pattern_ids(profile):
             lines.append(f"Adopted `{target}` by {change['by']} on {change['on']}: {change['reason']}.")
+    for entry in profile.get("declined_rules", []):
+        lines.append(f"Declined rule `{entry['id']}` by {entry['by']} on {entry['on']}: {entry['reason']}. It is not "
+                     "listed with its pack and no task is asked it; the person can restore it with openguildkit "
+                     f"profile adopt rule {entry['id']}.")
     return lines
 
 
@@ -1371,7 +1430,7 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             lines.append(f"Applies to {scope_text(scopes[pack_id])}.")
         if "policy_commit" in pack:
             lines.append(f"Policy commit: `{pack['policy_commit']}`")
-        lines.append(", ".join(f"`{rule['id']}`" for rule in pack["rules"]))
+        lines.append(", ".join(f"`{rule['id']}`" for rule in rules_in_force(pack, profile)["rules"]))
     stamp = f"{profile_fingerprint(profile, catalog)} layout {INSTRUCTIONS_LAYOUT}"
     lines.extend(["", f"<!-- openguildkit profile {stamp} -->"])
     return "\n".join(lines)

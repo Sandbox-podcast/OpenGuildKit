@@ -12,7 +12,7 @@ from .decisions import (
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
     verify_signature,
 )
-from .project import Fingerprints, fingerprint_holds, profile_fingerprint, task_scope_profile
+from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .relevance import sensitive_area
 from .sensitive import redact_credentials, redact_data
 from .results import (
@@ -441,7 +441,7 @@ def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
     except ValueError:
         return ["the task's components changed"]
     before = {pack["id"]: pack for pack in scope.get("packs", [])}
-    after = {pack_id: catalog["packs"][pack_id] for pack_id in current["packs"]}
+    after = {pack_id: rules_in_force(catalog["packs"][pack_id], current) for pack_id in current["packs"]}
     changes = [f"pack {pack_id} added" for pack_id in after if pack_id not in before]
     changes += [f"pack {pack_id} removed" for pack_id in before if pack_id not in after]
     for pack_id in [pack_id for pack_id in after if pack_id in before]:

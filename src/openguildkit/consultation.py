@@ -11,7 +11,7 @@ from . import light_lane
 from .catalog import rule_check
 from .detect import walk
 from .patterns import is_stack_pattern, pattern_selection
-from .project import rule_text
+from .project import rule_text, rules_in_force
 from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
@@ -41,7 +41,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         "project": profile["name"],
         "sector": catalog["sectors"][profile["sector"]],
         "stack": profile.get("stack", []),
-        "packs": [catalog["packs"][pack_id] for pack_id in profile["packs"]],
+        "packs": [rules_in_force(catalog["packs"][pack_id], profile) for pack_id in profile["packs"]],
         "conventions": profile.get("conventions", []),
         "checks": profile.get("checks", []),
         "research": research,
@@ -60,7 +60,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
              if key in alert}
             for alert in alerts
         ]
-    for field in ("roles", "components", "patterns", "declined", "resolutions"):
+    for field in ("roles", "components", "patterns", "declined", "resolutions", "declined_rules"):
         if profile.get(field):
             scope[field] = profile[field]
     if light_lane.is_light(task):
@@ -185,6 +185,9 @@ def scope_lines(scope: dict) -> list[str]:
         lines.append("- Declined, not active: " + "; ".join(
             f"{item['id']} by {item['by']} on {item['on']}: {item['reason']}" if isinstance(item, dict) else item
             for item in scope["declined"]) + ".")
+    if scope.get("declined_rules"):
+        lines.append("- Rules declined, asked of no task: " + "; ".join(
+            f"{item['id']} by {item['by']} on {item['on']}: {item['reason']}" for item in scope["declined_rules"]) + ".")
     lines.append(f"- Research: {scope['research']}.")
     if scope.get("lane"):
         lines.append(light_lane.scope_line(scope["lane"]))

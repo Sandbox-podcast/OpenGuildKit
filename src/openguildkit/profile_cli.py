@@ -7,6 +7,7 @@ sync. What weakens a protection (see weakening_changes) is the person's decision
 terminal and a typed confirmation. The approvals a change voids are named before anything is written.
 """
 
+import difflib
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -17,8 +18,8 @@ from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
 from .project import (
-    DEFAULT_GUARD, GUARD_MODES, declined_ids, is_norm, load_profile, norm_reason, sync_instructions,
-    unanswered_norms, validate_profile,
+    DEFAULT_GUARD, GUARD_MODES, declined_ids, declined_rule_ids, is_norm, load_profile, norm_reason, resolved_profile,
+    rules_in_force, sync_instructions, unanswered_norms, validate_profile,
 )
 from .sensitive import redact_credentials
 from .shell import shell_word
@@ -50,6 +51,8 @@ GUARD_LEVEL = {"off": 0, "observe": 1, "enforce": 2}
 HOST_LEVEL = {"other": 0, "gemini-cli": 1, "codex": 2, "claude-code": 3}
 PROTECTIVE_BOARDS = ("security", "legal")
 AI_PACKS = ("llm-evaluations", "nist-ai-risk", "eu-ai-act")
+# profile decline rule PACK/RULE and profile adopt rule PACK/RULE set one rule aside and restore it (RFC #447).
+RULE_WORD = "rule"
 
 
 def protective_packs(catalog: dict) -> set[str]:
@@ -81,10 +84,15 @@ def add_parser(commands) -> None:
         "profile", help="Change the project profile after setup: adopt or decline a pattern, add or remove a pack, "
                         "role, tool, check or board, set the host, guard or research policy.")
     actions = profile.add_subparsers(dest="profile_action", required=True)
-    for name, text in (("adopt", "Adopt a pattern or regulation: it becomes active."),
-                       ("decline", "Decline a pattern or regulation: it is not active and not proposed again.")):
+    for name, text in (("adopt", "Adopt a pattern or regulation: it becomes active. adopt rule PACK/RULE restores a "
+                                 "declined rule."),
+                       ("decline", "Decline a pattern or regulation: it is not active and not proposed again. decline "
+                                   "rule PACK/RULE sets one rule aside: no task is asked it.")):
         command = actions.add_parser(name, help=text)
-        command.add_argument("pattern", metavar="PATTERN", help="Pattern ID, from openguildkit recommend or patterns.")
+        command.add_argument("pattern", metavar="PATTERN", help="Pattern ID, from openguildkit recommend or patterns; "
+                                                                "or the word rule, followed by PACK/RULE.")
+        command.add_argument("rule", nargs="?", metavar="PACK/RULE",
+                             help="After the word rule: one rule, as AGENTS.md lists it under its pack.")
     for name, text in (("add", "Add entries to a list of the profile."), ("remove", "Remove entries from a list.")):
         command = actions.add_parser(name, help=text)
         command.add_argument("field", choices=sorted(LIST_FIELDS), help="The list to change.")
@@ -153,6 +161,10 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     if HOST_LEVEL.get(new_host, 0) < HOST_LEVEL.get(old_host, 0):
         changes.append((f"host {old_host} -> {new_host}, whose settings enforce less",
                         ["profile", "set", "host", str(new_host), *person]))
+    already = set(declined_rule_ids(before))
+    for rule in declined_rule_ids(after):
+        if rule not in already:
+            changes.append((f"rule {rule} declined", ["profile", "decline", RULE_WORD, rule, *person]))
     for key, field, label in REQUIRED_LISTS:
         kept = _texts(after.get(key))
         for value in _texts(before.get(key)):
@@ -257,6 +269,69 @@ def _decline(profile: dict, pattern_id: str, catalog: dict, by: str, reason: str
     return {**profile, "patterns": patterns, "declined": [*profile.get("declined", []), decline]}
 
 
+def _known_rule(value: str, catalog: dict) -> str:
+    """PACK/RULE as the catalog has it, from PACK/RULE or rule:PACK/RULE (the ID task checks prints)."""
+    rule = value.strip().removeprefix("rule:")
+    if "/" not in rule:
+        raise ValueError(f"Name one rule as PACK/RULE, such as python/follow-python-style: {value} is not. AGENTS.md "
+                         "lists the rules in force under their pack. Nothing was written.")
+    names = [f"{pack_id}/{item['id']}" for pack_id, pack in catalog["packs"].items() for item in pack["rules"]]
+    if rule not in names:
+        close = difflib.get_close_matches(rule, names, n=1)
+        hint = f" Did you mean {close[0]}?" if close else " AGENTS.md lists the rules in force under their pack."
+        raise ValueError(f"Unknown rule {rule}.{hint} Nothing was written.")
+    return rule
+
+
+def _decline_rule(profile: dict, value: str, catalog: dict, by: str, reason: str) -> dict:
+    """One rule set aside with who, when and why: a rule in force, neither required nor the last of its pack."""
+    rule = _known_rule(value, catalog)
+    pack_id, _, rule_id = rule.partition("/")
+    if pack_id == "agent-workflow":
+        raise ValueError("agent-workflow is required by OpenGuildKit: its rules cannot be declined. Nothing was written.")
+    if rule in declined_rule_ids(profile):
+        raise ValueError(f"Rule {rule} is already declined. Nothing was written.")
+    if pack_id not in resolved_profile(profile, catalog)["packs"]:
+        raise ValueError(f"Rule {rule} is not in force: its pack {pack_id} is not active in this profile, so no task "
+                         "is asked it. Nothing was written.")
+    required = [item for item in profile.get("required_rules", []) if item in (pack_id, rule)]
+    if required:
+        raise ValueError(f"Rule {rule} is required by the profile (required_rules lists {required[0]}): remove it from "
+                         f"the required rules first, at a terminal: openguildkit profile remove required-rule "
+                         f"{required[0]} --by NAME --reason WHY. Nothing was written.")
+    if [item["id"] for item in rules_in_force(catalog["packs"][pack_id], profile)["rules"]] == [rule_id]:
+        raise ValueError(f"{rule_id} is the last rule of pack {pack_id} in force: remove the pack (openguildkit profile "
+                         f"remove pack {pack_id}) or decline the pattern that brings it, rather than each of its rules. "
+                         "Nothing was written.")
+    entry = {"id": rule, "by": by, "on": today().isoformat(), "reason": reason}
+    return {**profile, "declined_rules": [*profile.get("declined_rules", []), entry]}
+
+
+def _adopt_rule(profile: dict, value: str) -> dict:
+    """A declined rule asked again; a rule the catalog no longer has can be restored too, to clear its entry."""
+    rule = value.strip().removeprefix("rule:")
+    if rule not in declined_rule_ids(profile):
+        declined = ", ".join(declined_rule_ids(profile)) or "none"
+        raise ValueError(f"Rule {rule} is not declined (declined rules: {declined}). Nothing was written.")
+    kept = [entry for entry in profile["declined_rules"] if entry["id"] != rule]
+    updated = {key: value for key, value in profile.items() if key != "declined_rules"}
+    return {**updated, "declined_rules": kept} if kept else updated
+
+
+def _rule_argument(args) -> str | None:
+    """The PACK/RULE of profile adopt rule or decline rule, None for a pattern, or why the words do not fit."""
+    rule = getattr(args, "rule", None)
+    if args.pattern != RULE_WORD:
+        if rule is not None:
+            raise ValueError(f"profile {args.profile_action} takes one PATTERN, or the word rule and PACK/RULE: "
+                             f"openguildkit profile {args.profile_action} rule {rule}. Nothing was written.")
+        return None
+    if rule is None:
+        raise ValueError(f"profile {args.profile_action} rule needs PACK/RULE, such as openguildkit profile "
+                         f"{args.profile_action} rule python/follow-python-style --by NAME --reason WHY.")
+    return rule
+
+
 def _change_list(profile: dict, field: str, values: list[str], add: bool, catalog: dict) -> dict:
     key, collection = LIST_FIELDS[field]
     known = catalog[collection] if collection else role_choices(catalog["patterns"]) if field == "role" else None
@@ -337,6 +412,12 @@ def _set_change(args) -> str:
 def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str]:
     """The profile after the command and the change in a few words."""
     action = args.profile_action
+    rule = _rule_argument(args) if action in ("adopt", "decline") else None
+    if rule is not None and action == "decline":
+        updated = _decline_rule(profile, rule, catalog, args.by.strip(), args.reason.strip())
+        return updated, f"decline rule {_known_rule(rule, catalog)}"
+    if rule is not None:
+        return _adopt_rule(profile, rule), f"adopt rule {rule.strip().removeprefix('rule:')}"
     if action == "adopt":
         return _adopt(profile, args.pattern, catalog), f"adopt {args.pattern}"
     if action == "decline":
@@ -352,10 +433,12 @@ def check_proposal(profile: dict, catalog: dict, action: str, field: str | None,
     """The profile a command would write and what it weakens, or the ValueError the command would raise.
 
     action is add, remove or decline: field names the list for add and remove and is None for decline, whose value is a
-    pattern. Nothing is written and the profile given is left as it is: the retrospective proposes only a command that
+    pattern, or "rule" for decline rule, whose value is PACK/RULE. Nothing is written and the profile given is left as it is: the retrospective proposes only a command that
     this accepts, and the confirmation at a terminal that a weakening needs (write_change) is still the person's.
     """
-    args = Namespace(profile_action=action, pattern=value, field=field, values=[value], by="NAME", reason="WHY")
+    rule = field == RULE_WORD
+    args = Namespace(profile_action=action, pattern=RULE_WORD if rule else value, rule=value if rule else None,
+                     field=field, values=[value], by="NAME", reason="WHY")
     edited, _ = _changed(profile, args, catalog)
     updated = validate_profile(edited, catalog)
     return updated, [text for text, _ in weakening_changes(profile, updated, catalog)]
@@ -448,7 +531,8 @@ def report_change(state: Path, updated: dict, record: dict, catalog: dict, host_
 def _target(args) -> str:
     """What the person types to confirm a change that weakens a protection: the pattern, the values given."""
     if args.profile_action in ("adopt", "decline"):
-        return args.pattern
+        rule = _rule_argument(args)
+        return args.pattern if rule is None else rule.strip().removeprefix("rule:")
     return " ".join([args.value, *args.more] if args.profile_action == "set" else args.values)
 
 
@@ -495,6 +579,11 @@ def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
     commands = "; ".join(f"openguildkit profile decline {norm} {PERSON}" for norm in declined_norms)
     steps = [f"Declined norms come back active: {', '.join(declined_norms)}. The person declines each again at a "
              f"terminal there: {commands}."] if declined_norms else []
+    declined_rules = declined_rule_ids(profile)
+    if declined_rules:
+        commands = "; ".join(f"openguildkit profile decline rule {rule} {PERSON}" for rule in declined_rules)
+        steps.append(f"Declined rules come back in force: {', '.join(declined_rules)}. The person declines each again "
+                     f"at a terminal there: {commands}.")
     if profile.get("host", "other") != "other":
         answers["host"] = profile["host"]
     guard = profile.get("guard", "off")
@@ -561,6 +650,12 @@ def run(args, root: Path, state: Path) -> int:
         args.by, args.reason, lambda change, weakened, voided: _confirm(change, target, weakened, voided))
     host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research", "approval")
     report_change(state, updated, record, catalog, host_settings)
+    rule = _rule_argument(args) if args.profile_action in ("adopt", "decline") else None
+    if rule is not None:
+        name = record["change"].split(" ", 2)[2]
+        print(f"Tasks consulted from now on are not asked {name}; to restore it: openguildkit profile adopt rule "
+              f"{name} --by NAME --reason WHY." if args.profile_action == "decline" else
+              f"Rule {name} is asked again of the tasks it concerns, from their next consultation.")
     if updated.get("light_paths") and args.profile_action == "set" and args.field == "light-paths":
         print(f'Short lane: openguildkit task new "BRIEF" --id ID --lane light --paths '
               f'{shell_word(updated["light_paths"][0])} (docs/workflow.md, "Short lane").')

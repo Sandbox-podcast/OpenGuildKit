@@ -290,7 +290,8 @@
         "tests/test_proportionate_setup.py",
         "tests/test_questions.py",
         "tests/test_routing.py",
-        "tests/test_rule_plan.py"
+        "tests/test_rule_plan.py",
+        "tests/test_rule_decline.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -678,7 +679,8 @@
         "tests/test_gemini_host.py",
         "tests/test_profile_commands.py",
         "tests/test_light_lane.py",
-        "tests/test_org_catalog.py"
+        "tests/test_org_catalog.py",
+        "tests/test_rule_decline.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -727,7 +729,8 @@
         "tests/test_setup_questionnaire.py",
         "tests/test_source_dates.py",
         "tests/test_stack_patterns.py",
-        "tests/test_upgrades.py"
+        "tests/test_upgrades.py",
+        "tests/test_rule_decline.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -897,7 +900,8 @@
       ],
       "tests": [
         "tests/e2e/test_task_retro.py",
-        "tests/test_retro.py"
+        "tests/test_retro.py",
+        "tests/test_rule_decline.py"
       ],
       "doc": "docs/workflow.md"
     },

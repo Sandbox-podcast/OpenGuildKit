@@ -92,6 +92,9 @@ EXAMPLES = [
     Example("init", "profile add tool Jira --by CM --reason Tracker"),
     Example("init", "profile remove convention 'Use Conventional Commits for commit messages.' --by CM --reason Trim"),
     Example("init", "profile set guard observe --by CM --reason Pilot"),
+    Example("init", "profile decline rule python/declare-package-metadata --by CM --reason Unpublished",
+            typed="python/declare-package-metadata"),
+    Example("ruled", "profile adopt rule python/declare-package-metadata --by CM --reason Published"),
     Example("init", "profile export"),
     Example("init", "features list"), Example("init", "features list --json"),
     Example("init", "features enable jira --by CM --reason Logs"),
@@ -349,6 +352,7 @@ class Projects:
         "observed": ("bare", "init_observed"), "ci": ("bare", "init_ci"), "suspect": ("claude", "plant_findings"),
         "org": ("init", "pin_org"), "replaced": ("org", "replace_org_record"),
         "featured": ("init", "enable_feature"), "tooled": ("init", "connect_tool"), "market": ("init", "open_dossier"),
+        "featured": ("init", "enable_feature"), "ruled": ("init", "decline_rule"), "tooled": ("init", "connect_tool"), "market": ("init", "open_dossier"),
         "competitor": ("market", "add_competitor"), "watched": ("competitor", "watch_source"),
         "paused": ("watched", "pause_source"), "provided": ("watched", "provide_source"),
         "storybook": ("init", "add_storybook"), "extracted": ("storybook", "extract"), "proposed": ("extracted", "propose"),
@@ -474,6 +478,10 @@ class Projects:
         write_json(root / ".openguildkit" / "catalog" / "packs" / "org-review.json", {**record, "version": "1.0.1"})
 
     def enable_feature(self, root): run_cli(root, "features", "enable", "jira", "--by", "CM", "--reason", "Logs")
+    def decline_rule(self, root):
+        run_cli(root, "profile", "decline", "rule", "python/declare-package-metadata", "--by", "CM", "--reason", "Pilot",
+                typed="python/declare-package-metadata")
+
     def connect_tool(self, root): run_cli(root, "tools", "apply", "github", "--host", "claude-code", "--yes")
     def open_dossier(self, root): run_cli(root, "market", "new", "portals", "--market", "B2B help desks")
 
