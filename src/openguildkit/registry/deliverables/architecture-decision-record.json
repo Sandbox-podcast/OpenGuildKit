@@ -1,0 +1,81 @@
+{
+  "id": "architecture-decision-record",
+  "title": "Architecture decision record",
+  "description": "Keep an approved decision task in the repository as an architecture decision record: the request, the options, the decision and its reason, the committees' advice and the disagreements left, the conditions, the status and the exported decision record it comes from.",
+  "decision": true,
+  "brains": [
+    "engineering",
+    "project-management"
+  ],
+  "inputs": [
+    {
+      "id": "decision-task",
+      "label": "Decision task, approved, with its exported decision record",
+      "data": "internal"
+    }
+  ],
+  "tool_actions": [],
+  "sections": [
+    {
+      "id": "status",
+      "title": "Status",
+      "prompt": "Accepted, closed or still open, and the decision this one follows or replaces."
+    },
+    {
+      "id": "context",
+      "title": "Context",
+      "prompt": "The request as the task recorded it, and who it affects."
+    },
+    {
+      "id": "options",
+      "title": "Options considered",
+      "prompt": "The options on the table and what would make the team choose one."
+    },
+    {
+      "id": "decision",
+      "title": "Decision",
+      "prompt": "The option chosen and the reason the person gave when approving."
+    },
+    {
+      "id": "advice",
+      "title": "Committee advice and disagreements",
+      "prompt": "Each committee's verdict and recommendation, then the disagreements left open."
+    },
+    {
+      "id": "conditions",
+      "title": "Conditions",
+      "prompt": "The blockers the committees set, and whether each was cleared, waived or is still open."
+    },
+    {
+      "id": "consequences",
+      "title": "Consequences",
+      "prompt": "What becomes easier, what becomes harder, and what the team must now do or watch."
+    },
+    {
+      "id": "record",
+      "title": "Decision record",
+      "prompt": "The exported decision record this one comes from, and its seal."
+    }
+  ],
+  "checks": [
+    {
+      "id": "options-compared",
+      "verification": "Each option is named with what would make the team choose it, and the decision says why the others were not chosen."
+    },
+    {
+      "id": "consequences-stated",
+      "verification": "The consequences say what becomes easier and harder, and what follows from each disagreement left open and each condition."
+    },
+    {
+      "id": "record-linked",
+      "verification": "The exported decision record named under Decision record is in the repository and carries the decision seal written there."
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions",
+      "checked": "2026-11-21",
+      "title": "Documenting Architecture Decisions - Michael Nygard"
+    }
+  ]
+}

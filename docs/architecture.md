@@ -89,7 +89,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `mcp_protocol.py` | Shared stdio transport, handshake and tool dispatch for local MCP servers. |
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
 | `project_mcp.py` | Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes. |
-| `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks. |
+| `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision record filled from a decision task. |
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
 | `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |
 | `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |

@@ -315,7 +315,7 @@
     },
     {
       "module": "src/openguildkit/deliverables.py",
-      "role": "Business deliverable templates: inputs, tool actions that need approval, reviewer checks.",
+      "role": "Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision record filled from a decision task.",
       "entry": [
         "project_path",
         "load_deliverables",
