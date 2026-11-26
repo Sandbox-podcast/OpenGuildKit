@@ -93,7 +93,8 @@ class InstallerRun:
             path.chmod(0o755)
 
     def install(self, release: FakeRelease, *arguments: str, env=None):
-        environment = {"PATH": str(self.bin), "HOME": str(self.temp), "TMPDIR": str(self.temp),
+        environment = {"PATH": str(self.bin), "HOME": str(self.temp),
+                       "TMPDIR": str(self.temp), "TEMP": str(self.temp), "TMP": str(self.temp),
                        "OPENGUILDKIT_RELEASES_URL": release.url, "FAKE_LOG": str(self.log), **(env or {})}
         arguments = [self.version_flag if argument == "--version" else argument for argument in arguments]
         return subprocess.run([*self.command, *arguments], capture_output=True, text=True, env=environment,
@@ -114,7 +115,7 @@ class InstallerRun:
         self.assertEqual(lines[2], "Installed with pipx")
         self.assertIn("openguildkit --version", lines[3])
         self.assertIn("openguildkit init", lines[3])
-        self.assertRegex(self.installed(), r"^pipx install --force \S+/" + re.escape(wheel_name("0.18.0")) + r"\n$")
+        self.assertRegex(self.installed(), r"^pipx install --force \S+[/\\]" + re.escape(wheel_name("0.18.0")) + r"\n$")
         self.assertEqual(Path(f"{self.log}.whl").read_bytes(), b"wheel of 0.18.0")
 
     def test_installs_the_version_given_even_an_older_one_or_a_named_prerelease(self):
