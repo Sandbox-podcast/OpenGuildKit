@@ -245,6 +245,18 @@ class GuardTests(CapturedCli, unittest.TestCase):
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit_input(".openguildkit/answers.json"))
         self.assertEqual(output, "")
 
+    def test_init_says_how_to_require_signed_approvals_until_the_project_does(self):
+        hint = "To require signed ones: openguildkit profile set approval signed"
+        for guard, approval, shown in (("observe", None, True), ("enforce", None, True), ("off", None, False),
+                                       ("enforce", {"mode": "signed", "allowed_signers": "allowed_signers",
+                                                    "approvers": ["pat@example.org"]}, False)):
+            with self.subTest(guard=guard, signed=bool(approval)):
+                shutil.rmtree(self.root / ".openguildkit", ignore_errors=True)
+                (self.root / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+                extra = {"guard": guard, **({"approval": approval} if approval else {})}
+                output, _ = self.run_cli("init", "--answers", self.write_profile(**extra))
+                self.assertEqual(hint in output, shown)
+
     def test_an_approved_task_covers_the_catalog_and_the_alert_register_never_the_signers(self):
         (self.root / "allowed_signers").write_text("pat@example.org ssh-ed25519 AAAA\n", encoding="utf-8")
         self.init(guard="enforce", approval={"mode": "signed", "allowed_signers": "allowed_signers",

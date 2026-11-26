@@ -10,16 +10,19 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli
+from . import alerts_cli, light_lane
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
 from .consultation import board_brief, pack_rules
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
-    ignored_by_git, payload_text, reconsult_command, verify_signature,
+    ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
 )
-from .guard import export_decision, export_withdrawal, exported_decisions, record_of_another_task, untracked_files
+from .guard import (
+    changes_since_approval, export_decision, export_withdrawal, exported_decisions, record_of_another_task,
+    untracked_files,
+)
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -28,6 +31,9 @@ from .project import STATE_DIR, WORK_DIR, Fingerprints, load_profile, task_scope
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
+from .retro import (
+    DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
+)
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
@@ -97,6 +103,12 @@ def add_parser(commands) -> None:
     new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
     new.add_argument("--id", help="Use a readable lowercase task ID.")
     new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
+    new.add_argument("--lane", choices=(light_lane.LANE,),
+                     help="Open the task in the short lane, which a person turned on in the profile: one board, no "
+                          "questionnaire, limited to --paths.")
+    new.add_argument("--paths", nargs="+", metavar="GLOB",
+                     help="With --lane light: the folders or files the task may change, inside the profile's "
+                          "light_paths. Write the brief first.")
     listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
     listing.add_argument("--status", help="Only tasks in this status.")
     listing.add_argument("--owner", help="Only tasks whose current decision this person took: the approval, the "
@@ -106,6 +118,16 @@ def add_parser(commands) -> None:
     listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
+    retro = actions.add_parser("retro", help="Read what a closed task, or every closed task, left to learn: rules set "
+                                             "aside, committees that said nothing, reservations, waived blockers. "
+                                             "It writes nothing.")
+    retro.add_argument("id", nargs="?", help="Task ID of a closed task, or none with --all.")
+    retro.add_argument("--all", action="store_true",
+                       help="Count what comes back in the project's closed tasks, with the profile command a person "
+                            "could type for some of it.")
+    retro.add_argument("--min", type=int, dest="minimum", metavar="N",
+                       help=f"With --all, in how many closed tasks a finding must come back (default {DEFAULT_MINIMUM}).")
+    retro.add_argument("--json", action="store_true", help="Print the retrospective as JSON.")
     for action, description in ACTION_HELP.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
@@ -504,6 +526,8 @@ def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> 
 def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
+    if args.approve and (lane := light_lane.lane_problem(task, profile)):
+        raise ValueError(lane)
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
@@ -639,8 +663,22 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
             print(f"  {name} ({count} check(s)): {reason}")
 
 
+def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
+    """What keeps a short-lane task from being done: the profile no longer allows its paths, or a file changed since
+    its approval is outside them. A project outside Git has no list of changed files to compare."""
+    problem = light_lane.lane_problem(task, profile)
+    if problem or not light_lane.is_light(task):
+        return [problem] if problem else []
+    outside = light_lane.files_outside(task["paths"], profile["light_paths"], changes_since_approval(root, task) or [])
+    return [light_lane.outside_message(task["id"], task["paths"], profile["light_paths"], outside, "this project")] \
+        if outside else []
+
+
 def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root: Path, changed: list[str]) -> dict:
     """The closed task. Deferring evidence or naming who closes needs the person at a terminal."""
+    lane = _lane_problems(root, task, profile)
+    if lane:
+        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(lane))
     blocking = blocking_alerts(load_register(state), task)
     if blocking:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
@@ -776,7 +814,8 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
         print(NO_CHECK_COMMAND)
     problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
-                + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root))
+                + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root)
+                + _lane_problems(root, task, profile))
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
     if folded:
@@ -809,6 +848,8 @@ def _warn_inputs(original: object, recorded: object, label: str) -> None:
 
 def _questions(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
+    if light_lane.is_light(task):
+        raise ValueError(light_lane.no_questions_message(args.id))
     # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
     if args.answers is None:
         answers, validated, open_list = {}, None, []
@@ -1113,6 +1154,8 @@ def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task
 
 def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Preview the boards a consultation would select, and why."""
+    if light_lane.is_light(task):
+        raise ValueError(light_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
         raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
@@ -1141,7 +1184,9 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     if args.brief_file is not None:
         with _input_file(args.brief_file):
             args.revised_brief = args.brief_file.read_text(encoding="utf-8-sig")
-    if args.reuse_answers:
+    if light_lane.is_light(task):
+        answers = _light_answers(args, task, profile)
+    elif args.reuse_answers:
         answers = _reused_answers(args, task)
     else:
         answers = (
@@ -1195,6 +1240,18 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     print(result["consultation"]["markdown"])
     for line in board_replacements(catalog):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
+
+
+def _light_answers(args, task: dict, profile: dict) -> dict:
+    """The answers of a short-lane task: the lane's own. The lane convenes one board and takes no answers of the
+    requester's, so those options are refused, and a lane the profile no longer allows stops the consultation."""
+    used = [option for option, given in (("--answers", args.answers), ("--add", args.add), ("--remove", args.remove)) if given]
+    if used:
+        raise ValueError(light_lane.options_message(args.id, used))
+    problem = light_lane.lane_problem(task, profile)
+    if problem:
+        raise ValueError(problem)
+    return light_lane.default_answers(task)
 
 
 def _reused_answers(args, task: dict) -> dict:
@@ -1345,17 +1402,21 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         raise ValueError("Supply either a task brief or --file PATH.")
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
+    lane = light_lane.declare(args.lane, args.paths, profile)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
             raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                              f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                              f"with openguildkit task show {args.id}, and choose another ID.")
-        task_id = create_task(state, brief, args.id, args.follows)
+        task_id = create_task(state, brief, args.id, args.follows, lane)
     print(task_id)
     _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
+    if lane:
+        print(light_lane.next_line(task_id, lane["paths"]), file=sys.stderr)
+        return
     print(f"Next: read the questions with openguildkit task questions {task_id}; save the answers in {WORK_DIR}/ "
           f"(Git ignores it), get the follow-up questions they call for with openguildkit task questions {task_id} "
           f"--answers FILE --follow-ups, preview the boards with openguildkit task route {task_id} --answers FILE, "
@@ -1391,10 +1452,88 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             if row.get("closed_by"):
                 owner += f", closed by {row['closed_by']}"
             follows = f" (follows {row['follows']})" if row.get("follows") else ""
-            print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{follows}")
+            lane = f" (short lane: {', '.join(row['paths'])})" if row.get("lane") else ""
+            print(f"{row['id']} [{row['status']}{owner}] {row.get('brief', '')}{lane}{follows}")
             print(f"    next: {row['next']}")
             if row.get("note"):
                 print(f"    note: {row['note']}")
+
+
+def _retro_record(root: Path, state: Path, task_id: str) -> dict:
+    """The facts of a closed task known here only by its exported record, or why the record cannot be read."""
+    path = state / DECISIONS_DIR / f"{task_id}.json"
+    record = read_json(path)
+    where = path.relative_to(root).as_posix()
+    if not isinstance(record, dict) or record.get("record_sha256") != record_digest(record):
+        raise ValueError(f"The exported record {where} does not match its digest: it was changed after it was "
+                         "exported. Restore it from git, or run openguildkit check to see what it reports.")
+    try:
+        return facts_of_record(record)
+    except ValueError:
+        raise ValueError(f"The exported record {where} was written before task {task_id} was completed, so it has no "
+                         "closing to read. Look at it with openguildkit task list --decisions; once the task is "
+                         f"closed, openguildkit task export {task_id} writes it.") from None
+
+
+def _closed_facts(state: Path) -> tuple[list[dict], dict]:
+    """The facts of every closed task of the project, the task records first and the exported records of the others,
+    and how many records were left out. A task record read here is the one its exported record repeats."""
+    facts, held, ignored = [], set(), {"unreadable_task_records": 0, "exported_records_not_holding": 0}
+    for path in sorted((state / "tasks").glob("*.json")):
+        try:
+            task = read_task(state, path.stem)
+        except ValueError:
+            ignored["unreadable_task_records"] += 1
+            continue
+        held.add((task["id"], task["created_at"]))
+        if task["status"] in DONE_STATUSES:
+            facts.append(facts_of_task(task))
+    for _, record in exported_records(state):
+        if record is None:
+            ignored["exported_records_not_holding"] += 1
+        elif record.get("completed") is True and record.get("status") in DONE_STATUSES:
+            if record.get("record_sha256") != record_digest(record):
+                ignored["exported_records_not_holding"] += 1
+            elif (record["task"], record.get("task_created_at") or "") not in held:
+                facts.append(facts_of_record(record))
+    return facts, ignored
+
+
+def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+    """The retrospective of one closed task, or with --all of the project: read from the records, never written."""
+    if bool(args.id) == args.all:
+        raise ValueError("Name the closed task to read, openguildkit task retro ID, or count the whole project with "
+                         "openguildkit task retro --all (task retro ID reads one task and --all counts them all)."
+                         if not args.id else
+                         "task retro ID reads one task and --all counts the project: give one of them.")
+    if args.minimum is not None and not args.all:
+        raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+    minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
+    if minimum < 1:
+        raise ValueError("--min counts tasks: give a number of 1 or more.")
+    if args.all:
+        facts, ignored = _closed_facts(state)
+        summary = project_summary(facts, minimum, profile, catalog, ignored)
+        if args.json:
+            print_json(summary)
+        else:
+            print("\n".join(render_project(summary)))
+        return
+    if task_path(state, args.id).is_file():
+        task = read_task(state, args.id)
+        if task["status"] not in DONE_STATUSES:
+            # Said without judging the approval, which would ask Git: the retrospective starts no process.
+            raise ValueError(state_refusal(task, "Only a closed task has a retrospective."))
+        facts = facts_of_task(task)
+    elif (state / DECISIONS_DIR / f"{args.id}.json").is_file():
+        facts = _retro_record(root, state, args.id)
+    else:
+        read_task(state, args.id)  # says the task is unknown, with the closest ID and the command that lists them
+    retro = task_retro(facts)
+    if args.json:
+        print_json(retro)
+    else:
+        print("\n".join(render_task(retro)))
 
 
 def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
@@ -1402,7 +1541,7 @@ def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
     print_json(_closing_points(task, args.id) if args.closing else task)
 
 
-# What runs each action on an existing task. new and list come before the task is read.
+# What runs each action on an existing task. new, list and retro come before the task is read.
 HANDLERS = {
     "show": _show, "questions": _questions, "brief": _brief, "template": _template, "blockers": _blockers,
     "clear": _resolve, "waive": _resolve, "checks": _checks, "verify": _outcome, "result": _outcome,
@@ -1431,6 +1570,8 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
         return _new(args, root, state, profile, catalog)
     if action == "list":
         return _list(args, root, state, profile, catalog)
+    if action == "retro":
+        return _retro(args, root, state, profile, catalog)
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":

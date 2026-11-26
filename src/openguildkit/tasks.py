@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock
+from . import clock, light_lane
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
@@ -140,6 +140,8 @@ _RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?":
                "reason?": str, "scope?": str, "until?": str, "signer?": str, "signature?": str}
 _RECORD = {
     "created_at": str,
+    "lane?": frozenset({light_lane.LANE}),
+    "paths?": [str],
     "completed_at?": str,
     "profile_fingerprint?": str,
     "answers?": {"*": (str, [str])},
@@ -219,6 +221,8 @@ def _record_problem(task: dict) -> str | None:
     problem = _shape_problem(task, _RECORD, "")
     if problem:
         return problem
+    if ("lane" in task) != bool(task.get("paths")):
+        return "lane and paths go together: a short-lane task names the paths it may change"
     for field in RESOLUTION_FIELDS:
         for blocker, resolution in task.get(field, {}).items():
             missing = [key for key in _RESOLUTION_FIELDS[resolution["kind"]] if key not in resolution]
@@ -246,7 +250,8 @@ def validate_brief(brief: str) -> str:
     return redact_credentials(brief)
 
 
-def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None) -> str:
+def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None,
+                lane: dict | None = None) -> str:
     brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
         raise ValueError("The task ID is empty. Omit --id to generate one.")
@@ -261,6 +266,7 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
         "created_at": timestamp(),
         "status": "draft",
         "rounds": [],
+        **(lane or {}),
     }
     if follows is not None:
         previous = read_task(state, follows)
@@ -280,7 +286,8 @@ def next_step(task: dict, profile: dict | None = None) -> str:
     """The open point that keeps a task from moving on; with the profile, whether a waiver can still close it."""
     status = task["status"]
     if status == "draft":
-        return "Answer the questionnaire and consult the boards."
+        return ("Consult the boards: the short lane asks no questions." if light_lane.is_light(task)
+                else "Answer the questionnaire and consult the boards.")
     if status == "consulting":
         progress = pass_progress(task)
         waiting = [item["board"] + (" (failed)" if item["status"] == "failed" else "") for item in progress
@@ -314,6 +321,9 @@ def next_command(task: dict) -> str:
     """The command that moves a task on from its status, said to the agent: a refusal ends with it, so that a refused
     command leads to one that runs."""
     task_id, status = task["id"], task["status"]
+    if status == "draft" and light_lane.is_light(task):
+        return (f"consult the one board its paths call for with openguildkit task consult {task_id}: the short lane asks "
+                "no questions")
     if status == "draft":
         return (f"read the questions with openguildkit task questions {task_id}, then consult the boards with "
                 f"openguildkit task consult {task_id} --answers FILE")
@@ -597,6 +607,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
             row["closed_by"] = closed_by
         if task.get("follows"):
             row["follows"] = task["follows"]["task"]
+        if light_lane.is_light(task):
+            row.update(lane=task["lane"], paths=task["paths"])
         rows.append(row)
     return rows
 
@@ -844,7 +856,7 @@ def decision_text(task: dict, profile: dict, previous: dict | None = None, regis
     decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), the check
     commands task verify will run with those changed since the project's last approval, and the task's confirmed
     critical alerts that an import resolved since its last decision."""
-    lines = decision_summary(task) + check_command_lines(task, profile, previous)
+    lines = light_lane.decision_lines(task) + decision_summary(task) + check_command_lines(task, profile, previous)
     if register is not None:
         since = task["rounds"][-1]["decision"]["at"] if task["rounds"] else None
         lines += [resolution_line(alert) for alert in resolved_by_import(register, task, since)]
@@ -1252,6 +1264,10 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
 
 
 SENSITIVE_GROUP = "Data protection, security or AI rules skipped, failed or declared not applicable as a pack"
+# The other titles of the closing that other readers (the retrospective) tell apart.
+NOT_RUN_GROUP = "Project checks that could not run in this environment"
+OTHER_RULES_GROUP = "Other rules skipped or failed"
+VERDICTS_GROUP = "Board verdicts at approval that asked for changes"
 NO_COMMAND = ("No project check command ran for this task: the profile lists none (checks in "
               ".openguildkit/project.json), so nothing was run to verify the change.")
 
@@ -1309,7 +1325,7 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
     groups = [
         (SENSITIVE_GROUP, sensitive),
         ("Board blocks not lifted", _blocks_not_lifted(task)),
-        ("Project checks that could not run in this environment", [
+        (NOT_RUN_GROUP, [
             f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
             for item in result.get("checks", []) if item.get("cannot_run")]),
         ("Blockers waived rather than cleared", [
@@ -1319,14 +1335,14 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
         ("Named evidence handed to a follow-up task", [
             f"{item['check']} is handed to task {item['task']}, provided by {item['owner']} (recorded by {item['by']})"
             for item in result.get("deferred", [])]),
-        ("Other rules skipped or failed", other),
+        (OTHER_RULES_GROUP, other),
         ("Warnings on the result", list(result.get("warnings", []))),
     ]
     found = [{"group": title, "points": points} for title, points in groups if points]
     verdicts = [f"{entry['id']} said {entry['challenge']['verdict']}" for entry in task.get("review", {}).get("boards", [])
                 if entry.get("challenge", {}).get("verdict") == "revise"]
     if found and verdicts:
-        found.append({"group": "Board verdicts at approval that asked for changes", "points": verdicts})
+        found.append({"group": VERDICTS_GROUP, "points": verdicts})
     return found
 
 

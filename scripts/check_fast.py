@@ -35,7 +35,7 @@ EXTRA = {
     "docs/agents/map.json": ["tests/test_agent_native.py"],
     "docs/testing.md": ["tests/test_product_docs.py"],
     "CONTRIBUTING.md": ["tests/test_workflows.py"],
-    "integrations/README.md": ["tests/test_hook_examples.py"],
+    "integrations/README.md": ["tests/test_hook_examples.py", "tests/test_gemini_host.py"],
     "README.md": ["tests/test_entry_pages.py", "tests/test_release.py"],
     "README.fr.md": ["tests/test_entry_pages.py"],
     "CHANGELOG.md": ["tests/test_release.py"],

@@ -452,9 +452,9 @@ def run(args, root: Path, state: Path, catalog: dict) -> int:
             print(json.dumps(plan, indent=2, ensure_ascii=False))
         elif generic:
             _print_plan(plan, GENERIC)
-            print("Nothing is written. The project's host is other: copy each mcpServers block above into your "
-                  "agent's MCP settings, or pass --host claude-code or --host codex to plan for one of them.",
-                  file=sys.stderr)
+            print(f"Nothing is written. The project's host is {profile.get('host', 'other')}: copy each mcpServers block "
+                  "above into your agent's MCP settings, or pass --host claude-code or --host codex to plan for one "
+                  "of them.", file=sys.stderr)
         else:
             _print_plan(plan, host)
             if all("skipped" in item for item in plan):

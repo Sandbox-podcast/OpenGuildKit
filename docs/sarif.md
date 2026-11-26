@@ -154,6 +154,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`, on the profile. Changed files are in no decision record of the change. Export the record again once the work is committed, or open a task for the change.
 
+#### `decision-lane-outside`
+
+`error`, `guard --ci` only, on the exported decision. A short-lane record lists changed files outside its paths or the `light_paths` of the base revision, or the base revision has no `light_paths`: a pull request cannot widen or turn on the lane it is judged by ([short lane](workflow.md#short-lane)). Open a task on the full path for that work.
+
 #### `evidence-journal-changed`
 
 `error`, on the exported decision. A journal that the record cites as evidence no longer matches the SHA-256 recorded with it.

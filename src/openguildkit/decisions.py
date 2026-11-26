@@ -117,6 +117,9 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         confirmed = sorted(item["board"] for item in adjustments if item.get("confirmation") == "pending")
         if confirmed:
             payload["confirmed_removals"] = confirmed
+    # The short lane and its paths are part of what the person approves, and the signer reads them in clear.
+    if task.get("lane"):
+        payload.update(lane=task["lane"], paths=task["paths"])
     if version >= 2:
         payload["shared_sha256"] = task_shared_digest(task)
     if version >= 3:

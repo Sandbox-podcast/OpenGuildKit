@@ -205,6 +205,7 @@
         "tests/test_entry_pages.py",
         "tests/test_first_contribution.py",
         "tests/test_first_run.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
         "tests/test_integrations.py",
@@ -278,6 +279,7 @@
         "tests/test_deliberation.py",
         "tests/test_host_research.py",
         "tests/test_lenses_and_methods.py",
+        "tests/test_light_lane.py",
         "tests/test_new_brains.py",
         "tests/test_project_walk.py",
         "tests/test_proportionate_setup.py",
@@ -304,6 +306,7 @@
         "tests/test_decision_text.py",
         "tests/test_decisions.py",
         "tests/test_guard.py",
+        "tests/test_light_lane.py",
         "tests/test_personal_data_doc.py",
         "tests/test_record_integrity.py",
         "tests/test_record_lifecycle.py"
@@ -388,7 +391,9 @@
       "tests": [
         "tests/test_approval_lifecycle.py",
         "tests/test_clock.py",
+        "tests/test_gemini_host.py",
         "tests/test_guard.py",
+        "tests/test_light_lane.py",
         "tests/test_record_lifecycle.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
@@ -398,7 +403,7 @@
     },
     {
       "module": "src/openguildkit/hosts.py",
-      "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex) and reports which rules stay instructions.",
+      "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions.",
       "entry": [
         "signers_rule",
         "approval_warning",
@@ -408,6 +413,7 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
         "tests/test_hosts.py",
@@ -424,6 +430,7 @@
       ],
       "tests": [
         "tests/test_agent_native.py",
+        "tests/test_gemini_host.py",
         "tests/test_integrations.py"
       ],
       "doc": "docs/architecture.md",
@@ -431,6 +438,31 @@
         "src/openguildkit/agent_files/",
         "integrations/claude-code/",
         "integrations/skills/"
+      ]
+    },
+    {
+      "module": "src/openguildkit/light_lane.py",
+      "role": "The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for.",
+      "entry": [
+        "excluded_reason",
+        "declared_excluded",
+        "normalize_entries",
+        "matches",
+        "covers",
+        "declare",
+        "board_for",
+        "default_answers",
+        "proposed_routing",
+        "lane_problem",
+        "files_outside"
+      ],
+      "tests": [
+        "tests/e2e/test_light_lane.py",
+        "tests/test_light_lane.py"
+      ],
+      "doc": "docs/architecture.md",
+      "covers": [
+        "tests/fixtures/upgrade/before-light-lane.json"
       ]
     },
     {
@@ -561,10 +593,14 @@
         "weakening_changes",
         "Weakening",
         "InvalidProfile",
-        "voided_approvals"
+        "voided_approvals",
+        "check_proposal"
       ],
       "tests": [
-        "tests/test_architecture.py"
+        "tests/test_architecture.py",
+        "tests/test_gemini_host.py",
+        "tests/test_profile_commands.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -592,9 +628,11 @@
         "tests/test_core.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
         "tests/test_instruction_files.py",
+        "tests/test_light_lane.py",
         "tests/test_monorepo_instructions.py",
         "tests/test_pack_rules.py",
         "tests/test_pass_relevance.py",
@@ -751,6 +789,25 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/retro.py",
+      "role": "The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type.",
+      "entry": [
+        "facts_of_task",
+        "facts_of_record",
+        "task_retro",
+        "recurrences",
+        "proposals",
+        "project_summary",
+        "render_task",
+        "render_project"
+      ],
+      "tests": [
+        "tests/e2e/test_task_retro.py",
+        "tests/test_retro.py"
+      ],
+      "doc": "docs/workflow.md"
+    },
+    {
       "module": "src/openguildkit/routing.py",
       "role": "Routes a task to boards from its brief and answers, then applies required boards and the requester's changes.",
       "entry": [
@@ -764,6 +821,7 @@
       "tests": [
         "tests/test_brain_selection.py",
         "tests/test_decision_brief.py",
+        "tests/test_light_lane.py",
         "tests/test_new_brains.py",
         "tests/test_performance.py",
         "tests/test_routing.py"
@@ -980,6 +1038,7 @@
         "scan_exit_code"
       ],
       "tests": [
+        "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py"
       ],
@@ -1015,7 +1074,9 @@
         "tests/test_clock.py",
         "tests/test_closing_points.py",
         "tests/test_deliberation.py",
-        "tests/test_performance.py"
+        "tests/test_performance.py",
+        "tests/test_retro.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1028,7 +1089,11 @@
         "run"
       ],
       "tests": [
-        "tests/test_architecture.py"
+        "tests/e2e/test_task_retro.py",
+        "tests/test_architecture.py",
+        "tests/test_next_steps.py",
+        "tests/e2e/test_light_lane.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1078,6 +1143,7 @@
       ],
       "tests": [
         "tests/test_architecture.py",
+        "tests/test_gemini_host.py",
         "tests/test_next_steps.py",
         "tests/test_tools.py"
       ],
@@ -1123,6 +1189,7 @@
         "tests/test_clock.py",
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
+        "tests/test_light_lane.py",
         "tests/test_output_size.py"
       ],
       "doc": "docs/architecture.md"

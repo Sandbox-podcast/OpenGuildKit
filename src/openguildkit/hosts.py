@@ -13,7 +13,9 @@ from pathlib import Path
 
 from .storage import write_text
 
-HOSTS = ("claude-code", "codex", "other")
+HOSTS = ("claude-code", "codex", "gemini-cli", "other")
+# The hosts whose hooks `host apply` writes and `host check` reports.
+HOOK_HOSTS = ("claude-code", "codex", "gemini-cli")
 LAUNCHERS = (("openguildkit",), ("python", "-m", "openguildkit"), ("python3", "-m", "openguildkit"), ("py", "-m", "openguildkit"))
 # Approving a task and withdrawing an approval (task revoke) are the person's acts at a terminal.
 APPROVAL_COMMANDS = tuple((*launcher, "task", action) for action in ("decide", "revoke") for launcher in LAUNCHERS[:3])
@@ -57,8 +59,8 @@ CODEX_TOOLS_BEGIN = "# >>> OpenGuildKit tools"
 _TOML_TABLE = re.compile(r"[ \t]*\[")
 
 
-def _claude_settings(root: Path) -> dict:
-    path = root / CLAUDE_SETTINGS_FILE
+def _read_settings(path: Path) -> dict:
+    """A settings file whose hooks the host reads: refused with its name when it is not a JSON object with readable hooks."""
     if not path.is_file():
         return {}
     try:
@@ -69,6 +71,10 @@ def _claude_settings(root: Path) -> dict:
         raise ValueError(f"{path.as_posix()} must hold a JSON object.")
     _check_hook_groups(settings.get("hooks"), path)
     return settings
+
+
+def _claude_settings(root: Path) -> dict:
+    return _read_settings(root / CLAUDE_SETTINGS_FILE)
 
 
 def _codex_hooks(root: Path) -> dict:
@@ -174,12 +180,26 @@ def _codex_rules() -> str:
 
 
 CODEX_HOOKS_FILE = Path(".codex") / "hooks.json"
+GEMINI_SETTINGS_FILE = Path(".gemini") / "settings.json"
 GUARD_PROMPT = "openguildkit guard --hook prompt"
 GUARD_EDIT = "openguildkit guard --hook pre-edit"
-EDIT_MATCHERS = {"claude-code": "Edit|Write|MultiEdit|NotebookEdit", "codex": "apply_patch|Edit|Write"}
+EDIT_MATCHERS = {"claude-code": "Edit|Write|MultiEdit|NotebookEdit", "codex": "apply_patch|Edit|Write",
+                 "gemini-cli": "write_file|replace"}
+# Gemini CLI names its hooks, so that /hooks and hooksConfig.disabled can address them (integrations/README.md,
+# "Gemini CLI", says what its documentation shows).
+GEMINI_HOOK_NAMES = {GUARD_PROMPT: "openguildkit-prompt", GUARD_EDIT: "openguildkit-guard"}
+GEMINI_EDIT_TOOLS = ("write_file", "replace")
 
 
 def _guard_hooks(host: str) -> dict:
+    if host == "gemini-cli":
+        def handler(command: str) -> dict:
+            return {"name": GEMINI_HOOK_NAMES[command], "type": "command", "command": command}
+
+        return {
+            "BeforeAgent": [{"matcher": "*", "hooks": [handler(GUARD_PROMPT)]}],
+            "BeforeTool": [{"matcher": EDIT_MATCHERS[host], "hooks": [handler(GUARD_EDIT)]}],
+        }
     return {
         "UserPromptSubmit": [{"hooks": [{"type": "command", "command": GUARD_PROMPT}]}],
         "PreToolUse": [{"matcher": EDIT_MATCHERS[host], "hooks": [{"type": "command", "command": GUARD_EDIT}]}],
@@ -198,9 +218,9 @@ def _claude_hooks_present(hooks: object) -> bool:
     return {GUARD_PROMPT, GUARD_EDIT} <= commands
 
 
-def _edit_handlers(hooks: object) -> list[dict]:
-    """The PreToolUse handlers that run the pre-edit guard."""
-    groups = hooks.get("PreToolUse") if isinstance(hooks, dict) else None
+def _edit_handlers(hooks: object, event: str = "PreToolUse") -> list[dict]:
+    """The handlers of an event (PreToolUse, or BeforeTool for Gemini CLI) that run the pre-edit guard."""
+    groups = hooks.get(event) if isinstance(hooks, dict) else None
     return [
         handler for group in (groups if isinstance(groups, list) else []) if isinstance(group, dict)
         for handler in group.get("hooks", []) if isinstance(handler, dict) and handler.get("command") == GUARD_EDIT
@@ -229,6 +249,85 @@ def _merge_hooks(current: object, host: str, block_on_failure: bool = False) -> 
             else:
                 handler.pop("onFailure", None)
     return hooks
+
+
+def _matches_every_edit_tool(matcher: object) -> bool:
+    """Whether a Gemini CLI matcher fires for write_file and for replace: an empty matcher or * fires for every tool,
+    any other value is a regular expression (https://geminicli.com/docs/hooks/, "Matchers")."""
+    if not isinstance(matcher, str):
+        return matcher is None
+    try:
+        return matcher.strip() in ("", "*") or all(re.search(matcher, tool) for tool in GEMINI_EDIT_TOOLS)
+    except re.error:
+        return False
+
+
+def _gemini_hooks_present(hooks: object) -> bool:
+    """Both guard hooks stand under the events Gemini CLI fires, and the edit hook fires for write_file and replace."""
+    if not isinstance(hooks, dict):
+        return False
+
+    def groups(event: str, command: str) -> list[dict]:
+        return [group for group in (hooks.get(event) if isinstance(hooks.get(event), list) else [])
+                if isinstance(group, dict) and any(isinstance(handler, dict) and handler.get("command") == command
+                                                   for handler in group.get("hooks", []))]
+
+    return bool(groups("BeforeAgent", GUARD_PROMPT)) and any(
+        _matches_every_edit_tool(group.get("matcher")) for group in groups("BeforeTool", GUARD_EDIT))
+
+
+def _gemini_hooks_config(settings: dict, path: Path) -> dict:
+    config = settings.get("hooksConfig", {})
+    if not isinstance(config, dict):
+        raise ValueError(f"{path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply.")
+    return config
+
+
+def _gemini_switched_off(settings: dict, guard: str) -> bool:
+    """The project turns the hooks off (hooksConfig.enabled false), or, in enforce, leaves a user setting free to: the
+    project's own setting wins over the user's, so enforce asks for it explicitly."""
+    enabled = _gemini_hooks_config(settings, GEMINI_SETTINGS_FILE).get("enabled")
+    return enabled is False or (guard == "enforce" and enabled is not True)
+
+
+def _gemini_disabled(settings: dict) -> bool:
+    """A hook of the guard that hooksConfig.disabled lists, by its name or its command."""
+    listed = _gemini_hooks_config(settings, GEMINI_SETTINGS_FILE).get("disabled")
+    return isinstance(listed, list) and any(item in listed for pair in GEMINI_HOOK_NAMES.items() for item in pair)
+
+
+def _apply_gemini(root: Path, profile: dict) -> list[str]:
+    """Declare the guard hooks in .gemini/settings.json and leave every other key of the file as it is."""
+    path = root / GEMINI_SETTINGS_FILE
+    settings = _read_settings(path)
+    config = _gemini_hooks_config(settings, path)
+    settings["hooks"] = _merge_hooks(settings.get("hooks"), "gemini-cli")
+    if profile.get("guard") == "enforce":
+        # A user setting "hooksConfig": {"enabled": false} turns every hook off unless the project says true.
+        config["enabled"] = True
+    if isinstance(config.get("disabled"), list):
+        config["disabled"] = [item for item in config["disabled"]
+                              if not any(item in pair for pair in GEMINI_HOOK_NAMES.items())]
+    if config:
+        settings["hooksConfig"] = config
+    write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
+    return [GEMINI_SETTINGS_FILE.as_posix()]
+
+
+def _gemini_board(root: Path, guard: str, shell: str) -> tuple[bool, str]:
+    """Whether the guard hooks of Gemini CLI are in place, and what host check says about them."""
+    settings = _read_settings(root / GEMINI_SETTINGS_FILE)
+    off, disabled = _gemini_switched_off(settings, guard), _gemini_disabled(settings)
+    present = _gemini_hooks_present(settings.get("hooks")) and not off and not disabled
+    detail = (
+        f"{GEMINI_SETTINGS_FILE.as_posix()} runs openguildkit guard on each request (BeforeAgent) and before write_file "
+        "and replace (BeforeTool). When its Trusted Folders feature is on, Gemini CLI loads project settings only in a "
+        "trusted folder, and it treats a new or changed project hook as untrusted, warning before it runs. Only exit "
+        "code 2 blocks: an edit goes through when the hook cannot start or exits with another code. Not seen in a live "
+        "Gemini CLI session yet."
+        + (' The settings lack "hooksConfig": {"enabled": true}, so a user setting can turn the hooks off.' if off else "")
+        + (" A hook of the guard is listed in hooksConfig.disabled." if disabled else "") + shell)
+    return present, detail
 
 
 # What host check, host apply, check and the page say when the only thing missing is the command on the PATH:
@@ -268,6 +367,8 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
         present = _claude_hooks_present(_codex_hooks(root).get("hooks", {}))
         detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
                   "Codex reads it only once the project is trusted and its hooks reviewed." + shell)
+    elif host == "gemini-cli":
+        present, detail = _gemini_board(root, guard, shell)
     else:
         return _control("board", title, "instruction",
                         "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions.")
@@ -401,6 +502,9 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
             settings["disableAllHooks"] = False
         write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
         written.append(CLAUDE_SETTINGS_FILE.as_posix())
+    elif host == "gemini-cli":
+        if profile.get("guard", "off") != "off":
+            written += _apply_gemini(root, profile)
     elif host == "codex":
         write_text(root / CODEX_RULES_FILE, _codex_rules())
         written.append(CODEX_RULES_FILE.as_posix())

@@ -22,7 +22,7 @@ from itertools import groupby, islice
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .hosts import board_control
+from .hosts import HOOK_HOSTS, board_control
 from .project import managed_block_lines
 from .sensitive import looks_like_credential, redact_credentials
 from .tools import load_tools
@@ -443,7 +443,6 @@ def scan(root: Path) -> dict:
 AGENTS_MD_TOOLS = ("Codex", "Amp", "Jules", "Cursor", "Factory", "RooCode", "Aider", "Gemini CLI", "goose", "Kilo Code",
                    "opencode", "Zed", "Warp", "GitHub Copilot", "VS Code", "Ona", "Devin", "Windsurf", "Augment Code",
                    "Junie", "Phoenix", "Semgrep", "UiPath")
-HOOK_HOSTS = ("claude-code", "codex")  # the hosts whose hooks `host apply` writes and `host check` reports
 
 
 def _tool(tool_id: str, name: str, files: tuple, listed_as: str | None, note: str = "", imports: bool = False) -> dict:
@@ -462,7 +461,8 @@ TOOLS = (
     _tool("copilot", "GitHub Copilot", (".github/copilot-instructions.md", ".github/instructions"), "GitHub Copilot",
           note=' as "Coding agent"'),
     _tool("cursor", "Cursor", (".cursor", ".cursorrules"), "Cursor"),
-    _tool("gemini-cli", "Gemini CLI", ("GEMINI.md", ".gemini"), "Gemini CLI"),
+    _tool("gemini-cli", "Gemini CLI", ("GEMINI.md", ".gemini"), "Gemini CLI",
+          note="; its default context file is GEMINI.md, and AGENTS.md needs its context.fileName setting"),
     _tool("goose", "goose", (".goosehints",), "goose"),
     _tool("junie", "Junie", (".junie",), "Junie"),
     _tool("kilo", "Kilo Code", (".kilocode",), "Kilo Code"),
@@ -515,8 +515,8 @@ def _agents_md(tool: dict) -> tuple[str, str]:
 
 
 def _coverage(root: Path, tool: dict, profile: dict) -> dict:
-    """What OpenGuildKit covers for a tool. Claude Code and Codex: what host check says of the guard hooks, for the guard
-    of the profile; every other tool has no hook."""
+    """What OpenGuildKit covers for a tool. Claude Code, Codex and Gemini CLI: what host check says of the guard hooks, for
+    the guard of the profile; every other tool has no hook."""
     guard, host = profile.get("guard", "off"), profile.get("host", "other")
     if tool["id"] not in HOOK_HOSTS:
         return {"status": "none", "detail": f"no hook blocks an edit; {CI_ONLY}"}

@@ -1,6 +1,6 @@
 # Task workflow
 
-Every change in an OpenGuildKit project goes through the same six steps, from the request to the closing. The host agent runs the commands; the person answers the questions, makes the decision and confirms what is theirs to confirm.
+Every change in an OpenGuildKit project goes through the same six steps, from the request to the closing. The host agent runs the commands; the person answers the questions, makes the decision and confirms what is theirs to confirm. A project can opt in to a [short lane](#short-lane) for a change a person declares trivial; it is off until a person turns it on.
 
 ```mermaid
 flowchart LR
@@ -21,7 +21,7 @@ openguildkit task new "Show signed-in users the status of their support requests
 openguildkit task new --file brief.md          # multi-line brief
 ```
 
-Without `--id`, the CLI generates `task-` followed by 12 hex characters. IDs use lowercase letters, digits and single hyphens, up to 64 characters. The command fails if `AGENTS.md` is out of date: run `openguildkit sync` first.
+`--lane light --paths GLOB...` opens the task in the [short lane](#short-lane), in a project that has turned it on. Without `--id`, the CLI generates `task-` followed by 12 hex characters. IDs use lowercase letters, digits and single hyphens, up to 64 characters. The command fails if `AGENTS.md` is out of date: run `openguildkit sync` first.
 
 A brief is kept in the task record, shown to the boards and exported with the decision. A credential in it, such as an access key or `password=...`, is replaced with a placeholder before the brief is written, and `task new` says so without repeating the value; an email address, a phone number or a bank account number gives a warning. [tools.md](tools.md#credentials) lists the shapes recognized.
 
@@ -202,7 +202,7 @@ The revised brief is checked like the brief of `task new`. The approval prompt a
 
 One function judges an approval, and every reader prints its answer: `task list`, `check`, `task consult`, `handoff`, `verify`, `result`, `complete`, `export` and the guard. An approval holds while its seal matches the record, its signature verifies (in a project with signed approvals), the rules, checks and boards of the profile are those it was given under, and the Git revision it was approved at is still in the project history.
 
-Only a change of the rules, the checks or the boards voids an approval: packs and their rules, the sector, the stack, components and patterns, the check commands, the boards, roles and required reviews, the personal-data and people-decision answers, and `ask_every_rule`. A new convention or tool, the guard mode, the host, the research setting, the approval mode or the waiver policy leave approvals standing (the approval mode and the allowed signers are read again by every reader, through the signature). An approval recorded by a release older than sealed decisions (0.16.1 and earlier) has no seal, so it no longer holds: until the task is consulted again, `check` exits 1 on it and `handoff`, `verify`, `export` and `complete` refuse it. Consulting it again keeps no pass, and a completed task keeps its record as history.
+Only a change of the rules, the checks or the boards voids an approval: packs and their rules, the sector, the stack, components and patterns, the check commands, the boards, roles and required reviews, the personal-data and people-decision answers, and `ask_every_rule`. A new convention or tool, the guard mode, the host, the research setting, the approval mode, the waiver policy or the paths of the short lane leave approvals standing (the approval mode and the allowed signers are read again by every reader, through the signature). An approval recorded by a release older than sealed decisions (0.16.1 and earlier) has no seal, so it no longer holds: until the task is consulted again, `check` exits 1 on it and `handoff`, `verify`, `export` and `complete` refuse it. Consulting it again keeps no pass, and a completed task keeps its record as history.
 
 After a rebase, a squash or an amended commit, the approved revision leaves the history: every reader says so and names the same command, `task consult ID --reuse-answers`, which consults the task again with the answers it holds and needs no terminal (`--answers FILE` with it replaces the answers the file gives; a task consulted before the `concerns` question existed is asked it at a terminal, and without one is consulted as `unsure`, which keeps every topic's rules open, with a line that says so). The task is consulted again under the same ID: `task consult` keeps the earlier approval in `rounds` with the reason, and keeps as done the passes of the boards whose brief, rules and entry template did not change, so only the others review again (`task pass ID BOARD --again` redoes a kept one). The decision brief lists the kept passes, and the person approves again. The same applies when the rules changed: the boards whose rules changed review again. A broken or missing seal keeps no pass.
 
@@ -346,6 +346,73 @@ The command runs first: one that passes here cannot be declared. The reason take
 
 A check that cannot run on the team's workstations, because it needs the network, a service or credentials, does not belong in `checks`: leave it out at setup, or ask the person to run `openguildkit profile remove check 'COMMAND' --by NAME --reason WHY` at their terminal (a check removed weakens a protection), then run it in CI and name it under `conventions` (for example "The integration tests run in CI: tests/integration needs the payment sandbox") so the agent and the reviewers know where its result comes from.
 
+## Short lane
+
+The six steps above are the same for a typo and for a feature. When a safeguard is that heavy for a trivial change, a team's first reaction is to turn it off (`"guard": "off"`). The short lane is an opt-in way through the workflow for a change a person declares trivial, and it takes out only what has no meaning for one reviewing board. It is off in every project until a person turns it on, and a project that never does behaves exactly as before.
+
+### Turn it on
+
+A profile that names `light_paths`, the folders or files a short-lane task may change, has the lane. The person types it at their terminal, with who and why:
+
+```bash
+openguildkit profile set light-paths 'docs/**' 'tests/**' --by CM --reason "A typo in the docs or a test needs one reviewer"
+```
+
+Turning the lane on, or adding a path, lowers the rigor of that part of the project, so the command follows the rule of every setting that weakens a protection: it needs a person at an interactive terminal, who types the paths to confirm, and an agent without one is refused with the same message and nothing is written. The profile keeps who, when and why in `changes`. Fewer paths, or `openguildkit profile set light-paths none`, makes the project stricter and needs no terminal, as removing a pack that is not a protection does. The web page cannot turn the lane on either: it is refused with the command to type. The setting is not part of what an approval rests on, so turning the lane on or off voids no approval: the edit hook, `task complete` and `guard --ci` read it when they act. The profile file is protected like every other setting (the edit hook refuses an edit of it in `enforce` and flags it in `observe`), and `guard --ci` reads `light_paths` from the base revision, never from the pull request. As for every setting, `init --answers` accepts `light_paths` at setup, when there is no approval to weaken.
+
+A path is a folder or file glob inside the project: `*` and `?` stay inside a folder, `**` is a whole segment that crosses folders (`docs/**`, `tests/**/*.py`, `README.md`). A trailing `/` names a folder. `**` alone, `..`, a leading `/` and other wildcards are refused, and a list holds at most 50 paths.
+
+### Open a short-lane task
+
+```bash
+openguildkit task new "Fix the typo in the export page of the guide" --id guide-typo --lane light --paths 'docs/**'
+```
+
+Without `--lane`, a task takes the full path, unchanged. Every path of `--paths` must be covered by `light_paths`; a path outside is refused with the list of the paths at fault and the command of the full path. In a project that has not turned the lane on, `task new --lane light` is refused with the command a person types to turn it on.
+
+The lane is declared by the person's request, never guessed: the paths and the lane are part of what the person approves. The approval prompt, `task challenge` and `task decision-payload` open with a line that names them, the seal of the approval covers them (a signer reads them in clear in the payload, and `guard --ci` refuses an exported record whose `lane` or `paths` differ from the approved ones), and the handoff repeats them.
+
+### What the lane shortens
+
+| Step | Full path | Short lane |
+|---|---|---|
+| Framing | `task questions`, then `--answers FILE` | No questionnaire: `task consult ID` takes the lane's answers, `kind: maintenance`, `data: none`, `research: local`, `concerns: none` and `surface: other`. `other` is an open answer: the rules of every surface stay asked, as for `unsure`, so the closing asks as much as it would. `task questions` and `task route` say so. |
+| Boards | Chosen from the answers and the words of the brief, adjusted with `--add` and `--remove` | One board chosen by the paths: `developer-relations-and-docs` when every path is documentation (`docs/`, `README.md`, `.md`, `.rst`...), `qa` when every path is tests (`tests/`, `test_*.py`, `*.spec.ts`...), `engineering` otherwise, a mix included. The boards the profile requires (`required_boards`) still join: the lane never drops a mandatory review. `--add`, `--remove` and `--answers` are refused. A board the project has not enabled is named, never replaced. |
+| Deliberation | `task deliberate` and `task respond` | Nothing to deliberate with one board (a required board that disagrees can still be deliberated). |
+
+### What the lane does not shorten
+
+The pass of the board and its entry (`task pass`, `task submit`, with their validations), the review (`task review`), the blockers (`task clear`, `task waive`, with the person at a terminal), the decision by a person at a terminal (`task decide`, the typed ID, the sealed approval, the signature when the profile requires signed approvals), the handoff, `task verify`, `task result`, `task complete` (with the person's `--by` for what only a person closes), `task export` and the exported record. A request for changes and `task revoke` work as on the full path.
+
+### What the lane covers
+
+The task records `lane` and `paths`; `task list` shows them (`(short lane: docs/**)`), and the exported record carries `"lane": "light"` and `"paths"`.
+
+- **The edit hook** (`guard --hook pre-edit`) holds a short-lane task to its paths. An approved short-lane task covers an edit to a file its paths and the profile's `light_paths` both name. An edit outside is refused in `enforce` and flagged, not blocked, in `observe`, unless an approved task of the full path covers it (which covers everything, as it does today). Inside its paths, a short-lane task counts as an approved task, with no message of its own.
+- **`task verify` and `task complete`** list and refuse a short-lane task when a file Git tracks has changed outside its paths since the approval (committed or not, and the new files Git does not track yet), or when the profile no longer allows its paths.
+- **`guard --ci`** refuses a short-lane record whose `files` leave its paths or the `light_paths` of the base revision (`decision-lane-outside`), the same way it reads the guard mode: a pull request cannot widen the lane it is judged by, or turn the lane on for itself.
+
+### Never in the lane
+
+Whatever the profile and the task say, the lane never covers a change of rules, dependencies or the profile. Each of these is refused in `light_paths` and in `--paths`, and a file of them stays out of the lane even when a glob that the task names would match it (`docs/**` does not cover `docs/example/package.json`):
+
+- the state of the project: everything under `.openguildkit/` (the profile, the catalog, the decisions);
+- CI workflows: `.github/workflows/` and `.github/actions/`;
+- the instructions and settings of agents: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and `WARP.md` in any folder, and the files and folders `host scan` reads: `.claude/`, `.codex/`, `.cursor/`, `.cursorrules`, `.windsurf/`, `.windsurfrules`, `.clinerules`, `.roo/`, `.kilocode/`, `.junie/`, `.rules`, `.gemini/`, `.mcp.json`, `.vscode/mcp.json`, `.github/copilot-instructions.md` and `.github/instructions/`;
+- the dependency manifests and lockfiles, in any folder: `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `bun.lock`, `bun.lockb`, `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `Cargo.toml`, `Cargo.lock`, `composer.json`, `composer.lock`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts`, `gradle.lockfile`, `libs.versions.toml`, `packages.config`, `Directory.Packages.props`, `Directory.Build.props`, `Package.swift`, `Package.resolved`, `mix.exs`, `mix.lock`, `pubspec.yaml`, `pubspec.lock`, `deno.json`, `deno.jsonc`, `deno.lock`, `environment.yml`, `conda-lock.yml`, `flake.lock`, `requirements*.txt` and `constraints*.txt`, and any file ending in `.lock`, `.lockb`, `-lock.json`, `-lock.yaml`, `-lock.yml`, `.csproj`, `.fsproj`, `.vbproj` or `.gemspec`.
+
+A change of these goes through the full path.
+
+### What the review must decide
+
+The lane was proposed as an RFC (#422), and these points are open for the pull request that adds it:
+
+- whether the list above is the right one: it stays short on purpose, and says nothing of a `Dockerfile`, of `CODEOWNERS`, of the CI of other systems (`.gitlab-ci.yml`, `Jenkinsfile`) or of the files that generate code;
+- whether `surface: other` is the right default: it keeps the closing as heavy as an `unsure` task (the answers of the rules of every surface), where a surface chosen from the paths would ask fewer rules and guess a fact about the change;
+- whether the required boards should join the lane (they do: a project that requires `security` gets it on every task, a docs typo included), or whether such a project should refuse the lane;
+- whether the lane should be refused outside a Git repository (it is not: there, nothing compares the changed files with the paths, as for the checks the full path makes);
+- whether an agent may open a task in the lane by itself: it can, since nothing in `task new` is the person's act, and the lane is declared by a person at the approval, which shows the lane and the paths and seals them; the alternative is to ask for the person's initials at the opening.
+
 ## Dependency alerts
 
 The CLI does not scan dependencies. It reads the JSON report of a scanner the project already uses into the project's alert register, `.openguildkit/alerts.json`, and links the report's alerts to the task:
@@ -406,6 +473,55 @@ One file per task means two people never edit the same record. When a pull bring
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds. For a task that exists here only as an exported record, it prints that record and says so on stderr. `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.
+
+## Retrospective
+
+```bash
+openguildkit task retro request-status       # what one closed task set aside, left open or waived
+openguildkit task retro --all                # what comes back in the project's closed tasks, with the profile command a person could type
+openguildkit task retro --all --min 2 --json # a lower minimum, for a program
+```
+
+A retrospective reads and counts; it records nothing. It writes no file and changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
+
+### What it reads
+
+- The task records in `.openguildkit/tasks/` whose status is `done` or `done-with-reservations`. An unreadable record is left out and counted: `task list` names it.
+- The exported decision records in `.openguildkit/decisions/` of closed tasks that have no task record here (a teammate's tasks, or a deleted `tasks/` folder). A record counts only if it says the task was completed and its `record_sha256` holds; one that does not is left out and counted, and `check` names it. A task with both a task record and an exported record counts once, by its task record.
+
+No field that holds a person is printed: not the approver, the person who closed the task, the owners of the rules set aside, nor who waived a blocker, and the name in parentheses at the end of a line of the closing is taken out. The `task list` of the same project shows the approver and the closer, so the retrospective reveals no name that it did not already. What people typed in a reason, a finding or a reservation is copied as recorded: a name typed there is printed.
+
+### One task
+
+`task retro ID` gives four lists. Text is short, one line for each group of findings, and `--json` gives each rule, committee, reservation and waiver.
+
+| List | What it holds | Where it comes from |
+|---|---|---|
+| Rules not applied | The rules and named evidence the result declared `skipped` or `not-applicable`, with the reason recorded; those that `failed`, with the evidence given; a pack declared as a whole; then the packs and evidence the task was not asked, with the reason `relevance.py` gave | `result.checks`, `result.packs` and `result.closing.not_concerned`. An exported record keeps the reason of a rule set aside but only the status of a rule that failed |
+| Committees | The boards convened whose verdict was `proceed`, with no blocker, that neither raised nor received an objection | `consultation.boards`, `review` and the objections that `task respond` recorded or, when it never ran, those the review gives, as `task challenge` shows them |
+| Open reservations | The open points of the closing, as it wrote them, most serious first (the skipped and failed rules are only counted: the first list gives them) | `result.closing.open_points` |
+| Blockers waived | Each blocker covered by a waiver rather than cleared: its board, finding, reason, scope and end date | `blocker_resolutions` and `verification_blocker_resolutions`, or `blockers` of an exported record |
+
+Two limits. A rule has no waiver in OpenGuildKit, since a waiver covers a blocker (fourth list), so the first list holds the rules a person set aside or that failed. And a committee is listed only when it said `proceed` and nothing else: one that asked for changes, said it lacked evidence, blocked, or whose advice another board objected to is not, because each did something. The list says nothing about the value of a recommendation's text, only that the committee raised no blocker or objection. An exported record keeps each board's verdict but not the objections between boards, so for a task known only by its record the output says that the committees are not in it, and the full record where the task was closed gives them.
+
+The proposal behind this command also listed the questions that had no effect on routing. That list is not offered: a task record keeps the answers and the reasons each board was selected, never which answer led to which board, and nothing records what routing would have done with another answer. Computing it again would use today's catalog, not the one the task was consulted under, and would say what no record says.
+
+### The project
+
+`task retro --all` counts what comes back in at least `--min N` closed tasks (3 by default). A finding counts once per task, so the number is a number of tasks, not of occurrences. Three, the number the proposal named, because a repeat in two tasks is often one team's habit twice in a row, and the minimum is there to lower: `--min 1` lists everything a closed task set aside.
+
+| Finding | Counted as | Profile command written for it |
+|---|---|---|
+| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. None for one rule: no profile command declines a single rule |
+| A rule that failed | The same rule, whatever the evidence | `profile add required-rule PACK/RULE`, or `PACK` for a pack that failed as a whole |
+| A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
+| A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
+
+A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by NAME` and `--reason WHY` are the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
+
+A recurrence is a question for the team, not a verdict: a rule skipped three times for one reason may be a rule the project does not need, or a habit worth changing. The declines already in the profile are not counted, since they stand for every task consulted after them.
+
+If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
 
 ## Exit codes
 

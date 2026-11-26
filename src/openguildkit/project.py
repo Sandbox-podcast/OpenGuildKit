@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
+from . import light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
@@ -110,6 +111,7 @@ GUARD_MODES = {
 HOST_CHOICES = (
     ("claude-code", "Claude Code"),
     ("codex", "Codex"),
+    ("gemini-cli", "Gemini CLI"),
     ("other", "Another agent, or none: the rules stay in AGENTS.md and no host setting is written"),
 )
 
@@ -319,7 +321,7 @@ QUESTION_HELP = {
     "packs": "Extra lists of rules for the agent; most teams keep only those already chosen for them.",
     "boards": "The panels of specialists (security, legal, design...) that review a task before work starts.",
     "tools": "The software the team uses every day, such as Jira, Slack or GitHub, so the agent can read from it.",
-    "host": "The AI coding assistant the team uses in the project, such as Claude Code or Codex.",
+    "host": "The AI coding assistant the team uses in the project, such as Claude Code, Codex or Gemini CLI.",
     "guard": "How strictly the agent is held to asking the specialists before it changes files.",
     "research": "Whether the agent may look things up on the internet when a person allows it for a task.",
     "conventions": "House rules the agent should follow, in one sentence each, such as how branches are named.",
@@ -645,6 +647,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
+        "light_paths",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -738,6 +741,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if type(max_days) is not int or not 1 <= max_days <= 366:
             raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
         profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
+    # The short lane (light_lane.py): absent, or an empty list, means it is off.
+    if answers.get("light_paths"):
+        profile["light_paths"] = light_lane.normalize_entries(answers["light_paths"], "light_paths")
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
         raise ValueError("ask_every_rule must be true or false")
@@ -1178,9 +1184,11 @@ def check_component(command: str, components: list[dict]) -> str | None:
 
 
 # Profile fields that change neither the rules, nor the checks, nor the boards of a task: changing one leaves every
-# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval and
-# waiver settings are read when they act (the signature, for one, is verified again by every reader of an approval).
-APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers")
+# approval standing. A convention or a tool reaches the next consultations; the guard, host, research, approval,
+# waiver and short lane settings are read when they act (the signature, for one, is verified again by every reader of
+# an approval, and the lane's paths by the edit hook, task complete and guard --ci).
+APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers",
+                           "light_paths")
 
 
 def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
@@ -1462,22 +1470,45 @@ def _instruction_text(path: Path) -> str:
     return _read_instructions(path)[0]
 
 
-def _claude_links_to_agents(root: Path) -> bool:
-    """A CLAUDE.md that is a symbolic link to the project's AGENTS.md already carries the rules."""
-    claude, agents = root / "CLAUDE.md", root / "AGENTS.md"
-    if not claude.is_symlink():
+def _links_to_agents(root: Path, name: str = "CLAUDE.md") -> bool:
+    """An instructions file (CLAUDE.md, GEMINI.md) that is a symbolic link to the project's AGENTS.md already carries the
+    rules."""
+    linked, agents = root / name, root / "AGENTS.md"
+    if not linked.is_symlink():
         return False
     try:
-        return claude.resolve(strict=True) == agents.resolve(strict=True) and not agents.is_symlink()
+        return linked.resolve(strict=True) == agents.resolve(strict=True) and not agents.is_symlink()
     except OSError:
         return False
 
 
-def _claude_instructions(current: str) -> str:
+def _claude_links_to_agents(root: Path) -> bool:
+    return _links_to_agents(root)
+
+
+def _import_instructions(current: str, label: str, line: str) -> str:
+    """The file that imports AGENTS.md: as it is when a line of its own already does, else with the managed import."""
     standalone_import = bool(_scan_markers(current, _IMPORT_LINE)[0])
     if not _marker_positions(current) and standalone_import:
         return current
-    return merged_instructions(current, "@AGENTS.md", "CLAUDE.md")
+    return merged_instructions(current, line, label)
+
+
+def _claude_instructions(current: str) -> str:
+    return _import_instructions(current, "CLAUDE.md", "@AGENTS.md")
+
+
+# Gemini CLI loads GEMINI.md, not AGENTS.md, unless its context.fileName setting says so; it imports a file with a
+# relative path (https://geminicli.com/docs/cli/gemini-md/). Only a profile that names the host gets the file.
+GEMINI_FILE = "GEMINI.md"
+
+
+def _gemini_instructions(current: str) -> str:
+    return _import_instructions(current, GEMINI_FILE, "@./AGENTS.md")
+
+
+def _wants_gemini_file(root: Path, profile: dict) -> bool:
+    return profile.get("host") == "gemini-cli" and not _links_to_agents(root, GEMINI_FILE)
 
 
 def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
@@ -1493,6 +1524,10 @@ def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
     if not linked:
         current_claude, claude_bom = _read_instructions(claude)
         updated_claude = _claude_instructions(current_claude)
+    gemini = root / GEMINI_FILE
+    if _wants_gemini_file(root, profile):
+        current_gemini, gemini_bom = _read_instructions(gemini)
+        updated_gemini = _gemini_instructions(current_gemini)
     ignore = state / ".gitignore"
     previous_ignore = _instruction_text(ignore)
     missing = [entry for entry in PROJECT_IGNORE.splitlines() if entry not in previous_ignore.splitlines()]
@@ -1502,6 +1537,8 @@ def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
     write_text(instructions, (BOM if bom else "") + updated)
     if not linked:
         write_text(claude, (BOM if claude_bom else "") + updated_claude)
+    if _wants_gemini_file(root, profile):
+        write_text(gemini, (BOM if gemini_bom else "") + updated_gemini)
     return replaced
 
 
@@ -1533,11 +1570,14 @@ def _outdated(test) -> bool:
         return False  # A file that cannot be merged is reported by its own message, not listed here.
 
 
-def _outdated_files(generated: str, current: str, claude: str, linked: bool, ignore: str) -> list[str]:
-    """The instructions files that no longer match the profile, for the finding that names them."""
+def _outdated_files(generated: str, current: str, claude: str, linked: bool, ignore: str,
+                    gemini: str | None = None) -> list[str]:
+    """The instructions files that no longer match the profile, for the finding that names them. gemini is the text of
+    GEMINI.md when the profile's host is Gemini CLI, None for every other host."""
     checks = (
         ("AGENTS.md", lambda: current != merged_instructions(current, generated)),
         ("CLAUDE.md", lambda: not linked and claude != _claude_instructions(claude)),
+        (GEMINI_FILE, lambda: gemini is not None and gemini != _gemini_instructions(gemini)),
         (f"{STATE_DIR}/.gitignore", lambda: not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())),
     )
     return [name for name, test in checks if _outdated(test)]
@@ -1547,6 +1587,7 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     current = _instruction_text(root / "AGENTS.md")
     linked = _claude_links_to_agents(root)
     claude = "" if linked else _instruction_text(root / "CLAUDE.md")
+    gemini = _instruction_text(root / GEMINI_FILE) if _wants_gemini_file(root, profile) else None
     ignore = _instruction_text(state_path(root) / ".gitignore")
     generated = render_instructions(profile, catalog)
     edited = hand_edits(current, generated)
@@ -1559,7 +1600,8 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     if (
         current != merged_instructions(current, generated)
         or (not linked and claude != _claude_instructions(claude))
+        or (gemini is not None and gemini != _gemini_instructions(gemini))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):
         raise RuleError("OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
-                        _outdated_files(generated, current, claude, linked, ignore))
+                        _outdated_files(generated, current, claude, linked, ignore, gemini))

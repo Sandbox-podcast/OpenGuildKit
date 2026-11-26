@@ -54,7 +54,7 @@ const SETUP_PROMPT: Record<string, string> = {
 const SETUP_CHOICE: Record<string, Record<string, string>> = {
   personal_data: { yes: 'Oui', no: 'Non' },
   people_decisions: { yes: 'Oui', no: 'Non' },
-  host: { 'claude-code': 'Claude Code', codex: 'Codex', other: 'Un autre agent, ou aucun : les règles restent dans AGENTS.md, sans réglage d’hôte' },
+  host: { 'claude-code': 'Claude Code', codex: 'Codex', 'gemini-cli': 'Gemini CLI', other: 'Un autre agent, ou aucun : les règles restent dans AGENTS.md, sans réglage d’hôte' },
   guard: {
     off: 'Désactivé : rien ne rappelle le conseil à l’agent, aucune modification n’est vérifiée',
     observe: 'Observation : chaque demande rappelle d’ouvrir une tâche ; une modification sans tâche approuvée est signalée à l’agent',
