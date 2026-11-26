@@ -24,6 +24,14 @@ GIT_ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.
            "GIT_CONFIG_KEY_1": "gc.auto", "GIT_CONFIG_VALUE_1": "0"}
 
 
+def remove_tree(path: Path) -> None:
+    """shutil.rmtree, which also removes the read-only object files Git writes on Windows."""
+    def writable(function, name, _):
+        os.chmod(name, 0o700)
+        function(name)
+    shutil.rmtree(path, **({"onexc": writable} if sys.version_info >= (3, 12) else {"onerror": writable}))
+
+
 def snapshot(root: Path) -> dict:
     """Every file below the root, .git included, with its bytes and its modification time."""
     files = {}
@@ -201,7 +209,7 @@ class TraceTests(CapturedCli, unittest.TestCase):
 
     def test_outside_git_the_decisions_are_listed_without_the_change_check(self):
         self.delivered()
-        shutil.rmtree(self.root / ".git")
+        remove_tree(self.root / ".git")
         out, _ = self.trace("README.md")
         self.assertIn(f"{TASK} [done-with-reservations, ", out)
         self.assertIn("not a Git repository", out)

@@ -30,6 +30,14 @@ for argument in "$@"; do
 done
 exit "${FAKE_EXIT:-0}"
 """
+# The same fake for PowerShell on Windows, which cannot start a sh script: pwsh finds NAME.ps1 on the PATH.
+FAKE_PS1 = """$name = [IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
+Add-Content -LiteralPath $env:FAKE_LOG -Value ("$name " + ($args -join ' '))
+foreach ($argument in $args) {
+    if ("$argument" -like '*.whl') { Copy-Item -LiteralPath "$argument" -Destination "$($env:FAKE_LOG).whl" }
+}
+exit [int]($(if ($env:FAKE_EXIT) { $env:FAKE_EXIT } else { 0 }))
+"""
 
 
 def wheel_name(version: str) -> str:
@@ -77,6 +85,9 @@ class InstallerRun:
 
     def fake(self, *names: str):
         for name in names:
+            if os.name == "nt" and self.version_flag == "-Version":
+                (self.bin / f"{name}.ps1").write_text(FAKE_PS1, encoding="utf-8")
+                continue
             path = self.bin / name
             path.write_text(FAKE, encoding="utf-8")
             path.chmod(0o755)

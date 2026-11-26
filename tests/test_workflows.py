@@ -167,6 +167,7 @@ class PinnedActionsTest(unittest.TestCase):
         self.assertIn("sha256sum --strict -c", install["run"])
 
 
+@unittest.skipIf(os.name == "nt", "the template runs on ubuntu-latest: its bash step is not run on Windows")
 class RetroTemplateTest(unittest.TestCase):
     """The monthly retrospective template, its issue step run with a fake gh and the real jq."""
 

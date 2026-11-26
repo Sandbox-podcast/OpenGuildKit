@@ -8,7 +8,6 @@ the others are listed.
 
 import contextlib
 import io
-import shlex
 from collections import Counter
 from pathlib import Path
 
@@ -17,6 +16,7 @@ from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog
 from .project import STATE_DIR, load_profile
+from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers
 
@@ -198,4 +198,4 @@ def _print(result: dict, search: str | None) -> None:
             print(f"No task matches {search!r} in these projects.")
     failing = next((row for row in rows if row["state"] == "project" and not row["check"]["passes"]), None)
     if failing:
-        print(f"Next: openguildkit --project {shlex.quote(failing['path'])} check")
+        print(f"Next: openguildkit --project {shell_word(failing['path'])} check")

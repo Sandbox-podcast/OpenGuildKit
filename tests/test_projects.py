@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from openguildkit.shell import shell_word
 from openguildkit.storage import write_json
 
 from tests.support import copy_initialized_project, run_cli
@@ -102,7 +103,7 @@ class ProjectsTests(unittest.TestCase):
         self.assertIn("tasks 1 done-with-reservations", out)
         self.assertIn("1 critical alert confirmed", out)
         self.assertIn("check fails: ", out)
-        self.assertIn(f"Next: openguildkit --project {self.billing.as_posix()} check", out)
+        self.assertIn(f"Next: openguildkit --project {shell_word(self.billing.as_posix())} check", out)
 
     def test_search_names_the_project_of_each_match_in_briefs_decision_reasons_and_rule_ids(self):
         self.closed_task(self.portal)
