@@ -7,13 +7,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-
-from openguildkit.storage import write_json
+from unittest.mock import patch
 
 from openguildkit.storage import write_json
 
 from tests.support import subprocess_environment
-from tests.test_results import TASK, ResultCase
+from tests.test_results import EXAMPLE, TASK, ResultCase
 
 REGISTRY = Path(__file__).resolve().parents[1] / "src" / "openguildkit" / "registry"
 
@@ -74,7 +73,8 @@ class ProjectMcpTests(ResultCase):
         self.assertEqual(hello["result"]["serverInfo"]["name"], "openguildkit")
         tools = listed["result"]["tools"]
         self.assertEqual([tool["name"] for tool in tools],
-                         ["project_profile", "project_rule", "task_status", "task_check_results"])
+                         ["project_profile", "project_rule", "task_status", "task_check_results",
+                          "task_list", "task_next", "task_blockers"])
         self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in tools))
         results = [response["result"] for response in responses]
         profile, rule, status, outcomes = [result["structuredContent"] for result in results]
@@ -85,13 +85,105 @@ class ProjectMcpTests(ResultCase):
         self.assertEqual(outcomes, {"id": TASK, "revision": commit, "checks": [
             {"check": "command:1", "status": "passed", "revision": commit},
         ], "omitted": 0, "failed_omitted": 0})
-        for tool, result in zip(tools, results, strict=True):
+        for tool, result in zip(tools[:4], results, strict=True):
             self.assertEqual(set(tool["outputSchema"]["required"]), set(result["structuredContent"]))
             self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
         serialized = json.dumps(results)
         for private in ("Private convention marker", "Camille", check["evidence"], str(self.root)):
             self.assertNotIn(private, serialized)
         self.assertEqual(snapshot, self.snapshot())
+
+    def blocked_review(self):
+        """The example task reviewed with two security blockers, the first cleared by Camille, and a draft beside it."""
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"],
+                                                "packs": ["python"]})
+        self.run_cli("init", "--answers", self.root / "profile.json")
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "new", "A draft nobody consulted yet.", "--id", "draft-one")
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        security = next(entry for entry in review["boards"] if entry["id"] == "security")
+        security["challenge"].update(verdict="block", blockers=[
+            {"finding": "No test proves a user cannot read another user's request.", "owner": "Security lead",
+             "clears_when": "An automated test with two synthetic accounts passes."},
+            {"finding": "Retention of request history is not decided.", "owner": "Data protection officer",
+             "clears_when": "The retention period is recorded."},
+        ])
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        (self.root / "proof-marker.txt").write_text("Two accounts tested.\n", encoding="utf-8")
+        self.run_cli("task", "clear", TASK, "security:1", "--evidence", "proof-marker.txt", "--supports",
+                     "Two accounts tested.", "--by", "Camille", typed=TASK)
+
+    def test_tasks_next_command_and_blockers_match_the_cli_and_name_nobody(self):
+        self.blocked_review()
+        listed = json.loads(self.run_cli("task", "list", "--json")[0])
+        blockers = json.loads(self.run_cli("task", "blockers", TASK, "--json")[0])
+        snapshot = self.snapshot()
+
+        tools, *responses = self.replies(
+            request(1, "tools/list"),
+            call(2, "task_list"),
+            call(3, "task_next", task_id=TASK),
+            call(4, "task_next", task_id="draft-one"),
+            call(5, "task_blockers", task_id=TASK),
+            call(6, "task_blockers", task_id="draft-one"),
+        )
+        schemas = {tool["name"]: tool for tool in tools["result"]["tools"]}
+        results = [response["result"] for response in responses]
+        for name, result in zip(("task_list", "task_next", "task_next", "task_blockers", "task_blockers"), results,
+                                strict=True):
+            self.assertNotIn("isError", result)
+            self.assertEqual(set(schemas[name]["outputSchema"]["required"]), set(result["structuredContent"]))
+            self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
+            self.assertTrue(schemas[name]["annotations"]["readOnlyHint"])
+        tasks, reviewed, draft, blocked, unblocked = [result["structuredContent"] for result in results]
+
+        self.assertEqual(tasks, {"tasks": [{key: row[key] for key in ("id", "status", "next")} for row in listed]})
+        self.assertEqual([row["id"] for row in tasks["tasks"]], ["draft-one", TASK])
+        self.assertEqual(reviewed["needs_person"], True)
+        self.assertEqual(reviewed["status"], "reviewed")
+        self.assertIn(f"openguildkit task clear {TASK} BLOCKER", reviewed["command"])
+        self.assertIn("security:2", reviewed["command"])
+        self.assertEqual(draft, {"id": "draft-one", "status": "draft", "needs_person": False,
+                                 "command": "read the questions with openguildkit task questions draft-one, then "
+                                            "consult the boards with openguildkit task consult draft-one --answers FILE"})
+        self.assertEqual(blocked["id"], TASK)
+        self.assertEqual(blocked["blockers"], [
+            {"id": item["id"], "board": item["board"], "phase": item.get("phase", "approval"),
+             "finding": item["finding"], "owner": item["owner"], "clears_when": item["clears_when"],
+             "state": item["resolution"]["kind"] if item["resolution"] else "open"} for item in blockers])
+        self.assertEqual([item["state"] for item in blocked["blockers"]], ["cleared", "open"])
+        self.assertEqual(unblocked, {"id": "draft-one", "blockers": []})
+
+        serialized = json.dumps(results)
+        for private in ("Camille", "proof-marker", "Two accounts tested", "A draft nobody", str(self.root)):
+            self.assertNotIn(private, serialized)
+        self.assertEqual(snapshot, self.snapshot())
+
+    def test_the_task_list_leaves_out_what_a_person_or_a_command_wrote(self):
+        self.approved(exit_code=1)
+        self.run_cli("task", "verify", TASK, code=1)
+        row, = json.loads(self.run_cli("task", "list", "--json")[0])
+        self.assertIn(sys.executable, row["next"])
+        (listed,) = self.replies(call(1, "task_list"))
+        entry, = listed["result"]["structuredContent"]["tasks"]
+        self.assertEqual(entry["status"], "approved")
+        self.assertIn("command:1 failed", entry["next"])
+        self.assertIn(f"task verify {TASK}", entry["next"])
+        self.assertNotIn(sys.executable, json.dumps(listed))
+        self.assertNotIn("checked", json.dumps(listed))
+
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "revoke", TASK, "--by", "Camille", "--reason", "Reason-marker from the person")
+        (listed,) = self.replies(call(1, "task_list"))
+        entry, = listed["result"]["structuredContent"]["tasks"]
+        self.assertEqual(entry["status"], "changes-requested")
+        self.assertIn(f"openguildkit task show {TASK}", entry["next"])
+        self.assertNotIn("Reason-marker", json.dumps(listed))
+        self.assertNotIn("Camille", json.dumps(listed))
 
     def test_a_check_whose_name_is_free_text_is_counted_and_a_failure_is_signalled(self):
         self.approved()
@@ -123,8 +215,12 @@ class ProjectMcpTests(ResultCase):
             call(2, "project_profile", path="elsewhere"),
             call(3, "task_approve", task_id="sample"),
             call(4, "task_status", task_id="missing"),
+            call(5, "task_list", task_id="sample"),
+            call(6, "task_next"),
+            call(7, "task_blockers", task_id="missing"),
+            call(8, "task_next", task_id="../outside"),
         )
-        self.assertEqual([error["error"]["code"] for error in errors], [-32602] * 4)
+        self.assertEqual([error["error"]["code"] for error in errors], [-32602] * 8)
         self.assertNotIn("../outside", json.dumps(errors))
 
     def test_damage_in_the_profile_returns_an_error_without_file_content(self):

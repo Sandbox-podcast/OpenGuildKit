@@ -53,6 +53,11 @@ HANDSHAKE = ({"jsonrpc": "2.0", "id": 1, "method": "initialize",
               "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}},
              {"jsonrpc": "2.0", "method": "notifications/initialized"})
 LISTING = HANDSHAKE + ({"jsonrpc": "2.0", "id": 2, "method": "tools/list"},)
+# The project server's task tools, after the listing: what an agent reads to know where a task stands.
+TASK_READS = LISTING + tuple(
+    {"jsonrpc": "2.0", "id": 3 + index, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+    for index, (name, arguments) in enumerate((("task_list", {}), ("task_next", {"task_id": TASK}),
+                                               ("task_blockers", {"task_id": TASK}))))
 
 # One example per form measured; its command line names it in a failure and in EXCEPTIONS. A command with --json has a
 # second example with it (the form an agent parses), and a form that prints far more than the plain one, such as a
@@ -103,7 +108,7 @@ EXAMPLES = [
     Example("init", "tools mock jira", sends=LISTING, process=True),
     Example("init", "tools call jira"), Example("init", "tools call jira --json"),
     Example("init", "tools scenario jira"),
-    Example("approved", "mcp", sends=LISTING, process=True),
+    Example("approved", "mcp", sends=TASK_READS, process=True),
     # Deliverables, publishing and the market.
     Example("init", "deliverable list"), Example("init", "deliverable show campaign-brief"),
     Example("approved", "deliverable new campaign-brief --task request-status --output brief.md"),
