@@ -9,7 +9,7 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from . import clock, light_lane
+from . import clock, light_lane, owners
 from .consultation import (
     CHOICES, CONTEST_ITEM, EVIDENCE_SOURCES, answer_lines, json_section, market_references, one_based, scope_lines,
     storybook_references, tool_references,
@@ -929,9 +929,10 @@ def _assumption_lines(task: dict, review: dict) -> list[str]:
     return lines
 
 
-def challenge_report(task: dict, lines: list[str] | None = None) -> str:
+def challenge_report(task: dict, lines: list[str] | None = None, root: Path | None = None) -> str:
     """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
-    approval prompt), then each board's challenge as JSON."""
+    approval prompt), then each board's challenge as JSON. With the project root, the code owners of what the task
+    touches, read from CODEOWNERS and never recorded."""
     if "review" not in task:
         raise TaskStateError("Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
@@ -982,7 +983,9 @@ def challenge_report(task: dict, lines: list[str] | None = None) -> str:
     resolved = [item for item in blocker_list(task) if item["resolution"]]
     if resolved:
         report["resolved_blockers"] = resolved
-    summary = "\n".join(f"- {line}" for line in (decision_summary(task) if lines is None else lines))
+    shown = decision_summary(task) if lines is None else lines
+    owner = owners.owner_line(root, task) if root is not None else None
+    summary = "\n".join(f"- {line}" for line in [*shown, *([owner] if owner else [])])
     return "# Decision brief\n\n" + summary + "\n\n" + json_section(report) + "\n"
 
 
@@ -1104,11 +1107,14 @@ def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
     return [*lines, ""]
 
 
-def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None) -> str:
+def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None,
+            root: Path | None = None) -> str:
     """Render the authorized scope, decision and advisory findings, with the named evidence first.
 
     checks are the expected checks of the approved task (results.expected_checks): the rules to apply are those
-    they ask."""
+    they ask. With the project root, the code owners of what the task touches, read from CODEOWNERS and never
+    recorded."""
+    owner = owners.owner_line(root, task) if root is not None else None
     status = task.get("status")
     if status == "changes-requested":
         raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
@@ -1175,6 +1181,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
             "",
             *answer_lines(consultation["scope"]),
             *scope_lines(consultation["scope"]),
+            *([f"- {owner}"] if owner else []),
             "",
             *_rules_section(task, checks),
             "## Advisory review",

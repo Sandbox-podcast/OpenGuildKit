@@ -70,6 +70,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
 | `consultation.py` | Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task. |
 | `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
+| `owners.py` | Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record. |
 | `tasks.py` | Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal. |
 | `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |

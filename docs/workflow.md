@@ -276,6 +276,21 @@ A task answered with `kind: decision` asks for a recommendation. Its handoff con
 
 If tracked project files differ from the approved Git revision, the CLI asks for the delivery revision or pull request. It ignores the exported decision records. `task complete` gives the `task new --follows` command so that applying the decision gets its own review and approval.
 
+### Code owners of the touched paths
+
+When the project has a CODEOWNERS file, the decision brief of `task challenge` and the handoff of `task handoff` add one line naming who owns what the task touches, so that the person knows whom to tell or ask before deciding (#437):
+
+```text
+Code owners, read from .github/CODEOWNERS (shown here, never recorded): api/ @team-api; web/ no owner declared.
+```
+
+- **What the task touches.** Its short-lane paths (a glob reads as the folder before its first wildcard), the folders of the components its answers name, and the project paths its brief and answers name that exist. None of them: the line reads `whole project`. A folder shows the rule that covers its files in general; a rule for some files inside it, such as `*.sql` or a sub-folder, is not shown. Eight paths at most, then a count.
+- **GitHub's rules,** as its page [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) states them, read on 2026-11-26 (the page shows no date of its own): the file is `.github/CODEOWNERS`, `CODEOWNERS` or `docs/CODEOWNERS`, searched in that order, and only the first one found is read; patterns follow gitignore, the last matching pattern wins, a pattern without owners leaves its paths without one, paths are case sensitive, and a file of 3 MB or more is not loaded. The page says `!` negation and `[ ]` ranges do not work: OpenGuildKit skips those lines and names them in the line. How GitHub itself treats such a line beyond "does not work" is not verified.
+- **Shown, never recorded.** Owners are often people's names or emails ([personal data](personal-data.md)). Whether a committed record may keep them is an open decision (Q9 of the benchmark), so they stay out of the task record, the exported decision record and every file the CLI writes: they are read again from CODEOWNERS at each display.
+- **What does not change.** A project without CODEOWNERS sees nothing more.
+
+Status of the wiring: the line is built by `workflow.challenge_report` and `workflow.handoff` when they receive the project root. The two calls in `tasks_cli.py` (`_challenge` and `_handoff`) do not pass it yet, so the commands do not print the line until they do.
+
 ## 6. Report the results
 
 After implementing an approved task, the agent proves what was delivered:
