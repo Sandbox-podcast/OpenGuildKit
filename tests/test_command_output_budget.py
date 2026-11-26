@@ -207,7 +207,7 @@ NOT_RUN = {
 # ceiling is the size measured on 25 November 2026 plus 10 %, rounded up to the next 1 000 bytes. A command that grows
 # past its ceiling fails; raise the ceiling in the pull request that makes it grow, with the reason.
 EXCEPTIONS = {
-    "catalog --json": (690_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
+    "catalog --json": (763_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
     "patterns --json": (110_000, "Every pattern with its rule packs; `patterns` lists them in 11 KB."),

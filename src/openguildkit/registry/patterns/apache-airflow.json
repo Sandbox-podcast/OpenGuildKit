@@ -1,0 +1,36 @@
+{
+  "id": "apache-airflow",
+  "title": "Apache Airflow",
+  "description": "Review idempotent tasks, top-level DAG code, connections and secrets, the DAG loader test and installs in an Apache Airflow project.",
+  "sources": [
+    {
+      "title": "Apache Airflow 3.4.0 documentation, best practices",
+      "url": "https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Apache Airflow documentation, Docker image",
+      "url": "https://airflow.apache.org/docs/docker-stack/index.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "data",
+    "engineering",
+    "devops"
+  ],
+  "packs": [
+    "apache-airflow"
+  ],
+  "references": [
+    "apache-airflow"
+  ],
+  "match": {
+    "stack": [
+      [
+        "apache airflow",
+        "airflow"
+      ]
+    ]
+  }
+}

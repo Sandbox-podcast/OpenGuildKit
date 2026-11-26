@@ -1,0 +1,61 @@
+{
+  "id": "apache-airflow",
+  "title": "Apache Airflow DAGs",
+  "version": "1.0.0",
+  "description": "For Apache Airflow DAGs: idempotent tasks, light top-level code, credentials in connections or a secrets backend, a DAG loader test, installs with the constraints file and care when removing a task.",
+  "sources": [
+    {
+      "title": "Apache Airflow 3.4.0 documentation, best practices",
+      "url": "https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Apache Airflow documentation, installation from PyPI",
+      "url": "https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-pypi.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "rules": [
+    {
+      "id": "make-tasks-idempotent",
+      "instruction": "Write each task like a database transaction: Airflow can retry a failed task, so a re-run must produce the same outcome and a failure must leave no partial result, for example by replacing a partition instead of appending to it.",
+      "verification": "Run the changed task twice for the same logical date in a test environment and check that the second run leaves the same data as the first."
+    },
+    {
+      "id": "keep-top-level-code-light",
+      "instruction": "Keep the top level of a DAG file to what creates operators and their dependencies: no database access, network call or heavy computation, no `Variable.get()` (read a variable with a template such as `{{ var.value.name }}` in the task), and move expensive imports into the task callables.",
+      "verification": "Review the top level of each DAG file the change edits for database, network or `Variable.get()` calls and heavy imports, and check its parse time in the DAG processor."
+    },
+    {
+      "id": "keep-credentials-in-connections",
+      "instruction": "Store no password or token in a task or a DAG file: reach systems through Airflow connections by their connection id, and keep sensitive variables in a secrets backend.",
+      "verification": "Search the change for passwords, tokens and keys written in DAG files and check that each system is reached through a connection id."
+    },
+    {
+      "id": "test-that-dags-load",
+      "instruction": "Keep a test that loads the project's DAGs with `DagBag` and fails on any import error, and run it in CI, so that a missing dependency or a syntax error never reaches the scheduler.",
+      "verification": "task verify checks that a test under `tests/` uses `DagBag`; also check that CI runs it and that it reports no import error for the change.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "tests/**/*.py",
+          "*/tests/**/*.py"
+        ],
+        "contains": [
+          "DagBag"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "install-with-the-constraints-file",
+      "instruction": "When the project installs Airflow with pip, pin `apache-airflow` and install it with `--constraint` pointing at the constraints file of that Airflow and Python version; install the providers afterwards, still pinning Airflow.",
+      "verification": "Check that the install command or requirements pin `apache-airflow` and use the constraints file of the same Airflow and Python versions."
+    },
+    {
+      "id": "remove-a-task-with-care",
+      "instruction": "Before removing a task from a DAG, decide whether its past logs must stay reachable: a removed task no longer shows in the Graph and Grid views, so its logs are hard to reach from the web server. To keep them, create a new DAG instead.",
+      "verification": "For a change that removes a task, check that the change says whether its past logs must stay reachable and, if so, that a new DAG replaces the old one."
+    }
+  ]
+}

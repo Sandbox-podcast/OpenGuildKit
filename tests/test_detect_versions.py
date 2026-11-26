@@ -213,6 +213,45 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertEqual({component for pattern in matched if pattern["id"] == "flutter"
                           for component in pattern["components"]}, {"app", "plain"})
 
+    def test_apache_airflow_is_read_from_its_package_its_image_or_a_dags_folder(self):
+        write(self.root, "pinned/requirements.txt", "apache-airflow[celery]==3.4.0\n")
+        write(self.root, "project/pyproject.toml", '[project]\nname = "etl"\ndependencies = ["apache-airflow>=3.0"]\n')
+        write(self.root, "image/Dockerfile", "FROM apache/airflow:3.4.0-python3.12\n")
+        write(self.root, "compose/docker-compose.yaml", "services:\n  scheduler:\n    image: apache/airflow:3.3.1\n")
+        write(self.root, "plain/dags/orders.py", "from airflow.sdk import dag, task\n")
+        # The REST API client, a provider alone, a folder named dags without Airflow and a word in a comment are not.
+        write(self.root, "client/requirements.txt", "apache-airflow-client==3.0.0\n")
+        write(self.root, "other/dags/job.py", "# runs like an airflow job, but with cron\nimport sched\n")
+        stacks = self.stacks()
+        self.assertIn("Apache Airflow 3.4.0", stacks["pinned"])
+        self.assertIn("Apache Airflow >=3.0", stacks["project"])
+        self.assertIn("Apache Airflow 3.4.0", stacks["image"])
+        self.assertIn("Apache Airflow 3.3.1", stacks["compose"])
+        self.assertEqual(stacks["plain"], ["Apache Airflow"])
+        self.assertEqual(stacks["client"], ["Python"])
+        self.assertNotIn("other", stacks)
+        self.assertNotIn("plain/dags", stacks)
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "apache-airflow"
+                          for component in pattern["components"]}, {"pinned", "project", "image", "compose", "plain"})
+
+    def test_a_dbt_project_gives_the_dbt_version_it_requires(self):
+        write(self.root, "ranged/dbt_project.yml", "name: shop\nrequire-dbt-version: \">=1.10.0,<3.0.0\"\n")
+        write(self.root, "listed/dbt_project.yml", "name: shop\nrequire-dbt-version: ['>=1.9.0', '<2.0.0']\n")
+        write(self.root, "open/dbt_project.yml", "name: shop\nversion: '1.0.0'\n")
+        # dbt-core installed by an Airflow project to run dbt is not a dbt project.
+        write(self.root, "runner/requirements.txt", "dbt-core==1.10.0\n")
+        stacks = self.stacks()
+        self.assertEqual(stacks["ranged"], ["dbt >=1.10.0,<3.0.0"])
+        self.assertEqual(stacks["listed"], ["dbt >=1.9.0,<2.0.0"])
+        self.assertEqual(stacks["open"], ["dbt"])
+        self.assertEqual(stacks["runner"], ["Python"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "dbt"
+                          for component in pattern["components"]}, {"ranged", "listed", "open"})
+
     def test_an_old_style_kotlin_version_variable_is_read(self):
         write(self.root, "app/build.gradle",
               "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"

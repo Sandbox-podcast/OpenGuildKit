@@ -68,7 +68,7 @@ SUBJECTS = {
     **{pack: ("the project's code", _CODE) for pack in (
         "python", "typescript", "api-design", "django", "fastapi", "express", "spring-boot", "aspnet-core", "rails",
         "laravel", "symfony", "symfony-security", "kotlin-service", "ktor-server", "rust-cargo", "rust-dependencies",
-        "go-database", "postgresql", "pytest", "licence-policy")},
+        "dbt", "apache-airflow", "go-database", "postgresql", "pytest", "licence-policy")},
     **{pack: ("the user interface", _UI) for pack in (
         "react", "vue", "angular", "nextjs", "svelte", "sveltekit", "react-native", "expo", "flutter",
         "frontend-delivery", "web-accessibility", "web-performance",

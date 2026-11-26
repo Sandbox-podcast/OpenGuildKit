@@ -27,6 +27,8 @@ STACKS = {
     "react-native": ["React 19", "React Native 0.81"],
     "expo": ["Expo 54", "React Native 0.81"],
     "flutter": ["Dart 3.5", "Flutter 3.22"],
+    "dbt": ["dbt >=1.10.0,<3.0.0"],
+    "apache-airflow": ["Python 3.12", "Apache Airflow 3.4.0"],
     "gitlab-ci-security": ["AWS", "GitLab CI", "Docker"],
     "docker-images": ["AWS", "GitLab CI", "Docker"],
     "aws-iam": ["AWS", "GitLab CI", "Docker"],
@@ -35,7 +37,8 @@ PACKS = {
     "django": "django", "rails": "rails", "node-express": "express", "vue": "vue", "angular": "angular",
     "laravel": "laravel", "symfony": "symfony", "ios-swift": "ios-app", "android-kotlin": "android-app",
     "kotlin-ktor": "ktor-server", "rust-cargo": "rust-cargo", "svelte": "svelte", "sveltekit": "sveltekit",
-    "react-native": "react-native", "expo": "expo", "flutter": "flutter",
+    "react-native": "react-native", "expo": "expo", "flutter": "flutter", "dbt": "dbt",
+    "apache-airflow": "apache-airflow",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
@@ -80,6 +83,8 @@ REPOSITORIES = {
     "react-native": {"package.json": {"dependencies": {"react": "19.1.0", "react-native": "0.81.4"}}},
     "expo": {"package.json": {"dependencies": {"expo": "~54.0.0", "react": "19.1.0", "react-native": "0.81.4"}}},
     "flutter": {"pubspec.yaml": "name: shop\nenvironment:\n  sdk: ^3.5.0\ndependencies:\n  flutter:\n    sdk: flutter\n"},
+    "dbt": {"dbt_project.yml": "name: shop\nrequire-dbt-version: \">=1.10.0,<3.0.0\"\n"},
+    "apache-airflow": {"requirements.txt": "apache-airflow==3.4.0\n", "dags/orders.py": "from airflow.sdk import dag\n"},
     "ios-swift": {
         "Shop.xcodeproj/project.pbxproj": "{ buildSettings = { SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; }\n",
     },
@@ -178,7 +183,7 @@ class StackPatternTests(unittest.TestCase):
         }
         new_packs = {*PACKS.values(), *(pack for packs in EXTRA_PACKS.values() for pack in packs),
                      "mobile-accessibility", "mobile-store-release", "kotlin-service", "rust-dependencies"}
-        new_packs |= {"svelte", "sveltekit", "react-native", "expo", "flutter"}
+        new_packs |= {"svelte", "sveltekit", "react-native", "expo", "flutter", "dbt", "apache-airflow"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -223,6 +228,15 @@ class StackPatternTests(unittest.TestCase):
                 mobile = {"mobile-accessibility", "mobile-store-release"}
                 self.assertEqual(mobile <= packs, stack[0] != "SvelteKit 2")
 
+    def test_dbt_and_airflow_match_only_their_own_stack(self):
+        for stack in (["Python 3.12"], ["Python 3.12", "FastAPI"], ["Python", "Django", "PostgreSQL"]):
+            with self.subTest(stack=stack):
+                self.assertFalse({"dbt", "apache-airflow"} & self.matched({"stack": stack}))
+        self.assertIn("apache-airflow", self.matched({"stack": ["Airflow 3"]}))
+        self.assertNotIn("dbt", self.matched({"stack": ["Apache Airflow 3.4.0"]}))
+        self.assertNotIn("apache-airflow", self.matched({"stack": ["dbt"]}))
+        self.assertEqual(self.catalog["patterns"]["dbt"]["references"], ["dbt", "dbt-model-contracts"])
+
     def test_framework_packs_reuse_the_generic_packs_instead_of_repeating_them(self):
         self.assertIn("python", self.catalog["packs"]["django"]["depends_on"])
         self.assertIn("typescript", self.catalog["packs"]["angular"]["depends_on"])
@@ -263,6 +277,8 @@ class StackDetectionTests(unittest.TestCase):
             "sveltekit": {"Svelte ^5.0.0", "SvelteKit ^2.20.0"},
             "expo": {"Expo ~54.0.0", "React 19.1.0", "React Native 0.81.4"},
             "flutter": {"Dart ^3.5.0", "Flutter"},
+            "dbt": {"dbt >=1.10.0,<3.0.0"},
+            "apache-airflow": {"Python", "Apache Airflow 3.4.0"},
         }
         for pattern_id, expected in stacks.items():
             with self.subTest(pattern=pattern_id):

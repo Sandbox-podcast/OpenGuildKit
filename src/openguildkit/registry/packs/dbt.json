@@ -1,0 +1,78 @@
+{
+  "id": "dbt",
+  "title": "dbt projects",
+  "version": "1.0.0",
+  "description": "For a dbt project: the dbt version it requires, tests on primary keys, declared sources and their freshness, contracts on shared models and credentials in environment variables.",
+  "sources": [
+    {
+      "title": "dbt Developer Hub, require-dbt-version",
+      "url": "https://docs.getdbt.com/reference/project-configs/require-dbt-version",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "dbt Developer Hub, add data tests to your DAG",
+      "url": "https://docs.getdbt.com/docs/build/data-tests",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "dbt Developer Hub, add sources to your DAG",
+      "url": "https://docs.getdbt.com/docs/build/sources",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "dbt Developer Hub, model contracts",
+      "url": "https://docs.getdbt.com/docs/mesh/govern/model-contracts",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "dbt Developer Hub, env_var",
+      "url": "https://docs.getdbt.com/reference/dbt-jinja-functions/env_var",
+      "checked": "2026-11-26"
+    }
+  ],
+  "rules": [
+    {
+      "id": "require-a-bounded-dbt-version",
+      "instruction": "Declare in `dbt_project.yml` the range of dbt versions the project works with, quoted and with an upper bound, such as `require-dbt-version: \">=1.10.0,<3.0.0\"`, so that a run with another version fails at once.",
+      "verification": "task verify checks that `dbt_project.yml` declares `require-dbt-version`; also check that the range has an upper bound and that the version CI installs falls in it.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "dbt_project.yml",
+          "dbt_project.yaml",
+          "*/dbt_project.yml",
+          "*/dbt_project.yaml"
+        ],
+        "contains": [
+          "require-dbt-version"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "test-each-primary-key",
+      "instruction": "Give every model a data test on its primary key: a column, or a key the model builds, with the `unique` and `not_null` tests. Add `accepted_values` and `relationships` where a column must hold listed values or point to another model.",
+      "verification": "Check that each model the change adds declares `unique` and `not_null` on its primary key, and that `dbt test` passes on the changed models."
+    },
+    {
+      "id": "read-raw-tables-as-sources",
+      "instruction": "Declare the tables the extract and load tools write under a `sources:` key in a `.yml` file and read them with `{{ source('name', 'table') }}`, not by their full name, so that dbt records the dependency and the lineage.",
+      "verification": "Search the changed models for raw table names written in full, and check that each raw table they read is declared as a source."
+    },
+    {
+      "id": "declare-source-freshness",
+      "instruction": "For a source the business expects on a schedule, set `freshness` with `warn_after` or `error_after` and the `loaded_at_field` dbt compares with the current time, and run the freshness check of the dbt version in use on that schedule.",
+      "verification": "Check that each source with an agreed delivery delay declares `freshness` and a `loaded_at_field` (or relies on warehouse metadata the platform provides), and that the freshness check runs."
+    },
+    {
+      "id": "enforce-contracts-on-shared-models",
+      "instruction": "For a model that other teams, models or dashboards depend on, set `contract: {enforced: true}` and list every column with its `name` and `data_type`, so that dbt does not build the model when its columns change. Contracts apply to `table`, `view` and `incremental` models, not to Python or ephemeral ones.",
+      "verification": "Check that each shared model the change adds or edits enforces a contract that names every column with its type, and that `dbt build` builds it."
+    },
+    {
+      "id": "read-credentials-from-environment-variables",
+      "instruction": "Write no password or token in `profiles.yml`: read each one with `{{ env_var('...') }}`, and name a secret `DBT_ENV_SECRET_...` so that dbt scrubs it from its logs and refuses it outside `profiles.yml` and `packages.yml`.",
+      "verification": "Review the `profiles.yml` and `packages.yml` the change adds or edits and check that each credential is read through `env_var()`."
+    }
+  ]
+}

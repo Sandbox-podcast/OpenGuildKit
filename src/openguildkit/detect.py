@@ -87,6 +87,8 @@ PYTHON_PACKAGES = {
     "pydantic-ai": "Pydantic AI",
     "pydantic-ai-slim": "Pydantic AI",
     "claude-agent-sdk": "Claude Agent SDK",
+    # The Airflow distribution itself; its REST API client (apache-airflow-client) and a provider alone are not.
+    "apache-airflow": "Apache Airflow",
     "autogen": "AutoGen",
     "autogen-agentchat": "AutoGen",
     "pyautogen": "AutoGen",
@@ -108,7 +110,7 @@ COMPOSER_PACKAGES = {
     "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
     "mollie/mollie-api-php": "Mollie",
 }
-IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
+IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL", "apache/airflow": "Apache Airflow"}
 IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL", "MySQL"}
 # SDK versions are not the versions of the services they use. The card payment providers are those the
@@ -140,6 +142,8 @@ _KTOR_BOM = re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
 _KTOR_SETTINGS_CATALOG = re.compile(
     r"""create\(\s*["'](\w+)["']\s*\)\s*\{\s*from\(\s*["']io\.ktor:ktor-version-catalog:([^"']+)["']""")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
+_AIRFLOW_IMPORT = re.compile(r"(?m)^[ \t]*(?:from|import)[ \t]+airflow\b")
+_DBT_VERSION = re.compile(r"""(?m)^require-dbt-version:[ \t]*(\[[^\]\n]*\]|"[^"\n]*"|'[^'\n]*')""")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
 
@@ -666,6 +670,22 @@ def _kubernetes(component: _Component, path: Path, label: str) -> None:
             component.add("Flux", None, label)
 
 
+def _dbt_project(component: _Component, path: Path, label: str) -> None:
+    """A dbt project; its version is the range `require-dbt-version` declares, as a string or a list of strings."""
+    found = _DBT_VERSION.search(_read_text(path) or "")
+    ranges = re.findall(r"""["']([^"']*)["']""", found.group(1)) if found else []
+    component.add("dbt", declared_version(",".join(ranges)) if ranges else None, label)
+
+
+def _airflow_dags(folder: Path) -> bool:
+    """Whether a dags folder holds a DAG file: a Python file at its top that imports Airflow."""
+    try:
+        files = sorted(entry for entry in folder.iterdir() if entry.suffix == ".py" and entry.is_file())
+    except OSError:
+        return False
+    return any(_AIRFLOW_IMPORT.search(_read_text(entry) or "") for entry in files[:MAX_WORKSPACE_MEMBERS])
+
+
 def _pubspec(component: _Component, path: Path, label: str) -> None:
     """A pubspec.yaml makes a Dart package; a dependency on the Flutter SDK (`sdk: flutter`) makes it a Flutter one.
 
@@ -726,7 +746,7 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
     elif re.fullmatch(r"vite\.config\.[cm]?[jt]s", name):
         component.add("Vite", None, label)
     elif name in ("dbt_project.yml", "dbt_project.yaml"):
-        component.add("dbt", None, label)
+        _dbt_project(component, path, label)
     elif name == "wp-config.php":
         component.add("WordPress", None, label)
     elif name.endswith(".tf"):
@@ -788,6 +808,9 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             folders.remove(name)
         if "wp-content" in folders and len(parts) < MAX_DEPTH:
             found.append(((*parts, "wp-content"), "wordpress", directory / "wp-content", relative))
+        # Airflow reads its DAGs from a dags folder; one whose files import Airflow makes its parent an Airflow project.
+        if "dags" in folders and len(parts) < MAX_DEPTH and _airflow_dags(directory / "dags"):
+            found.append(((*parts, "dags"), "airflow", directory / "dags", relative))
     for key, kind, entry, relative in sorted(found, key=lambda item: item[0]):
         component = components.setdefault(relative, _Component(relative))
         label = "/".join(key)
@@ -795,6 +818,8 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             _parse(component, entry, label, root)
         elif kind == "xcode":
             _xcode_project(component, entry, label)
+        elif kind == "airflow":
+            component.add("Apache Airflow", None, label)
         else:
             component.add("WordPress", None, label)
     workflows = root / ".github" / "workflows"

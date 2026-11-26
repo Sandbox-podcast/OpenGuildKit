@@ -1,0 +1,36 @@
+{
+  "id": "dbt",
+  "title": "dbt",
+  "description": "Review the required dbt version, tests on primary keys, sources and their freshness, model contracts and credentials in a dbt project.",
+  "sources": [
+    {
+      "title": "dbt Developer Hub, add data tests to your DAG",
+      "url": "https://docs.getdbt.com/docs/build/data-tests",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "dbt Developer Hub, model contracts",
+      "url": "https://docs.getdbt.com/docs/mesh/govern/model-contracts",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "data",
+    "engineering",
+    "qa"
+  ],
+  "packs": [
+    "dbt"
+  ],
+  "references": [
+    "dbt",
+    "dbt-model-contracts"
+  ],
+  "match": {
+    "stack": [
+      [
+        "dbt"
+      ]
+    ]
+  }
+}
