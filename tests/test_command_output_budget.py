@@ -218,6 +218,7 @@ EXAMPLES = [
     # The retrospective of one task, and of the project once the same findings come back in several tasks.
     Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
+    Example("recurring", "task retro --all --draft-rules drafts"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.

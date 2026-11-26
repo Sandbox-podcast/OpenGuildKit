@@ -603,9 +603,10 @@ A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuil
 openguildkit task retro request-status       # what one closed task set aside, left open or waived
 openguildkit task retro --all                # what comes back in the project's closed tasks, with the profile command a person could type
 openguildkit task retro --all --min 2 --json # a lower minimum, for a program
+openguildkit task retro --all --draft-rules drafts  # also a draft project rule pack, for a person to write
 ```
 
-A retrospective reads and counts; it records nothing. It writes no file and changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
+A retrospective reads and counts; it records nothing. Unless the person asks for a [draft rule pack](#a-draft-project-rule) with `--draft-rules`, it writes no file, and it changes no field of a task or of the profile, so there is nothing for [personal data](personal-data.md) to list and nothing to migrate: a closed task of an earlier release is read as it is, and a field it lacks reads as empty. It calls no model, makes no estimate, opens no connection and starts no process. Every number is a count taken from a record, and two runs print the same bytes whatever the order the files were read in.
 
 ### What it reads
 
@@ -635,7 +636,7 @@ The proposal behind this command also listed the questions that had no effect on
 
 | Finding | Counted as | Profile command written for it |
 |---|---|---|
-| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. None for one rule: no profile command declines a single rule |
+| A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. For one rule set aside in at least 3 tasks, whatever `--min` says, `profile decline rule PACK/RULE` (RFC #447), typed at a terminal; none for a rule the profile requires or already declines, or for a named evidence |
 | A rule that failed | The same rule, whatever the evidence | `profile add required-rule PACK/RULE`, or `PACK` for a pack that failed as a whole |
 | A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
 | A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
@@ -647,6 +648,15 @@ The `--reason` comes filled in with what comes back and the tasks behind it, for
 A recurrence is a question for the team, not a verdict: a rule skipped three times for one reason may be a rule the project does not need, or a habit worth changing. The declines already in the profile are not counted, since they stand for every task consulted after them.
 
 If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
+
+### A draft project rule
+
+A reservation that comes back has no profile command: no setting of the profile keeps it from coming back, a rule of the project might. `task retro --all --draft-rules FOLDER` also writes a project rule pack in draft, one rule per reservation that comes back, for a person to write (RFC #447). Without the option the retrospective stays read-only.
+
+- The file is `FOLDER/retro-draft-YYYY-MM-DD.json`, in the [catalog format](catalog-format.md#packs): the catalog reads it as it is once copied. `FOLDER` is a path inside the project and outside `.openguildkit/`, so no catalog reads the draft where it is written, and an existing file is never overwritten.
+- It is marked draft: its description starts with `DRAFT written by openguildkit task retro`, and each rule's instruction and verification start with `TODO:`, with the reservation as recorded and the tasks behind it. The draft says what came back, never what to do about it: that is for the person to write.
+- It is never active on its own. A profile refuses a pack whose description is still the draft's, whether `profile add pack` adds it or a pattern brings it: the person writes each rule, replaces each `TODO:` and the description, copies the file to `.openguildkit/catalog/packs/`, then runs `openguildkit profile add pack ID --by NAME --reason WHY`.
+- A rule set aside or failed has its profile command instead, and a committee that brought nothing is a question for the team, not a rule: neither is drafted. When no reservation comes back, nothing is written and the output says so. `--json` gives the file, the pack ID and its number of rules under `draft`.
 
 ### Every month in CI
 

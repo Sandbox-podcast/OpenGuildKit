@@ -14,6 +14,7 @@ from . import alerts_cli, delivered_review, light_lane
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
+from .clock import today
 from .consultation import board_brief, pack_rules
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
@@ -32,7 +33,8 @@ from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
 from .retro import (
-    DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
+    DEFAULT_MINIMUM, draft_pack, facts_of_record, facts_of_task, project_summary, render_draft, render_project,
+    render_task, task_retro, write_draft,
 )
 from .results import (
     DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs, evidence_state,
@@ -133,6 +135,10 @@ def add_parser(commands) -> None:
     retro.add_argument("--min", type=int, dest="minimum", metavar="N",
                        help=f"With --all, in how many closed tasks a finding must come back (default {DEFAULT_MINIMUM}).")
     retro.add_argument("--json", action="store_true", help="Print the retrospective as JSON.")
+    retro.add_argument("--draft-rules", type=Path, metavar="FOLDER",
+                       help="With --all, also write a draft project rule pack in FOLDER (inside the project, outside "
+                            ".openguildkit/), one rule to write for each reservation that comes back; not active until "
+                            "a person reviews it and adds it to the project catalog.")
     for action, description in ACTION_HELP.items():
         command = actions.add_parser(action, help=description)
         command.add_argument("id", help="Task ID.")
@@ -1548,16 +1554,25 @@ def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
                          "task retro ID reads one task and --all counts the project: give one of them.")
     if args.minimum is not None and not args.all:
         raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+    if args.draft_rules is not None and not args.all:
+        raise ValueError("--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
+                         "task retro --all.")
     minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
     if minimum < 1:
         raise ValueError("--min counts tasks: give a number of 1 or more.")
     if args.all:
         facts, ignored = _closed_facts(state)
         summary = project_summary(facts, minimum, profile, catalog, ignored)
+        lines = []
+        if args.draft_rules is not None:
+            pack = draft_pack(summary["recurrences"], today().isoformat())
+            summary["draft"] = pack and {"path": write_draft(root, state, args.draft_rules, pack), "pack": pack["id"],
+                                         "rules": len(pack["rules"])}
+            lines = render_draft(summary["draft"], minimum)
         if args.json:
             print_json(summary)
         else:
-            print("\n".join(render_project(summary)))
+            print("\n".join([*render_project(summary), *lines]))
         return
     if task_path(state, args.id).is_file():
         task = read_task(state, args.id)

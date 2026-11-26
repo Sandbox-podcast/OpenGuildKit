@@ -279,7 +279,8 @@ class RulesAndReservationsTests(RetroCase):
         text = self.retro("--all").stdout
         self.assertLess(len(text.splitlines()), 40)
         for words in ("4 closed tasks", "at least 3", "--min", f"rule:{SKIPPED_RULE} skipped in 3 tasks (a1, a2, a3)",
-                      "2 rules not-applicable in 3 tasks (a1, a2, a3): Schema untouched.",
+                      "rule:postgresql/protect-data-invariants not-applicable in 3 tasks (a1, a2, a3): Schema untouched.",
+                      f"openguildkit profile decline rule {SKIPPED_RULE} --by NAME --reason",
                       f"{FAILING} failed in 3 tasks (a2, a3, a4)", "qa: no blocker or objection in 3 of the 4 tasks",
                       "terminal", "None of these commands was run", "--by is theirs to fill in",
                       "--reason 'task retro: rule:typescript/strict-type-checking failed in 3 tasks (a2, a3, a4)'"):
@@ -298,17 +299,23 @@ class RulesAndReservationsTests(RetroCase):
         self.assertIn("api-design", decline["also_drops"])
         for item in (required, decline):
             self.assertFalse(item["needs_terminal"])
-        # No profile command declines one rule, adds a committee's silence to the profile, or settles a reservation.
-        self.assertIsNone(found[("rule", f"rule:{SKIPPED_RULE}")]["command"])
+        # One rule set aside in three tasks is declined alone, at a terminal (RFC #447).
+        single = found[("rule", f"rule:{SKIPPED_RULE}")]
+        self.assertEqual(single["command"], f"openguildkit profile decline rule {SKIPPED_RULE} --by NAME --reason "
+                                            f"'task retro: rule:{SKIPPED_RULE} skipped in 3 tasks (a1, a2, a3): "
+                                            f"{SKIPPED}'")
+        self.assertTrue(single["needs_terminal"])
+        # No profile command adds a committee's silence to the profile or settles a reservation.
         self.assertIsNone(next(item for item in found.values() if item["kind"] == "committee")["command"])
         self.assertTrue(all(item["command"] is None for item in found.values() if item["kind"] == "reservation"))
-        for item in (required, decline):
+        for item in (required, decline, single):
             with self.subTest(item["command"]):
                 copy_root = self.root.parent / f"copy-{item['check'].replace(':', '-').replace('/', '-')}"
                 shutil.copytree(self.root, copy_root)
                 words = [{"NAME": "CM"}.get(word, word) for word in shlex.split(item["command"])]
                 self.assertEqual(words[0], "openguildkit")
-                result = cli(copy_root, *words[1:])
+                typed = SKIPPED_RULE if item is single else None
+                result = cli(copy_root, *words[1:], typed=typed)
                 self.assertIn("Profile changed", result.stdout)
                 # The profile history keeps the reason, so the change stays linked to the tasks behind it.
                 history = json.loads((copy_root / ".openguildkit" / "project.json").read_text())["changes"]
@@ -355,6 +362,55 @@ class RulesAndReservationsTests(RetroCase):
         summary = json.loads(self.retro("--all", "--json").stdout)
         self.assertEqual((summary["tasks"]["read"], summary["ignored"]["unreadable_task_records"]), (3, 1))
         self.assertIn("1 task record unreadable", self.retro("--all").stdout)
+
+
+class DraftRulesTests(RetroCase):
+    """task retro --all --draft-rules FOLDER writes a project pack in draft and nothing else (RFC #447)."""
+
+    builder = build_a
+
+    def test_the_draft_is_written_only_in_the_folder_given_and_is_not_active(self):
+        before = fingerprint(self.root)
+        result = self.retro("--all", "--draft-rules", "drafts")
+        files = list((self.root / "drafts").glob("retro-draft-*.json"))
+        self.assertEqual(len(files), 1)
+        written = files[0].relative_to(self.root).as_posix()
+        self.assertIn(f"Draft rule pack written: {written}", result.stdout)
+        self.assertIn("not active", result.stdout)
+        self.assertIn("It writes only the draft named below.", result.stdout)
+        self.assertNotIn("It writes nothing", result.stdout)
+        self.assertIn(".openguildkit/catalog/packs/", result.stdout)
+        self.assertEqual([entry for entry in fingerprint(self.root) if not entry[0].startswith("drafts")], before)
+        pack = json.loads(files[0].read_text(encoding="utf-8"))
+        self.assertEqual(len(pack["rules"]), 2)
+        self.assertNotIn(pack["id"], json.loads((self.root / ".openguildkit" / "project.json").read_text())["packs"])
+        for name in NAMES:
+            self.assertNotIn(name, files[0].read_text(encoding="utf-8"))
+        again = cli(self.root, "task", "retro", "--all", "--draft-rules", "drafts", code=1).stderr
+        self.assertIn("already exists", again)
+
+    def test_the_json_names_the_draft_and_the_catalog_reads_it_but_no_profile_uses_it_unreviewed(self):
+        summary = json.loads(self.retro("--all", "--json", "--draft-rules", "drafts").stdout)
+        draft = summary["draft"]
+        self.assertEqual((draft["rules"], draft["path"]), (2, f"drafts/{draft['pack']}.json"))
+        packs = self.root / ".openguildkit" / "catalog" / "packs"
+        packs.mkdir(parents=True, exist_ok=True)
+        shutil.copy(self.root / draft["path"], packs)
+        self.assertIn(draft["pack"], json.loads(cli(self.root, "catalog", "--json").stdout)["packs"])
+        error = cli(self.root, "profile", "add", "pack", draft["pack"], "--by", "CM", "--reason", "x", code=1).stderr
+        self.assertIn("draft written by task retro", error)
+
+    def test_the_draft_goes_outside_the_state_folder_and_only_with_all(self):
+        error = cli(self.root, "task", "retro", "--all", "--draft-rules", ".openguildkit/catalog/packs", code=1).stderr
+        self.assertIn(".openguildkit/", error)
+        error = cli(self.root, "task", "retro", "a1", "--draft-rules", "drafts", code=1).stderr
+        self.assertIn("--all", error)
+        self.assertFalse((self.root / "drafts").exists())
+
+    def test_nothing_that_comes_back_as_a_reservation_writes_no_draft(self):
+        result = self.retro("--all", "--min", "4", "--draft-rules", "drafts")
+        self.assertIn("No draft written", result.stdout)
+        self.assertFalse((self.root / "drafts").exists())
 
 
 class CheckCommandTests(RetroCase):
