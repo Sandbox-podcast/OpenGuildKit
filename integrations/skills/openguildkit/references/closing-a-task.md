@@ -9,6 +9,10 @@ A pack that does not apply can be answered once in `packs`.
 
 Write criteria `status` as `met` or `not-met` and checks as `passed`, `failed`, `skipped` or `not-applicable`, as the template says.
 
+## Review of the delivered diff
+
+Once `task verify` or `task result` recorded the delivered revision, and before `task complete`, have the boards read the change: `openguildkit task diff-review ID` lists the files and one command per board. Run each board's `task diff-review ID --board BOARD` in its own pass (a subagent when you have them), never one for several boards, and have it write `{"board": ..., "findings": [...]}` as the brief shows. Record each file with `openguildkit task diff-review ID --submit FILE`. A refusal lists every problem: fix the file, never the finding's substance. A blocking finding is fixed, then the new revision recorded and the board asked again; if the user prefers, leave it open and say that `task complete` keeps it as a reservation. Never class as `defer` a problem the change caused.
+
 ## A check that fails or cannot run
 
 When a check command fails, show the user the cause, last lines and log path that `task verify` prints; when dependencies or the network are missing, ask the user to install them or to run the check, and never record it as passed.

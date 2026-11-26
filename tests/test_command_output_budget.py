@@ -197,6 +197,12 @@ EXAMPLES = [
     Example("resulted", "task complete request-status --by CM", typed=TASK),
     Example("done", "task show request-status --closing"),
     Example("done", "task export request-status"),
+    # The boards' review of the delivered diff, in a project in Git.
+    Example("delivered", "task diff-review request-status"),
+    Example("delivered", "task diff-review request-status --json"),
+    Example("delivered", "task diff-review request-status --board security"),
+    Example("delivered", "task diff-review request-status --board security --json"),
+    Example("delivered", "task diff-review request-status --submit $root/findings.json"),
     # The retrospective of one task, and of the project once the same findings come back in several tasks.
     Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
@@ -344,8 +350,9 @@ class Projects:
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
         "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
+        "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci", "exported"}
+    NEEDS_GIT = {"git", "ci", "exported", "delivered"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -542,6 +549,18 @@ class Projects:
         record.pop("record_sha256")
         write_json(path, {**record, "record_sha256": record_digest(record)})
         commit_everything(root)
+
+    def deliver_in_git(self, root: Path) -> None:
+        """Approved at a commit, then a change committed and its revision recorded by task verify."""
+        commit_everything(root)
+        self.approve(root)
+        (root / "status.py").write_text("def status(user):\n    return user.requests\n", encoding="utf-8")
+        git(root, "add", "status.py")
+        git(root, "commit", "-q", "-m", "Show the status")
+        run_cli(root, "task", "verify", TASK)
+        write_json(root / "findings.json", {"board": "security", "findings": [
+            {"file": "status.py", "line": 2, "severity": "blocking", "action": "fix",
+             "finding": "Every request of every user is returned."}]})
 
     def close_more(self, root: Path) -> None:
         """Three more closed tasks that skip one rule for the same reason and fail another, so that the retrospective of

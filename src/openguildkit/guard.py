@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 
 from . import light_lane
 from .catalog import load_catalog
+from .delivered_review import exported_review
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
@@ -476,6 +477,10 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     declined = task.get("consultation", {}).get("scope", {}).get("declined")
     if declined:
         record["declined"] = declined
+    # The boards' findings on the delivered diff, when they reviewed it (task diff-review).
+    findings = exported_review(task)
+    if findings:
+        record["delivered_review"] = findings
     # What was added after the approval (completion, result) is covered by a digest of the whole record.
     record["record_sha256"] = record_digest(record)
     write_json(path, record)

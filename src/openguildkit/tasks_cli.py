@@ -10,7 +10,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, light_lane
+from . import alerts_cli, delivered_review, light_lane
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
@@ -133,6 +133,7 @@ def add_parser(commands) -> None:
         command.add_argument("id", help="Task ID.")
         for add_options in ACTION_OPTIONS.get(action, ()):
             add_options(command)
+    delivered_review.add_parser(actions)
 
 
 def _json_option(text: str):
@@ -1549,9 +1550,10 @@ HANDLERS = {
     "respond": _respond, "challenge": _challenge, "route": _route, "consult": _consult, "review": _review,
     "pass": _pass, "submit": _pass, "progress": _progress, "decide": _decide, "revoke": _revoke,
     "decision-payload": _decision_payload, "authorize": _authorize, "handoff": _handoff,
+    "diff-review": lambda args, root, state, profile, catalog, task: delivered_review.run(args, root, state, task),
 }
 # The actions that read an approval: an approval that no longer holds stops them, or is shown with show and checks.
-READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete")
+READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete", "diff-review")
 
 
 def run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:

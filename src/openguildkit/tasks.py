@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock, light_lane
+from . import clock, delivered_review, light_lane
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
@@ -165,6 +165,10 @@ _RECORD = {
     "follows?": {"task": str, "brief": str, "status": str, "decision": _DECISION},
     "authorizations?": [{"action": str, "target": str, "decision": str, "by": str, "reason": str}],
     "dependency_alerts?": {"alerts?": [dict]},
+    "delivered_review?": {"boards": {"*": {
+        "base": str, "revision": str, "at": str,
+        "findings": [{"file": str, "line": int, "severity": frozenset(delivered_review.SEVERITIES),
+                      "action": frozenset(delivered_review.ACTIONS), "finding": str}]}}},
 }
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
 
@@ -1325,6 +1329,7 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
     groups = [
         (SENSITIVE_GROUP, sensitive),
         ("Board blocks not lifted", _blocks_not_lifted(task)),
+        (delivered_review.FINDINGS_GROUP, delivered_review.open_points(task)),
         (NOT_RUN_GROUP, [
             f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
             for item in result.get("checks", []) if item.get("cannot_run")]),

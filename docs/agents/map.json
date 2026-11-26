@@ -333,6 +333,28 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/delivered_review.py",
+      "role": "The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them.",
+      "entry": [
+        "add_parser",
+        "delivered_change",
+        "board_brief",
+        "record_findings",
+        "open_points",
+        "exported_review",
+        "run"
+      ],
+      "tests": [
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py",
+        "tests/test_command_output_budget.py"
+      ],
+      "doc": "docs/architecture.md",
+      "covers": [
+        "tests/fixtures/upgrade/before-delivered-review.json"
+      ]
+    },
+    {
       "module": "src/openguildkit/detect.py",
       "role": "Proposes components, technologies and versions from the repository's manifests, without running a package manager.",
       "entry": [
@@ -398,7 +420,9 @@
         "tests/test_record_lifecycle.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
-        "tests/test_task_index.py"
+        "tests/test_task_index.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1109,7 +1133,9 @@
         "tests/test_deliberation.py",
         "tests/test_performance.py",
         "tests/test_retro.py",
-        "tests/test_light_lane.py"
+        "tests/test_light_lane.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1127,7 +1153,9 @@
         "tests/test_next_steps.py",
         "tests/e2e/test_light_lane.py",
         "tests/test_light_lane.py",
-        "tests/test_unhooked_hosts.py"
+        "tests/test_unhooked_hosts.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py"
       ],
       "doc": "docs/architecture.md"
     },
