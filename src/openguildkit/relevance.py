@@ -70,7 +70,8 @@ SUBJECTS = {
         "laravel", "symfony", "symfony-security", "kotlin-service", "ktor-server", "rust-cargo", "rust-dependencies",
         "go-database", "postgresql", "pytest", "licence-policy")},
     **{pack: ("the user interface", _UI) for pack in (
-        "react", "vue", "angular", "nextjs", "frontend-delivery", "web-accessibility", "web-performance",
+        "react", "vue", "angular", "nextjs", "svelte", "sveltekit", "react-native", "expo", "flutter",
+        "frontend-delivery", "web-accessibility", "web-performance",
         "mobile-accessibility", "ios-app", "android-app", "mobile-store-release", "i18n-readiness", "playwright",
         "chaosfolk-e2e", "public-sector-accessibility", "european-accessibility-act", "france-rgaa-accessibility",
         "france-cookies-and-trackers")},

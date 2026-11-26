@@ -1,0 +1,32 @@
+{
+  "id": "expo",
+  "title": "Expo app",
+  "description": "Review public environment variables, local env files, the EAS Update runtime version and SDK upgrades of an Expo app.",
+  "sources": [
+    {
+      "title": "Expo docs, environment variables in Expo",
+      "url": "https://docs.expo.dev/guides/environment-variables/",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Expo docs, EAS Update runtime versions",
+      "url": "https://docs.expo.dev/eas-update/runtime-versions/",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "expo"
+  ],
+  "match": {
+    "stack": [
+      [
+        "expo"
+      ]
+    ]
+  }
+}

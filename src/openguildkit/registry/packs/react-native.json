@@ -1,0 +1,48 @@
+{
+  "id": "react-native",
+  "title": "React Native apps",
+  "version": "1.0.0",
+  "description": "For a React Native app: no secret in the app bundle, tokens in the platform's secure storage, nothing sensitive in deep links, HTTPS endpoints and upgrades through the Upgrade Helper; builds on the react pack.",
+  "sources": [
+    {
+      "title": "React Native docs, security",
+      "url": "https://reactnative.dev/docs/security",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "React Native docs, upgrading to new versions",
+      "url": "https://reactnative.dev/docs/upgrading",
+      "checked": "2026-11-26"
+    }
+  ],
+  "depends_on": [
+    "react"
+  ],
+  "rules": [
+    {
+      "id": "keep-secrets-out-of-the-bundle",
+      "instruction": "Never put an API key or a secret in the app's code or in variables that react-native-config or react-native-dotenv build into it: anyone who inspects the bundle can read them. Call a server or a function that holds the secret and forwards the request instead.",
+      "verification": "Review the files and environment variables the change adds to the app and check that none holds a key or a secret meant for a server."
+    },
+    {
+      "id": "store-tokens-in-secure-storage",
+      "instruction": "Store tokens, passwords and other secrets in the platform's secure storage (iOS Keychain Services, Android Keystore or Encrypted Shared Preferences, for example through expo-secure-store or react-native-keychain), never in Async Storage, which is unencrypted.",
+      "verification": "Search the change for `AsyncStorage` and check that no token or secret is written through it."
+    },
+    {
+      "id": "send-nothing-sensitive-in-deep-links",
+      "instruction": "Send no token or other sensitive data in a deep link: another app can register the same scheme and receive it. Use universal links to open content of the app on iOS.",
+      "verification": "Review the links the change builds or handles and check that none carries a token or personal data."
+    },
+    {
+      "id": "call-https-endpoints",
+      "instruction": "Call the app's APIs over `https://` only. When the app pins certificates, plan the update of the pinned certificates before the server's certificate expires, or the published app stops working.",
+      "verification": "Check that the API addresses the change adds start with `https://`, and, when the app pins certificates, that the expiry date and the release that replaces them are recorded."
+    },
+    {
+      "id": "upgrade-with-the-upgrade-helper",
+      "instruction": "Upgrade React Native with the Upgrade Helper: install the `react-native` and `react` versions it shows, then apply the changes it lists to the Android, iOS and JavaScript project files. An Expo app upgrades through the Expo SDK instead.",
+      "verification": "Compare the change with the Upgrade Helper diff between the two versions and check that each listed project file was updated, then build the app on Android and iOS."
+    }
+  ]
+}

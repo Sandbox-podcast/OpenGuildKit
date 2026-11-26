@@ -210,7 +210,9 @@ EXCEPTIONS = {
     "catalog --json": (690_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
-    "patterns --json": (99_000, "Every pattern with its rule packs; `patterns` lists them in 9 KB."),
+    "patterns --json": (110_000, "Every pattern with its rule packs; `patterns` lists them in 11 KB."),
+    "patterns": (12_000, "One line per pattern of the bundled catalog, grouped by kind, so that a person can choose; "
+                         "`patterns --id ID` prints one."),
     "brains --json": (192_000, "Every brain with its lenses and knowledge; `brains` lists them in 2 KB."),
     "brains --id security": (20_000, "One brain in full, which is what the option asks for: its lenses with their "
                                      "checks, and the knowledge attached."),

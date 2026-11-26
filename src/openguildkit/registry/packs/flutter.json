@@ -1,0 +1,84 @@
+{
+  "id": "flutter",
+  "title": "Flutter apps",
+  "version": "1.0.0",
+  "description": "For a Flutter app: a committed pubspec.lock, analysis with the Flutter lints, checked formatting, no secret in the app, the symbol files of obfuscated builds and a current Flutter SDK.",
+  "sources": [
+    {
+      "title": "Dart docs, what not to commit: pubspec.lock",
+      "url": "https://dart.dev/tools/pub/private-files",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Dart docs, customizing static analysis",
+      "url": "https://dart.dev/tools/analysis",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Dart docs, dart format",
+      "url": "https://dart.dev/tools/dart-format",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Flutter docs, obfuscate Dart code",
+      "url": "https://docs.flutter.dev/deployment/obfuscate",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Flutter docs, security",
+      "url": "https://docs.flutter.dev/security",
+      "checked": "2026-11-26"
+    }
+  ],
+  "rules": [
+    {
+      "id": "commit-pubspec-lock",
+      "instruction": "Commit `pubspec.lock` for the app, so that changes to transitive dependencies are explicit. Do not commit it for a reusable package published for other projects.",
+      "verification": "task verify checks that `pubspec.lock` exists; also check that a dependency change updates it in the same change.",
+      "check": {
+        "kind": "file-exists",
+        "paths": [
+          "pubspec.lock",
+          "*/pubspec.lock"
+        ]
+      }
+    },
+    {
+      "id": "analyze-with-the-flutter-lints",
+      "instruction": "Keep `analysis_options.yaml` next to `pubspec.yaml`, include a lint set such as `package:flutter_lints/flutter.yaml`, and run `flutter analyze` in CI.",
+      "verification": "task verify checks that `analysis_options.yaml` includes the Flutter or Dart lints; also check that `flutter analyze` reports nothing new on the change.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "analysis_options.yaml",
+          "*/analysis_options.yaml"
+        ],
+        "contains": [
+          "package:flutter_lints/",
+          "package:lints/"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "check-formatting-in-ci",
+      "instruction": "Check formatting in CI with `dart format -o none --set-exit-if-changed .`, which changes no file and exits with 1 when one is not formatted.",
+      "verification": "Run `dart format -o none --set-exit-if-changed .` and check that it exits with 0."
+    },
+    {
+      "id": "keep-secrets-out-of-the-app",
+      "instruction": "Store no secret in the app: obfuscation with `--obfuscate` only renames symbols, it does not encrypt resources or prevent reverse engineering.",
+      "verification": "Review the constants, assets and build settings the change adds and check that none holds a key or a secret meant for a server."
+    },
+    {
+      "id": "keep-the-symbols-of-obfuscated-builds",
+      "instruction": "When a release is built with `--obfuscate --split-debug-info=DIR`, back up the symbol files written to DIR with the release, so that `flutter symbolize` can read its stack traces.",
+      "verification": "For an obfuscated release, check that the symbol files of that build are stored with it."
+    },
+    {
+      "id": "keep-flutter-and-dependencies-current",
+      "instruction": "Keep the Flutter SDK and the app's dependencies current, since updates can fix security defects; when a dependency is pinned to a version, check it regularly for security updates.",
+      "verification": "Check the Flutter version used by CI against the current stable release, and for each pinned dependency, the date it was last reviewed."
+    }
+  ]
+}

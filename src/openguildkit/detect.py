@@ -31,6 +31,11 @@ NPM_PACKAGES = {
     "vue": "Vue",
     "@angular/core": "Angular",
     "svelte": "Svelte",
+    "@sveltejs/kit": "SvelteKit",
+    # A React Native app declares react-native next to react; a web app declares react-dom instead. Expo projects
+    # declare expo as well.
+    "react-native": "React Native",
+    "expo": "Expo",
     "typescript": "TypeScript",
     "express": "Express",
     "@nestjs/core": "NestJS",
@@ -661,6 +666,25 @@ def _kubernetes(component: _Component, path: Path, label: str) -> None:
             component.add("Flux", None, label)
 
 
+def _pubspec(component: _Component, path: Path, label: str) -> None:
+    """A pubspec.yaml makes a Dart package; a dependency on the Flutter SDK (`sdk: flutter`) makes it a Flutter one.
+
+    The environment section gives the Dart SDK constraint and, for Flutter, the Flutter constraint. Only these
+    lines are read, without a YAML parser: a comment that names Flutter is not a dependency on its SDK.
+    """
+    text = _read_text(path) or ""
+    environment = re.search(r"(?m)^environment:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n?|[ \t]*\n)*)", text)
+    block = environment.group(1) if environment else ""
+
+    def constraint(key: str) -> str | None:
+        found = re.search(rf"""(?m)^[ \t]+{key}:[ \t]*["']?([^"'#\n]+?)["']?[ \t]*(?:#.*)?$""", block)
+        return declared_version(found.group(1)) if found else None
+
+    component.add("Dart", constraint("sdk"), label)
+    if re.search(r"""(?m)^[ \t]+sdk:[ \t]*["']?flutter["']?[ \t]*(?:#.*)?$""", text):
+        component.add("Flutter", constraint("flutter"), label)
+
+
 def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
     name = path.name
     if name == "package.json":
@@ -688,6 +712,8 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _composer(component, path, label)
     elif name == "Cargo.toml":
         _cargo(component, path, label)
+    elif name == "pubspec.yaml":
+        _pubspec(component, path, label)
     elif name == "Package.swift":
         _swift_package(component, path, label)
     elif name == "manage.py" and "django" in (_read_text(path) or ""):

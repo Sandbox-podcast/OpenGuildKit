@@ -22,6 +22,11 @@ STACKS = {
     "symfony": ["Symfony", "PHP"],
     "angular": ["Angular", "NestJS"],
     "rust-cargo": ["Rust 1.82", "Axum 0.8", "Tokio 1"],
+    "svelte": ["Svelte 5"],
+    "sveltekit": ["Svelte 5", "SvelteKit 2"],
+    "react-native": ["React 19", "React Native 0.81"],
+    "expo": ["Expo 54", "React Native 0.81"],
+    "flutter": ["Dart 3.5", "Flutter 3.22"],
     "gitlab-ci-security": ["AWS", "GitLab CI", "Docker"],
     "docker-images": ["AWS", "GitLab CI", "Docker"],
     "aws-iam": ["AWS", "GitLab CI", "Docker"],
@@ -29,7 +34,8 @@ STACKS = {
 PACKS = {
     "django": "django", "rails": "rails", "node-express": "express", "vue": "vue", "angular": "angular",
     "laravel": "laravel", "symfony": "symfony", "ios-swift": "ios-app", "android-kotlin": "android-app",
-    "kotlin-ktor": "ktor-server", "rust-cargo": "rust-cargo",
+    "kotlin-ktor": "ktor-server", "rust-cargo": "rust-cargo", "svelte": "svelte", "sveltekit": "sveltekit",
+    "react-native": "react-native", "expo": "expo", "flutter": "flutter",
     "gitlab-ci-security": "gitlab-ci-security", "docker-images": "container-images", "aws-iam": "aws-iam",
 }
 GENERIC_PACKS = {"secure-sdlc", "api-design", "typescript", "python"}
@@ -69,6 +75,11 @@ REPOSITORIES = {
         "Cargo.toml": '[package]\nname = "orders"\nedition = "2021"\nrust-version = "1.82"\n\n'
                       '[dependencies]\naxum = "0.8"\ntokio = { version = "1", features = ["full"] }\n',
     },
+    "svelte": {"package.json": {"devDependencies": {"svelte": "^5.0.0"}}},
+    "sveltekit": {"package.json": {"devDependencies": {"svelte": "^5.0.0", "@sveltejs/kit": "^2.20.0"}}},
+    "react-native": {"package.json": {"dependencies": {"react": "19.1.0", "react-native": "0.81.4"}}},
+    "expo": {"package.json": {"dependencies": {"expo": "~54.0.0", "react": "19.1.0", "react-native": "0.81.4"}}},
+    "flutter": {"pubspec.yaml": "name: shop\nenvironment:\n  sdk: ^3.5.0\ndependencies:\n  flutter:\n    sdk: flutter\n"},
     "ios-swift": {
         "Shop.xcodeproj/project.pbxproj": "{ buildSettings = { SDKROOT = iphoneos; SWIFT_VERSION = 6.0; }; }\n",
     },
@@ -167,6 +178,7 @@ class StackPatternTests(unittest.TestCase):
         }
         new_packs = {*PACKS.values(), *(pack for packs in EXTRA_PACKS.values() for pack in packs),
                      "mobile-accessibility", "mobile-store-release", "kotlin-service", "rust-dependencies"}
+        new_packs |= {"svelte", "sveltekit", "react-native", "expo", "flutter"}
         for pack_id in sorted(new_packs):
             with self.subTest(pack=pack_id):
                 pack = self.catalog["packs"][pack_id]
@@ -185,6 +197,31 @@ class StackPatternTests(unittest.TestCase):
         self.assertNotIn("rust-cargo", self.matched({"stack": ["Rust edition 2021"]}))
         self.assertNotIn("rust-cargo", self.matched({"stack": ["Python", "FastAPI"]}))
         self.assertEqual(self.catalog["patterns"]["rust-cargo"]["packs"], ["rust-cargo", "rust-dependencies"])
+
+    def test_the_svelte_and_mobile_cross_platform_patterns_match_only_their_own_stack(self):
+        # React web, Vue, a Dart package and a plain Node.js project get none of them.
+        for stack in (["React 19", "Next.js 15"], ["Vue 3"], ["Dart 3.5"], ["Node.js 22", "TypeScript"]):
+            with self.subTest(stack=stack):
+                self.assertFalse({"svelte", "sveltekit", "react-native", "expo", "flutter"} & self.matched({"stack": stack}))
+        self.assertNotIn("sveltekit", self.matched({"stack": ["Svelte 5"]}))
+        self.assertNotIn("expo", self.matched({"stack": ["React Native 0.81"]}))
+        # A framework stands for its platform: SvelteKit brings the Svelte rules, Expo the React Native ones.
+        self.assertIn("svelte", self.matched({"stack": ["SvelteKit 2"]}))
+        self.assertIn("react-native", self.matched({"stack": ["Expo 54"]}))
+        # A React Native app keeps the Rules of React, which hold for every React renderer.
+        self.assertIn("react-web", self.matched({"stack": ["React 19", "React Native 0.81"]}))
+
+    def test_the_cross_platform_mobile_apps_get_the_mobile_packs_and_their_framework_packs(self):
+        for stack, own in ((["React Native 0.81"], {"react-native", "react"}),
+                           (["Expo 54"], {"expo", "react-native", "react"}),
+                           (["Flutter 3.22"], {"flutter"}),
+                           (["SvelteKit 2"], {"sveltekit", "svelte"})):
+            with self.subTest(stack=stack):
+                profile = validate_profile({"name": "App", "stack": stack}, self.catalog)
+                packs = set(resolved_profile(profile, self.catalog)["packs"])
+                self.assertLessEqual(own, packs)
+                mobile = {"mobile-accessibility", "mobile-store-release"}
+                self.assertEqual(mobile <= packs, stack[0] != "SvelteKit 2")
 
     def test_framework_packs_reuse_the_generic_packs_instead_of_repeating_them(self):
         self.assertIn("python", self.catalog["packs"]["django"]["depends_on"])
@@ -223,6 +260,9 @@ class StackDetectionTests(unittest.TestCase):
             "android-kotlin": {"Android", "Kotlin"},
             "kotlin-ktor": {"Kotlin 2.1.0", "Ktor 3.1.0"},
             "django": {"Python", "Django"},
+            "sveltekit": {"Svelte ^5.0.0", "SvelteKit ^2.20.0"},
+            "expo": {"Expo ~54.0.0", "React 19.1.0", "React Native 0.81.4"},
+            "flutter": {"Dart ^3.5.0", "Flutter"},
         }
         for pattern_id, expected in stacks.items():
             with self.subTest(pattern=pattern_id):

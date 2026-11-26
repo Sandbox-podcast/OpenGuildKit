@@ -1,0 +1,32 @@
+{
+  "id": "sveltekit",
+  "title": "SvelteKit",
+  "description": "Review secrets in server-only modules, server load functions, the CSRF origin check and the Content Security Policy of a SvelteKit application.",
+  "sources": [
+    {
+      "title": "SvelteKit docs, server-only modules",
+      "url": "https://svelte.dev/docs/kit/server-only-modules",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "SvelteKit docs, configuration: csrf and csp",
+      "url": "https://svelte.dev/docs/kit/configuration",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "sveltekit"
+  ],
+  "match": {
+    "stack": [
+      [
+        "sveltekit"
+      ]
+    ]
+  }
+}

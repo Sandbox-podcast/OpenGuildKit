@@ -1,0 +1,59 @@
+{
+  "id": "expo",
+  "title": "Expo apps",
+  "version": "1.0.0",
+  "description": "For an Expo app: no secret in EXPO_PUBLIC_ variables, local env files out of git, a runtime version for EAS Update and SDK upgrades one version at a time; builds on the react-native pack.",
+  "sources": [
+    {
+      "title": "Expo docs, environment variables in Expo",
+      "url": "https://docs.expo.dev/guides/environment-variables/",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Expo docs, EAS Update runtime versions",
+      "url": "https://docs.expo.dev/eas-update/runtime-versions/",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Expo docs, upgrading the Expo SDK walkthrough",
+      "url": "https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/",
+      "checked": "2026-11-26"
+    }
+  ],
+  "depends_on": [
+    "react-native"
+  ],
+  "rules": [
+    {
+      "id": "keep-secrets-out-of-public-variables",
+      "instruction": "Put no private key or other secret in an `EXPO_PUBLIC_` variable: Expo writes its value into the app bundle, where it is visible in plain text.",
+      "verification": "Review the `EXPO_PUBLIC_` variables the change adds, in `.env` files and in the build settings, and check that none holds a secret."
+    },
+    {
+      "id": "keep-local-env-files-out-of-git",
+      "instruction": "Add `.env*.local` to `.gitignore` so that the machine-specific `.env.local` files stay out of version control; commit only the default `.env` files the team shares.",
+      "verification": "task verify checks that a `.gitignore` lists `.env*.local`; also check that the change commits no `.env.local` file.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".gitignore",
+          "*/.gitignore"
+        ],
+        "contains": [
+          ".env*.local"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "set-a-runtime-version-for-updates",
+      "instruction": "When the app ships updates with EAS Update, set `runtimeVersion` in the app config, as a value or as a policy such as `fingerprint`, and change it whenever the native code changes, so that an update never reaches a build whose native code it does not match.",
+      "verification": "Check the `runtimeVersion` of the app config, and for a change to native code or native dependencies, that the runtime version changes with it or that the fingerprint policy computes it."
+    },
+    {
+      "id": "upgrade-the-sdk-one-version-at-a-time",
+      "instruction": "Upgrade the Expo SDK one version at a time: install the next `expo` version, run `npx expo install --fix` to align the dependencies with it, then `npx expo-doctor`.",
+      "verification": "Check that the change moves `expo` by one SDK version and that `npx expo-doctor` reports no problem."
+    }
+  ]
+}

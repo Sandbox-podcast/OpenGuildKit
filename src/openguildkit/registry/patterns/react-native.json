@@ -1,0 +1,36 @@
+{
+  "id": "react-native",
+  "title": "React Native app",
+  "description": "Review secrets in the bundle, secure storage, deep links, HTTPS, upgrades, accessibility and store release of a React Native app; the react-web pattern keeps the Rules of React.",
+  "sources": [
+    {
+      "title": "React Native docs, security",
+      "url": "https://reactnative.dev/docs/security",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "React Native docs, upgrading to new versions",
+      "url": "https://reactnative.dev/docs/upgrading",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "react-native",
+    "mobile-accessibility",
+    "mobile-store-release"
+  ],
+  "match": {
+    "stack": [
+      [
+        "react native",
+        "expo"
+      ]
+    ]
+  }
+}

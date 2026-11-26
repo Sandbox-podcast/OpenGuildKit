@@ -34,6 +34,7 @@ STACK_EXCEPTIONS = {
     "postgresql": "constraints, migrations and query plans are judged on representative data",
     "pytest": "fixture scope and parameterization are judged on the tests themselves",
     "python": "style, typing and packaging run through the project's own formatter, type checker and build",
+    "react-native": "secrets, token storage and deep links are judged on what each value holds, not on a literal text",
     "spring-boot": "settings, transaction boundaries and HTTP tests are judged in the application context",
     "terraform-kubernetes": "plans, state access and probes are reviewed in the infrastructure tools",
 }
@@ -139,6 +140,11 @@ class StackCheckTests(unittest.TestCase):
         "pci-dss": (".pre-commit-config.yaml", "- repo: https://github.com/gitleaks/gitleaks", "repos: []"),
         "rust-cargo": ("Cargo.toml", '[package]\nname = "svc"\nrust-version = "1.82"\n', '[package]\nname = "svc"\n'),
         "rust-dependencies": (".github/workflows/ci.yml", "      - run: cargo build --locked", "      - run: cargo build"),
+        "svelte": ("package.json", '{"devDependencies": {"svelte-check": "^4.0.0"}}', '{"name": "web"}'),
+        "sveltekit": ("svelte.config.js", "kit: { csp: { mode: 'auto' } }",
+                      "kit: { csrf: { checkOrigin: false } }"),
+        "expo": (".gitignore", "node_modules/\n.env*.local\n", "node_modules/\n"),
+        "flutter": ("analysis_options.yaml", "include: package:flutter_lints/flutter.yaml\n", "linter:\n  rules: []\n"),
         "agentic-application-security": (".mcp.json", '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@1.4.2"]}}}',
                                          '{"mcpServers": {"docs": {"command": "npx", "args": ["-y", "docs-mcp@latest"]}}}'),
     }

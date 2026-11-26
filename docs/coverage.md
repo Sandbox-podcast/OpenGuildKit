@@ -12,10 +12,10 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
 | data | 63 | 16 | 47 | 6 | 1 | 8 | 41 |
-| design | 26 | 6 | 20 | 11 | 5 | 18 | 77 |
+| design | 26 | 6 | 20 | 11 | 8 | 21 | 92 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
 | devops | 69 | 22 | 47 | 10 | 6 | 16 | 93 |
-| engineering | 220 | 39 | 181 | 15 | 30 | 51 | 296 |
+| engineering | 220 | 39 | 181 | 15 | 35 | 56 | 319 |
 | finance | 23 | 14 | 9 | 12 | 1 | 14 | 57 |
 | frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 51 | 10 | 41 | 10 | 23 | 41 | 240 |
+| qa | 51 | 10 | 41 | 10 | 28 | 46 | 263 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 106 | 31 | 75 | 24 | 21 | 56 | 360 |
+| security | 106 | 31 | 75 | 24 | 25 | 61 | 383 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -48,6 +48,8 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | django | django | django, python | 10 |
 | docker-images | docker / dockerfile / containerfile | container-images | 6 |
 | dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 8 |
+| expo | expo | expo, react, react-native | 14 |
+| flutter | flutter | flutter, mobile-accessibility, mobile-store-release | 15 |
 | github-actions-ci | github actions / gh actions | github-actions-security | 5 |
 | gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 7 |
 | go-postgresql | go / golang + postgresql / postgres | api-design, go-database, postgresql | 9 |
@@ -65,8 +67,11 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | python-fastapi-postgresql | python / python3 + fastapi + postgresql / postgres | api-design, fastapi, postgresql, python | 13 |
 | python-pytest | python / python3 + pytest | pytest, python | 6 |
 | rails | rails / ruby on rails | rails | 7 |
+| react-native | react native / expo | mobile-accessibility, mobile-store-release, react, react-native | 19 |
 | react-web | react / react.js / next.js | react | 5 |
 | rust-cargo | rust | rust-cargo, rust-dependencies | 12 |
+| svelte | svelte / sveltekit | svelte | 4 |
+| sveltekit | sveltekit | svelte, sveltekit | 8 |
 | symfony | symfony | symfony, symfony-security | 11 |
 | terraform-kubernetes | terraform + kubernetes / k8s | terraform-kubernetes | 3 |
 | typescript-development | typescript / ts | typescript | 4 |
@@ -92,7 +97,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-43 of 616 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+49 of 639 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -127,10 +132,12 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | enterprise-risk-review | 2 | 0 | 0 |
 | eu-ai-act | 8 | 0 | 8 |
 | european-accessibility-act | 4 | 0 | 4 |
+| expo | 4 | 1 | 0 |
 | express | 7 | 1 | 0 |
 | fastapi | 4 | 1 | 0 |
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
+| flutter | 6 | 2 | 0 |
 | france-cookies-and-trackers | 8 | 0 | 8 |
 | france-e-invoicing | 7 | 0 | 7 |
 | france-health-data-hosting | 8 | 0 | 8 |
@@ -184,6 +191,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | python | 3 | 0 | 0 |
 | rails | 7 | 1 | 0 |
 | react | 5 | 1 | 0 |
+| react-native | 5 | 0 | 0 |
 | release-communication | 4 | 0 | 0 |
 | release-management | 4 | 0 | 0 |
 | responsibility-matrix | 1 | 0 | 0 |
@@ -201,6 +209,8 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | structured-hiring | 3 | 0 | 0 |
 | supply-chain | 5 | 0 | 0 |
 | support-readiness | 4 | 0 | 0 |
+| svelte | 4 | 1 | 0 |
+| sveltekit | 4 | 2 | 0 |
 | symfony | 4 | 1 | 0 |
 | symfony-security | 7 | 2 | 0 |
 | terraform-kubernetes | 3 | 0 | 0 |

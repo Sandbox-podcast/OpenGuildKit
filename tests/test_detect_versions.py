@@ -172,6 +172,47 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertEqual({component for pattern in matched if pattern["id"] == "symfony"
                           for component in pattern["components"]}, {"shop", "legacy"})
 
+    def test_svelte_sveltekit_react_native_and_expo_are_read_from_package_json(self):
+        write(self.root, "kit/package.json", {"devDependencies": {"svelte": "^5.0.0", "@sveltejs/kit": "^2.20.0"}})
+        write(self.root, "widget/package.json", {"dependencies": {"svelte": "^5.1.0"}})
+        write(self.root, "mobile/package.json", {"dependencies": {"react": "19.1.0", "react-native": "0.81.4"}})
+        write(self.root, "expo/package.json",
+              {"dependencies": {"expo": "~54.0.0", "react": "19.1.0", "react-native": "0.81.4"}})
+        # A React web application declares react and react-dom, never react-native: it is no mobile app.
+        write(self.root, "web/package.json", {"dependencies": {"react": "^19.1.0", "react-dom": "^19.1.0"}})
+        stacks = self.stacks()
+        self.assertEqual(stacks["kit"], ["Svelte ^5.0.0", "SvelteKit ^2.20.0"])
+        self.assertEqual(stacks["widget"], ["Svelte ^5.1.0"])
+        self.assertEqual(stacks["mobile"], ["React 19.1.0", "React Native 0.81.4"])
+        self.assertEqual(stacks["expo"], ["Expo ~54.0.0", "React 19.1.0", "React Native 0.81.4"])
+        self.assertEqual(stacks["web"], ["React ^19.1.0"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        where = {pattern["id"]: set(pattern["components"]) for pattern in matched}
+        self.assertEqual(where.get("svelte"), {"kit", "widget"})
+        self.assertEqual(where.get("sveltekit"), {"kit"})
+        self.assertEqual(where.get("react-native"), {"mobile", "expo"})
+        self.assertEqual(where.get("expo"), {"expo"})
+
+    def test_a_flutter_app_is_told_from_a_dart_package_by_its_pubspec(self):
+        write(self.root, "app/pubspec.yaml",
+              "name: shop\nenvironment:\n  sdk: ^3.5.0\n  flutter: '>=3.22.0'\n"
+              "dependencies:\n  flutter:\n    sdk: flutter\n  http: ^1.2.0\n")
+        write(self.root, "plain/pubspec.yaml",
+              "name: shop_app\nenvironment:\n  sdk: ^3.5.0\ndependencies:\n  flutter:\n    sdk: flutter\n")
+        # A Dart package or command-line tool has a pubspec too, without the Flutter SDK.
+        write(self.root, "cli/pubspec.yaml",
+              "name: tool\nenvironment:\n  sdk: ^3.0.0\ndependencies:\n  args: ^2.5.0\n"
+              "# flutter: not used here\n")
+        stacks = self.stacks()
+        self.assertEqual(stacks["app"], ["Dart ^3.5.0", "Flutter >=3.22.0"])
+        self.assertEqual(stacks["plain"], ["Dart ^3.5.0", "Flutter"])
+        self.assertEqual(stacks["cli"], ["Dart ^3.0.0"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "flutter"
+                          for component in pattern["components"]}, {"app", "plain"})
+
     def test_an_old_style_kotlin_version_variable_is_read(self):
         write(self.root, "app/build.gradle",
               "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"
