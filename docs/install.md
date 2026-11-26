@@ -2,6 +2,26 @@
 
 OpenGuildKit is not published on PyPI: install the wheel attached to a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases). The Python wheel provides the CLI, the catalog, the agent files and the web interface that `openguildkit ui` serves. The optional Node package coordinates checks across GitHub Actions and Jenkins.
 
+## Install in one line
+
+On Linux or macOS, with pipx or uv already installed:
+
+```sh
+curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+```
+
+On Windows, in PowerShell:
+
+```powershell
+irm https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.ps1 | iex
+```
+
+The script downloads `SHA256SUMS.txt` and the wheel of the latest release, which GitHub never sets to a draft or a pre-release ([Get the latest release](https://docs.github.com/en/rest/releases/releases#get-the-latest-release), read on 2026-11-26). It checks the wheel's SHA-256 against that file and only then installs the wheel with pipx, or with uv when pipx is missing. It prints four lines: the version downloaded, the hash checked, the installer used and the next commands, `openguildkit --version` then `openguildkit init` in your repository. For another version, a pre-release included, name it: `curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh -s -- --version 0.17.0`, or in PowerShell `& ([scriptblock]::Create((irm https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.ps1))) -Version 0.17.0`. The installer replaces an installed version (`--force`), so the same line upgrades.
+
+When the hash differs, nothing is installed: the script names the file and the release and exits with 1. Without pipx or uv, it prints the official installation command of each ([pipx](https://pipx.pypa.io/stable/how-to/install-pipx.html), [uv](https://docs.astral.sh/uv/getting-started/installation/), read on 2026-11-26) and stops. The script and `SHA256SUMS.txt` come from the same release, so the check catches a corrupted or tampered download of the wheel, not a release whose files were all replaced: for that, check the signed tag and the hashes by hand as below. The scripts are `scripts/install.sh` (POSIX sh) and `scripts/install.ps1` in the repository; read them before piping them to a shell if you prefer.
+
+`OPENGUILDKIT_RELEASES_URL` replaces the address of the releases in both scripts. It is reserved for the tests, which serve a fake release from a local folder: do not set it.
+
 ## Download and verify
 
 Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.17.0, use the following GitHub CLI command.
@@ -10,7 +30,7 @@ Download the wheel, the optional Node archive and `SHA256SUMS.txt`. For v0.17.0,
 gh release download v0.17.0 --repo Sandbox-podcast/OpenGuildKit --pattern 'openguildkit-0.17.0-py3-none-any.whl' --pattern 'openguildkit-0.17.0.tgz' --pattern SHA256SUMS.txt
 ```
 
-On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.17.0-py3-none-any.whl, .\openguildkit-0.17.0.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`.
+On Linux use `sha256sum -c SHA256SUMS.txt`. On macOS use `shasum -a 256 -c SHA256SUMS.txt`. On Windows use `Get-FileHash .\openguildkit-0.17.0-py3-none-any.whl, .\openguildkit-0.17.0.tgz -Algorithm SHA256` in PowerShell and compare each hash to the corresponding line in `SHA256SUMS.txt`. From the first release that ships the one-line installers, `SHA256SUMS.txt` also lists `install.sh` and `install.ps1`: add `--pattern 'install.*'` to the download, or the Linux and macOS checks report them missing and fail.
 
 ### Verify the release tag
 
@@ -25,7 +45,7 @@ Git prints `Good "git" signature for azerothl with ED25519 key SHA256:AV5Bo/uY6J
 
 ## How the release assets are built
 
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit. The workflow stops if the tag differs from the version in `pyproject.toml` or `integrations/ci/package.json`. It builds the web interface with Node.js 24 (`npm ci --ignore-scripts`, `npm run build`, then `npm run bundle`, which copies it into `src/openguildkit/web_dist` and fails above its size budget), then the wheel with Python 3.13 (`python -m build --wheel`). It refuses a wheel that does not contain `openguildkit/web_dist/index.html`. It packs the Node archive (`npm pack ./integrations/ci`), writes `SHA256SUMS.txt` with `sha256sum`, one line per file, then attaches the three files to the release of the tag. When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes. The run log on the Actions tab prints the hashes it computed. The `package` job of `.github/workflows/ci.yml` builds the wheel with the same steps on every pull request, installs it on Linux, macOS and Windows (with `pipx` on Windows), and checks that `openguildkit ui` serves the interface. Once the release is published, `.github/workflows/release-check.yml` downloads its files, checks their hashes and installs them on the same three systems.
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit. The workflow stops if the tag differs from the version in `pyproject.toml` or `integrations/ci/package.json`. It builds the web interface with Node.js 24 (`npm ci --ignore-scripts`, `npm run build`, then `npm run bundle`, which copies it into `src/openguildkit/web_dist` and fails above its size budget), then the wheel with Python 3.13 (`python -m build --wheel`). It refuses a wheel that does not contain `openguildkit/web_dist/index.html`. It packs the Node archive (`npm pack ./integrations/ci`), copies the one-line installers `scripts/install.sh` and `scripts/install.ps1`, writes `SHA256SUMS.txt` with `sha256sum`, one line per file, then attaches the five files to the release of the tag. When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes. The run log on the Actions tab prints the hashes it computed. The `package` job of `.github/workflows/ci.yml` builds the wheel with the same steps on every pull request, installs it on Linux, macOS and Windows (with `pipx` on Windows), and checks that `openguildkit ui` serves the interface. Once the release is published, `.github/workflows/release-check.yml` downloads its files, checks their hashes and installs them on the same three systems.
 
 ## Install the Python CLI
 
@@ -85,7 +105,7 @@ For another agent (the host `other`), the whole path is:
 
 ## Upgrade
 
-1. Download and verify the new release assets as above, then install the new wheel the way you installed the first one: `pipx install --force ./openguildkit-NEW-py3-none-any.whl`, `uv tool install ./openguildkit-NEW-py3-none-any.whl`, or `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` in the virtual environment. Check `openguildkit --version`.
+1. Run the one-line installer again, with `--version` for a given release. Or download and verify the new release assets as above, then install the new wheel the way you installed the first one: `pipx install --force ./openguildkit-NEW-py3-none-any.whl`, `uv tool install ./openguildkit-NEW-py3-none-any.whl`, or `python -m pip install --upgrade ./openguildkit-NEW-py3-none-any.whl` in the virtual environment. Check `openguildkit --version`.
 2. Run `openguildkit integrations --host ...` again to update the skill and subagent.
 3. Run `openguildkit update` to see the date of the new catalog, the number of records it changes and what it changes for the project, and `openguildkit update --apply` once the team agrees. It shows the old and the new wording of each changed rule and names the tasks the change touches, before you apply it; `update --apply` and the `sync` after it name the same tasks. When the instructions already follow a newer catalog than the lock, `check`, `task new`, `task consult`, `task decide` and `task handoff` refuse and point to `openguildkit update`; when the installed catalog changes locked rules, `check` and `sync` say so. `sync` keeps the lock's rules: it rewrites the instructions from the lock and never adopts a newer catalog.
 4. Run `openguildkit check` and commit the updated files.
@@ -111,4 +131,4 @@ To check for a newer pilot package from a machine with GitHub CLI:
 openguildkit-ci releases --repo Sandbox-podcast/OpenGuildKit --channel pilot
 ```
 
-For CI installs, pin the release tag and archive hash. The [guard workflow template](../integrations/github/openguildkit-guard.yml) downloads the wheel of the tag you set and installs it only when its hash matches the one you copied from `SHA256SUMS.txt`. A pull request runs its own copy of that workflow: protect it with `CODEOWNERS` on `.github/workflows/` or a ruleset that requires it from the default branch ([Protect the check](../integrations/README.md#protect-the-check)), and add `--require-signed` to its guard step to fail while approvals are local. Each consumer repository can use the public release as its distribution source. If using a workflow template that downloads from the consumer repository, set the release download to point to `Sandbox-podcast/OpenGuildKit` or mirror the verified asset under the same tag.
+For CI installs, pin the release tag and archive hash. The [guard workflow template](../integrations/github/openguildkit-guard.yml) downloads the wheel of the tag you set and installs it only when its hash matches the one you copied from `SHA256SUMS.txt`. The workflow templates keep this step until the first release that ships `install.sh`: from that release, they switch to `curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/vX.Y.Z/install.sh | sh -s -- --version vX.Y.Z`, pinned to the same tag, with no hash to copy. A pull request runs its own copy of that workflow: protect it with `CODEOWNERS` on `.github/workflows/` or a ruleset that requires it from the default branch ([Protect the check](../integrations/README.md#protect-the-check)), and add `--require-signed` to its guard step to fail while approvals are local. Each consumer repository can use the public release as its distribution source. If using a workflow template that downloads from the consumer repository, set the release download to point to `Sandbox-podcast/OpenGuildKit` or mirror the verified asset under the same tag.

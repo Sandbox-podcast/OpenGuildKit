@@ -27,6 +27,9 @@ client does not inherit your shell's PATH.
 | `project_rule` | `pack_id`, `rule_id` | `pack` (an active pack reference), `rule_id` |
 | `task_status` | `task_id` | `id`, `status` as recorded in the task |
 | `task_check_results` | `task_id` | `id`, `revision`, `checks` (objects with `check`, `status` and `revision`), `omitted` and `failed_omitted` (counts) |
+| `task_list` | None | `tasks`: objects with `id`, `status` and `next`, the open point that keeps the task from moving on |
+| `task_next` | `task_id` | `id`, `status`, `command` (the command that moves the task on) and `needs_person` |
+| `task_blockers` | `task_id` | `id`, `blockers`: objects with `id`, `board`, `phase`, `finding`, `owner`, `clears_when` and `state` |
 
 A pack reference contains `id`, `version` and `scope` from the catalog in force.
 Scope is a list of component IDs, or `null` for a project-wide pack. A revision is a
@@ -37,11 +40,31 @@ left out and `failed_omitted` how many of them failed, so a client sees that a f
 exists. `task show` in the terminal gives their names. Before a task records any results,
 `checks` is empty, `omitted` and `failed_omitted` are 0 and `revision` is `null`.
 
+The task tools give an agent the same answers as the terminal. `task_list` returns the `id`,
+`status` and `next` fields of `openguildkit task list --json`, in the same order. Where that
+open point would quote what a person or a command wrote, the server says where to read it
+instead: a change request's reason, a failed check's command line and output, or why an
+approval no longer holds, all three in `openguildkit task show ID`. An unreadable task
+record has the status `unreadable` and points to `openguildkit check`.
+
+`task_next` returns the command that moves the task on, the one a refused command ends
+with. The server never runs it. `needs_person` is `true` when the next act is a person's
+at their terminal: a reviewed task waits for the person to clear its blockers and decide.
+An agent that reads `true` asks the person and does not try the command itself.
+
+`task_blockers` returns the blockers of `openguildkit task blockers ID --json`, with
+`phase` set to `approval` or `verification`, and `owner` and `clears_when` set to `null`
+for a blocker recorded without them. `state` is `open`, `cleared`, `waived` or
+`waiver-expired` (a waiver past its end date, so the blocker is open again). Who cleared
+or waived a blocker, the evidence and the reason stay in the terminal. A task without a
+recorded review has no blockers.
+
 The client can discover each tool's input and output schema. Each successful call
 returns the same JSON object as structured content and as a text item. Invalid arguments and unknown IDs return a JSON-RPC parameter error.
 If the project files need attention, the tool points to `openguildkit check` for
 diagnostics. Access is limited to the project selected at startup. The responses
-exclude briefs, approval details, command lines, logs and evidence contents.
+exclude briefs, approval details, people's names, command lines, logs and evidence
+contents, and replace a credential in a blocker's text with a placeholder.
 Reviews, approvals, changes and publishing stay in the existing human workflows.
 
 ## The registry

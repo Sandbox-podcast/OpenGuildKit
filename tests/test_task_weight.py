@@ -34,7 +34,7 @@ class TaskWeightTests(CapturedCli, unittest.TestCase):
         short = self.cli("task", "questions", "small1", "--answers", self.root / "answers.json", "--follow-ups")
         self.assertEqual(set(json.loads(short)), {"follow_ups", "open_points"})
         self.assertEqual({key: json.loads(whole)[key] for key in ("follow_ups", "open_points")}, json.loads(short))
-        self.assertEqual([item["id"] for item in json.loads(short)["follow_ups"]], ["outcome"])
+        self.assertEqual([item["id"] for item in json.loads(short)["follow_ups"]], ["assumptions", "outcome"])
         self.assertLess(len(short.encode("utf-8")), 1024)
         self.assertGreater(len(whole.encode("utf-8")), 4 * len(short.encode("utf-8")))
 

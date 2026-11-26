@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock, light_lane
+from . import clock, delivered_review, light_lane
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
@@ -16,8 +16,8 @@ from .project import Fingerprints, fingerprint_holds, profile_fingerprint, task_
 from .relevance import sensitive_area
 from .sensitive import redact_credentials, redact_data
 from .results import (
-    DONE_STATUSES, asked_checks, completion_problems, merge_results, not_concerned, outcomes, result_warnings,
-    validate_result, waiting_evidence,
+    DONE_STATUSES, asked_checks, completion_problems, evidence_fingerprint, evidence_state, merge_results,
+    not_concerned, outcomes, result_warnings, validate_result, waiting_evidence,
 )
 from .storage import read_json, write_json
 from .alerts import resolution_line, resolved_by_import
@@ -136,7 +136,7 @@ _REVIEW = {
     "boards": [{"id": str, "recommendation": str, "evidence": [(str, {"source": str, "ref": str})],
                 "open_questions": [str], "challenge?": _CHALLENGE}],
 }
-_RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?": str, "supports?": str,
+_RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?": str, "supports?": str, "fingerprint?": str,
                "reason?": str, "scope?": str, "until?": str, "signer?": str, "signature?": str}
 _RECORD = {
     "created_at": str,
@@ -163,8 +163,13 @@ _RECORD = {
         "runs?": [{"tool": str, "outcomes": {"*": str}}],
     },
     "follows?": {"task": str, "brief": str, "status": str, "decision": _DECISION},
+    "after?": [str],
     "authorizations?": [{"action": str, "target": str, "decision": str, "by": str, "reason": str}],
     "dependency_alerts?": {"alerts?": [dict]},
+    "delivered_review?": {"boards": {"*": {
+        "base": str, "revision": str, "at": str,
+        "findings": [{"file": str, "line": int, "severity": frozenset(delivered_review.SEVERITIES),
+                      "action": frozenset(delivered_review.ACTIONS), "finding": str}]}}},
 }
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
 
@@ -250,8 +255,53 @@ def validate_brief(brief: str) -> str:
     return redact_credentials(brief)
 
 
+def _dependency_cycle(state: Path, task_id: str, after: list[str]) -> list[str] | None:
+    """The chain of --after links that would lead from a new task back to itself, if any: a task can only wait for
+    one that is gone and whose ID is taken again."""
+    def walk(current: str, path: list[str]) -> list[str] | None:
+        if current == task_id:
+            return path
+        if current in seen:
+            return None
+        seen.add(current)
+        try:
+            waits = read_task(state, current).get("after", [])
+        except ValueError:
+            return None
+        return next((found for name in waits if (found := walk(name, [*path, name]))), None)
+    seen: set[str] = set()
+    return next((found for name in after if (found := walk(name, [task_id, name]))), None)
+
+
+def dependencies(state: Path, task_id: str, after: list[str]) -> dict[str, str]:
+    """The tasks a new task waits for, with their status; an unknown ID, the task itself or a cycle is refused."""
+    found = {}
+    for name in dict.fromkeys(after):
+        if name == task_id:
+            raise ValueError(f"A task cannot wait for itself: {task_id}.")
+        found[name] = read_task(state, name)["status"]
+    cycle = _dependency_cycle(state, task_id, list(found))
+    if cycle:
+        raise ValueError(f"Task {task_id} cannot wait for {cycle[1]}: that would close a cycle "
+                         f"({' -> '.join(cycle)}). Remove that --after.")
+    return found
+
+
+def waiting_for(task: dict, statuses: dict[str, str]) -> list[dict]:
+    """The tasks this one waits for that are not done yet, with their status; one that no longer exists still holds
+    it back, as unknown."""
+    return [{"task": name, "status": statuses.get(name, "unknown")} for name in task.get("after", [])
+            if statuses.get(name) not in DONE_STATUSES]
+
+
+def waits_line(waiting: list[dict]) -> str:
+    """auth-flow (draft) and api-schema (approved)."""
+    names = [f"{item['task']} ({item['status']})" for item in waiting]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + f" and {names[-1]}"
+
+
 def create_task(state: Path, brief: str, task_id: str | None, follows: str | None = None,
-                lane: dict | None = None) -> str:
+                lane: dict | None = None, after: list[str] | None = None) -> str:
     brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
         raise ValueError("The task ID is empty. Omit --id to generate one.")
@@ -268,6 +318,8 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
         "rounds": [],
         **(lane or {}),
     }
+    if after:
+        record["after"] = list(dependencies(state, task_id, after))
     if follows is not None:
         previous = read_task(state, follows)
         if "decision" not in previous:
@@ -556,13 +608,14 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     rows = []
     if not directory.is_dir():
         return rows
-    entries = []
+    entries, statuses = [], {}
     for path in sorted(directory.glob("*.json")):
         try:
             task = read_task(state, path.stem)
         except ValueError as error:
             entries.append({"id": path.stem, "status": "unreadable", "next": str(error)})
             continue
+        statuses[task["id"]] = task["status"]
         if read is not None:
             read[task["id"]] = task
         day = task["created_at"][:10]
@@ -609,6 +662,14 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
             row["follows"] = task["follows"]["task"]
         if light_lane.is_light(task):
             row.update(lane=task["lane"], paths=task["paths"])
+        changed = changed_evidence(task, root) if root is not None else []
+        if changed:
+            row["evidence_changed"] = changed
+        if task.get("after"):
+            row["after"] = task["after"]
+            waiting = waiting_for(task, statuses)
+            if waiting:
+                row["waiting_for"] = waiting
         rows.append(row)
     return rows
 
@@ -1061,7 +1122,7 @@ def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
         "consultation_id": task["consultation"]["id"],
         "review_sha256": seal(task["review"]),
         "blocker": blocker_id,
-        **{key: entry[key] for key in ("by", "evidence", "supports")},
+        **{key: entry[key] for key in ("by", "evidence", "supports", "fingerprint") if key in entry},
     }
 
 
@@ -1117,6 +1178,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                 raise ValueError(f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
+        entry["fingerprint"] = evidence_fingerprint(root, entry["evidence"])
         policy = approval_policy(profile)
         if signing_payload:
             if policy["mode"] != "signed":
@@ -1177,6 +1239,38 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
             except ValueError as error:
                 problems.append(f"Verification blocker {item['id']}: {error}")
     return problems
+
+
+CHANGED_EVIDENCE_GROUP = "Evidence changed since it was accepted"
+
+
+def evidence_states(task: dict, root: Path) -> list[dict]:
+    """Each evidence a clearance or a passed named evidence cites, with its state now, once one has a fingerprint:
+    a task recorded before fingerprints lists none."""
+    cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
+             for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "cleared"]
+    cited += [(item["evidence"], item["check"], item.get("fingerprint")) for item in task.get("result", {}).get("checks", [])
+              if item["check"].startswith("evidence:") and item["status"] == "passed" and "evidence" in item]
+    if not any(fingerprint for _, _, fingerprint in cited):
+        return []
+    return [{"evidence": value, "for": name, "state": evidence_state(root, value, fingerprint)}
+            for value, name, fingerprint in cited]
+
+
+def changed_evidence(task: dict, root: Path) -> list[str]:
+    """The evidence changed or gone since it was accepted, with who accepted it and when: an open point of the
+    closing and a line of task list. guard --ci does not read it (question Q2 of the plan is not decided)."""
+    accepted = {f"blocker {item['id']}": f"cleared on {item['resolution'].get('at', '')[:10]} by {item['resolution']['by']}"
+                for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "cleared"}
+    accepted.update({item["check"]: f"confirmed by {item.get('owner', 'nobody named')}"
+                     for item in task.get("result", {}).get("checks", []) if item["check"].startswith("evidence:")})
+    points = []
+    for item in evidence_states(task, root):
+        if item["state"] in ("changed", "missing"):
+            how = "was cleared" if item["for"].startswith("blocker ") else "was recorded"
+            points.append(f"{item['evidence']} {'changed' if item['state'] == 'changed' else 'is missing'} since "
+                          f"{item['for']} {how} ({accepted[item['for']]})")
+    return points
 
 
 def record_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
@@ -1245,7 +1339,7 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
                 + completion_problems(task, profile, relevance, changed=changed, root=root))
     if problems:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
-    groups = points_left_open(task, profile, relevance)
+    groups = points_left_open(task, profile, relevance, root)
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
         raise ValueError(
@@ -1302,8 +1396,9 @@ def _blocks_not_lifted(task: dict) -> list[str]:
     return points
 
 
-def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
-    """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out."""
+def points_left_open(task: dict, profile: dict, relevance: dict | None = None, root: Path | None = None) -> list[dict]:
+    """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out. With the
+    project root, evidence changed since it was accepted too."""
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
     reported = outcomes(task, profile, relevance)
     sensitive, other = [], []
@@ -1325,6 +1420,8 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None) -
     groups = [
         (SENSITIVE_GROUP, sensitive),
         ("Board blocks not lifted", _blocks_not_lifted(task)),
+        (delivered_review.FINDINGS_GROUP, delivered_review.open_points(task)),
+        (CHANGED_EVIDENCE_GROUP, changed_evidence(task, root) if root is not None else []),
         (NOT_RUN_GROUP, [
             f"{item['check']} could not run: {item['reason']} (recorded by {item['owner']})"
             for item in result.get("checks", []) if item.get("cannot_run")]),

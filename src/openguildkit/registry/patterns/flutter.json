@@ -1,0 +1,45 @@
+{
+  "id": "flutter",
+  "title": "Flutter app",
+  "description": "Review the lockfile, analysis, formatting, secrets, obfuscated builds, accessibility and store release of a Flutter app; a Dart package without Flutter does not match.",
+  "sources": [
+    {
+      "title": "Flutter docs, security",
+      "url": "https://docs.flutter.dev/security",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Dart docs, customizing static analysis",
+      "url": "https://dart.dev/tools/analysis",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Dart docs, package dependencies: SDK dependencies",
+      "url": "https://dart.dev/tools/pub/dependencies",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Dart docs, the pubspec file: SDK constraints",
+      "url": "https://dart.dev/tools/pub/pubspec",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "flutter",
+    "mobile-accessibility",
+    "mobile-store-release"
+  ],
+  "match": {
+    "stack": [
+      [
+        "flutter"
+      ]
+    ]
+  }
+}

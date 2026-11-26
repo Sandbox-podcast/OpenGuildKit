@@ -65,7 +65,7 @@ jobs:
           mkdir "$RUNNER_TEMP/release"
           cd "$RUNNER_TEMP/release"
           gh release download "$TAG" --pattern "openguildkit-$VERSION-py3-none-any.whl" \
-            --pattern "openguildkit-$VERSION.tgz" --pattern SHA256SUMS.txt
+            --pattern "openguildkit-$VERSION.tgz" --pattern install.sh --pattern install.ps1 --pattern SHA256SUMS.txt
           ls -l
           cat SHA256SUMS.txt
 

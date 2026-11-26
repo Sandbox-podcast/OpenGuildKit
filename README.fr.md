@@ -21,7 +21,13 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
-Pour une équipe, installe plutôt sur chaque poste la roue d'une [release GitHub](https://github.com/Sandbox-podcast/OpenGuildKit/releases), avec pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) ou uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). OpenGuildKit n'est pas sur PyPI. [Installer une release GitHub](docs/install.md) donne le téléchargement, la vérification des empreintes et les fichiers de l'agent.
+Pour une équipe, installe plutôt sur chaque poste la dernière [release GitHub](https://github.com/Sandbox-podcast/OpenGuildKit/releases). Cette ligne télécharge sa roue, vérifie son empreinte SHA-256 dans le `SHA256SUMS.txt` de la release, puis seulement l'installe avec pipx, ou uv si pipx manque ; pour une autre version, remplace le `sh` final par `sh -s -- --version X.Y.Z` :
+
+```sh
+curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+```
+
+OpenGuildKit n'est pas sur PyPI. À la main, la même roue s'installe avec pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) ou uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). [Installer une release GitHub](docs/install.md) donne la ligne pour Windows, le téléchargement et la vérification des empreintes à la main, et les fichiers de l'agent.
 
 La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 
@@ -52,6 +58,8 @@ openguildkit check
 ```
 
 Avec Claude Code, Codex ou Gemini CLI comme agent hôte, `check` échoue tant que `host apply` n'a pas installé les réglages et les hooks de l'hôte : lance-le d'abord. Avec un autre agent, passe-le ; il n'écrit rien pour cet hôte. Sans terminal, dans un script ou depuis ton agent, `openguildkit init --questions` imprime le questionnaire en JSON et `openguildkit init --answers reponses.json` lit les réponses dans un fichier. Le fichier doit répondre à `personal_data` (`yes`, `no` ou `unsure`, qui propose les lois sur les données personnelles) : sans cette réponse, `init` n'écrit rien et nomme la question.
+
+Pour configurer un second dépôt comme le premier, lance `openguildkit profile export > answers.json` dans le premier et `openguildkit init --answers answers.json` dans le second : mêmes patterns, packs, boards, garde-fou et conventions. Les noms des personnes, l'historique des changements, le fichier des signataires, les chemins des composants et les commandes de vérification restent dans le premier, et un réglage qui nomme une personne ou abaisse une protection se tape de nouveau au terminal, par la personne, dans le second ; l'export imprime chacun ([reprendre le profil](docs/workflow.md#reuse-the-profile-in-another-repository)).
 
 `init` enregistre ton profil dans `.openguildkit/project.json` et écrit un bloc géré dans `AGENTS.md` : le workflow des tâches, les décisions du projet et chaque pack de règles avec les identifiants de ses règles, dont une passe de board ou `openguildkit task brief ID --pack PACK` imprime le texte. Il ajoute un import dans `CLAUDE.md` pour Claude Code. Les règles en vigueur sont figées dans `.openguildkit/catalog.lock.json` : après une mise à jour d'OpenGuildKit, `openguildkit update` montre la date du catalogue installé (le jour où ses sources ont été vérifiées pour la dernière fois), le nombre d'enregistrements modifiés et ce qui changerait, et `openguildkit update --apply` l'adopte. Il affiche ensuite les étapes suivantes qui s'appliquent, comme `openguildkit host apply` pour ton agent et `openguildkit tools plan ...` pour les outils que le registre connaît. [Installe le skill](integrations/) pour répondre au questionnaire dans Claude Code ou Codex et lancer des tâches depuis la conversation. Pour changer le profil ensuite (adopter ou refuser une réglementation, ajouter un contrôle, changer d'agent ou de garde-fou), utilise `openguildkit profile` : la commande enregistre qui, quand et pourquoi, et réécrit `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 

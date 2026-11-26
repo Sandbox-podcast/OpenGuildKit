@@ -1,0 +1,32 @@
+{
+  "id": "phoenix",
+  "title": "Phoenix",
+  "description": "Review CSRF protection, browser headers, raw/1, Ecto fragments and runtime secrets in a Phoenix application.",
+  "sources": [
+    {
+      "title": "Phoenix v1.8.17 guides, security",
+      "url": "https://phoenix.hexdocs.pm/security.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Phoenix v1.8.17 guides, deployment",
+      "url": "https://phoenix.hexdocs.pm/deployment.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "phoenix"
+  ],
+  "match": {
+    "stack": [
+      [
+        "phoenix"
+      ]
+    ]
+  }
+}

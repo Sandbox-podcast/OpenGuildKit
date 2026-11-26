@@ -55,6 +55,10 @@ A decision record also carries free text: the `brief`, the review `summary`, eac
 
 The task record also keeps the brief, the answers, the boards' reviews, the reasons and the evidence. `task new`, `task consult` and `task result` replace what looks like a credential with a placeholder, and warn when a brief, answers or a result hold an email address, a phone number or a bank account number: they record them anyway, and `docs export` warns again before it publishes them. `task list --json` shows the approver as `owner` and the person who closed the task as `closed_by`. The tool does not store what commands print, but a CI log keeps what the commands it runs print.
 
+### Read and shown, never written
+
+The `owners` of each rule of the project's CODEOWNERS (`.github/CODEOWNERS`, `CODEOWNERS` or `docs/CODEOWNERS`) are often handles or email addresses. The decision brief and the handoff name the owners of the paths a task touches, read again from that file at each display ([code owners](workflow.md#code-owners-of-the-touched-paths)). No task record, exported record or other file of the tool keeps them: whether a committed record may is still undecided. The file is the team's own, and the same advice holds: a team handle such as `@org/team-api` rather than a person.
+
 ### The CI coordinator
 
 `integrations/ci`, the Node.js coordinator of the export-expiry pilot, reads people it does not write: `adoption.approver` in the pilot profile, `waiverApprovers` in its configuration and the `approver` of each waiver in the registry of the policy repository. `openguildkit-agent` copies `approver` into the `brief.json` it writes, and the pull request report names the approver of the waiver that applies. People write those files in the repositories they choose; the same advice holds: a handle such as `@security`, not a name.

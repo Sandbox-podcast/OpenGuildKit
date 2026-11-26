@@ -10,7 +10,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, light_lane
+from . import alerts_cli, delivered_review, light_lane
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
@@ -35,7 +35,7 @@ from .retro import (
     DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, render_project, render_task, task_retro,
 )
 from .results import (
-    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs,
+    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs, evidence_state,
     completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
     expected_checks, keep_declarations, missing_scenarios, outcomes, result_template, run_command_checks,
     set_aside_rules,
@@ -51,7 +51,7 @@ from .tasks import (
     next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
     record_consultation, record_decision, record_deliberation, record_result, record_review, require_approval,
     require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
-    submit_pass, task_path, timestamp, verification_blocker_problems,
+    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line,
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
@@ -103,6 +103,9 @@ def add_parser(commands) -> None:
     new.add_argument("--file", type=Path, help="Read the brief from a UTF-8 Markdown or text file.")
     new.add_argument("--id", help="Use a readable lowercase task ID.")
     new.add_argument("--follows", metavar="TASK", help="Link the task to an earlier task's decision.")
+    new.add_argument("--after", action="append", metavar="TASK",
+                     help="A task this one waits for; repeat it for each. task list --ready leaves the task out until "
+                          "they are done.")
     new.add_argument("--lane", choices=(light_lane.LANE,),
                      help="Open the task in the short lane, which a person turned on in the profile: one board, no "
                           "questionnaire, limited to --paths.")
@@ -115,6 +118,8 @@ def add_parser(commands) -> None:
                                          "change request or the withdrawal of an approval.")
     listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
     listing.add_argument("--until", help="Created on or before YYYY-MM-DD.")
+    listing.add_argument("--ready", action="store_true",
+                         help="Only open tasks whose dependencies (task new --after) are all done.")
     listing.add_argument("--json", action="store_true", help="Print the tasks as JSON.")
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
@@ -133,6 +138,7 @@ def add_parser(commands) -> None:
         command.add_argument("id", help="Task ID.")
         for add_options in ACTION_OPTIONS.get(action, ()):
             add_options(command)
+    delivered_review.add_parser(actions)
 
 
 def _json_option(text: str):
@@ -897,6 +903,10 @@ def _template(args, root: Path, state: Path, profile: dict, catalog: dict, task:
 def _blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The review's blockers and how each was resolved."""
     items = blocker_list(task)
+    for item in items:
+        resolution = item["resolution"]
+        if resolution and resolution["kind"] == "cleared" and "fingerprint" in resolution:
+            item["evidence_state"] = evidence_state(root, resolution["evidence"], resolution["fingerprint"])
     if args.json:
         print_json(items)
     elif not items:
@@ -913,12 +923,20 @@ def _blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task:
             if item.get("owner"):
                 print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
             if resolution and resolution["kind"] == "cleared":
-                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}")
+                state = EVIDENCE_WORDS[item.get("evidence_state", "no fingerprint")]
+                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}; {state}")
             if expired:
                 print(f"    waived by {resolution['by']}: {resolution['reason']} (scope: {resolution['scope']}); "
                       "the blocker is open again")
             if resolution and resolution.get("recorded_from") == "no terminal":
                 print("    recorded without a terminal")
+
+
+EVIDENCE_WORDS = {"unchanged": "fingerprint: unchanged since it was cleared",
+                  "changed": "fingerprint: changed since it was cleared",
+                  "missing": "fingerprint: the evidence is missing since it was cleared",
+                  "external": "fingerprint: external link, cannot be checked",
+                  "no fingerprint": "no fingerprint: cleared before OpenGuildKit recorded one"}
 
 
 def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1149,7 +1167,7 @@ def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task
         print(recall)
     lines = (decision_text(task, profile, last_approval(state), load_register(state))
              if "review" in task else None)
-    print(challenge_report(task, lines), end="")
+    print(challenge_report(task, lines, root), end="")
 
 
 def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1207,7 +1225,7 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         catalog = project_catalog(args, state)
         profile = load_profile(state, catalog)
         require_instructions(args, root, state, profile, catalog)
-        controls = host_controls(root, profile)
+        controls = host_controls(root, profile, other_tools=False)
         market = None
         if args.market:
             public = profile.get("research") == "public-sources" and answers.get("research") == "public"
@@ -1391,9 +1409,20 @@ def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         checks = expected_checks(task, profile, _relevance(root, task, profile, catalog))
     if task.get("status") == "approved":
         evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
-    output = handoff(task, evidence, checks)
+    output = handoff(task, evidence, checks, root)
     require_instructions(args, root, state, profile, catalog)
+    waits = waiting_for(task, {name: _status_of(state, name) for name in task.get("after", [])})
+    if task["status"] == "approved" and waits:
+        print(f"Waits for {waits_line(waits)}: deliver {'it' if len(waits) == 1 else 'them'} first; the order stays "
+              "the person's decision.")
     print(output)
+
+
+def _status_of(state: Path, task_id: str) -> str:
+    try:
+        return read_task(state, task_id)["status"]
+    except ValueError:
+        return "unknown"
 
 
 def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
@@ -1409,8 +1438,13 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             raise ValueError(f"Task ID {args.id} is already used by the exported decision "
                              f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
                              f"with openguildkit task show {args.id}, and choose another ID.")
-        task_id = create_task(state, brief, args.id, args.follows, lane)
+        task_id = create_task(state, brief, args.id, args.follows, lane, args.after)
+        statuses = {name: read_task(state, name)["status"] for name in dict.fromkeys(args.after or [])}
     print(task_id)
+    if statuses:
+        waits = waiting_for({"after": list(statuses)}, statuses)
+        print(f"Waits for {waits_line(waits)}." if waits else f"Its dependencies are done: {', '.join(statuses)}.",
+              file=sys.stderr)
     _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
@@ -1434,6 +1468,8 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         return
     rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
                       root=root)
+    if args.ready:
+        rows = [row for row in rows if row["status"] not in (*DONE_STATUSES, "unreadable") and not row.get("waiting_for")]
     clashes = _id_clashes(root, state)
     for row in rows:
         if row["id"] in clashes:
@@ -1457,6 +1493,10 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
             print(f"    next: {row['next']}")
             if row.get("note"):
                 print(f"    note: {row['note']}")
+            for line in row.get("evidence_changed", []):
+                print(f"    changed evidence: {line}")
+            if row.get("waiting_for"):
+                print(f"    waits for: {', '.join(item['task'] + ' (' + item['status'] + ')' for item in row['waiting_for'])}")
 
 
 def _retro_record(root: Path, state: Path, task_id: str) -> dict:
@@ -1549,9 +1589,10 @@ HANDLERS = {
     "respond": _respond, "challenge": _challenge, "route": _route, "consult": _consult, "review": _review,
     "pass": _pass, "submit": _pass, "progress": _progress, "decide": _decide, "revoke": _revoke,
     "decision-payload": _decision_payload, "authorize": _authorize, "handoff": _handoff,
+    "diff-review": lambda args, root, state, profile, catalog, task: delivered_review.run(args, root, state, task),
 }
 # The actions that read an approval: an approval that no longer holds stops them, or is shown with show and checks.
-READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete")
+READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete", "diff-review")
 
 
 def run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:

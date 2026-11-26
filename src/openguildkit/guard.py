@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 
 from . import light_lane
 from .catalog import load_catalog
+from .delivered_review import exported_review
 from .decisions import (
     DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
@@ -26,7 +27,9 @@ from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import STALE_DAYS, STATUSES, approval_problem, days_since, expired_waiver_problem, read_task, task_path
+from .tasks import (
+    STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
+)
 from .terminal import interactive
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
@@ -470,12 +473,20 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     blockers = exported_blockers(task)
     if blockers:
         record["blockers"] = blockers
+    # The state of each evidence at the export, once one has a fingerprint (task clear, task result).
+    states = evidence_states(task, root)
+    if states:
+        record["evidence_states"] = states
     if task.get("follows"):
         record["follows"] = task["follows"]["task"]
     # The regulations and patterns the profile declined when the task was consulted, with who, when and why.
     declined = task.get("consultation", {}).get("scope", {}).get("declined")
     if declined:
         record["declined"] = declined
+    # The boards' findings on the delivered diff, when they reviewed it (task diff-review).
+    findings = exported_review(task)
+    if findings:
+        record["delivered_review"] = findings
     # What was added after the approval (completion, result) is covered by a digest of the whole record.
     record["record_sha256"] = record_digest(record)
     write_json(path, record)

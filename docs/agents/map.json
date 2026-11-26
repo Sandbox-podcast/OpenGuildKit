@@ -208,6 +208,7 @@
         "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
+        "tests/test_install_script.py",
         "tests/test_integrations.py",
         "tests/test_next_steps.py",
         "tests/test_performance.py",
@@ -270,6 +271,7 @@
       ],
       "tests": [
         "tests/test_agent_native.py",
+        "tests/test_assumptions.py",
         "tests/test_blocker_clearances.py",
         "tests/test_blockers.py",
         "tests/test_board_entries.py",
@@ -315,7 +317,7 @@
     },
     {
       "module": "src/openguildkit/deliverables.py",
-      "role": "Business deliverable templates: inputs, tool actions that need approval, reviewer checks.",
+      "role": "Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision record filled from a decision task.",
       "entry": [
         "project_path",
         "load_deliverables",
@@ -330,6 +332,28 @@
         "tests/test_tools.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/delivered_review.py",
+      "role": "The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them.",
+      "entry": [
+        "add_parser",
+        "delivered_change",
+        "board_brief",
+        "record_findings",
+        "open_points",
+        "exported_review",
+        "run"
+      ],
+      "tests": [
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py",
+        "tests/test_command_output_budget.py"
+      ],
+      "doc": "docs/architecture.md",
+      "covers": [
+        "tests/fixtures/upgrade/before-delivered-review.json"
+      ]
     },
     {
       "module": "src/openguildkit/detect.py",
@@ -397,7 +421,10 @@
         "tests/test_record_lifecycle.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
-        "tests/test_task_index.py"
+        "tests/test_task_index.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -417,7 +444,8 @@
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
         "tests/test_hosts.py",
-        "tests/test_next_steps.py"
+        "tests/test_next_steps.py",
+        "tests/test_unhooked_hosts.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -545,6 +573,21 @@
       "tests": [
         "tests/e2e/test_tool_mocks.py",
         "tests/test_project_mcp.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/owners.py",
+      "role": "Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record.",
+      "entry": [
+        "parse",
+        "owners_of",
+        "read_codeowners",
+        "touched_paths",
+        "owner_line"
+      ],
+      "tests": [
+        "tests/test_owners.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -679,6 +722,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/projects_cli.py",
+      "role": "The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_command_output_budget.py",
+        "tests/test_projects.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/prompts.py",
       "role": "Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`.",
       "entry": [
@@ -721,6 +778,7 @@
         "open_points"
       ],
       "tests": [
+        "tests/test_assumptions.py",
         "tests/test_brain_selection.py",
         "tests/test_first_run.py",
         "tests/test_questions.py",
@@ -784,7 +842,8 @@
       "tests": [
         "tests/test_recorded_values.py",
         "tests/test_relevance.py",
-        "tests/test_results.py"
+        "tests/test_results.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1040,7 +1099,8 @@
       "tests": [
         "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
-        "tests/test_host_surfaces.py"
+        "tests/test_host_surfaces.py",
+        "tests/test_unhooked_hosts.py"
       ],
       "doc": "docs/host-scan.md"
     },
@@ -1076,7 +1136,11 @@
         "tests/test_deliberation.py",
         "tests/test_performance.py",
         "tests/test_retro.py",
-        "tests/test_light_lane.py"
+        "tests/test_light_lane.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py",
+        "tests/test_task_dependencies.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1093,7 +1157,12 @@
         "tests/test_architecture.py",
         "tests/test_next_steps.py",
         "tests/e2e/test_light_lane.py",
-        "tests/test_light_lane.py"
+        "tests/test_light_lane.py",
+        "tests/test_unhooked_hosts.py",
+        "tests/test_delivered_review.py",
+        "tests/test_before_delivered_review.py",
+        "tests/test_task_dependencies.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1150,6 +1219,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/trace_cli.py",
+      "role": "The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_architecture.py",
+        "tests/test_command_output_budget.py",
+        "tests/test_trace.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/webui.py",
       "role": "The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal.",
       "entry": [
@@ -1181,6 +1264,7 @@
         "review_warnings"
       ],
       "tests": [
+        "tests/test_assumptions.py",
         "tests/test_blocker_clearances.py",
         "tests/test_blockers.py",
         "tests/test_board_entries.py",
@@ -1190,7 +1274,9 @@
         "tests/test_decision_brief.py",
         "tests/test_deliberation.py",
         "tests/test_light_lane.py",
-        "tests/test_output_size.py"
+        "tests/test_output_size.py",
+        "tests/test_owners.py",
+        "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
     }

@@ -1,0 +1,32 @@
+{
+  "id": "elixir-mix",
+  "title": "Elixir with Mix",
+  "description": "Review the lockfile, compiler warnings, formatting and the Hex audit of an Elixir project built with Mix.",
+  "sources": [
+    {
+      "title": "Mix v1.20.5, mix format",
+      "url": "https://mix.hexdocs.pm/Mix.Tasks.Format.html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Hex documentation, mix hex.audit",
+      "url": "https://hex.hexdocs.pm/Mix.Tasks.Hex.Audit.html",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "qa",
+    "security"
+  ],
+  "packs": [
+    "elixir-mix"
+  ],
+  "match": {
+    "stack": [
+      [
+        "elixir"
+      ]
+    ]
+  }
+}

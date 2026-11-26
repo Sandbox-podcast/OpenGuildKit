@@ -18,6 +18,7 @@ from .catalog import (
     validate_text,
 )
 from .storage import write_text
+from .workflow import blocker_list, is_decision_task, objections
 
 DATA_CLASSES = ("none", "internal", "personal", "regulated")
 ACTIONS = ("public-research", "external-api", "send-message", "publish", "install-dependency", "other")
@@ -60,8 +61,8 @@ def project_path(root: Path, state: Path, value: Path | str, option: str) -> Pat
 
 
 def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
-    validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool"})
-    for flag in ("market", "requires_tool"):
+    validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool", "decision"})
+    for flag in ("market", "requires_tool", "decision"):
         if flag in record and not isinstance(record[flag], bool):
             raise CatalogError(f"{flag} must be true or false")
     validate_id(record["id"], "id")
@@ -165,6 +166,123 @@ def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
         f"cite observations as market:{dossier['id']}/ID"]
 
 
+def _quoted(text: object) -> list[str]:
+    """What a person typed, as a Markdown quote: a heading of theirs cannot open a section of the draft."""
+    if not isinstance(text, str) or not text.strip():
+        return []
+    return [f"> {line}".rstrip() for line in text.strip().splitlines()]
+
+
+def _one_line(text: object) -> str:
+    return " ".join(text.split()) if isinstance(text, str) else ""
+
+
+def _day(stamp: object) -> str:
+    return stamp[:10] if isinstance(stamp, str) else ""
+
+
+def _status_lines(task: dict) -> list[str]:
+    task_id, approved = task["id"], _day(task.get("decision", {}).get("at"))
+    accepted = f"Accepted: decision task `{task_id}` approved on {approved}"
+    closed = _day(task.get("completed_at"))
+    if task["status"] == "done":
+        lines = [f"{accepted} and closed on {closed}."]
+    elif task["status"] == "done-with-reservations":
+        # The closing names who closed the task in its lines: the draft points to it rather than copy it.
+        lines = [f"{accepted} and closed with reservations on {closed}: openguildkit task show {task_id} --closing "
+                 "lists them."]
+    else:
+        lines = [f"{accepted}. It is not closed yet: openguildkit task complete {task_id} closes it."]
+    follows = task.get("follows")
+    if isinstance(follows, dict) and follows.get("task"):
+        lines.append(f"It follows the decision of task `{follows['task']}`.")
+    return lines
+
+
+def _advice_lines(task: dict) -> list[str]:
+    """Each committee's verdict and recommendation, then what the deliberation left open, or the objections that
+    no deliberation answered and the person decided when approving."""
+    review = task.get("review", {})
+    lines = [f"- {entry['id']} ({entry.get('challenge', {}).get('verdict', 'no verdict')}): "
+             f"{_one_line(entry.get('recommendation'))}" for entry in review.get("boards", [])]
+    if not lines:
+        lines = ["No committee review is recorded."]
+    deliberation = task.get("deliberation")
+    if deliberation:
+        points = {item["id"]: _one_line(item.get("point")) for item in deliberation.get("objections", [])}
+        left = deliberation.get("open", [])
+        lines += ["", f"Deliberation: {len(deliberation.get('agreed', []))} resolved, {len(left)} left open."]
+        lines += [f"- Disagreement left open, {item_id}: {points.get(item_id, '')}" for item_id in left]
+        if left and deliberation.get("decision_needed"):
+            lines.append(f"- Decision needed: {_one_line(deliberation['decision_needed'])}")
+        if not left:
+            lines.append("No disagreement was left open between the committees.")
+        return lines
+    try:
+        pending = objections(review, task.get("consultation", {}).get("domains"))
+    except (KeyError, TypeError, AttributeError, ValueError):
+        return [*lines, "", "The objections between committees cannot be read from this task record."]
+    if not pending:
+        return [*lines, "", "No disagreement was left open between the committees."]
+    lines += ["", f"{len(pending)} objection{'' if len(pending) == 1 else 's'} not deliberated, "
+                  f"{', '.join(item['id'] for item in pending)}: the person decided them when approving."]
+    return [*lines, *(f"- {item['id']}: {_one_line(item.get('point'))}" for item in pending)]
+
+
+def _condition_lines(task: dict) -> list[str]:
+    """Each blocker a committee set, without who owns, cleared or waived it: only the decision's own name is kept."""
+    lines = []
+    for item in blocker_list(task):
+        when = "after the decision" if item.get("phase") == "verification" else "before the decision"
+        line = f"- {item['id']}, {when}: {_one_line(item.get('finding'))}"
+        if item.get("clears_when"):
+            line += f" Clears when: {_one_line(item['clears_when'])}"
+        resolution = item["resolution"]
+        if not resolution:
+            line += (" Open: it is cleared after the decision and before the task closes."
+                     if item.get("phase") == "verification" else " Open.")
+        elif resolution.get("kind") == "cleared":
+            line += f" Cleared: {resolution.get('evidence', '')} supports that {_one_line(resolution.get('supports'))}"
+        else:
+            line += (f" Waived until {resolution.get('until', '')}: {_one_line(resolution.get('reason'))} "
+                     f"(scope: {_one_line(resolution.get('scope'))})")
+        lines.append(line)
+    return lines or ["No condition: no committee set a blocker."]
+
+
+def decision_sections(task: dict) -> dict[str, list[str]]:
+    """The sections of an architecture decision record, filled from a decision task. The only person named is the
+    one the decision names; a section the task cannot fill says TODO with what to write."""
+    task_id, answers, decision = task["id"], task.get("answers", {}), task.get("decision", {})
+    context = _quoted(task.get("brief"))
+    for label, key in (("Context given at consultation", "context"), ("Who it affects", "affected")):
+        if _quoted(answers.get(key)):
+            context += ["", f"{label}:", "", *_quoted(answers[key])]
+    options = _quoted(answers.get("options")) or [
+        "TODO: the task records no answer to the options question; list the options considered."]
+    chosen = [*_quoted(decision.get("reason")), "",
+              f"Approved by {decision.get('by', '')} on {_day(decision.get('at'))}."]
+    summary = _quoted(task.get("review", {}).get("summary"))
+    if summary:
+        chosen += ["", "The committees' review in short:", "", *summary]
+    record = [f"- Exported decision record: `.openguildkit/decisions/{task_id}.json`, written by "
+              f"`openguildkit task export {task_id}` (again after the task closes)."]
+    if decision.get("seal"):
+        record.append(f"- Decision seal: `{decision['seal']}`")
+    return {"status": _status_lines(task), "context": context, "options": options, "decision": chosen,
+            "advice": _advice_lines(task), "conditions": _condition_lines(task), "record": record,
+            "_inputs": [f"`{task_id}` ({task['status']})"],
+            "_sources": [f"- Decision task `{task_id}`, approved on {_day(decision.get('at'))}: "
+                         f"`.openguildkit/decisions/{task_id}.json`"]}
+
+
+def _decision_refusal(deliverable: dict, task: dict) -> ValueError:
+    kind = task.get("answers", {}).get("kind") or "unanswered"
+    return ValueError(f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
+                      "Open a decision task (answer kind decision at task consult) for the choice to record, or pick "
+                      "another template: openguildkit deliverable list.")
+
+
 def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
     """Write the draft. The tool is optional unless the template requires one: its actions are authorized one by
     one with task authorize. The draft may go to a client, so the approval stays in the task record.
@@ -175,9 +293,13 @@ def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: l
         raise ValueError("This template needs --tool, one of the project's approved tools.")
     if tool is not None and approved_tools and tool not in approved_tools:
         raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
+    if deliverable.get("decision") and not is_decision_task(task):
+        raise _decision_refusal(deliverable, task)
     if output.exists():
         raise ValueError(f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
+    filled = decision_sections(task) if deliverable.get("decision") else {}
+    inputs = filled.get("_inputs")
     lines = [
         "---",
         f"deliverable: {json.dumps(deliverable['id'])}",
@@ -186,17 +308,19 @@ def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: l
         *market_fields,
         "---",
         "",
-        f"# {deliverable['title']}",
+        f"# {deliverable['title']}" + (f": {task['id']}" if filled else ""),
         "",
         "## Inputs",
         "",
-        *[f"- {item['label']}: TODO" for item in deliverable["inputs"]],
+        *[f"- {item['label']}: {inputs[0] if inputs else 'TODO'}" for item in deliverable["inputs"]],
         *market_inputs,
         "",
     ]
     for section in deliverable["sections"]:
-        lines += [f"## {section['title']}", "", f"<!-- {section['prompt']} -->", "TODO", ""]
-    lines += ["## Sources", "", "- TODO: each source with its date or link", "", "## Checks", ""]
+        lines += [f"## {section['title']}", "", f"<!-- {section['prompt']} -->", *filled.get(section["id"], ["TODO"]),
+                  ""]
+    lines += ["## Sources", "", *filled.get("_sources", ["- TODO: each source with its date or link"]), "",
+              "## Checks", ""]
     lines += [f"- [ ] {check['id']}: {check['verification']} Evidence: " for check in deliverable["checks"]]
     write_text(output, "\n".join(lines) + "\n")
     entry = {"deliverable": deliverable["id"], "path": output.as_posix(), "created_at": clock.timestamp()}

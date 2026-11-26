@@ -11,11 +11,11 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | backend | 12 | 5 | 7 | 3 | 0 | 5 | 22 |
 | communication | 22 | 9 | 13 | 2 | 0 | 3 | 8 |
 | customer-success | 5 | 2 | 3 | 1 | 0 | 1 | 4 |
-| data | 63 | 16 | 47 | 6 | 1 | 8 | 41 |
-| design | 26 | 6 | 20 | 11 | 5 | 18 | 77 |
+| data | 64 | 19 | 45 | 6 | 3 | 10 | 53 |
+| design | 26 | 6 | 20 | 11 | 8 | 21 | 92 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 10 | 6 | 16 | 93 |
-| engineering | 220 | 39 | 181 | 15 | 30 | 51 | 296 |
+| devops | 69 | 22 | 47 | 10 | 7 | 17 | 99 |
+| engineering | 221 | 42 | 179 | 15 | 39 | 60 | 340 |
 | finance | 23 | 14 | 9 | 12 | 1 | 14 | 57 |
 | frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,9 +30,9 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 51 | 10 | 41 | 10 | 23 | 41 | 240 |
+| qa | 51 | 10 | 41 | 10 | 31 | 49 | 278 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
-| security | 106 | 31 | 75 | 24 | 21 | 56 | 360 |
+| security | 106 | 31 | 75 | 24 | 27 | 63 | 392 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
 | trust-and-safety | 5 | 3 | 2 | 1 | 0 | 1 | 5 |
 
@@ -43,11 +43,16 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | agentic-application-security | MCP / Model Context Protocol / LangGraph / CrewAI / OpenAI Agents SDK / Pydantic AI / Claude Agent SDK / AutoGen | agentic-application-security, secure-sdlc, threat-modeling | 24 |
 | android-kotlin | android | android-app, mobile-accessibility, mobile-store-release | 16 |
 | angular | angular | angular, typescript | 11 |
+| apache-airflow | apache airflow / airflow | apache-airflow | 6 |
 | aws-iam | aws / amazon web services | aws-iam | 6 |
 | chaosfolk-e2e | chaosfolk / chaos folk | chaosfolk-e2e | 10 |
+| dbt | dbt | dbt | 6 |
 | django | django | django, python | 10 |
 | docker-images | docker / dockerfile / containerfile | container-images | 6 |
 | dotnet-aspnet-core | asp.net core | api-design, aspnet-core | 8 |
+| elixir-mix | elixir | elixir-mix | 4 |
+| expo | expo | expo, react, react-native | 14 |
+| flutter | flutter | flutter, mobile-accessibility, mobile-store-release | 15 |
 | github-actions-ci | github actions / gh actions | github-actions-security | 5 |
 | gitlab-ci-security | gitlab ci / gitlab ci/cd | gitlab-ci-security | 7 |
 | go-postgresql | go / golang + postgresql / postgres | api-design, go-database, postgresql | 9 |
@@ -59,14 +64,18 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | nextjs-react | next.js | nextjs, react | 11 |
 | node-express | express / express.js | api-design, express | 10 |
 | pci-dss-cardholder-data | Stripe / Adyen / Braintree / Checkout.com / Worldpay / Mollie | pci-dss | 14 |
+| phoenix | phoenix | elixir-mix, phoenix | 9 |
 | playwright-web | playwright / playwright test | playwright | 4 |
 | postgresql-database | postgresql / postgres | postgresql | 3 |
 | python-development | python / python3 | python | 3 |
 | python-fastapi-postgresql | python / python3 + fastapi + postgresql / postgres | api-design, fastapi, postgresql, python | 13 |
 | python-pytest | python / python3 + pytest | pytest, python | 6 |
 | rails | rails / ruby on rails | rails | 7 |
+| react-native | react native / expo | mobile-accessibility, mobile-store-release, react, react-native | 19 |
 | react-web | react / react.js / next.js | react | 5 |
 | rust-cargo | rust | rust-cargo, rust-dependencies | 12 |
+| svelte | svelte / sveltekit | svelte | 4 |
+| sveltekit | sveltekit | svelte, sveltekit | 8 |
 | symfony | symfony | symfony, symfony-security | 11 |
 | terraform-kubernetes | terraform + kubernetes / k8s | terraform-kubernetes | 3 |
 | typescript-development | typescript / ts | typescript | 4 |
@@ -92,7 +101,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-43 of 616 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+57 of 660 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
@@ -104,6 +113,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | airworthiness-security | 7 | 0 | 7 |
 | android-app | 7 | 1 | 0 |
 | angular | 7 | 1 | 0 |
+| apache-airflow | 6 | 1 | 0 |
 | api-design | 3 | 0 | 0 |
 | aspnet-core | 5 | 1 | 0 |
 | aviation-information-security | 12 | 0 | 12 |
@@ -118,19 +128,23 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | controlled-experiments | 2 | 0 | 0 |
 | cyber-resilience-act | 6 | 2 | 4 |
 | data-definitions | 3 | 0 | 0 |
+| dbt | 6 | 1 | 0 |
 | deal-approval | 4 | 0 | 0 |
 | design-process | 2 | 0 | 0 |
 | device-and-access-lifecycle | 4 | 0 | 0 |
 | django | 7 | 1 | 0 |
 | dora | 7 | 0 | 7 |
+| elixir-mix | 4 | 3 | 0 |
 | employee-offboarding | 4 | 0 | 0 |
 | enterprise-risk-review | 2 | 0 | 0 |
 | eu-ai-act | 8 | 0 | 8 |
 | european-accessibility-act | 4 | 0 | 4 |
+| expo | 4 | 1 | 0 |
 | express | 7 | 1 | 0 |
 | fastapi | 4 | 1 | 0 |
 | financial-planning | 2 | 0 | 0 |
 | finops-cost-management | 4 | 0 | 0 |
+| flutter | 6 | 2 | 0 |
 | france-cookies-and-trackers | 8 | 0 | 8 |
 | france-e-invoicing | 7 | 0 | 7 |
 | france-health-data-hosting | 8 | 0 | 8 |
@@ -173,6 +187,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | partner-program | 4 | 0 | 0 |
 | pay-transparency | 5 | 0 | 0 |
 | pci-dss | 14 | 1 | 13 |
+| phoenix | 5 | 3 | 0 |
 | playwright | 4 | 0 | 0 |
 | postgresql | 3 | 0 | 0 |
 | product-discovery | 1 | 0 | 0 |
@@ -184,6 +199,7 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | python | 3 | 0 | 0 |
 | rails | 7 | 1 | 0 |
 | react | 5 | 1 | 0 |
+| react-native | 5 | 0 | 0 |
 | release-communication | 4 | 0 | 0 |
 | release-management | 4 | 0 | 0 |
 | responsibility-matrix | 1 | 0 | 0 |
@@ -201,6 +217,8 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 | structured-hiring | 3 | 0 | 0 |
 | supply-chain | 5 | 0 | 0 |
 | support-readiness | 4 | 0 | 0 |
+| svelte | 4 | 1 | 0 |
+| sveltekit | 4 | 2 | 0 |
 | symfony | 4 | 1 | 0 |
 | symfony-security | 7 | 2 | 0 |
 | terraform-kubernetes | 3 | 0 | 0 |
@@ -240,7 +258,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### data
 
-`acid`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `cap-theorem`, `cbor`, `csv`, `database-normalization`, `datasheets-for-datasets`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `dicom`, `dvc`, `eu-data-act`, `feast`, `great-expectations`, `hl7-fhir`, `iso-8601`, `iso-iec-23894`, `iso-iec-25012`, `iso-iec-42001`, `json`, `json-schema`, `messagepack`, `mitre-atlas`, `mlflow`, `mlops`, `model-cards`, `mqtt`, `nist-ssdf-ai-profile`, `onnx`, `owasp-agent-control-standard`, `owasp-llm-top-10`, `pmml`, `protocol-buffers`, `retrieval-augmented-generation`, `rfc-3339`, `sql`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `toml`, `xml`, `xsd`, `yaml`
+`acid`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `cap-theorem`, `cbor`, `csv`, `database-normalization`, `datasheets-for-datasets`, `delta-lake-protocol`, `dicom`, `dvc`, `eu-data-act`, `feast`, `great-expectations`, `hl7-fhir`, `iso-8601`, `iso-iec-23894`, `iso-iec-25012`, `iso-iec-42001`, `json`, `json-schema`, `messagepack`, `mitre-atlas`, `mlflow`, `mlops`, `model-cards`, `mqtt`, `nist-ssdf-ai-profile`, `onnx`, `owasp-agent-control-standard`, `owasp-llm-top-10`, `pmml`, `protocol-buffers`, `retrieval-augmented-generation`, `rfc-3339`, `sql`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `toml`, `xml`, `xsd`, `yaml`
 
 ### design
 
@@ -256,7 +274,7 @@ Documentary references of each brain: sources that no pack turns into rules yet.
 
 ### engineering
 
-`abac`, `acid`, `aes-fips-197`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `arc42`, `archimate`, `architecture-decision-records`, `asciidoc`, `asyncapi`, `backstage`, `behaviour-driven-development`, `bem`, `black`, `blue-green-deployment`, `bpmn`, `c4-model`, `camel-case`, `canary-deployment`, `cap-theorem`, `cbor`, `checkstyle`, `clang-format`, `clean-architecture`, `cloudevents`, `code-review`, `codeowners`, `commonmark`, `continuous-delivery`, `continuous-deployment`, `continuous-integration`, `contract-testing`, `conventional-comments`, `cpp-core-guidelines`, `cqrs`, `csharp-code-conventions`, `css`, `csv`, `cypress`, `dast`, `database-normalization`, `dbt`, `dbt-model-contracts`, `delta-lake-protocol`, `design-by-contract`, `developer-certificate-of-origin`, `dicom`, `dita`, `dmn`, `domain-driven-design`, `dry`, `dtcg-design-tokens`, `dvc`, `ecmascript`, `editorconfig`, `effective-go`, `end-to-end-testing`, `eslint`, `event-sourcing`, `feast`, `feature-flags`, `fido2`, `fips-140-3`, `fuzzing`, `gfm`, `gherkin`, `git-hooks`, `gitflow`, `github-flow`, `go-code-review-comments`, `google-java-style`, `google-javascript-style`, `google-search-essentials`, `google-typescript-style`, `graphql`, `great-expectations`, `grpc`, `hexagonal-architecture`, `hl7-fhir`, `hypothesis`, `iana-timezones`, `ias-38`, `integration-testing`, `iso-24089`, `iso-3166`, `iso-4217`, `iso-8601`, `iso-iec-25010`, `iso-iec-ieee-12207`, `iso-iec-ieee-42010`, `iso-sae-21434`, `jest`, `json`, `json-ld`, `json-rpc`, `json-schema`, `junit`, `jwe`, `jws`, `jwt`, `kebab-case`, `kiss`, `least-privilege`, `linux-kernel-coding-style`, `messagepack`, `microservices`, `mlflow`, `mlops`, `modular-monolith`, `mqtt`, `mutation-testing`, `nist-sp-800-63`, `nunit`, `oauth-2`, `oauth-security-bcp`, `odata`, `onnx`, `openfeature`, `openid-connect`, `osi-licenses`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pact`, `pascal-case`, `php-per-coding-style`, `php-psr12`, `pkce`, `platform-engineering`, `pmml`, `prettier`, `property-based-testing`, `protocol-buffers`, `pull-requests`, `python-pep257`, `rbac`, `rest`, `retrieval-augmented-generation`, `reuse`, `rfc-3339`, `robots-txt`, `ruby-style-guide`, `ruff`, `saml-2`, `sast`, `screaming-snake-case`, `secret-scanning`, `secure-by-design`, `selenium`, `server-sent-events`, `sitemaps`, `snake-case`, `soap`, `solid`, `sql`, `storybook`, `swift-api-design-guidelines`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `test-driven-development`, `test-pyramid`, `testcontainers`, `tls-1-3`, `togaf`, `toml`, `trunk-based-development`, `twelve-factor-app`, `uml`, `unicode-normalization`, `unit-testing`, `utf-8`, `vitest`, `webauthn`, `websocket`, `xml`, `xsd`, `yagni`, `yaml`
+`abac`, `acid`, `aes-fips-197`, `amqp`, `apache-arrow`, `apache-avro`, `apache-iceberg`, `apache-parquet`, `arc42`, `archimate`, `architecture-decision-records`, `asciidoc`, `asyncapi`, `backstage`, `behaviour-driven-development`, `bem`, `black`, `blue-green-deployment`, `bpmn`, `c4-model`, `camel-case`, `canary-deployment`, `cap-theorem`, `cbor`, `checkstyle`, `clang-format`, `clean-architecture`, `cloudevents`, `code-review`, `codeowners`, `commonmark`, `continuous-delivery`, `continuous-deployment`, `continuous-integration`, `contract-testing`, `conventional-comments`, `cpp-core-guidelines`, `cqrs`, `csharp-code-conventions`, `css`, `csv`, `cypress`, `dast`, `database-normalization`, `delta-lake-protocol`, `design-by-contract`, `developer-certificate-of-origin`, `dicom`, `dita`, `dmn`, `domain-driven-design`, `dry`, `dtcg-design-tokens`, `dvc`, `ecmascript`, `editorconfig`, `effective-go`, `end-to-end-testing`, `eslint`, `event-sourcing`, `feast`, `feature-flags`, `fido2`, `fips-140-3`, `fuzzing`, `gfm`, `gherkin`, `git-hooks`, `gitflow`, `github-flow`, `go-code-review-comments`, `google-java-style`, `google-javascript-style`, `google-search-essentials`, `google-typescript-style`, `graphql`, `great-expectations`, `grpc`, `hexagonal-architecture`, `hl7-fhir`, `hypothesis`, `iana-timezones`, `ias-38`, `integration-testing`, `iso-24089`, `iso-3166`, `iso-4217`, `iso-8601`, `iso-iec-25010`, `iso-iec-ieee-12207`, `iso-iec-ieee-42010`, `iso-sae-21434`, `jest`, `json`, `json-ld`, `json-rpc`, `json-schema`, `junit`, `jwe`, `jws`, `jwt`, `kebab-case`, `kiss`, `least-privilege`, `linux-kernel-coding-style`, `messagepack`, `microservices`, `mlflow`, `mlops`, `modular-monolith`, `mqtt`, `mutation-testing`, `nist-sp-800-63`, `nunit`, `oauth-2`, `oauth-security-bcp`, `odata`, `onnx`, `openfeature`, `openid-connect`, `osi-licenses`, `owasp-masvs`, `owasp-samm`, `owasp-top-10`, `pact`, `pascal-case`, `php-per-coding-style`, `php-psr12`, `pkce`, `platform-engineering`, `pmml`, `prettier`, `property-based-testing`, `protocol-buffers`, `pull-requests`, `python-pep257`, `rbac`, `rest`, `retrieval-augmented-generation`, `reuse`, `rfc-3339`, `robots-txt`, `ruby-style-guide`, `ruff`, `saml-2`, `sast`, `screaming-snake-case`, `secret-scanning`, `secure-by-design`, `selenium`, `server-sent-events`, `sitemaps`, `snake-case`, `soap`, `solid`, `sql`, `storybook`, `swift-api-design-guidelines`, `tensorflow-data-validation`, `tensorflow-savedmodel`, `test-driven-development`, `test-pyramid`, `testcontainers`, `tls-1-3`, `togaf`, `toml`, `trunk-based-development`, `twelve-factor-app`, `uml`, `unicode-normalization`, `unit-testing`, `utf-8`, `vitest`, `webauthn`, `websocket`, `xml`, `xsd`, `yagni`, `yaml`
 
 ### finance
 

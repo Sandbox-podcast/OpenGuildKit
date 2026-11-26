@@ -249,6 +249,7 @@ export const QUESTION_FR: Record<string, string> = {
   outcome: 'Quel résultat observable montre que c’est réussi ? (comportement attendu, ou comment reproduire l’anomalie)',
   affected: 'Qui est concerné : utilisateurs, clients, équipes ou partenaires ?',
   options: 'Quelles options sont sur la table, et qu’est-ce qui ferait choisir l’une d’elles ?',
+  assumptions: 'Que tiens-tu pour acquis sans que personne l’ait confirmé ? Une phrase par hypothèse.',
 };
 /** French wording of the one-line help of each task question (questionnaire.TASK_QUESTION_HELP). */
 export const QUESTION_HELP_FR: Record<string, string> = {
@@ -260,6 +261,7 @@ export const QUESTION_HELP_FR: Record<string, string> = {
   outcome: 'Ce que quelqu’un peut voir ou mesurer une fois le travail fait.',
   affected: 'Les personnes ou les équipes qui remarqueront le changement.',
   options: 'Les choix comparés, et ce qui ferait pencher la décision.',
+  assumptions: 'Ce que le cadrage tient pour acquis sans confirmation : affiché à part avant la décision, et chaque cerveau peut en contester une.',
   context: 'Tout ce que les cerveaux doivent savoir : échéances, limites, critères d’acceptation, liens.',
 };
 /** What a "don't know" answer applies to each task question, in French. */
@@ -272,6 +274,7 @@ export const QUESTION_UNSURE_FR: Record<string, string> = {
   outcome: 'laisse vide : la consultation note le résultat manquant comme point ouvert',
   affected: 'laisse vide : la consultation le note comme point ouvert',
   options: 'laisse vide : la consultation le note comme point ouvert',
+  assumptions: 'laisse vide : aucune hypothèse n’est enregistrée',
   context: 'par défaut : vide',
 };
 /** French names of the brains of the catalog, by ID (registry/boards); an unknown ID keeps the CLI's title. */

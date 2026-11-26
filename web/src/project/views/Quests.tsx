@@ -106,6 +106,7 @@ function QuestCard({ t, rpg }: { t: TaskListItem; rpg: boolean }) {
       {reconsult && <Badge tone="danger" icon="replace">À consulter à nouveau, par une personne</Badge>}
       {t.status === 'unreadable' && <Badge tone="danger" icon="warn">À réparer, par une personne</Badge>}
       <span className="small muted clamp-2" lang={nextLang(t.next)}>{isBlocked(t.next) && <Icon name="ban" size={12} />} {nextLabel(t.next)}</span>
+      {!!t.waiting_for?.length && <Badge tone="warning" icon="clock">{t.waiting_for.length === 1 ? 'Attend 1 tâche' : `Attend ${t.waiting_for.length} tâches`}</Badge>}
       <span className="row tiny muted">{fmtDay(t.created)}{t.owner && <> · {decidedBy(t.status, rpg)} {t.owner}</>}{t.follows && <> · suite de {t.follows}</>}</span>
     </a></li>
   );
@@ -169,6 +170,10 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                   ...(t.answers.context ? [['Contexte', t.answers.context] as [string, string]] : []),
                   ...(t.answers.outcome ? [['Résultat attendu', t.answers.outcome] as [string, string]] : []),
                 ]} />}
+                {!!t.after?.length && <div className="small" aria-label="Dépendances"><p>Attend la fin de :</p><ul className="plain stack tight">{t.after.map((d) => {
+                  const dep = list.data?.find((x) => x.id === d);
+                  return <li key={d} className="row"><TaskLink id={d} /> {dep ? <TaskStatusBadge status={dep.status} /> : <Badge tone="danger" icon="warn">inconnue</Badge>}</li>;
+                })}</ul></div>}
                 {t.follows && <p className="small">Fait suite à <TaskLink id={t.follows.task} /> : {t.follows.decision ? `${t.follows.decision.outcome === 'approved' ? 'approuvée' : 'renvoyée'} par ${t.follows.decision.by}` : t.follows.status}.</p>}
               </Panel>
               <Panel title="Conseil">

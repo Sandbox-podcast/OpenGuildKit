@@ -14,13 +14,15 @@ from pathlib import Path
 from . import light_lane
 from .clock import today
 from .hosts import HOSTS
-from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
+from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
 from .project import (
-    GUARD_MODES, declined_ids, load_profile, norm_reason, sync_instructions, unanswered_norms, validate_profile,
+    DEFAULT_GUARD, GUARD_MODES, declined_ids, is_norm, load_profile, norm_reason, sync_instructions,
+    unanswered_norms, validate_profile,
 )
+from .sensitive import redact_credentials
 from .shell import shell_word
-from .storage import project_lock, write_json
+from .storage import print_json, project_lock, write_json
 from .tasks import tasks_touched
 from .terminal import interactive
 
@@ -107,6 +109,9 @@ def add_parser(commands) -> None:
         shown = " and shown in AGENTS.md and preview" if name in ("adopt", "decline") else ""
         command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
                                                              f"(.openguildkit/project.json){shown}.")
+    # Reading only: no --by or --reason, since nothing is written.
+    actions.add_parser("export", help="Print the setup answers that give another repository this profile's patterns, "
+                                      "packs, boards and settings, for openguildkit init --answers FILE there.")
 
 
 def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[str, list[str]]]:
@@ -447,8 +452,96 @@ def _target(args) -> str:
     return " ".join([args.value, *args.more] if args.profile_action == "set" else args.values)
 
 
+# What profile export never carries, whatever the profile holds: in the words of its last line.
+LEFT_ASIDE = ("the project name", "the history of changes", "people's names", "the signers file",
+              "component paths", "check commands", "the host's tool connections")
+PERSON = "--by NAME --reason WHY"
+
+
+def _yes_no(value: object) -> str:
+    """A saved yes or no as init --answers reads it; unsure when the profile never answered."""
+    return "unsure" if value is None else "yes" if value else "no"
+
+
+def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
+    """The init --answers file that sets up another repository with this profile's rules, and what the person types
+    there for each setting that is left out because it names someone or lowers a protection.
+
+    Carried: sector, stack, roles, the answers on personal data, the patterns and packs as they are, the boards,
+    required boards and rules, the host and guard when they do not lower the default, the research policy when it is
+    local, the conventions and the pack resolutions, without credentials. A declined norm comes back as yes: declining
+    it again is the person's decision, recorded with their name.
+    """
+    answers: dict = {"sector": profile["sector"], "stack": profile["stack"]}
+    if profile.get("roles"):
+        answers["roles"] = profile["roles"]
+    answers["personal_data"] = _yes_no(profile.get("personal_data"))
+    if "people_decisions" in profile:
+        answers["people_decisions"] = _yes_no(profile["people_decisions"])
+    declined_norms = [pattern_id for pattern_id in declined_ids(profile)
+                      if is_norm(catalog["patterns"].get(pattern_id, {}))]
+    if declined_norms:
+        answers["norms"] = dict.fromkeys(declined_norms, "yes")
+    # Component scopes name this repository's folders: each pattern applies to the whole new project.
+    answers["patterns"] = list(dict.fromkeys(pattern_selection(entry)[0] for entry in profile.get("patterns", [])))
+    answers.update(packs=profile["packs"], replace_default_packs=True, boards=profile["boards"])
+    for key in ("required_boards", "required_rules"):
+        if profile.get(key):
+            answers[key] = profile[key]
+    if profile.get("ask_every_rule"):
+        answers["ask_every_rule"] = True
+    if profile.get("tools"):
+        answers["tools"] = profile["tools"]
+    commands = "; ".join(f"openguildkit profile decline {norm} {PERSON}" for norm in declined_norms)
+    steps = [f"Declined norms come back active: {', '.join(declined_norms)}. The person declines each again at a "
+             f"terminal there: {commands}."] if declined_norms else []
+    if profile.get("host", "other") != "other":
+        answers["host"] = profile["host"]
+    guard = profile.get("guard", "off")
+    if GUARD_LEVEL.get(guard, 0) >= GUARD_LEVEL[DEFAULT_GUARD]:
+        answers["guard"] = guard
+    else:
+        steps.append(f"guard {guard} is not carried: the new project starts at {DEFAULT_GUARD}. To lower it, the "
+                     f"person runs openguildkit profile set guard {guard} {PERSON} at a terminal there.")
+    if profile.get("research") == "public-sources":
+        steps.append("Public research is not carried: the person runs openguildkit profile set research "
+                     f"public-sources {PERSON} at a terminal there.")
+    else:
+        answers["research"] = "local-only"
+    answers["conventions"] = [redact_credentials(text) for text in profile.get("conventions", [])]
+    if profile.get("resolutions"):
+        answers["resolutions"] = [{**item, "reason": redact_credentials(item["reason"])}
+                                  for item in profile["resolutions"]]
+    if _signed(profile):
+        steps.append("Signed approvals are not carried: the person runs openguildkit profile set approval signed "
+                     f"--signers PATH --approver NAME {PERSON} at a terminal there.")
+    if _waiver_policy(profile):
+        steps.append("Waivers are not carried: the person runs openguildkit profile set waivers allowed --allowed-by "
+                     f"NAME --max-days DAYS {PERSON} at a terminal there.")
+    if profile.get("light_paths"):
+        steps.append("The short lane is not carried: the person runs openguildkit profile set light-paths GLOB "
+                     f"{PERSON} at a terminal there.")
+    return answers, steps
+
+
+def export(args, state: Path) -> int:
+    """Print the setup answers on standard output, and on standard error what stays behind and what follows."""
+    catalog = project_catalog(args, state)
+    profile = load_profile(state, catalog)
+    answers, steps = export_answers(profile, catalog)
+    print_json(answers)
+    print(f"Left aside: {', '.join(LEFT_ASIDE)}.", file=sys.stderr)
+    for step in steps:
+        print(step, file=sys.stderr)
+    print("Next: in the other repository, openguildkit init --answers answers.json, with this output saved as "
+          "answers.json (openguildkit profile export > answers.json).", file=sys.stderr)
+    return 0
+
+
 def run(args, root: Path, state: Path) -> int:
     """Apply one profile command, rewrite the instructions and the catalog lock, and say what follows."""
+    if args.profile_action == "export":
+        return export(args, state)
     target = _target(args)
     updated, record, catalog = write_change(
         root, state, args, lambda profile, catalog: _changed(profile, args, catalog),

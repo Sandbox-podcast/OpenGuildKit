@@ -17,8 +17,8 @@ from openguildkit.cli import command_parser
 from openguildkit.consultation import consult
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.retro import (
-    DEFAULT_MINIMUM, facts_of_record, facts_of_task, project_summary, proposals, recurrences, render_project,
-    render_task, task_retro,
+    DEFAULT_MINIMUM, MAX_REASON, facts_of_record, facts_of_task, project_summary, proposals, recurrences,
+    render_project, render_task, task_retro,
 )
 from openguildkit.tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP, record_review
 
@@ -489,13 +489,15 @@ class ProposalTests(unittest.TestCase):
     def test_a_rule_that_failed_in_several_tasks_can_be_made_a_required_rule(self):
         item = self.propose(finding("rule", check="rule:python/follow-python-style", status="failed", reason=""))
         self.assertEqual(item["command"],
-                         "openguildkit profile add required-rule python/follow-python-style --by NAME --reason WHY")
+                         "openguildkit profile add required-rule python/follow-python-style --by NAME --reason "
+                         "'task retro: rule:python/follow-python-style failed in 3 tasks (a, b, c)'")
         self.assertFalse(item["needs_terminal"])
         self.parses(item["command"])
 
     def test_a_pack_that_failed_as_a_whole_is_required_as_a_whole(self):
         item = self.propose(finding("rule", check="pack:python", status="failed", reason=""))
-        self.assertEqual(item["command"], "openguildkit profile add required-rule python --by NAME --reason WHY")
+        self.assertEqual(item["command"], "openguildkit profile add required-rule python --by NAME --reason "
+                                          "'task retro: pack:python failed in 3 tasks (a, b, c)'")
 
     def test_a_rule_already_required_gets_no_command(self):
         item = self.propose(finding("rule", check="rule:python/follow-python-style", status="failed", reason=""),
@@ -512,7 +514,8 @@ class ProposalTests(unittest.TestCase):
     def test_a_pack_that_only_a_pattern_brings_leaves_with_that_pattern_and_the_others_it_drops_are_named(self):
         item = self.propose(finding("rule", check="pack:fastapi", status="not-applicable", reason="Not used."))
         self.assertEqual(item["command"],
-                         "openguildkit profile decline python-fastapi-postgresql --by NAME --reason WHY")
+                         "openguildkit profile decline python-fastapi-postgresql --by NAME --reason "
+                         "'task retro: pack:fastapi not-applicable in 3 tasks (a, b, c): Not used.'")
         self.assertIn("api-design", item["also_drops"])
         self.assertNotIn("fastapi", item["also_drops"])
         self.parses(item["command"])
@@ -520,7 +523,8 @@ class ProposalTests(unittest.TestCase):
     def test_a_pack_the_profile_lists_and_no_pattern_brings_leaves_with_remove_pack(self):
         item = self.propose(finding("rule", check="pack:nist-ai-risk", status="skipped", reason="Why."),
                             packs=["agent-workflow", "python", "react", "secure-sdlc", "typescript", "nist-ai-risk"])
-        self.assertEqual(item["command"], "openguildkit profile remove pack nist-ai-risk --by NAME --reason WHY")
+        self.assertEqual(item["command"], "openguildkit profile remove pack nist-ai-risk --by NAME --reason "
+                                          "'task retro: pack:nist-ai-risk skipped in 3 tasks (a, b, c): Why.'")
         self.assertTrue(item["needs_terminal"])
         self.parses(item["command"])
 
@@ -532,7 +536,8 @@ class ProposalTests(unittest.TestCase):
     def test_a_committee_that_never_brought_anything_can_leave_the_boards_the_profile_lists(self):
         boards = ["product", "engineering", "qa", "design", "marketing", "security", "legal"]
         item = self.propose(finding("committee", board="qa", convened_in=3), boards=boards)
-        self.assertEqual(item["command"], "openguildkit profile remove board qa --by NAME --reason WHY")
+        self.assertEqual(item["command"], "openguildkit profile remove board qa --by NAME --reason "
+                                          "'task retro: qa brought no blocker or objection in 3 tasks (a, b, c)'")
         self.assertFalse(item["needs_terminal"])
         self.parses(item["command"])
         protective = self.propose(finding("committee", board="security", convened_in=3), boards=boards)
@@ -547,7 +552,8 @@ class ProposalTests(unittest.TestCase):
         command = "python -m pytest"
         item = self.propose(finding("reservation", group=NOT_RUN_GROUP, point="x", check_command=command),
                             checks=[command, "npm test"])
-        self.assertEqual(item["command"], "openguildkit profile remove check 'python -m pytest' --by NAME --reason WHY")
+        self.assertEqual(item["command"], "openguildkit profile remove check 'python -m pytest' --by NAME --reason "
+                                          "'task retro: x in 3 tasks (a, b, c)'")
         self.assertTrue(item["needs_terminal"])
         self.parses(item["command"])
         self.assertIsNone(self.propose(finding("reservation", group=NOT_RUN_GROUP, point="x", check_command="make"))["command"])
@@ -555,7 +561,39 @@ class ProposalTests(unittest.TestCase):
     def test_the_other_reservations_have_no_profile_command(self):
         item = self.propose(finding("reservation", group="Warnings on the result", point="A warning."))
         self.assertIsNone(item["command"])
+        self.assertIsNone(item["proposed_reason"])
         self.assertFalse(item["needs_terminal"])
+
+    def test_the_reason_names_the_tasks_behind_the_finding_and_the_json_keeps_it_with_them(self):
+        item = self.propose(finding("rule", check="rule:python/follow-python-style", status="failed", reason=""))
+        self.assertEqual(item["proposed_reason"], "task retro: rule:python/follow-python-style failed in 3 tasks (a, b, c)")
+        self.assertEqual(item["tasks"], ["a", "b", "c"])
+        self.assertEqual(shlex.split(item["command"])[-3:], ["NAME", "--reason", item["proposed_reason"]])
+
+    def test_the_reason_is_quoted_for_posix_and_powershell_and_reads_back_as_written(self):
+        profile, catalog = profile_and_catalog(packs=["agent-workflow", "python", "react", "secure-sdlc", "typescript",
+                                                      "nist-ai-risk"])
+        found = finding("rule", check="pack:nist-ai-risk", status="skipped", reason="Team's call: no `$HOME` use.")
+        posix = proposals([found], profile, catalog, powershell=False)[0]
+        powershell = proposals([found], profile, catalog, powershell=True)[0]
+        reason = "task retro: pack:nist-ai-risk skipped in 3 tasks (a, b, c): Team's call: no `$HOME` use."
+        self.assertEqual(posix["proposed_reason"], reason)
+        self.assertEqual(shlex.split(posix["command"])[-1], reason)
+        self.assertTrue(powershell["command"].endswith(" --reason 'task retro: pack:nist-ai-risk skipped in 3 tasks "
+                                                       "(a, b, c): Team''s call: no `$HOME` use.'"))
+
+    def test_the_reason_is_one_line_and_bounded_however_many_tasks_and_long_the_finding(self):
+        tasks = [f"task-number-{index}" for index in range(40)]
+        command = "python -m pytest " + " ".join(["tests/very/long/path"] * 30)
+        item = self.propose(finding("reservation", group=NOT_RUN_GROUP, point=f"`{command}`\ncould not run: no net.",
+                                    check_command=command, count=40, tasks=tasks), checks=[command])
+        reason = item["proposed_reason"]
+        self.assertLessEqual(len(reason), MAX_REASON)
+        self.assertNotIn("\n", reason)
+        self.assertIn("in 40 tasks (task-number-0, task-number-1, task-number-2, task-number-3, task-number-4, 35 more)",
+                      reason)
+        self.assertTrue(reason.startswith("task retro: `python -m pytest"))
+        self.parses(item["command"])
 
     def test_the_profile_is_not_changed_by_asking(self):
         profile, catalog = profile_and_catalog()
@@ -606,8 +644,12 @@ class RenderTests(unittest.TestCase):
         summary = project_summary([facts_of_task(task) for task in tasks], 3, profile, catalog, {})
         text = "\n".join(render_project(summary))
         self.assertIn("rule:python/follow-python-style failed in 3 tasks (t1, t2, t3)", text)
-        self.assertIn("openguildkit profile add required-rule python/follow-python-style --by NAME --reason WHY", text)
+        self.assertIn("openguildkit profile add required-rule python/follow-python-style --by NAME --reason "
+                      "'task retro: rule:python/follow-python-style failed in 3 tasks (t1, t2, t3)'", text)
         self.assertIn("terminal", text)
+        self.assertIn("--by is theirs to fill in", text)
+        for name in NAMES:
+            self.assertNotIn(name, text)
         self.assertEqual(summary["tasks"], {"read": 3, "from_task_records": 3, "from_exported_records": 0})
 
     def test_rules_set_aside_the_same_way_in_the_same_tasks_share_one_line_while_the_json_keeps_each(self):

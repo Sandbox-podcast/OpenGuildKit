@@ -79,6 +79,10 @@ MULTIPLE = {"surface", "concerns"}
 FOLLOW_UPS = ("outcome", "affected", "options")
 
 
+# The working assumptions made while scoping, kept apart from the confirmed answers: a list of sentences, optional.
+ASSUMPTIONS = "assumptions"
+
+
 SHORT_BRIEF_WORDS = 8
 
 
@@ -118,6 +122,10 @@ def _follow_up_questions(answers: dict) -> list[dict]:
         questions.append({"id": "options", "type": "text",
                           "prompt": "Which options are on the table, and what would make you choose one?",
                           "essential": True})
+    # While the outcome or who is affected stays empty, what is assumed instead is worth writing down.
+    if any(question["id"] in ("outcome", "affected") and not answers.get(question["id"]) for question in questions):
+        questions.append({"id": ASSUMPTIONS, "type": "list", "essential": False,
+                          "prompt": "What are you assuming that nobody has confirmed yet, one sentence each?"})
     return questions
 
 
@@ -161,6 +169,9 @@ TASK_QUESTION_HELP = {
                  "unsure": "leave it empty: the consultation lists it as an open point"},
     "options": {"help": "The choices being compared, and what would tip the decision.",
                 "unsure": "leave it empty: the consultation lists it as an open point"},
+    "assumptions": {"help": "What scoping takes for granted unconfirmed: shown apart before deciding, and any board "
+                            "can contest one.",
+                    "unsure": "leave it empty: nothing is recorded as assumed"},
     "context": {"help": "Anything the boards should know: deadlines, limits, acceptance criteria, links.",
                 "unsure": "the default: empty"},
 }
@@ -206,6 +217,14 @@ def require_concerns(answers: dict) -> None:
                      "example \"concerns\": [\"none\"]; unsure keeps every topic's rules open and consults its boards.")
 
 
+def _assumptions(value: object) -> list[str]:
+    """The working assumptions as sentences, in order and once each; an empty list records none."""
+    if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
+        raise ValueError('Task assumptions must be a list of sentences, such as ["Requests are linked to accounts by '
+                         'the customer ID."], or left out.')
+    return list(dict.fromkeys(item.strip() for item in value))
+
+
 def validate_answers(answers: dict) -> dict:
     """Normalize the scope answers from interactive or JSON input."""
     if not isinstance(answers, dict):
@@ -233,7 +252,10 @@ def validate_answers(answers: dict) -> dict:
             raise ValueError("Task components must be a list of project component IDs.")
         validated["components"] = list(dict.fromkeys(item.strip() for item in selected))
 
-    unknown = answers.keys() - validated.keys() - {"context", *FOLLOW_UPS}
+    assumptions = _assumptions(answers.get(ASSUMPTIONS, []))
+    if assumptions:
+        validated[ASSUMPTIONS] = assumptions
+    unknown = answers.keys() - validated.keys() - {"context", ASSUMPTIONS, *FOLLOW_UPS}
     if unknown:
         raise ValueError(f"Unknown task answer fields: {', '.join(sorted(unknown))}.")
     for field in ("context", *FOLLOW_UPS):

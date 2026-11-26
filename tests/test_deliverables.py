@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.deliverables import load_deliverables
+from openguildkit.deliverables import draft_problems, load_deliverables, new_draft
 from openguildkit.storage import write_json
 
 from tests.support import CapturedCli
@@ -190,6 +190,11 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertIn("approved or completed task", error)
         self.assertIn("approved or completed task", (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8"))
 
+    def test_the_list_aligns_every_title_after_the_longest_template_id(self):
+        listing, _ = self.run_cli("deliverable", "list")
+        columns = {len(line) - len(line.split(" ", 1)[1].lstrip()) for line in listing.splitlines()}
+        self.assertEqual(len(columns), 1, listing)
+
     def test_marketing_templates_cover_the_work_of_a_software_publisher(self):
         catalog = load_catalog()
         templates = load_deliverables(catalog)
@@ -258,6 +263,169 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
             with self.subTest(template=template_id):
                 self.assertIn("openguildkit deliverable utm", json.dumps(templates[template_id]))
         self.assertIn("deliverable utm", (REPO / "docs" / "deliverables.md").read_text(encoding="utf-8"))
+
+
+ADR = "architecture-decision-record"
+# Names that the record holds in fields other than the decision's: none may reach the draft.
+OWNER, CLEARER, CLOSER = "Quentin-Owner", "Wilhelmina-Clearer", "Yvonne-Closer"
+
+
+def board_entry(board: str, verdict: str, recommendation: str, blockers=(), failure="It could fail.") -> dict:
+    return {"id": board, "recommendation": recommendation, "evidence": [], "open_questions": [],
+            "challenge": {"verdict": verdict, "blockers": list(blockers), "failure_mode": failure}}
+
+
+def decision_task(**changes) -> dict:
+    """A decision task as task decide and task complete leave it, with a condition of approval and a disagreement."""
+    task = {
+        "id": "choose-bus", "status": "done", "created_at": "2026-11-20T09:00:00+00:00",
+        "brief": "Choose the message bus for the order service.\n\n## Constraints\n\nKeep the hosting we have.",
+        "answers": {"kind": "decision", "options": "Kafka, or RabbitMQ; we pick the one the team can run on call.",
+                    "affected": "The order and billing teams."},
+        "consultation": {"id": "c1", "boards": ["engineering", "security"], "scope": {},
+                         "domains": {"engineering": ["engineering", "message bus"], "security": ["security"]}},
+        "review": {"consultation_id": "c1", "summary": "RabbitMQ fits the team; Kafka scales further.", "boards": [
+            board_entry("engineering", "proceed", "Take RabbitMQ with quorum queues.", [
+                {"finding": "No load test of the peak hour.", "owner": OWNER,
+                 "clears_when": "A load test at twice the peak passes.", "phase": "verification"}]),
+            board_entry("security", "revise", "Encrypt the links between brokers.",
+                        failure="The message bus carries orders in clear between brokers.")]},
+        "deliberation": {"objections": [{"id": "security-to-engineering", "from": "security", "to": "engineering",
+                                         "point": "Quorum queues alone do not encrypt traffic."}],
+                         "responses": [], "agreed": [], "open": ["security-to-engineering"],
+                         "decision_needed": "Whether to encrypt links before the first release."},
+        "decision": {"outcome": "approved", "by": "CM", "reason": "RabbitMQ: the team runs it on call today.",
+                     "at": "2026-11-21T10:00:00+00:00", "seal": "abc123seal"},
+        "verification_blocker_resolutions": {"engineering:1": {
+            "kind": "cleared", "by": CLEARER, "at": "2026-11-24T10:00:00+00:00", "evidence": "docs/load-test.md",
+            "supports": "Twice the peak holds."}},
+        "completed_at": "2026-11-25T10:00:00+00:00",
+        "result": {"checks": [], "closing": {"open_points": [], "by": CLOSER}},
+    }
+    task.update(changes)
+    return task
+
+
+class ArchitectureDecisionRecordTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name) / "0007-choose-bus.md"
+        self.template = load_deliverables(load_catalog())[ADR]
+
+    def draft(self, task: dict) -> str:
+        new_draft(self.template, task, None, [], self.output)
+        return self.output.read_text(encoding="utf-8")
+
+    def test_the_template_is_in_the_catalog_and_starts_from_a_decision(self):
+        self.assertTrue(self.template["decision"])
+        self.assertEqual([section["id"] for section in self.template["sections"]],
+                         ["status", "context", "options", "decision", "advice", "conditions", "consequences", "record"])
+        self.assertTrue(all(source.get("checked") for source in self.template["sources"]))
+
+    def test_a_decision_task_fills_every_section_but_the_consequences(self):
+        draft = self.draft(decision_task())
+        for words in ("> Choose the message bus for the order service.", "> ## Constraints",
+                      "> Kafka, or RabbitMQ; we pick the one the team can run on call.",
+                      "> The order and billing teams.", "> RabbitMQ: the team runs it on call today.",
+                      "Approved by CM on 2026-11-21.", "RabbitMQ fits the team; Kafka scales further.",
+                      "- engineering (proceed): Take RabbitMQ with quorum queues.",
+                      "- security (revise): Encrypt the links between brokers.",
+                      "Disagreement left open, security-to-engineering: Quorum queues alone do not encrypt traffic.",
+                      "Decision needed: Whether to encrypt links before the first release.",
+                      "engineering:1, after the decision: No load test of the peak hour. Clears when: A load test at "
+                      "twice the peak passes. Cleared: docs/load-test.md supports that Twice the peak holds.",
+                      "Accepted: decision task `choose-bus` approved on 2026-11-21 and closed on 2026-11-25.",
+                      ".openguildkit/decisions/choose-bus.json", "openguildkit task export choose-bus", "abc123seal"):
+            self.assertIn(words, draft)
+        self.assertNotIn("No disagreement", draft)
+        problems = draft_problems(self.template, draft)
+        self.assertEqual([problem for problem in problems if "Section" in problem], [])
+        self.assertIn("1 placeholder(s) still say TODO.", problems)
+        consequences = draft.split("## Consequences", 1)[1].split("## ", 1)[0]
+        self.assertIn("TODO", consequences)
+
+    def test_no_person_but_the_one_the_decision_names_reaches_the_draft(self):
+        draft = self.draft(decision_task())
+        for name in (OWNER, CLEARER, CLOSER):
+            self.assertNotIn(name, draft)
+        self.assertEqual(draft.count("CM"), 1)
+
+    def test_a_task_that_is_not_a_decision_is_refused_with_what_to_do(self):
+        with self.assertRaises(ValueError) as refused:
+            new_draft(self.template, decision_task(answers={"kind": "feature"}), None, [], self.output)
+        self.assertIn("choose-bus is a feature task", str(refused.exception))
+        self.assertIn("openguildkit deliverable list", str(refused.exception))
+        self.assertFalse(self.output.exists())
+
+    def test_a_section_left_empty_is_named_by_the_check(self):
+        draft = self.draft(decision_task())
+        before, after = draft.split("## Options considered\n", 1)
+        emptied = before + "## Options considered\n\n## " + after.split("\n## ", 1)[1]
+        self.assertIn('Section "Options considered" is empty.', draft_problems(self.template, emptied))
+
+    def test_a_decision_still_open_or_with_no_answer_says_what_is_missing(self):
+        task = decision_task(status="approved", answers={"kind": "decision"}, deliberation=None,
+                             verification_blocker_resolutions={})
+        task.pop("completed_at")
+        draft = self.draft(task)
+        self.assertIn("It is not closed yet: openguildkit task complete choose-bus closes it.", draft)
+        self.assertIn("TODO: the task records no answer to the options question", draft)
+        self.assertIn("Open: it is cleared after the decision and before the task closes.", draft)
+        self.assertIn("1 objection not deliberated, security-to-engineering", draft)
+        self.assertIn("- security-to-engineering: The message bus carries orders in clear between brokers.", draft)
+        self.assertNotIn("No disagreement", draft)
+
+    def test_a_task_closed_with_reservations_points_to_its_closing_without_copying_it(self):
+        task = decision_task(status="done-with-reservations", result={"checks": [], "closing": {
+            "open_points": [{"group": "Board blocks not lifted", "points": [f"x (recorded by {CLOSER})"]}],
+            "by": CLOSER}})
+        draft = self.draft(task)
+        self.assertIn("closed with reservations on 2026-11-25: openguildkit task show choose-bus --closing", draft)
+        self.assertNotIn(CLOSER, draft)
+
+
+class ArchitectureDecisionRecordCommandTests(CapturedCli, unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "p.json", {**json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")),
+                                          "checks": []})
+        self.run_cli("init", "--answers", self.root / "p.json")
+
+    def approve(self, task_id: str, kind: str) -> None:
+        self.run_cli("task", "new", "Choose how customers follow their requests.", "--id", task_id)
+        answers = {**json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")), "kind": kind,
+                   **({"options": "A portal page or emails."} if kind == "decision" else {})}
+        write_json(self.root / "answers.json", answers)
+        self.run_cli("task", "consult", task_id, "--answers", self.root / "answers.json")
+        template = json.loads(self.run_cli("task", "template", task_id)[0])
+        review = json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))
+        review["boards"] = [entry for entry in review["boards"] if entry["id"] in {b["id"] for b in template["boards"]}]
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"], **review})
+        self.run_cli("task", "review", task_id, "--file", self.root / "review.json")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=task_id):
+            self.run_cli("task", "decide", task_id, "--approve", "--by", "CM", "--reason", "Portal page first.")
+
+    def test_deliverable_new_writes_the_record_of_a_decision_task_and_check_names_what_is_left(self):
+        self.approve("choice", "decision")
+        output, _ = self.run_cli("deliverable", "new", ADR, "--task", "choice", "--output", "docs/adr/0007-choice.md")
+        self.assertIn("Draft written to docs/adr/0007-choice.md", output)
+        draft = (self.root / "docs" / "adr" / "0007-choice.md").read_text(encoding="utf-8")
+        self.assertIn("> A portal page or emails.", draft)
+        self.assertIn("> Portal page first.", draft)
+        self.assertIn(".openguildkit/decisions/choice.json", draft)
+        problems, _ = self.run_cli("deliverable", "check", "docs/adr/0007-choice.md", code=1)
+        self.assertIn("placeholder", problems)
+        self.assertNotIn("is empty", problems)
+        self.assertIn("record-linked", problems)
+
+    def test_deliverable_new_refuses_a_task_that_is_not_a_decision(self):
+        self.approve("feature", "feature")
+        _, error = self.run_cli("deliverable", "new", ADR, "--task", "feature", "--output", "adr.md", code=1)
+        self.assertIn("feature is a feature task", error)
+        self.assertFalse((self.root / "adr.md").exists())
 
 
 if __name__ == "__main__":

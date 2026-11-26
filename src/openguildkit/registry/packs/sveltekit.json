@@ -1,0 +1,85 @@
+{
+  "id": "sveltekit",
+  "title": "SvelteKit applications",
+  "version": "1.0.0",
+  "description": "For a SvelteKit application: private environment variables and server-only modules, server load functions for private data, the CSRF origin check and a Content Security Policy; builds on the svelte pack.",
+  "sources": [
+    {
+      "title": "SvelteKit docs, server-only modules",
+      "url": "https://svelte.dev/docs/kit/server-only-modules",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "SvelteKit docs, environment variables",
+      "url": "https://svelte.dev/docs/kit/environment-variables",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "SvelteKit docs, loading data",
+      "url": "https://svelte.dev/docs/kit/load",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "SvelteKit docs, configuration: csrf and csp",
+      "url": "https://svelte.dev/docs/kit/configuration",
+      "checked": "2026-11-26"
+    }
+  ],
+  "depends_on": [
+    "svelte"
+  ],
+  "rules": [
+    {
+      "id": "keep-secrets-in-server-only-modules",
+      "instruction": "Read secrets only from SvelteKit's private environment module and only in server-only modules: a file with a `.server` segment in its name, a module in a `server` folder such as `src/lib/server/`, or a server load function. Never declare a secret as a public variable.",
+      "verification": "Check that each file the change adds that reads a secret is server-only, and that the build does not fail with SvelteKit's error on a server-only module imported into code that runs in the browser."
+    },
+    {
+      "id": "load-private-data-on-the-server",
+      "instruction": "Load data that needs a database, the file system or a private environment variable in a server load function (`+page.server.js`, `+layout.server.js`), not in a universal `+page.js`, which also runs in the browser.",
+      "verification": "Review each universal load function the change adds or edits and check that it calls no database and reads no private variable."
+    },
+    {
+      "id": "keep-the-csrf-origin-check",
+      "instruction": "Keep SvelteKit's CSRF protection on: do not set `csrf.checkOrigin` to `false`, and list in `csrf.trustedOrigins` only the origins that must submit forms to the application, never `'*'`.",
+      "verification": "task verify checks that no `svelte.config` file sets `checkOrigin: false` or trusts every origin; review any origin the change adds to `trustedOrigins`.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "svelte.config.js",
+          "svelte.config.mjs",
+          "svelte.config.ts",
+          "*/svelte.config.js",
+          "*/svelte.config.mjs",
+          "*/svelte.config.ts"
+        ],
+        "contains": [
+          "checkOrigin: false",
+          "trustedOrigins: ['*']",
+          "trustedOrigins: [\"*\"]"
+        ],
+        "expect": "absent"
+      }
+    },
+    {
+      "id": "set-a-content-security-policy",
+      "instruction": "Configure `kit.csp` in `svelte.config.js` (its `mode`, `directives` or `reportOnly`) so that SvelteKit sends a Content Security Policy with hashes or nonces for its own scripts and styles.",
+      "verification": "task verify checks that a `svelte.config` file declares `csp:`; also load a page of the built application and check the `Content-Security-Policy` or `Content-Security-Policy-Report-Only` header.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "svelte.config.js",
+          "svelte.config.mjs",
+          "svelte.config.ts",
+          "*/svelte.config.js",
+          "*/svelte.config.mjs",
+          "*/svelte.config.ts"
+        ],
+        "contains": [
+          "csp:"
+        ],
+        "expect": "present"
+      }
+    }
+  ]
+}

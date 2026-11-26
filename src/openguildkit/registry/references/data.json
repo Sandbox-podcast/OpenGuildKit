@@ -323,6 +323,9 @@
           "checked": "2026-11-21",
           "title": "dbt Developer Hub — Model contracts"
         }
+      ],
+      "packs": [
+        "dbt"
       ]
     },
     {
@@ -344,6 +347,31 @@
           "url": "https://docs.getdbt.com/docs/introduction",
           "checked": "2026-11-21",
           "title": "dbt Developer Hub — What is dbt?"
+        }
+      ],
+      "packs": [
+        "dbt"
+      ]
+    },
+    {
+      "id": "apache-airflow",
+      "title": "Apache Airflow",
+      "category": "Gouvernance et architecture des données",
+      "kind": "outil",
+      "brains": [
+        "data",
+        "engineering"
+      ],
+      "summary": "Planifie et orchestre des traitements décrits en Python sous forme de DAG, avec reprises, connexions et journaux par tâche.",
+      "applies_when": "Quand l'équipe planifie des chargements ou des transformations de données qui dépendent les uns des autres.",
+      "packs": [
+        "apache-airflow"
+      ],
+      "sources": [
+        {
+          "url": "https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html",
+          "checked": "2026-11-26",
+          "title": "Apache Airflow documentation — Best practices"
         }
       ]
     },

@@ -70,6 +70,27 @@ A question is essential for the cases where the boards cannot review without it:
 
 The consultation stays short so that an agent can keep it in context: the task and its answers, the project scope once (stack, components, packs named with their number of rules, conventions, checks, host controls), the open points, and one line per board with why it was selected. It does not repeat the rule texts (`AGENTS.md` names each rule by its ID and leaves its text out, as it leaves out the verification and the sources of the packs: a pass prints the rules that concern the task), nor each board's brief, which its pass prints. What it leaves out stays available: `task brief ID --pack PACK` prints one pack in full, `task brief ID --scope` prints the whole scope as JSON with every rule text, `task brief ID --board BOARD` prints a board's pass, and `openguildkit brains --id BOARD` the board's full reading list. For a bug, when the brief names a file or a function (`src/export.js`, `exportCsv()`, `` `toRow` ``) that the project does not contain, the consultation says so in one line, so that the boards check the brief before reviewing code that is not there.
 
+### Assumptions not confirmed
+
+What scoping takes for granted without anyone confirming it goes in `assumptions`, a list of sentences, apart from the answers the person gave (#436):
+
+```json
+{
+  "kind": "feature",
+  "surface": "customer",
+  "data": "personal",
+  "research": "local",
+  "concerns": ["none"],
+  "assumptions": ["Requests are linked to accounts by the customer ID.", "Support agents keep their current view."]
+}
+```
+
+- **Asking.** While `outcome` or `affected` is asked and still empty, `task questions ID --answers FILE --follow-ups` lists `assumptions` in `follow_ups`: what is assumed in their place is worth writing down. At the terminal, `task consult` asks it after the other follow-ups; Enter skips it.
+- **Checking.** Anything other than a list of non-empty sentences is refused with the shape to write. An empty list records nothing.
+- **The boards.** The consultation, each board pass and the handoff list them, numbered, under `Assumptions not confirmed (N)`. A pass's entry has `"contested_assumptions": []`: a board that disputes one adds `{"assumption": 2, "reason": "..."}`, with the number of a listed assumption. Another number, or the key in a task without assumptions, is refused.
+- **The person.** `task challenge`, `task decision-payload` and the approval prompt of `task decide --approve` print `Assumptions not confirmed (N)` apart, before the request to type the task ID, the contested ones first with the boards that contest them and why. The JSON of `task challenge` has them under `assumptions`. Nothing blocks: approving accepts them as they are.
+- **What does not change.** Answers without `assumptions`, and every task recorded before, read and print as before.
+
 ### How boards are selected
 
 Answers route to boards first:
@@ -255,6 +276,20 @@ A task answered with `kind: decision` asks for a recommendation. Its handoff con
 
 If tracked project files differ from the approved Git revision, the CLI asks for the delivery revision or pull request. It ignores the exported decision records. `task complete` gives the `task new --follows` command so that applying the decision gets its own review and approval.
 
+### Code owners of the touched paths
+
+When the project has a CODEOWNERS file, the decision brief of `task challenge` and the handoff of `task handoff` add one line naming who owns what the task touches, so that the person knows whom to tell or ask before deciding (#437):
+
+```text
+Code owners, read from .github/CODEOWNERS (shown here, never recorded): api/ @team-api; web/ no owner declared.
+```
+
+- **What the task touches.** Its short-lane paths (a glob reads as the folder before its first wildcard), the folders of the components its answers name, and the project paths its brief and answers name that exist. None of them: the line reads `whole project`. A folder shows the rule that covers its files in general; a rule for some files inside it, such as `*.sql` or a sub-folder, is not shown. Eight paths at most, then a count.
+- **GitHub's rules,** as its page [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) states them, read on 2026-11-26 (the page shows no date of its own): the file is `.github/CODEOWNERS`, `CODEOWNERS` or `docs/CODEOWNERS`, searched in that order, and only the first one found is read; patterns follow gitignore, the last matching pattern wins, a pattern without owners leaves its paths without one, paths are case sensitive, and a file of 3 MB or more is not loaded. The page says `!` negation and `[ ]` ranges do not work: OpenGuildKit skips those lines and names them in the line. How GitHub itself treats such a line beyond "does not work" is not verified.
+- **Shown, never recorded.** Owners are often people's names or emails ([personal data](personal-data.md)). Whether a committed record may keep them is an open decision (Q9 of the benchmark), so they stay out of the task record, the exported decision record and every file the CLI writes: they are read again from CODEOWNERS at each display.
+- **What does not change.** A project without CODEOWNERS sees nothing more.
+
+
 ## 6. Report the results
 
 After implementing an approved task, the agent proves what was delivered:
@@ -345,6 +380,47 @@ The command runs first: one that passes here cannot be declared. The reason take
 `task verify` exits with status 1 when a mandatory check command failed, so a script or a CI job can tell; it exits with 0 when only answers remain to give (the listed points say which). When a command fails, the message starts with the first line of its output that names the error ("Cannot find module 'express'") and ends with its last lines, then the log path.
 
 A check that cannot run on the team's workstations, because it needs the network, a service or credentials, does not belong in `checks`: leave it out at setup, or ask the person to run `openguildkit profile remove check 'COMMAND' --by NAME --reason WHY` at their terminal (a check removed weakens a protection), then run it in CI and name it under `conventions` (for example "The integration tests run in CI: tests/integration needs the payment sandbox") so the agent and the reviewers know where its result comes from.
+
+## Delivered diff review
+
+The boards review the task before the change; they can also read the change itself. After `task verify` or `task result` recorded the delivered revision, and before `task complete`, the agent has each board of the decision review the diff between the approved revision and the delivered one:
+
+```bash
+openguildkit task diff-review ID                    # the files of the change and one command per board, with its state
+openguildkit task diff-review ID --board security   # one board's brief, in its own pass (a subagent when the host has them)
+openguildkit task diff-review ID --submit findings.json
+```
+
+A board's brief holds the diff limited to the files of the change (the tool's `.openguildkit/` folder left out), cut at 6 000 characters with the `git diff` command that prints the rest; when the working tree is delivered rather than a commit, the new files Git does not track yet are named, to be read in full. Then what the decision asked: the expected outcome, who approved and why, the board's recommendation, verdict and failure mode at approval, the questions it left open, its blockers and how they were resolved, the disagreements left open that concern it, and its decision criteria. Then its lens (the purpose and the focus of each specialist) and the format to return. `--json` prints the same as JSON.
+
+The board returns one JSON file: `{"board": "security", "findings": [{"file": "api/auth.py", "line": 42, "severity": "blocking", "action": "fix", "finding": "..."}]}`. `file` is a file of the change and `line` a line of its delivered version; `severity` is `blocking` (must not ship as is), `important` or `minor`; `action` is `fix` (now), `defer` (a later task) or `decision` (the person decides at the closing). An empty list records that the board found nothing. A file with problems is refused with every problem at once, and nothing is recorded; a `defer` on a line the change added is refused, because a problem the change causes is fixed or brought to the person, never deferred. A board that submits again replaces its earlier findings. The output counts the boards that reviewed the delivered revision and the blocking findings with their board, file and line, then names the next step: the boards still to review, or fixing a blocking finding and recording the new revision with `task result`, or `task complete`.
+
+At the closing, each blocking finding, each finding classed `decision`, and each review of an earlier revision than the delivered one is an open point of the group "Findings on the delivered diff": the task closes as `done-with-reservations`, and `task show ID --closing` prints them again. `task export` carries the findings, board by board, under `delivered_review`. A task whose diff no board reviewed closes and exports as before, and records written before this review read the same. The review needs a project in Git with an approval that named its revision; a task of kind `decision` delivers no diff.
+
+## Evidence changed after it was accepted
+
+`task clear` records a fingerprint of the evidence that clears a blocker, under `fingerprint` in the clearance: `sha256:` and the SHA-256 of a file's bytes, or of the list of a folder's files (their names, not their content, Git's folder and `.openguildkit/` left out), or `external` for an https link, which no one here can check. In a project with signed approvals the fingerprint is part of the payload the person signs, so a clearance signed before the file changed no longer verifies. `task result` records the same fingerprint for each named evidence it accepts as `passed` with a project path.
+
+When a fingerprinted file changes or disappears afterwards:
+
+- `task blockers` says the state of each clearance's evidence: `fingerprint: unchanged since it was cleared`, `changed since it was cleared`, `the evidence is missing since it was cleared`, or `external link, cannot be checked`; `--json` adds `evidence_state`;
+- `task list` adds a line under the task, such as `changed evidence: docs/aipd.md changed since blocker security:1 was cleared (cleared on 2026-11-20 by CM)`, and `--json` gives the task `evidence_changed`;
+- `task complete` keeps it as an open point of the group "Evidence changed since it was accepted": the task closes as `done-with-reservations`, and `task show ID --closing` prints it again. A file changed and then restored to the bytes that were accepted is no longer a point;
+- `task export` carries `evidence_states`, each evidence with what it was for and its state at the export, and the fingerprint in each clearance.
+
+Behaviour retained until a decision is taken (question Q2 of the plan: should a changed evidence fail `guard --ci` in `enforce`?): a changed evidence is an open point of the closing and a line of `task list`, and `guard --ci` does not read it, in `observe` or in `enforce`. A clearance recorded before fingerprints reads without error: `task blockers` shows it with `no fingerprint: cleared before OpenGuildKit recorded one`, it is never an open point, and a record that has none exports as before.
+
+## Dependencies between tasks
+
+When a decision is split into several tasks, a task can wait for others:
+
+```bash
+openguildkit task new "Show the status page" --id portal --after api-schema --after auth-flow
+```
+
+`task new` prints the ID, then says on standard error what the task waits for and the status of each: `Waits for api-schema (approved) and auth-flow (draft).` It refuses an unknown ID (with the closest one), the task itself and a cycle, which only a task deleted and opened again under the same ID can close. The record keeps the IDs under `after`; a task without `--after` is written as before, and `--follows`, the link to an earlier decision, is unchanged.
+
+`task list` adds a line `waits for: auth-flow (draft)` under each task held back, and `--json` gives each such row `after` and `waiting_for`, the tasks not done yet with their status. A task is done when its status is `done` or `done-with-reservations`; one whose record is gone still holds the task back, as `unknown`. `task list --ready` lists only the open tasks nothing holds back. The handoff of an approved task that still waits for another starts with `Waits for auth-flow (draft): deliver it first; the order stays the person's decision.`: it blocks nothing. In the web interface, the card of a task held back says how many tasks it waits for, and its sheet lists them with their status.
 
 ## Short lane
 
@@ -464,11 +540,58 @@ openguildkit task show status-filter        # a task known here only by its expo
 
 `guard --json` reports in `covered_by` the approved tasks of this copy that cover new edits: a teammate's approval does not authorize your agent's edits, so a pulled record never fills it. `exported_decisions` lists the exported records that match the current rules; in CI, `guard --ci` checks the records the pull request adds, and that each changed file is in the `files` of one of them ([the CI check](../integrations/README.md#the-board-before-every-change)).
 
+### Reuse the profile in another repository
+
+A team that equips a second repository runs, in the first one:
+
+```bash
+openguildkit profile export > answers.json   # then, in the second repository:
+openguildkit init --answers answers.json
+```
+
+`profile export` writes, in the format of `init --questions`, the sector, stack, roles, the answers on personal data, the patterns, the packs (with `"replace_default_packs": true`, so the same packs apply), the boards, the required boards and rules, `ask_every_rule`, the tools, the host, the guard, the research policy, the conventions and the pack resolutions. The new project takes the second folder's name. It reads the profile and writes nothing.
+
+It never carries what belongs to people or to the first repository, and says so on its last lines: the project name, the history of changes, people's names, the signers file, component paths (each pattern applies to the whole new project until the person scopes it), check commands (add the second repository's with `openguildkit profile add check`) and the host's tool connections (`tools apply` writes them per repository). A credential in a convention or a resolution reason is replaced with a placeholder.
+
+A setting that names a person, or that lowers a protection, is left out and typed again by the person at a terminal in the second repository, like any change that weakens a protection. The command prints each one with what to type: signed approvals (`openguildkit profile set approval signed --signers PATH --approver NAME`), a waiver policy, the short lane, a guard below `observe` (the new project starts at `observe`; `openguildkit profile set guard off --by NAME --reason WHY` lowers it), and public research. A norm the first repository declined comes back active, since its decline names who decided: the person declines it again with `openguildkit profile decline ID --by NAME --reason WHY`.
+
 ### When two copies use the same task ID
 
 Task IDs are chosen in each copy. When two people open a task with the same ID before pulling, both export `.openguildkit/decisions/ID.json` and git reports a conflict in that file. `check` and `task list --decisions` then name the file as a git merge conflict, with each side's label and approver. Keep the teammate's side (`git checkout --theirs .openguildkit/decisions/ID.json`, then `git add`), open your own work under another ID with `openguildkit task new "BRIEF" --id NEW-ID`, and take it through consultation and approval again: an approval is bound to its task ID. Until then, `check` and `task list` say that your local task and the record of the same ID are different tasks, and `task export` refuses to replace the teammate's record.
 
 One file per task means two people never edit the same record. When a pull brings a conflict in the code, read the pulled records of the tasks that touch the same files (`task list --decisions`, then `task show ID`): their brief, review summary and board recommendations say what the other change was approved to do (the full approved scope stays in the teammate's task record), and a merge that goes beyond either needs its own task.
+
+## From a file to its decisions
+
+```bash
+openguildkit trace src/api/auth.py          # the decisions that cover the file, most recent first
+openguildkit trace src/api/auth.py --json   # each decision with its checks, evidence and standing
+```
+
+A pull request reviewer, a security officer or an auditor asks which decision covers a file and whether the file changed since. `trace` reads the records of `.openguildkit/decisions/`, teammates' included, and prints one line for each record whose `files` list the path: the task, its status, the day of the approval, the approver's initials, the delivered revision (or the pull request), and how many checks passed and failed. The line under it names the record and whether it still holds, in the words of `task list --decisions`: a withdrawn approval (`task revoke`, then `task export`) says who withdrew it and that the record covers nothing; a record that no longer matches its digests or its rules says why. A check log whose sha256 no longer matches the record is named as evidence changed since the export.
+
+A file of the folder that is not a record, or a record without its list of files, is printed as `[unreadable]`: it may cover the path, so fix or remove it and trace again. A record exported outside Git lists no files and covers no path.
+
+Then Git says whether the file changed after the most recent decision: after its delivered revision when this history holds it, otherwise after the commit that last wrote its record. A commit on the file after that point prints `Changed since the last decision (commit abc1234): no decision covers this change.` Outside a Git repository, or when the record is neither committed nor names a revision of this history, the check is skipped and the command says so. The last line gives `openguildkit task show ID` for the most recent decision; a file that no record lists gets one line and `openguildkit task new`.
+
+The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
+
+## Several projects at once
+
+```bash
+openguildkit projects ~/code                      # each project among the subfolders of ~/code
+openguildkit projects ~/code/*                    # the folders the shell names, one by one
+openguildkit projects ~/code --search "refund"    # briefs, decision reasons and rule IDs that hold the text
+openguildkit projects ~/code --json               # every project and every match, for a program
+```
+
+A tech lead or a security officer who looks after several repositories sees where to act without opening each one. `projects` takes folders: a project itself, or a folder whose subfolders are projects (one level down; hidden folders are skipped). Without a folder it reads the current one. It prints one line per project: the guard mode, whether approvals are signed, the tasks by status, the approvals that no longer hold, the open points (the blockers a reviewed task still waits on and the points a task closed with reservations left open), the critical alerts confirmed in the alert register, and whether `openguildkit check` passes, with its last line when it fails. The last line gives the `check` command of the first project that fails it.
+
+A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuildKit projects (N): ...`), a path that does not exist on its own line, and a project whose profile, catalog lock or alert register cannot be read on its own line with the reason (`cannot be read: ...`): the other projects are still listed, and the command ends with exit code 0.
+
+`--search TEXT` finds the text, case aside, in the first line of each task's brief, its decision reason and the rule IDs of its result (`rule:python/follow-python-style (failed)`), in the tasks of each copy and then in the exported records of the tasks it does not hold. Each match names its project. The first 50 are printed; `--json` gives them all.
+
+`projects` writes nothing and registers no project anywhere: it reads each project as its own commands do, runs `check` in the same process, and takes the folders again at each run. The web interface runs it on its own project only, since a path outside the project is refused there.
 
 ## Inspecting a task
 
@@ -517,11 +640,23 @@ The proposal behind this command also listed the questions that had no effect on
 | A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
 | A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
 
-A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by NAME` and `--reason WHY` are the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
+A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by NAME` is the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
+
+The `--reason` comes filled in with what comes back and the tasks behind it, for example `--reason 'task retro: rule:typescript/strict-type-checking failed in 3 tasks (a2, a3, a4)'`, followed for a rule set aside by the reason the tasks recorded. Once the person runs the command, the profile history (`changes` in `.openguildkit/project.json`) keeps that reason, so the change stays linked to the retrospective. The person can edit it before running the command. It is one line of at most 240 characters: the recorded reason is cut first, then the wording of the finding; past five tasks it names the first five and how many more. It holds no field that names a person, only the task IDs and what the records already say. The reason is quoted like the rest of the command: single quotes for a POSIX shell, and the same with a doubled single quote inside for PowerShell on Windows. `--json` gives it in `proposed_reason` next to `command` (`null` when there is no command), and keeps `tasks` and the other keys as they were.
 
 A recurrence is a question for the team, not a verdict: a rule skipped three times for one reason may be a rule the project does not need, or a habit worth changing. The declines already in the profile are not counted, since they stand for every task consulted after them.
 
 If a task is unknown, or not closed, `task retro ID` says so with the status and the command that moves it on, as every command does. An exported record written before its task was completed has no closing to read, and `--all` without any closed task says there is nothing to count.
+
+### Every month in CI
+
+[`integrations/github/openguildkit-retro.yml`](../integrations/github/openguildkit-retro.yml) runs `task retro --all --json` on the first day of each month, on GitHub Actions. Copy it to `.github/workflows/` and set the release your project uses. The retrospective reads the exported records too, so it counts the closed tasks whose decision the project commits in `.openguildkit/decisions/` even when `.openguildkit/tasks/` is not committed.
+
+- When nothing comes back, it opens no issue.
+- When a finding comes back, it opens one issue, `OpenGuildKit retrospective YYYY-MM`, with each finding, its number of tasks and the profile command a person could type, never run.
+- A retrospective issue still open from an earlier month is updated and renamed instead, so there is one at a time. Once a person closes the issue of the month, a second run that month opens no other.
+
+The job asks for `contents: read` and `issues: write` and nothing else: it writes nothing to the repository. What people typed in a reason or a reservation reaches the issue, with each `@` broken so that it notifies nobody. Add `--min N` to the command in the template to change the minimum.
 
 ## Exit codes
 

@@ -1,0 +1,63 @@
+{
+  "id": "svelte",
+  "title": "Svelte components",
+  "version": "1.0.0",
+  "description": "For a Svelte interface: raw HTML blocks, effects kept for side effects, svelte-check in CI and accessibility warnings.",
+  "sources": [
+    {
+      "title": "Svelte docs, {@html ...}",
+      "url": "https://svelte.dev/docs/svelte/@html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Svelte docs, $effect",
+      "url": "https://svelte.dev/docs/svelte/$effect",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Svelte CLI docs, sv check",
+      "url": "https://svelte.dev/docs/cli/sv-check",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Svelte docs, compiler warnings",
+      "url": "https://svelte.dev/docs/svelte/compiler-warnings",
+      "checked": "2026-11-26"
+    }
+  ],
+  "rules": [
+    {
+      "id": "escape-raw-html-blocks",
+      "instruction": "Pass to `{@html ...}` only a string the application controls or has escaped; never render unsanitized content, such as text a user wrote, through it.",
+      "verification": "Search the change for `{@html` and check, for each one, where its string comes from and that a value from a user or an outside system is escaped or sanitized first."
+    },
+    {
+      "id": "derive-state-instead-of-effects",
+      "instruction": "Compute a value from other state with `$derived` (or `$derived.by`), not by assigning state inside `$effect`; keep `$effect` for side effects such as analytics or direct DOM work.",
+      "verification": "Review each `$effect` the change adds and check that it does not assign state that `$derived` could compute."
+    },
+    {
+      "id": "run-svelte-check",
+      "instruction": "Install `svelte-check` as a development dependency and run it (`npx sv check` or `svelte-check`) in CI, so that the type errors, unused CSS and accessibility hints it reports on `.svelte` files are seen before a merge.",
+      "verification": "task verify checks that a `package.json` names `svelte-check`; also check that CI runs it and that its report on the change holds no error.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          "package.json",
+          "*/package.json",
+          "apps/*/package.json",
+          "packages/*/package.json"
+        ],
+        "contains": [
+          "svelte-check"
+        ],
+        "expect": "present"
+      }
+    },
+    {
+      "id": "silence-accessibility-warnings-only-when-false",
+      "instruction": "Fix the accessibility warnings (`a11y_*`) the Svelte compiler reports; add a `<!-- svelte-ignore ... -->` comment only for a warning that is a false positive in that place, with the reason in parentheses.",
+      "verification": "Search the change for `svelte-ignore a11y` and check that each comment is on a false positive and states its reason."
+    }
+  ]
+}

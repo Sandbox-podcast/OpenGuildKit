@@ -172,6 +172,112 @@ class DetectedVersionTests(CapturedCli, unittest.TestCase):
         self.assertEqual({component for pattern in matched if pattern["id"] == "symfony"
                           for component in pattern["components"]}, {"shop", "legacy"})
 
+    def test_svelte_sveltekit_react_native_and_expo_are_read_from_package_json(self):
+        write(self.root, "kit/package.json", {"devDependencies": {"svelte": "^5.0.0", "@sveltejs/kit": "^2.20.0"}})
+        write(self.root, "widget/package.json", {"dependencies": {"svelte": "^5.1.0"}})
+        write(self.root, "mobile/package.json", {"dependencies": {"react": "19.1.0", "react-native": "0.81.4"}})
+        write(self.root, "expo/package.json",
+              {"dependencies": {"expo": "~54.0.0", "react": "19.1.0", "react-native": "0.81.4"}})
+        # A React web application declares react and react-dom, never react-native: it is no mobile app.
+        write(self.root, "web/package.json", {"dependencies": {"react": "^19.1.0", "react-dom": "^19.1.0"}})
+        stacks = self.stacks()
+        self.assertEqual(stacks["kit"], ["Svelte ^5.0.0", "SvelteKit ^2.20.0"])
+        self.assertEqual(stacks["widget"], ["Svelte ^5.1.0"])
+        self.assertEqual(stacks["mobile"], ["React 19.1.0", "React Native 0.81.4"])
+        self.assertEqual(stacks["expo"], ["Expo ~54.0.0", "React 19.1.0", "React Native 0.81.4"])
+        self.assertEqual(stacks["web"], ["React ^19.1.0"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        where = {pattern["id"]: set(pattern["components"]) for pattern in matched}
+        self.assertEqual(where.get("svelte"), {"kit", "widget"})
+        self.assertEqual(where.get("sveltekit"), {"kit"})
+        self.assertEqual(where.get("react-native"), {"mobile", "expo"})
+        self.assertEqual(where.get("expo"), {"expo"})
+
+    def test_a_flutter_app_is_told_from_a_dart_package_by_its_pubspec(self):
+        write(self.root, "app/pubspec.yaml",
+              "name: shop\nenvironment:\n  sdk: ^3.5.0\n  flutter: '>=3.22.0'\n"
+              "dependencies:\n  flutter:\n    sdk: flutter\n  http: ^1.2.0\n")
+        write(self.root, "plain/pubspec.yaml",
+              "name: shop_app\nenvironment:\n  sdk: ^3.5.0\ndependencies:\n  flutter:\n    sdk: flutter\n")
+        # A Dart package or command-line tool has a pubspec too, without the Flutter SDK.
+        write(self.root, "cli/pubspec.yaml",
+              "name: tool\nenvironment:\n  sdk: ^3.0.0\ndependencies:\n  args: ^2.5.0\n"
+              "# flutter: not used here\n")
+        stacks = self.stacks()
+        self.assertEqual(stacks["app"], ["Dart ^3.5.0", "Flutter >=3.22.0"])
+        self.assertEqual(stacks["plain"], ["Dart ^3.5.0", "Flutter"])
+        self.assertEqual(stacks["cli"], ["Dart ^3.0.0"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "flutter"
+                          for component in pattern["components"]}, {"app", "plain"})
+
+    def test_apache_airflow_is_read_from_its_package_its_image_or_a_dags_folder(self):
+        write(self.root, "pinned/requirements.txt", "apache-airflow[celery]==3.4.0\n")
+        write(self.root, "project/pyproject.toml", '[project]\nname = "etl"\ndependencies = ["apache-airflow>=3.0"]\n')
+        write(self.root, "image/Dockerfile", "FROM apache/airflow:3.4.0-python3.12\n")
+        write(self.root, "compose/docker-compose.yaml", "services:\n  scheduler:\n    image: apache/airflow:3.3.1\n")
+        write(self.root, "plain/dags/orders.py", "from airflow.sdk import dag, task\n")
+        # The REST API client, a provider alone, a folder named dags without Airflow and a word in a comment are not.
+        write(self.root, "client/requirements.txt", "apache-airflow-client==3.0.0\n")
+        write(self.root, "other/dags/job.py", "# runs like an airflow job, but with cron\nimport sched\n")
+        stacks = self.stacks()
+        self.assertIn("Apache Airflow 3.4.0", stacks["pinned"])
+        self.assertIn("Apache Airflow >=3.0", stacks["project"])
+        self.assertIn("Apache Airflow 3.4.0", stacks["image"])
+        self.assertIn("Apache Airflow 3.3.1", stacks["compose"])
+        self.assertEqual(stacks["plain"], ["Apache Airflow"])
+        self.assertEqual(stacks["client"], ["Python"])
+        self.assertNotIn("other", stacks)
+        self.assertNotIn("plain/dags", stacks)
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "apache-airflow"
+                          for component in pattern["components"]}, {"pinned", "project", "image", "compose", "plain"})
+
+    def test_a_dbt_project_gives_the_dbt_version_it_requires(self):
+        write(self.root, "ranged/dbt_project.yml", "name: shop\nrequire-dbt-version: \">=1.10.0,<3.0.0\"\n")
+        write(self.root, "listed/dbt_project.yml", "name: shop\nrequire-dbt-version: ['>=1.9.0', '<2.0.0']\n")
+        write(self.root, "open/dbt_project.yml", "name: shop\nversion: '1.0.0'\n")
+        # dbt-core installed by an Airflow project to run dbt is not a dbt project.
+        write(self.root, "runner/requirements.txt", "dbt-core==1.10.0\n")
+        stacks = self.stacks()
+        self.assertEqual(stacks["ranged"], ["dbt >=1.10.0,<3.0.0"])
+        self.assertEqual(stacks["listed"], ["dbt >=1.9.0,<2.0.0"])
+        self.assertEqual(stacks["open"], ["dbt"])
+        self.assertEqual(stacks["runner"], ["Python"])
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        self.assertEqual({component for pattern in matched if pattern["id"] == "dbt"
+                          for component in pattern["components"]}, {"ranged", "listed", "open"})
+
+    def test_elixir_and_phoenix_are_read_from_mix_exs_and_its_dependencies_are_skipped(self):
+        write(self.root, "web/mix.exs",
+              'defmodule Shop.MixProject do\n  use Mix.Project\n\n  def project do\n'
+              '    [app: :shop, version: "0.1.0", elixir: "~> 1.18", deps: deps()]\n  end\n\n'
+              '  defp deps do\n    [\n      {:phoenix, "~> 1.8.1"},\n      {:phoenix_html, "~> 4.1"},\n'
+              '      {:ecto_sql, "~> 3.10"}\n    ]\n  end\nend\n')
+        # Phoenix's companion libraries alone, and a commented dependency, make no Phoenix application.
+        write(self.root, "worker/mix.exs",
+              'defmodule Worker.MixProject do\n  use Mix.Project\n'
+              '  def project, do: [app: :worker, elixir: "~> 1.15"]\n'
+              '  defp deps do\n    [\n      {:phoenix_pubsub, "~> 2.1"},\n'
+              '      # {:phoenix, "~> 1.7"},\n    ]\n  end\nend\n')
+        # Mix fetches each dependency into deps/ and compiles into _build/, both with their own mix.exs.
+        write(self.root, "web/deps/phoenix/mix.exs",
+              'defmodule Phoenix.MixProject do\n  def project, do: [elixir: "~> 1.15"]\nend\n')
+        write(self.root, "web/_build/dev/lib/plug/mix.exs", 'defmodule Plug.MixProject do\nend\n')
+        stacks = self.stacks()
+        self.assertEqual(stacks["web"], ["Elixir ~> 1.18", "Phoenix ~> 1.8.1"])
+        self.assertEqual(stacks["worker"], ["Elixir ~> 1.15"])
+        self.assertEqual(set(stacks), {"web", "worker"})
+        components = components_for_profile(detect_stack(self.root))
+        matched = recommend_patterns(load_catalog(), [], "general", [], components)["matched"]
+        where = {pattern["id"]: set(pattern["components"]) for pattern in matched}
+        self.assertEqual(where.get("elixir-mix"), {"web", "worker"})
+        self.assertEqual(where.get("phoenix"), {"web"})
+
     def test_an_old_style_kotlin_version_variable_is_read(self):
         write(self.root, "app/build.gradle",
               "buildscript {\n  ext.kotlin_version = '1.9.24'\n  dependencies {\n"

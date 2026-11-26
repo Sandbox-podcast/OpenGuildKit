@@ -19,7 +19,13 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
-For a team, install the wheel of a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases) on each workstation instead, with pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) or uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). OpenGuildKit is not on PyPI. [Install a GitHub release](docs/install.md) gives the download, the hash check and the agent files.
+For a team, install the latest [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases) on each workstation instead. This line downloads its wheel, checks the wheel's SHA-256 against the release's `SHA256SUMS.txt` and only then installs it with pipx, or uv when pipx is missing; add `sh -s -- --version X.Y.Z` in place of the final `sh` for another version:
+
+```sh
+curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+```
+
+OpenGuildKit is not on PyPI. By hand, the same wheel installs with pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) or uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). [Install a GitHub release](docs/install.md) gives the Windows line, the manual download and hash check, and the agent files.
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 
@@ -48,6 +54,8 @@ openguildkit check
 ```
 
 With Claude Code, Codex or Gemini CLI as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question.
+
+To set up a second repository like the first, run `openguildkit profile export > answers.json` in the first and `openguildkit init --answers answers.json` in the second: the same patterns, packs, boards, guard and conventions. People's names, the history of changes, the signers file, component paths and check commands stay behind, and a setting that names a person or lowers a protection is typed again by the person at a terminal there; the export prints each one ([reuse the profile](docs/workflow.md#reuse-the-profile-in-another-repository)).
 
 `init` saves the profile in `.openguildkit/project.json` and writes a managed block in `AGENTS.md`: the task workflow, the project's decisions and each rule pack with the IDs of its rules, whose text a board pass or `openguildkit task brief ID --pack PACK` prints. It adds an import to `CLAUDE.md` for Claude Code. The catalog records in force are pinned in `.openguildkit/catalog.lock.json`: after upgrading OpenGuildKit, `openguildkit update` shows the date of the installed catalog (the day its sources were last checked), how many records changed and what would change, and `openguildkit update --apply` adopts it. It then prints the next steps that apply, such as `openguildkit host apply` for your agent host and `openguildkit tools plan ...` for the tools the registry knows. [Install the agent skill](integrations/) to answer the questionnaire in Claude Code or Codex and run tasks from the conversation. To change the profile later (adopt or decline a regulation, add a check, change the host or the guard), use `openguildkit profile`: it records who, when and why, and rewrites `AGENTS.md` ([patterns](docs/patterns.md#change-the-profile-after-setup)).
 

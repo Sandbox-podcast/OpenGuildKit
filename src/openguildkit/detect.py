@@ -31,6 +31,11 @@ NPM_PACKAGES = {
     "vue": "Vue",
     "@angular/core": "Angular",
     "svelte": "Svelte",
+    "@sveltejs/kit": "SvelteKit",
+    # A React Native app declares react-native next to react; a web app declares react-dom instead. Expo projects
+    # declare expo as well.
+    "react-native": "React Native",
+    "expo": "Expo",
     "typescript": "TypeScript",
     "express": "Express",
     "@nestjs/core": "NestJS",
@@ -82,6 +87,8 @@ PYTHON_PACKAGES = {
     "pydantic-ai": "Pydantic AI",
     "pydantic-ai-slim": "Pydantic AI",
     "claude-agent-sdk": "Claude Agent SDK",
+    # The Airflow distribution itself; its REST API client (apache-airflow-client) and a provider alone are not.
+    "apache-airflow": "Apache Airflow",
     "autogen": "AutoGen",
     "autogen-agentchat": "AutoGen",
     "pyautogen": "AutoGen",
@@ -103,7 +110,7 @@ COMPOSER_PACKAGES = {
     "braintree/braintree_php": "Braintree", "checkout/checkout-sdk-php": "Checkout.com",
     "mollie/mollie-api-php": "Mollie",
 }
-IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL"}
+IMAGES = {"postgres": "PostgreSQL", "postgis/postgis": "PostgreSQL", "apache/airflow": "Apache Airflow"}
 IMAGE_PREFIXES = ("docker.io/library/", "docker.io/", "library/")
 INFERRED = {"PostgreSQL", "MySQL"}
 # SDK versions are not the versions of the services they use. The card payment providers are those the
@@ -135,6 +142,13 @@ _KTOR_BOM = re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
 _KTOR_SETTINGS_CATALOG = re.compile(
     r"""create\(\s*["'](\w+)["']\s*\)\s*\{\s*from\(\s*["']io\.ktor:ktor-version-catalog:([^"']+)["']""")
 _REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
+# A Mix project's Elixir requirement and its Phoenix dependency; text after a # is a comment.
+_MIX_ELIXIR = re.compile(r'(?m)^[^#\n]*\belixir:[ \t]*"([^"\n]+)"')
+_MIX_PHOENIX = re.compile(r'(?m)^[^#\n]*\{[ \t]*:phoenix[ \t]*,[ \t]*(?:"([^"\n]+)")?')
+# What Mix writes next to mix.exs: the fetched dependencies and the build, each with mix.exs files of its own.
+MIX_OUTPUT = ("deps", "_build")
+_AIRFLOW_IMPORT = re.compile(r"(?m)^[ \t]*(?:from|import)[ \t]+airflow\b")
+_DBT_VERSION = re.compile(r"""(?m)^require-dbt-version:[ \t]*(\[[^\]\n]*\]|"[^"\n]*"|'[^'\n]*')""")
 _KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
 _KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
 
@@ -661,6 +675,52 @@ def _kubernetes(component: _Component, path: Path, label: str) -> None:
             component.add("Flux", None, label)
 
 
+def _mix(component: _Component, path: Path, label: str) -> None:
+    """A mix.exs makes an Elixir project, with the version its `elixir:` requirement gives; a `{:phoenix, ...}`
+    dependency makes it a Phoenix application. Phoenix's own libraries (phoenix_html, phoenix_pubsub) alone do not."""
+    text = _read_text(path) or ""
+    elixir = _MIX_ELIXIR.search(text)
+    component.add("Elixir", declared_version(elixir.group(1)) if elixir else None, label)
+    phoenix = _MIX_PHOENIX.search(text)
+    if phoenix:
+        component.add("Phoenix", declared_version(phoenix.group(1)), label)
+
+
+def _dbt_project(component: _Component, path: Path, label: str) -> None:
+    """A dbt project; its version is the range `require-dbt-version` declares, as a string or a list of strings."""
+    found = _DBT_VERSION.search(_read_text(path) or "")
+    ranges = re.findall(r"""["']([^"']*)["']""", found.group(1)) if found else []
+    component.add("dbt", declared_version(",".join(ranges)) if ranges else None, label)
+
+
+def _airflow_dags(folder: Path) -> bool:
+    """Whether a dags folder holds a DAG file: a Python file at its top that imports Airflow."""
+    try:
+        files = sorted(entry for entry in folder.iterdir() if entry.suffix == ".py" and entry.is_file())
+    except OSError:
+        return False
+    return any(_AIRFLOW_IMPORT.search(_read_text(entry) or "") for entry in files[:MAX_WORKSPACE_MEMBERS])
+
+
+def _pubspec(component: _Component, path: Path, label: str) -> None:
+    """A pubspec.yaml makes a Dart package; a dependency on the Flutter SDK (`sdk: flutter`) makes it a Flutter one.
+
+    The environment section gives the Dart SDK constraint and, for Flutter, the Flutter constraint. Only these
+    lines are read, without a YAML parser: a comment that names Flutter is not a dependency on its SDK.
+    """
+    text = _read_text(path) or ""
+    environment = re.search(r"(?m)^environment:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n?|[ \t]*\n)*)", text)
+    block = environment.group(1) if environment else ""
+
+    def constraint(key: str) -> str | None:
+        found = re.search(rf"""(?m)^[ \t]+{key}:[ \t]*["']?([^"'#\n]+?)["']?[ \t]*(?:#.*)?$""", block)
+        return declared_version(found.group(1)) if found else None
+
+    component.add("Dart", constraint("sdk"), label)
+    if re.search(r"""(?m)^[ \t]+sdk:[ \t]*["']?flutter["']?[ \t]*(?:#.*)?$""", text):
+        component.add("Flutter", constraint("flutter"), label)
+
+
 def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
     name = path.name
     if name == "package.json":
@@ -688,6 +748,10 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _composer(component, path, label)
     elif name == "Cargo.toml":
         _cargo(component, path, label)
+    elif name == "mix.exs":
+        _mix(component, path, label)
+    elif name == "pubspec.yaml":
+        _pubspec(component, path, label)
     elif name == "Package.swift":
         _swift_package(component, path, label)
     elif name == "manage.py" and "django" in (_read_text(path) or ""):
@@ -700,7 +764,7 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
     elif re.fullmatch(r"vite\.config\.[cm]?[jt]s", name):
         component.add("Vite", None, label)
     elif name in ("dbt_project.yml", "dbt_project.yaml"):
-        component.add("dbt", None, label)
+        _dbt_project(component, path, label)
     elif name == "wp-config.php":
         component.add("WordPress", None, label)
     elif name.endswith(".tf"):
@@ -755,6 +819,8 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
         if "Cargo.toml" in files:
             for member in _cargo_members(directory):
                 module_roots[member] = relative
+        if "mix.exs" in files:
+            folders[:] = [name for name in folders if name not in MIX_OUTPUT]
         relative = _kustomize_base(module_roots.get(directory, relative), names)
         found += [((*parts, name), "file", directory / name, relative) for name in files]
         for name in [name for name in folders if name.endswith(".xcodeproj")]:
@@ -762,6 +828,9 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             folders.remove(name)
         if "wp-content" in folders and len(parts) < MAX_DEPTH:
             found.append(((*parts, "wp-content"), "wordpress", directory / "wp-content", relative))
+        # Airflow reads its DAGs from a dags folder; one whose files import Airflow makes its parent an Airflow project.
+        if "dags" in folders and len(parts) < MAX_DEPTH and _airflow_dags(directory / "dags"):
+            found.append(((*parts, "dags"), "airflow", directory / "dags", relative))
     for key, kind, entry, relative in sorted(found, key=lambda item: item[0]):
         component = components.setdefault(relative, _Component(relative))
         label = "/".join(key)
@@ -769,6 +838,8 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             _parse(component, entry, label, root)
         elif kind == "xcode":
             _xcode_project(component, entry, label)
+        elif kind == "airflow":
+            component.add("Apache Airflow", None, label)
         else:
             component.add("WordPress", None, label)
     workflows = root / ".github" / "workflows"

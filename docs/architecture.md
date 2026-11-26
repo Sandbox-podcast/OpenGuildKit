@@ -47,6 +47,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
 | `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
 | `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
+| `projects_cli.py` | The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only. |
+| `trace_cli.py` | The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
 | `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
@@ -68,6 +70,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
 | `consultation.py` | Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task. |
 | `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
+| `owners.py` | Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record. |
 | `tasks.py` | Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal. |
 | `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
@@ -75,6 +78,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `retro.py` | The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type. |
 | `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
 | `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
+| `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
 | `light_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |
 | `sarif.py` | Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run. |
@@ -89,7 +93,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `mcp_protocol.py` | Shared stdio transport, handshake and tool dispatch for local MCP servers. |
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
 | `project_mcp.py` | Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes. |
-| `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks. |
+| `deliverables.py` | Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision record filled from a decision task. |
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
 | `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |
 | `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |

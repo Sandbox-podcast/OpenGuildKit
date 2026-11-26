@@ -1,0 +1,33 @@
+{
+  "id": "svelte",
+  "title": "Svelte",
+  "description": "Review raw HTML blocks, effects, svelte-check and accessibility warnings in a Svelte interface.",
+  "sources": [
+    {
+      "title": "Svelte docs, {@html ...}",
+      "url": "https://svelte.dev/docs/svelte/@html",
+      "checked": "2026-11-26"
+    },
+    {
+      "title": "Svelte CLI docs, sv check",
+      "url": "https://svelte.dev/docs/cli/sv-check",
+      "checked": "2026-11-26"
+    }
+  ],
+  "roles": [
+    "engineering",
+    "design",
+    "qa"
+  ],
+  "packs": [
+    "svelte"
+  ],
+  "match": {
+    "stack": [
+      [
+        "svelte",
+        "sveltekit"
+      ]
+    ]
+  }
+}

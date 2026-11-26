@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.cli import command_parser
+from openguildkit.decisions import record_digest
 from openguildkit.storage import write_json
 
 from tests.support import run_cli
@@ -53,6 +54,11 @@ HANDSHAKE = ({"jsonrpc": "2.0", "id": 1, "method": "initialize",
               "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}},
              {"jsonrpc": "2.0", "method": "notifications/initialized"})
 LISTING = HANDSHAKE + ({"jsonrpc": "2.0", "id": 2, "method": "tools/list"},)
+# The project server's task tools, after the listing: what an agent reads to know where a task stands.
+TASK_READS = LISTING + tuple(
+    {"jsonrpc": "2.0", "id": 3 + index, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+    for index, (name, arguments) in enumerate((("task_list", {}), ("task_next", {"task_id": TASK}),
+                                               ("task_blockers", {"task_id": TASK}))))
 
 # One example per form measured; its command line names it in a failure and in EXCEPTIONS. A command with --json has a
 # second example with it (the form an agent parses), and a form that prints far more than the plain one, such as a
@@ -86,6 +92,7 @@ EXAMPLES = [
     Example("init", "profile add tool Jira --by CM --reason Tracker"),
     Example("init", "profile remove convention 'Use Conventional Commits for commit messages.' --by CM --reason Trim"),
     Example("init", "profile set guard observe --by CM --reason Pilot"),
+    Example("init", "profile export"),
     Example("init", "features list"), Example("init", "features list --json"),
     Example("init", "features enable jira --by CM --reason Logs"),
     Example("featured", "features disable jira --by CM --reason Moved"),
@@ -103,7 +110,7 @@ EXAMPLES = [
     Example("init", "tools mock jira", sends=LISTING, process=True),
     Example("init", "tools call jira"), Example("init", "tools call jira --json"),
     Example("init", "tools scenario jira"),
-    Example("approved", "mcp", sends=LISTING, process=True),
+    Example("approved", "mcp", sends=TASK_READS, process=True),
     # Deliverables, publishing and the market.
     Example("init", "deliverable list"), Example("init", "deliverable show campaign-brief"),
     Example("approved", "deliverable new campaign-brief --task request-status --output brief.md"),
@@ -155,6 +162,8 @@ EXAMPLES = [
     # The task, from its brief to its closing.
     Example("init", "task new 'Show customers their request status' --id status"),
     Example("draft", "task list"), Example("draft", "task list --json"), Example("done", "task list --decisions"),
+    Example("draft", "task new 'Send the status by email' --id email --after request-status"),
+    Example("draft", "task list --ready"), Example("draft", "task list --ready --json"),
     Example("draft", "task questions request-status --answers $example/answers.json"),
     Example("draft", "task route request-status --answers $example/answers.json"),
     Example("draft", "task route request-status --answers $example/answers.json --json"),
@@ -190,9 +199,20 @@ EXAMPLES = [
     Example("resulted", "task complete request-status --by CM", typed=TASK),
     Example("done", "task show request-status --closing"),
     Example("done", "task export request-status"),
+    # The boards' review of the delivered diff, in a project in Git.
+    Example("delivered", "task diff-review request-status"),
+    Example("delivered", "task diff-review request-status --json"),
+    Example("delivered", "task diff-review request-status --board security"),
+    Example("delivered", "task diff-review request-status --board security --json"),
+    Example("delivered", "task diff-review request-status --submit $root/findings.json"),
     # The retrospective of one task, and of the project once the same findings come back in several tasks.
     Example("done", "task retro request-status"), Example("done", "task retro request-status --json"),
     Example("recurring", "task retro --all"), Example("recurring", "task retro --all --json"),
+    # From a file to the decisions that cover it.
+    Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
+    # Several projects at once: this one, its parent folder with the other runs, and a search across them.
+    Example("done", "projects $root"), Example("done", "projects $root --json"),
+    Example("done", "projects $root --search status"),
 ]
 
 # What no example runs, with the reason.
@@ -207,10 +227,12 @@ NOT_RUN = {
 # ceiling is the size measured on 25 November 2026 plus 10 %, rounded up to the next 1 000 bytes. A command that grows
 # past its ceiling fails; raise the ceiling in the pull request that makes it grow, with the reason.
 EXCEPTIONS = {
-    "catalog --json": (690_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
+    "catalog --json": (763_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
-    "patterns --json": (99_000, "Every pattern with its rule packs; `patterns` lists them in 9 KB."),
+    "patterns --json": (110_000, "Every pattern with its rule packs; `patterns` lists them in 11 KB."),
+    "patterns": (12_000, "One line per pattern of the bundled catalog, grouped by kind, so that a person can choose; "
+                         "`patterns --id ID` prints one."),
     "brains --json": (192_000, "Every brain with its lenses and knowledge; `brains` lists them in 2 KB."),
     "brains --id security": (20_000, "One brain in full, which is what the option asks for: its lenses with their "
                                      "checks, and the knowledge attached."),
@@ -329,9 +351,10 @@ class Projects:
         "briefed": ("approved", "draft_deliverable"), "shared": ("briefed", "share_deliverable"),
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
-        "done": ("resulted", "complete"), "recurring": ("done", "close_more"),
+        "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
+        "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci"}
+    NEEDS_GIT = {"git", "ci", "exported", "delivered"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -519,6 +542,27 @@ class Projects:
         run_cli(root, "task", "result", TASK, "--file", root / "result.json")
 
     def complete(self, root): run_cli(root, "task", "complete", TASK, "--by", "CM", typed=TASK)
+
+    def export(self, root: Path) -> None:
+        """The closed task's record, in a Git repository, listing README.md as the files of its change."""
+        run_cli(root, "task", "export", TASK)
+        path = root / ".openguildkit" / "decisions" / f"{TASK}.json"
+        record = {**json.loads(path.read_text(encoding="utf-8")), "files": ["README.md"]}
+        record.pop("record_sha256")
+        write_json(path, {**record, "record_sha256": record_digest(record)})
+        commit_everything(root)
+
+    def deliver_in_git(self, root: Path) -> None:
+        """Approved at a commit, then a change committed and its revision recorded by task verify."""
+        commit_everything(root)
+        self.approve(root)
+        (root / "status.py").write_text("def status(user):\n    return user.requests\n", encoding="utf-8")
+        git(root, "add", "status.py")
+        git(root, "commit", "-q", "-m", "Show the status")
+        run_cli(root, "task", "verify", TASK)
+        write_json(root / "findings.json", {"board": "security", "findings": [
+            {"file": "status.py", "line": 2, "severity": "blocking", "action": "fix",
+             "finding": "Every request of every user is returned."}]})
 
     def close_more(self, root: Path) -> None:
         """Three more closed tasks that skip one rule for the same reason and fail another, so that the retrospective of

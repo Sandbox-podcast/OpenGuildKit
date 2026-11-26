@@ -1,0 +1,2 @@
+# The installer and other shell scripts run under sh, which a carriage return breaks.
+*.sh text eol=lf

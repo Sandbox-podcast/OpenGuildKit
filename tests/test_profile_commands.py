@@ -398,5 +398,101 @@ class ProposalCheckTests(unittest.TestCase):
                     self.assertEqual(anonymous(written), anonymous(expected))
 
 
+class ProfileExportTests(unittest.TestCase):
+    """profile export writes the answers that set up a second repository like the first (issue #444)."""
+
+    KEY = "AK" + "IA" + "IOSFODNN7EXAMPLE"
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.first = Path(temporary.name) / "ledger"
+        self.second = Path(temporary.name) / "billing"
+        self.first.mkdir()
+        self.second.mkdir()
+
+    def cli(self, root, *arguments, code=0, typed=None):
+        result = run_cli(root, *arguments, expect=code, env=DAY, typed=typed)
+        return result.stdout, result.stderr
+
+    def profile(self, root) -> dict:
+        return json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+
+    def set_up_first(self, **answers):
+        write_json(self.first / "answers.json", {
+            "name": "Ledger", "personal_data": "yes", "stack": ["Python"], "roles": ["backend"],
+            "norms": {"gdpr-personal-data": {"answer": "no", "by": "Camille Martin", "reason": "Pseudonymised data"}},
+            "boards": ["security", "engineering", "legal"], "guard": "enforce", "packs": ["api-design"],
+            "conventions": ["Name branches feature/ID.", f"Deploy with the key {self.KEY} from the vault."],
+            **answers})
+        self.cli(self.first, "init", "--answers", self.first / "answers.json")
+
+    def export(self):
+        output, notes = self.cli(self.first, "profile", "export")
+        (self.second / "answers.json").write_text(output, encoding="utf-8")
+        return json.loads(output), notes
+
+    def test_the_exported_answers_set_up_another_repository_with_the_same_rules(self):
+        self.set_up_first()
+        self.cli(self.first, "profile", "add", "required-board", "security", "--by", "Camille Martin",
+                 "--reason", "Every change gets a security review")
+        self.cli(self.first, "profile", "set", "waivers", "allowed", "--allowed-by", "Camille Martin", "--max-days",
+                 "30", "--by", "Camille Martin", "--reason", "Pilot", typed="allowed")
+        self.cli(self.first, "profile", "set", "approval", "signed", "--signers", ".openguildkit/allowed_signers",
+                 "--approver", "Camille Martin", "--by", "Camille Martin", "--reason", "Enforce", typed="signed")
+        first = self.profile(self.first)
+        answers, notes = self.export()
+
+        self.assertEqual(answers["norms"], {"gdpr-personal-data": "yes"})
+        self.assertNotIn("name", answers)
+        self.assertIn("Left aside:", notes)
+        self.assertIn("people's names", notes)
+        self.assertIn("the signers file", notes)
+        self.assertIn("openguildkit profile decline gdpr-personal-data --by NAME --reason WHY", notes)
+        self.assertIn("openguildkit profile set approval signed", notes)
+        self.assertIn("openguildkit profile set waivers allowed", notes)
+        self.assertIn("openguildkit init --answers answers.json", notes)
+
+        self.cli(self.second, "init", "--answers", self.second / "answers.json")
+        second = self.profile(self.second)
+        for field in ("sector", "stack", "roles", "packs", "boards", "required_boards", "guard", "research",
+                      "personal_data"):
+            self.assertEqual(second.get(field), first.get(field), field)
+        self.assertEqual(second["name"], "billing")
+        self.assertEqual(second["patterns"][0], "gdpr-personal-data")
+        self.assertEqual(second["patterns"][1:], first["patterns"])
+        self.assertEqual(second["conventions"][0], "Name branches feature/ID.")
+        for field in ("approval", "waivers", "changes", "declined"):
+            self.assertNotIn(field, second)
+
+    def test_the_export_names_no_person_and_no_secret(self):
+        self.set_up_first()
+        self.cli(self.first, "profile", "set", "waivers", "allowed", "--allowed-by", "Camille Martin", "--max-days",
+                 "30", "--by", "Camille Martin", "--reason", "Pilot", typed="allowed")
+        output, notes = self.cli(self.first, "profile", "export")
+        self.assertIn("Camille Martin", json.dumps(self.profile(self.first)))
+        for private in ("Camille", "Pseudonymised", "Pilot", self.KEY, "allowed_signers", "Ledger"):
+            self.assertNotIn(private, output)
+            self.assertNotIn(private, notes)
+        self.assertNotIn('"changes"', output)
+        self.assertIn("Deploy with the key", output)
+
+    def test_a_lowered_guard_and_public_research_are_typed_again_at_a_terminal(self):
+        self.set_up_first(guard="off", research="public-sources")
+        answers, notes = self.export()
+        self.assertNotIn("guard", answers)
+        self.assertNotIn("research", answers)
+        self.assertIn("openguildkit profile set guard off --by NAME --reason WHY", notes)
+        self.assertIn("openguildkit profile set research public-sources --by NAME --reason WHY", notes)
+        self.cli(self.second, "init", "--answers", self.second / "answers.json")
+        self.assertEqual((self.profile(self.second)["guard"], self.profile(self.second)["research"]),
+                         ("observe", "local-only"))
+        self.cli(self.second, "profile", "set", "guard", "off", "--by", "CM", "--reason", "Pilot", code=1)
+
+    def test_export_needs_a_project(self):
+        _, error = self.cli(self.second, "profile", "export", code=1)
+        self.assertIn("openguildkit init", error)
+
+
 if __name__ == "__main__":
     unittest.main()

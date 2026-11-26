@@ -28,6 +28,9 @@ NOT_COUNTED_GROUPS = frozenset({*RULE_GROUPS, VERDICTS_GROUP})
 KIND_ORDER = {"rule": 0, "committee": 1, "reservation": 2}
 # What the text shows: a section is cut after MAX_LINES lines, a sentence after MAX_TEXT characters.
 MAX_LINES, MAX_TEXT, MAX_IDS, MAX_EXAMPLES = 8, 160, 5, 3
+# The reason written into a proposed command, which the profile history keeps: one line, at most this many characters.
+MAX_REASON = 240
+REASON_PREFIX = "task retro: "
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 _BLOCKER = re.compile(r"\bblocker ([a-z0-9-]+):\d+")
 _HANDED = re.compile(r"\bis handed to task [a-z0-9-]+")
@@ -303,8 +306,38 @@ def _candidates(item: dict, profile: dict, catalog: dict):
         yield "remove", "check", item["check_command"], None
 
 
-def _proposal(item: dict, profile: dict, catalog: dict, before: set[str]) -> dict:
-    """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force."""
+def _finding_words(item: dict) -> str:
+    """What a finding says, in the words of the text output, for the reason of its command."""
+    if item["kind"] == "rule":
+        return _collapse(f"{item['check']} {item['status']}")
+    if item["kind"] == "committee":
+        return f"{item['board']} brought no blocker or objection"
+    return _collapse(item["point"])
+
+
+def proposed_reason(item: dict) -> str:
+    """The reason a proposed command carries, so that the profile history keeps the link to the retrospective: what
+    comes back, in how many tasks and which, then the reason the tasks recorded. One line, at most MAX_REASON
+    characters: the recorded reason is cut first, then what the finding says; the tasks stay."""
+    tasks = f" in {item['count']} tasks ({_ids(item['tasks'])})"
+    words = _finding_words(item)
+    recorded = _collapse(item.get("reason")) if item["kind"] == "rule" else ""
+    room = MAX_REASON - len(REASON_PREFIX) - len(tasks)
+    if len(words) > room:
+        words = words[:max(room - 3, 0)] + "..."
+    reason = f"{REASON_PREFIX}{words}{tasks}"
+    if recorded:
+        tail = f": {recorded}"
+        free = MAX_REASON - len(reason)
+        if len(tail) > free:
+            tail = tail[:free - 3] + "..." if free > 5 else ""
+        reason += tail
+    return reason[:MAX_REASON]
+
+
+def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powershell: bool | None) -> dict:
+    """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force.
+    The command carries a prefilled reason that names the tasks; --by NAME stays the person's to fill in."""
     for action, field, value, pack in _candidates(item, profile, catalog):
         try:
             updated, weakens = check_proposal(profile, catalog, action, field, value)
@@ -316,17 +349,20 @@ def _proposal(item: dict, profile: dict, catalog: dict, before: set[str]) -> dic
             continue  # the pack stays: another pattern or the list still brings it
         if item["kind"] == "committee" and item["board"] in after["boards"]:
             continue  # the last board removed leaves every board advising
-        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "NAME", "--reason", "WHY"]
-        return {"command": shell_command(words), "needs_terminal": bool(weakens),
-                "also_drops": sorted(dropped - {pack}) if pack is not None else []}
-    return {"command": None, "needs_terminal": False, "also_drops": []}
+        reason = proposed_reason(item)
+        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "NAME", "--reason",
+                 reason]
+        return {"command": shell_command(words, powershell), "needs_terminal": bool(weakens),
+                "also_drops": sorted(dropped - {pack}) if pack is not None else [], "proposed_reason": reason}
+    return {"command": None, "needs_terminal": False, "also_drops": [], "proposed_reason": None}
 
 
-def proposals(found: list[dict], profile: dict, catalog: dict) -> list[dict]:
+def proposals(found: list[dict], profile: dict, catalog: dict, powershell: bool | None = None) -> list[dict]:
     """Each finding with the profile command that answers it, written and never run, or without one when the profile
-    accepts none: a command is given only if the profile takes it and it does what the finding asks."""
+    accepts none: a command is given only if the profile takes it and it does what the finding asks. The command is
+    quoted for PowerShell on Windows and a POSIX shell elsewhere, unless powershell says which."""
     before = set(resolved_profile(profile, catalog)["packs"])
-    return [{**item, **_proposal(item, profile, catalog, before)} for item in found]
+    return [{**item, **_proposal(item, profile, catalog, before, powershell)} for item in found]
 
 
 def project_summary(all_facts: list[dict], minimum: int, profile: dict, catalog: dict, ignored: dict) -> dict:
@@ -516,7 +552,8 @@ def render_project(summary: dict) -> list[str]:
     lines += _section("Committees without a blocker or an objection (task records only):", committees)
     lines += _section("Reservations that come back:", reservations)
     lines.append("None of these commands was run. A command that lowers a protection is the person's decision, typed "
-                 "at an interactive terminal; --by and --reason are theirs to fill in."
+                 "at an interactive terminal; --by is theirs to fill in, and --reason, which names the tasks, theirs "
+                 "to edit."
                  if any(item["command"] for item in found) else
                  "No profile command answers these findings as the profile stands.")
     return lines

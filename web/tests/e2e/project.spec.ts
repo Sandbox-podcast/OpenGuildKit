@@ -922,3 +922,21 @@ test('turns a feature on and off in the Arsenal, with who and why, and names the
   await expect(page.getByLabel('Commande qui retire la connexion'))
     .toContainText(profile.host === 'claude-code' ? /tools remove jira$/ : /tools remove jira --host claude-code$/);
 });
+
+test('shows on its card how many tasks a task waits for, and lists them with their status on its sheet', async ({ page }) => {
+  await open(page, '/quetes');
+  const created = await cli(page, ['task', 'new', 'Send the PDF summary by email.', '--id', 'pdf-email', '--after', 'request-pdf', '--after', 'request-status']);
+  expect(created.code).toBe(0);
+  const listed = await cli<{ id: string; waiting_for?: { task: string; status: string }[] }[]>(page, ['task', 'list', '--json']);
+  // request-status is done; request-pdf, opened earlier in this run, is not.
+  expect(listed.json.find((t) => t.id === 'pdf-email')?.waiting_for?.map((w) => w.task)).toEqual(['request-pdf']);
+  await page.reload();
+  const card = page.locator('.task-card', { hasText: 'pdf-email' });
+  await expect(card).toContainText('Attend 1 tâche');
+  await card.click();
+  const deps = page.getByLabel('Dépendances');
+  await expect(deps).toContainText('request-pdf');
+  await expect(deps).toContainText('request-status');
+  await expect(deps.locator('li')).toHaveCount(2);
+  await expect(deps.locator('li', { hasText: 'request-status' }).locator('.badge')).toHaveCount(1);
+});

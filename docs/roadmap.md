@@ -44,7 +44,7 @@ This page separates what exists from what is planned. Open an issue to discuss o
 - Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check, a verification date on every source and a weekly edition watch.
 - Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure, aerospace, automotive and software publishers, with EU packs. Aerospace carries EASA Part-IS and the process controls around DO-178C and DO-326A, automotive UN Regulations No 155 and No 156.
 - A first national layer for France on top of the EU packs: health data hosting, RGAA accessibility, public sector security, cookies and trackers, and e-invoicing.
-- Stack patterns with a detection of the manifest, among them Rust (`Cargo.toml`), Kotlin servers on Ktor and Symfony, next to the web, mobile and cloud stacks.
+- Stack patterns with a detection of the manifest, among them Rust (`Cargo.toml`), Kotlin servers on Ktor, Symfony, Svelte and SvelteKit, React Native and Expo, Flutter (`pubspec.yaml`), dbt, Apache Airflow, and Elixir with Phoenix (`mix.exs`), next to the web, mobile and cloud stacks.
 
 ## Next
 

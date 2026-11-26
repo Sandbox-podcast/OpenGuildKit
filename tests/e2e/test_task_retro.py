@@ -281,16 +281,20 @@ class RulesAndReservationsTests(RetroCase):
         for words in ("4 closed tasks", "at least 3", "--min", f"rule:{SKIPPED_RULE} skipped in 3 tasks (a1, a2, a3)",
                       "2 rules not-applicable in 3 tasks (a1, a2, a3): Schema untouched.",
                       f"{FAILING} failed in 3 tasks (a2, a3, a4)", "qa: no blocker or objection in 3 of the 4 tasks",
-                      "terminal", "None of these commands was run"):
+                      "terminal", "None of these commands was run", "--by is theirs to fill in",
+                      "--reason 'task retro: rule:typescript/strict-type-checking failed in 3 tasks (a2, a3, a4)'"):
             self.assertIn(words, text)
 
     def test_the_commands_proposed_are_those_a_profile_command_accepts_and_run_as_written(self):
         found = {key(item): item for item in self.found()}
         required = found[("rule", FAILING)]
         decline = found[("rule", "pack:fastapi")]
-        self.assertEqual(required["command"], "openguildkit profile add required-rule "
-                                              "typescript/strict-type-checking --by NAME --reason WHY")
-        self.assertEqual(decline["command"], "openguildkit profile decline python-fastapi-postgresql --by NAME --reason WHY")
+        self.assertEqual(required["command"], "openguildkit profile add required-rule typescript/strict-type-checking "
+                                              "--by NAME --reason 'task retro: rule:typescript/strict-type-checking "
+                                              "failed in 3 tasks (a2, a3, a4)'")
+        self.assertEqual(decline["command"], "openguildkit profile decline python-fastapi-postgresql --by NAME --reason "
+                                             f"'task retro: pack:fastapi not-applicable in 3 tasks (a1, a2, a3): "
+                                             f"{decline['reason']}'")
         self.assertIn("api-design", decline["also_drops"])
         for item in (required, decline):
             self.assertFalse(item["needs_terminal"])
@@ -302,10 +306,13 @@ class RulesAndReservationsTests(RetroCase):
             with self.subTest(item["command"]):
                 copy_root = self.root.parent / f"copy-{item['check'].replace(':', '-').replace('/', '-')}"
                 shutil.copytree(self.root, copy_root)
-                words = [{"NAME": "CM", "WHY": "Retrospective"}.get(word, word) for word in shlex.split(item["command"])]
+                words = [{"NAME": "CM"}.get(word, word) for word in shlex.split(item["command"])]
                 self.assertEqual(words[0], "openguildkit")
                 result = cli(copy_root, *words[1:])
                 self.assertIn("Profile changed", result.stdout)
+                # The profile history keeps the reason, so the change stays linked to the tasks behind it.
+                history = json.loads((copy_root / ".openguildkit" / "project.json").read_text())["changes"]
+                self.assertEqual(history[-1]["reason"], item["proposed_reason"])
 
     def test_a_task_known_only_by_its_exported_record_gives_the_same_rules_waivers_and_reservations(self):
         before = self.task("a1")
@@ -359,7 +366,9 @@ class CheckCommandTests(RetroCase):
         self.assertEqual((stuck["count"], stuck["tasks"], stuck["check_command"]), (3, ["c1", "c2", "c3"], READY_COMMAND))
         self.assertEqual(stuck["point"], f"`{READY_COMMAND}` could not run: The sandbox has no network for the tests")
         self.assertEqual(shlex.split(stuck["command"]), ["openguildkit", "profile", "remove", "check", READY_COMMAND,
-                                                         "--by", "NAME", "--reason", "WHY"])
+                                                         "--by", "NAME", "--reason", stuck["proposed_reason"]])
+        self.assertTrue(stuck["proposed_reason"].startswith(f"task retro: `{READY_COMMAND}` could not run"))
+        self.assertIn("in 3 tasks (c1, c2, c3)", stuck["proposed_reason"])
         self.assertTrue(stuck["needs_terminal"])
         self.assertEqual([item for item in self.found("--min", "4") if item["kind"] == "reservation"], [])
         printed = streams(self.retro("--all")) + streams(self.retro("c1"))
@@ -367,7 +376,7 @@ class CheckCommandTests(RetroCase):
 
     def test_the_command_to_remove_a_check_is_the_persons_decision_at_a_terminal(self):
         stuck = next(item for item in self.found() if item["kind"] == "reservation")
-        words = [{"NAME": "CM", "WHY": "Cannot run offline"}.get(word, word) for word in shlex.split(stuck["command"])]
+        words = [{"NAME": "CM"}.get(word, word) for word in shlex.split(stuck["command"])]
         refused = cli(self.root, *words[1:], code=1)
         self.assertIn("weakens a protection", refused.stderr)
         self.assertIn(READY_COMMAND, json.loads((self.root / ".openguildkit" / "project.json").read_text())["checks"])
@@ -378,7 +387,8 @@ class CheckCommandTests(RetroCase):
     def test_a_committee_that_brought_nothing_in_every_task_can_leave_the_boards_the_profile_lists(self):
         qa = next(item for item in self.found("--min", "4") if item["kind"] == "committee")
         self.assertEqual((qa["board"], qa["count"], qa["convened_in"]), ("qa", 4, 4))
-        self.assertEqual(qa["command"], "openguildkit profile remove board qa --by NAME --reason WHY")
+        self.assertEqual(qa["command"], "openguildkit profile remove board qa --by NAME --reason "
+                                        "'task retro: qa brought no blocker or objection in 4 tasks (c1, c2, c3, c4)'")
         self.assertFalse(qa["needs_terminal"])
         result = cli(self.root, "profile", "remove", "board", "qa", "--by", "CM", "--reason", "Retrospective")
         self.assertIn("Profile changed", result.stdout)
