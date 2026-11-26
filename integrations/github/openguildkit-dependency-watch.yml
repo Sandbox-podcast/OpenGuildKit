@@ -53,7 +53,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Installs only OpenGuildKit, from a release checked by its hash, and reads the report of the scan job.
+  # Installs only OpenGuildKit, from a release whose installer checks the wheel by its hash, and reads the report of the scan job.
   watch:
     needs: scan
     concurrency: openguildkit-dependency-watch-${{ github.ref }}
@@ -71,17 +71,15 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install OpenGuildKit
-        # Set the release your project uses and the wheel's hash from that release's SHA256SUMS.txt
-        # (docs/install.md). The step fails until the hash matches the downloaded wheel.
+        # Set the release your project uses. install.sh of that release checks the wheel against the release's
+        # SHA256SUMS.txt before installing it with pipx, and fails otherwise (docs/install.md).
         env:
           OPENGUILDKIT_TAG: v0.17.0
-          OPENGUILDKIT_WHEEL: openguildkit-0.17.0-py3-none-any.whl
-          OPENGUILDKIT_WHEEL_SHA256: replace-with-the-wheel-hash-from-SHA256SUMS.txt
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" \
-            "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/$OPENGUILDKIT_WHEEL"
-          printf '%s  %s\n' "$OPENGUILDKIT_WHEEL_SHA256" "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" | sha256sum --strict -c -
-          python -m pip install "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL"
+          curl -fsSL "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/install.sh" \
+            | sh -s -- --version "$OPENGUILDKIT_TAG"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          PATH="$HOME/.local/bin:$PATH" openguildkit --version
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dependency-report

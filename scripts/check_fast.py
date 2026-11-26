@@ -30,6 +30,8 @@ EXTRA = {
     "scripts/bench.py": ["tests/test_performance.py"],
     "scripts/check_links.py": ["tests/test_check_links.py"],
     "scripts/coverage.py": ["tests/test_coverage.py"],
+    "scripts/install.sh": ["tests/test_install_script.py"],
+    "scripts/install.ps1": ["tests/test_install_script.py"],
     "scripts/edition-watch.json": ["tests/test_edition_watch.py"],
     "scripts/watch_editions.py": ["tests/test_edition_watch.py"],
     "docs/agents/map.json": ["tests/test_agent_native.py"],
@@ -39,6 +41,7 @@ EXTRA = {
     "README.md": ["tests/test_entry_pages.py", "tests/test_release.py"],
     "README.fr.md": ["tests/test_entry_pages.py"],
     "CHANGELOG.md": ["tests/test_release.py"],
+    "GOVERNANCE.md": ["tests/test_release.py", "tests/test_workflows.py"],
     "pyproject.toml": ["tests/test_release.py", "tests/test_workflows.py"],
     ".github/workflows/check-links.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
     ".github/workflows/watch-editions.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
@@ -46,6 +49,7 @@ EXTRA = {
 # Folders this repository checks outside the module map: a path takes the tests of the first folder it is under.
 EXTRA_FOLDERS = (
     (".github/", ["tests/test_release.py", "tests/test_workflows.py"]),
+    ("integrations/github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_install_script.py"]),
     ("docs/", ["tests/test_doc_examples.py", "tests/test_product_docs.py"]),
     ("examples/field-tests/", ["tests/e2e/test_field_kit.py"]),
     ("examples/", ["tests/test_doc_examples.py", "tests/test_doc_promises.py"]),

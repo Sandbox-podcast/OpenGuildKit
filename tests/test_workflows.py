@@ -162,9 +162,8 @@ class PinnedActionsTest(unittest.TestCase):
         job = parse(ROOT / "integrations" / "github" / "openguildkit-guard.yml")["jobs"]["guard"]
         install = next(step for step in steps(job) if step.get("name") == "Install OpenGuildKit")
         self.assertRegex(install["env"]["OPENGUILDKIT_TAG"], r"^v\d+\.\d+\.\d+$")
-        self.assertIn("OPENGUILDKIT_WHEEL_SHA256", install["env"])
-        self.assertIn("releases/download/$OPENGUILDKIT_TAG/", install["run"])
-        self.assertIn("sha256sum --strict -c", install["run"])
+        self.assertIn("releases/download/$OPENGUILDKIT_TAG/install.sh", install["run"])
+        self.assertIn('--version "$OPENGUILDKIT_TAG"', install["run"])
 
 
 class ReleaseWorkflowTest(unittest.TestCase):

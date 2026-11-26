@@ -208,6 +208,7 @@
         "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
+        "tests/test_install_script.py",
         "tests/test_integrations.py",
         "tests/test_next_steps.py",
         "tests/test_performance.py",

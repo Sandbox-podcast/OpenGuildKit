@@ -98,6 +98,7 @@ class CheckFastTests(unittest.TestCase):
             "integrations/ci/package.json",
             "integrations/chaosfolk/README.md",
             "integrations/github/openguildkit-guard.yml",
+            "scripts/install.sh",
             "docs/not-a-module.md",
         ], module_map)
         self.assertIn("tests/test_results.py", selected["tests"])
@@ -107,9 +108,9 @@ class CheckFastTests(unittest.TestCase):
         self.assertIn("tests/test_product_docs.py", selected["tests"])
         self.assertEqual(selected["commands"], ["catalog", "web-typecheck", "node-tests"])
         self.assertNotIn("tests/test_deleted_example.py", selected["tests"])
-        self.assertEqual(selected["unattached"], [
-            "integrations/chaosfolk/README.md", "integrations/github/openguildkit-guard.yml",
-        ])
+        self.assertIn("tests/test_workflows.py", selected["tests"])
+        self.assertIn("tests/test_install_script.py", selected["tests"])
+        self.assertEqual(selected["unattached"], ["integrations/chaosfolk/README.md"])
 
     def test_documentation_workflow_script_and_coordinator_changes_each_have_a_test(self):
         module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))

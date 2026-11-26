@@ -19,7 +19,13 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
-For a team, install the wheel of a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases) on each workstation instead, with pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) or uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). OpenGuildKit is not on PyPI. [Install a GitHub release](docs/install.md) gives the download, the hash check and the agent files.
+For a team, install the latest [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases) on each workstation instead. This line downloads its wheel, checks the wheel's SHA-256 against the release's `SHA256SUMS.txt` and only then installs it with pipx, or uv when pipx is missing; add `sh -s -- --version X.Y.Z` in place of the final `sh` for another version:
+
+```sh
+curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+```
+
+OpenGuildKit is not on PyPI. By hand, the same wheel installs with pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) or uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). [Install a GitHub release](docs/install.md) gives the Windows line, the manual download and hash check, and the agent files.
 
 The [request status demo](examples/request-status/) creates a temporary project and uses prepared reviews for tracking support requests. Run it in a terminal to compare the findings, approve the scope and see the implementation brief.
 

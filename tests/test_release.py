@@ -112,8 +112,7 @@ class VersionTest(unittest.TestCase):
                 install = next(step for job in parse(template)["jobs"].values() for step in steps(job)
                                if step.get("name") == "Install OpenGuildKit")
                 self.assertEqual(install["env"]["OPENGUILDKIT_TAG"], f"v{version}")
-                self.assertEqual(install["env"]["OPENGUILDKIT_WHEEL"], f"openguildkit-{version}-py3-none-any.whl")
-                self.assertIn("sha256sum --strict -c", install["run"])
+                self.assertIn("releases/download/$OPENGUILDKIT_TAG/install.sh", install["run"])
 
 
 class ChangelogTest(unittest.TestCase):

@@ -21,7 +21,13 @@ python -m pip install -e .
 python examples/request-status/replay.py
 ```
 
-Pour une équipe, installe plutôt sur chaque poste la roue d'une [release GitHub](https://github.com/Sandbox-podcast/OpenGuildKit/releases), avec pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) ou uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). OpenGuildKit n'est pas sur PyPI. [Installer une release GitHub](docs/install.md) donne le téléchargement, la vérification des empreintes et les fichiers de l'agent.
+Pour une équipe, installe plutôt sur chaque poste la dernière [release GitHub](https://github.com/Sandbox-podcast/OpenGuildKit/releases). Cette ligne télécharge sa roue, vérifie son empreinte SHA-256 dans le `SHA256SUMS.txt` de la release, puis seulement l'installe avec pipx, ou uv si pipx manque ; pour une autre version, remplace le `sh` final par `sh -s -- --version X.Y.Z` :
+
+```sh
+curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+```
+
+OpenGuildKit n'est pas sur PyPI. À la main, la même roue s'installe avec pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) ou uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). [Installer une release GitHub](docs/install.md) donne la ligne pour Windows, le téléchargement et la vérification des empreintes à la main, et les fichiers de l'agent.
 
 La [démo](examples/request-status/) crée un projet temporaire et utilise des avis préparés sur le suivi des demandes support. Lance-la dans un terminal pour comparer les avis, valider le périmètre et lire le brief d'implémentation.
 

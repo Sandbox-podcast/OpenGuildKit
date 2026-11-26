@@ -155,8 +155,8 @@ gh() {
         self.assertNotIn("pip-audit", script)
         self.assertNotIn("requirements", script)
         self.assertIn("openguildkit alerts import report.json", script)
-        installs = [line for line in script.splitlines() if "pip install" in line]
-        self.assertEqual(installs, ['python -m pip install "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL"'])
+        self.assertNotIn("pip install", script)
+        self.assertIn('install.sh" \\\n| sh -s -- --version "$OPENGUILDKIT_TAG"', script)
 
 
 if __name__ == "__main__":
