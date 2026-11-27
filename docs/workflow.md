@@ -610,6 +610,8 @@ Then Git says whether the file changed after the most recent decision: after its
 
 The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
 
+For an auditor, `openguildkit evidence export --output DOSSIER` gathers the exported decisions of a period with the state of their seals and signatures, and `evidence verify DOSSIER` checks that no file changed ([compliance](compliance.md#the-evidence-dossier)).
+
 ## Several projects at once
 
 ```bash

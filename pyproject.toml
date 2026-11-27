@@ -45,4 +45,4 @@ Issues = "https://github.com/Sandbox-podcast/OpenGuildKit/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-openguildkit = ["registry/*/*.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
+openguildkit = ["registry/*.json", "registry/*/*.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
