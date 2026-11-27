@@ -82,6 +82,10 @@ py -3 -m venv .venv
 
 Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init`, then `openguildkit host apply` when the host is Claude Code, Codex or Gemini CLI (`check` fails until the host settings are applied), then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team. `openguildkit ui` then opens the project in the browser, on 127.0.0.1: the wheel ships the built interface.
 
+## Complete the commands
+
+`openguildkit completion bash` and `openguildkit completion zsh` print a script that completes the commands, their options and their values: add `eval "$(openguildkit completion bash)"` to `~/.bashrc`, or `eval "$(openguildkit completion zsh)"` to `~/.zshrc` after `compinit`. [Every command and option](cli.md) is also written in one page.
+
 ## Set up the agent
 
 The wheel ships the agent skill and the subagents (board, market analyst, dependency watch) of the same version. From the project:

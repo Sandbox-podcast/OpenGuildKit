@@ -9,7 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
-from . import org_catalog_cli, projects_cli, trace_cli
+from . import completion_cli, org_catalog_cli, projects_cli, trace_cli
 from .cli_errors import error_message, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
@@ -158,7 +158,7 @@ def command_parser() -> argparse.ArgumentParser:
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
-                   org_catalog_cli):
+                   org_catalog_cli, completion_cli):
         module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
@@ -1336,6 +1336,8 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
 
 
 def _run(args) -> int | None:
+    if args.command == "completion":  # Before the project: a script to load is asked for anywhere.
+        return completion_cli.run(args)
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)

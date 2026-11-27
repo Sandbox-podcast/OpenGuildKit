@@ -291,6 +291,20 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/completion_cli.py",
+      "role": "The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh.",
+      "entry": [
+        "add_parser",
+        "run",
+        "script",
+        "reference"
+      ],
+      "tests": [
+        "tests/test_completion_cli.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/consultation.py",
       "role": "Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task.",
       "entry": [

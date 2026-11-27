@@ -74,6 +74,7 @@ EXAMPLES = [
     Example("bare", "recommend --answers $example/profile.json"),
     Example("bare", "recommend --answers $example/profile.json --json"),
     Example("bare", "detect"), Example("bare", "detect --json"),
+    Example("bare", "completion bash"), Example("bare", "completion zsh"),
     # Setting up and keeping a project.
     Example("bare", "init --questions"), Example("bare", "init --answers $example/profile.json"),
     Example("init", "sync"), Example("init", "check"), Example("claude", "check --format sarif", code=1),

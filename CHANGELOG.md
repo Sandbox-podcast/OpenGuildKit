@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- New command `openguildkit completion bash|zsh`: a script, written from the parser, that completes the commands, the actions of `task`, the options and their values (`eval "$(openguildkit completion zsh)"`); `docs/cli.md` lists the 95 commands and every option with its help, and a test fails when it is out of date (`python scripts/cli_reference.py` writes it) (#499)
 - `OPENGUILDKIT_DEBUG=1` in front of any command prints the Python traceback on standard error before the one-line `OpenGuildKit:` message of the CLI and of the edit hook, with the same exit code; without it the output is unchanged. A file the system cannot open is named with its option: `--file missing.json: No such file or directory` (#504)
 - Texts of the outputs (#527): a count says `1 file` and `2 files` instead of `file(s)` (54 strings of 19 modules, one `plural` function), `task retro` and the briefs of deliverables say board, not committee, and the titles of `catalog` and `brains` start in one column. The JSON keys `committees` of `task retro --json` and the `"committee"` kind are unchanged
 - `profile add tool` and `profile remove tool` find a tool of the registry under any spelling and write its title, as `features enable` does: `features enable jira` then `profile remove tool jira` removes it, and `profile add tool jira` says it is already in the profile's tools instead of adding "jira" next to "Jira"; `task alerts` says it is a shortcut of the alerts commands (#526)

@@ -33,6 +33,7 @@ EXTRA = {
     "scripts/bench.py": ["tests/test_performance.py"],
     "scripts/check_links.py": ["tests/test_check_links.py"],
     "scripts/coverage.py": ["tests/test_coverage.py"],
+    "scripts/cli_reference.py": ["tests/test_completion_cli.py"],
     "scripts/install.sh": ["tests/test_install_script.py"],
     "scripts/install.ps1": ["tests/test_install_script.py"],
     ".gitattributes": ["tests/test_install_script.py"],
