@@ -1,6 +1,8 @@
 """Track task consultations and decisions in the project."""
 
+import contextlib
 import difflib
+import marshal
 import re
 import uuid
 from datetime import date, datetime, timezone
@@ -19,7 +21,7 @@ from .results import (
     DONE_STATUSES, asked_checks, completion_problems, evidence_fingerprint, evidence_state, merge_results,
     not_concerned, outcomes, result_warnings, validate_result, waiting_evidence,
 )
-from .storage import read_json, write_json
+from .storage import file_signature, read_json, write_json
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_not_found, consult, profile_settings
 from .questionnaire import validate_answers
@@ -57,10 +59,63 @@ def _unknown_task(state: Path, task_id: str) -> str:
     return f"Unknown task: {task_id}. {hint}Run openguildkit task list to see the tasks."
 
 
+class KeptRecords:
+    """The task records a process that outlives its commands (openguildkit ui) has read, by file signature, so that
+    listing the tasks again after nothing changed reads none. A record is kept serialized and handed out as a new
+    copy, because commands change what they read. What would pass the limit in bytes is read as it always was."""
+
+    def __init__(self, limit: int = 256 * 1024 * 1024):
+        self.limit = limit
+        self.size = 0
+        self.entries: dict[Path, tuple[tuple, bytes]] = {}
+
+    def get(self, path: Path, signature: tuple | None) -> dict | None:
+        kept = self.entries.get(path)
+        return marshal.loads(kept[1]) if kept is not None and signature is not None and kept[0] == signature else None
+
+    def put(self, path: Path, signature: tuple | None, record: dict) -> None:
+        if signature is None:
+            return
+        blob = marshal.dumps(record)
+        before = self.entries.pop(path, None)
+        self.size -= len(before[1]) if before else 0
+        if self.size + len(blob) <= self.limit:
+            self.entries[path] = (signature, blob)
+            self.size += len(blob)
+
+
+# Where records are kept: only inside keeping_records. A command that runs once reads each record once.
+_KEPT: KeptRecords | None = None
+
+
+@contextlib.contextmanager
+def keeping_records(kept: KeptRecords):
+    """Inside the block, read_task serves the records of `kept` while their file is as it was, and adds the others."""
+    global _KEPT
+    before, _KEPT = _KEPT, kept
+    try:
+        yield
+    finally:
+        _KEPT = before
+
+
 def read_task(state: Path, task_id: str) -> dict:
     path = task_path(state, task_id)
     if not path.is_file():
         raise ValueError(_unknown_task(state, task_id))
+    kept = _KEPT
+    if kept is None:
+        return _validated_task(state, path, task_id)
+    # The signature is taken before the read: a file that changes in between is read again next time.
+    signature = file_signature(path, content=True)
+    task = kept.get(path, signature)
+    if task is None:
+        task = _validated_task(state, path, task_id)
+        kept.put(path, signature, task)
+    return task
+
+
+def _validated_task(state: Path, path: Path, task_id: str) -> dict:
     task = read_json(path)
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")

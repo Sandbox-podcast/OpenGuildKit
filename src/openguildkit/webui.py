@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
-from . import cli, profile_cli
+from . import cli, profile_cli, tasks
 from .lock import installed_catalog, package_version
 from .sensitive import credential_kind
 from .shell import shell_command
@@ -315,6 +315,7 @@ class CliRunner:
     def __init__(self, root: Path):
         self.root = root
         self.lock = threading.Lock()
+        self.records = tasks.KeptRecords()
 
     def parse(self, argv: list[str]):
         err = io.StringIO()
@@ -349,7 +350,9 @@ class CliRunner:
             saved = sys.stdin
             sys.stdin = io.StringIO("")
             try:
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                # The server outlives its commands: the task records stay in memory while their files do not change.
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                        tasks.keeping_records(self.records):
                     try:
                         code = cli.main(["--project", str(self.root), *argv])
                     except SystemExit as exit_:

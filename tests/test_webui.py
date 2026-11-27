@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import webui
+from openguildkit import storage, tasks, webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
@@ -670,6 +670,62 @@ class WebInterfaceTests(unittest.TestCase):
         # Only a consultation loses them: another key of that name keeps its content.
         self.assertEqual(webui._without_unread({"domains": [1], "board_briefs": {}, "consultation": {"domains": [1]}}),
                          {"domains": [1], "board_briefs": {}, "consultation": {}})
+
+    def parsed_task_records(self, batch: dict) -> tuple[dict, list[str]]:
+        """What the page's batch answers, and the task records parsed to answer it."""
+        parsed, original = [], storage.parse_json
+
+        def counting(content, label):
+            parsed.append(label.replace("\\", "/"))
+            return original(content, label)
+
+        with patch("openguildkit.storage.parse_json", counting):
+            status, _, raw = self.request("/api/run", {"batch": batch})
+        self.assertEqual(status, 200)
+        return json.loads(raw)["results"], [label for label in parsed if "/tasks/" in label]
+
+    def test_an_opening_batch_that_follows_another_parses_no_task_record_unless_a_file_changed(self):
+        """Issue #537: each batch read and validated every task record five times, though none had changed."""
+        for name in ("alpha", "beta", "gamma"):
+            self.run_in_page("task", "new", f"Show the {name} requests", "--id", name)
+        opening = {"tasks": ["task", "list", "--json"], "check": ["check"], "alpha": ["task", "show", "alpha"]}
+        first, parsed = self.parsed_task_records(opening)
+        self.assertEqual(sorted(name.rpartition("/")[2] for name in parsed), ["alpha.json", "beta.json", "gamma.json"])
+        second, parsed = self.parsed_task_records(opening)
+        self.assertEqual((second, parsed), (first, []))
+        # A task written by a command is read again, the others are not.
+        self.run_in_page("task", "new", "Show the delta requests", "--id", "delta")
+        third, parsed = self.parsed_task_records(opening)
+        self.assertEqual([name.rpartition("/")[2] for name in parsed], ["delta.json"])
+        self.assertEqual([row["id"] for row in third["tasks"]["json"]], ["alpha", "beta", "delta", "gamma"])
+        # A record rewritten in place with the same size and its modification time is read again too.
+        path = self.root / ".openguildkit" / "tasks" / "alpha.json"
+        info, content = path.stat(), path.read_bytes()
+        with open(path, "r+b") as handle:
+            handle.write(content.replace(b"Show the alpha", b"Show THE alpha"))
+        os.utime(path, ns=(info.st_atime_ns, info.st_mtime_ns))
+        self.assertEqual((path.stat().st_size, path.stat().st_mtime_ns), (info.st_size, info.st_mtime_ns))
+        fourth, parsed = self.parsed_task_records(opening)
+        self.assertEqual(fourth["alpha"]["json"]["brief"], "Show THE alpha requests")
+        self.assertIn(path.name, {name.rpartition("/")[2] for name in parsed})
+
+    def test_a_kept_task_record_is_handed_out_as_a_copy_and_the_memory_it_takes_is_limited(self):
+        """Issue #537: a command changes the record it reads; the next one must not see the change."""
+        self.run_in_page("task", "new", "Show the alpha requests", "--id", "alpha")
+        state = self.root / ".openguildkit"
+        kept = tasks.KeptRecords()
+        with tasks.keeping_records(kept):
+            first = tasks.read_task(state, "alpha")
+            first["brief"] = "changed by a command"
+            first["answers"] = {"changed": True}
+            second = tasks.read_task(state, "alpha")
+            self.assertEqual(len(kept.entries), 1)
+        self.assertEqual(second, json.loads((state / "tasks" / "alpha.json").read_text(encoding="utf-8")))
+        self.assertIsNone(tasks._KEPT)
+        small = tasks.KeptRecords(limit=1)
+        with tasks.keeping_records(small):
+            self.assertEqual(tasks.read_task(state, "alpha"), second)
+        self.assertEqual((small.entries, small.size), ({}, 0))
 
     def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):
         project = self.root / ".openguildkit" / "project.json"
