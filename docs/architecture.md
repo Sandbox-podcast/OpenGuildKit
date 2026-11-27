@@ -67,6 +67,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
 | `integrations.py` | Installs the agent skill and the subagents shipped with this version. |
 | `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions. |
+| `incident.py` | Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an approval, both set with `profile set`. |
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
 | `routing.py` | Routes a task to boards from its brief and answers, then applies required boards and the requester's changes. |
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |

@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `openguildkit profile set freeze on|off` and `max-approval-age`: options off by default for an incident. A frozen project makes the edit hook refuse every edit, even under an approved task, and `guard --ci` fail every change but the one that lifts the freeze; an approval older than the limit covers no edit. Setting either needs no terminal; lifting or loosening it needs a person at one (#481)
 - Signed approvals (`task decision-payload`, `task decide`, `guard --ci`): SSH authority certificates (`cert-authority`) are documented and tested; `--signed-at` signs the time in the payload so a recorded approval holds after its certificate expires, `task decide` still verifies now, and `guard --ci` refuses a `signed_at` later than the commit that brings the record (#478)
 - `openguildkit org-catalog` and `guard --ci`: `guard --ci` now judges a project that follows an organization catalog, reading a relative copy from the real project root; `org-catalog set --name NAME` pins a name with no local path (`OPENGUILDKIT_ORG_CATALOG_NAME` on each machine, `guard --ci --org-catalog NAME=PATH` in CI); the lock keeps each pin and stop with who, why and the commit (#457)
 - Contributing with a coding agent (#455): `AGENTS.md` and `CLAUDE.md` at the root give the commands to run, check and deliver a change in under 4 KB, `docs/agents/conventions.md` lists 29 conventions with their check and issue, and the pull request template asks what was not verified.

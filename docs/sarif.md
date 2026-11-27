@@ -108,6 +108,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`. An approval was given under rules that have changed since: the packs, their rules, the checks or the boards ([when an approval no longer holds](workflow.md#when-an-approval-no-longer-holds)). On the task record, or on the exported decision. Consult the task again (`openguildkit task consult ID`) or open a linked task.
 
+#### `decision-expired`
+
+`error`, on the task record. The project sets `approval.max_age_days` and the approval is older: it covers no more work. Consult the task again ([incident response](workflow.md#incident-response)).
+
 #### `decision-seal-invalid`
 
 `error`, on the task record. The approval has no seal, or its seal does not match the record. Consult the task again.
@@ -177,6 +181,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 #### `evidence-journal-changed`
 
 `error`, on the exported decision. A journal that the record cites as evidence no longer matches the SHA-256 recorded with it.
+
+#### `guard-frozen`
+
+`error`, `guard --ci` only. The profile of the base revision holds `frozen` and the change is not the one that lifts it, so no change is accepted, whatever the guard mode. A person lifts the freeze at a terminal: `openguildkit profile set freeze off --by NAME --reason WHY` ([incident response](workflow.md#incident-response)).
 
 #### `guard-no-base-profile`
 

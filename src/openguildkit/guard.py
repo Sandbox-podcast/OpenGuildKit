@@ -16,7 +16,7 @@ import tempfile
 import time
 from pathlib import Path, PurePosixPath
 
-from . import light_lane, requester
+from . import incident, light_lane, requester
 from .catalog import load_catalog
 from .delivered_review import exported_review
 from .decisions import (
@@ -287,11 +287,17 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     if mode == "off":
         return 0, "", ""
     dialect = hook_dialect(hook_input)
+    freeze = incident.frozen(profile)
+    if freeze and event == "prompt":
+        return 0, _context(event, f"OpenGuildKit: {incident.frozen_text(freeze)}. File edits are refused. {incident.LIFT}",
+                           dialect), ""
     approvals = covering_approvals(root, state, profile, catalog)
     if event == "prompt":
         return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals), dialect,
                            scope_note(approvals))
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
+    if freeze and inside:  # Whatever the mode and the approvals: the person lifts the freeze.
+        return 2, "", f"OpenGuildKit: Edit refused: {incident.frozen_text(freeze)}. {incident.LIFT}"
     signers = signers_file(root, profile)
     keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
     host = profile.get("host")
@@ -1100,6 +1106,12 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             catalog = catalog_for(base_state)
         profile = load_profile(base_state, catalog)
         policy = approval_policy(profile)
+        freeze = incident.frozen(profile)
+        # A frozen base fails every change but the one that lifts the freeze, whatever the guard mode (incident.py).
+        if freeze and changed and not incident.lifts_freeze(base_state / "project.json", root / incident.PROFILE,
+                                                            changed, records):
+            problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
+                                                 f"{incident.LIFT}"))
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = Fingerprints(profile, catalog)
@@ -1165,5 +1177,5 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             notes.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
-    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
+    return {"mode": "enforce" if freeze else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}

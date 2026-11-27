@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock, delivered_review, light_lane, requester
+from . import clock, delivered_review, incident, light_lane, requester
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
@@ -570,6 +570,9 @@ def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None
         if completed:
             return {"kind": "earlier-rules", "severity": "note", "message": history_message(task["id"], changes)}
         return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
+    # An approval over the project's limit (incident.py) covers no more work; a completed task is history.
+    if not completed and (expired := incident.expired_problem(task, profile)):
+        return expired
     # A completed task's record is history: a squash merge is expected to take its revision out of the history.
     found = None if completed or root is None else signature_or_history_problem(task, root, profile, payload, outside)
     if not found:
