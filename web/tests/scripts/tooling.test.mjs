@@ -28,3 +28,22 @@ describe('type check', () => {
     expect(tscRuns('typecheck')).toBe(1);
   });
 });
+
+describe('Node version', () => {
+  const pkg = JSON.parse(read('package.json'));
+
+  /** Issue #515: nothing in the project said which Node it needs; `npm ci` stayed silent on a Node outside the guides. */
+  it('is declared in engines as the guides say, and .nvmrc names one of them', () => {
+    expect(pkg.engines?.node).toBe('^22.12.0 || ^24.0.0');
+    expect(read('README.md')).toContain('Node 22.12 ou Node 24');
+    expect(read('../AGENTS.md')).toContain('Node 22.12 or 24');
+    expect(read('.nvmrc').trim()).toBe('24');
+    expect(JSON.parse(read('package-lock.json')).packages[''].engines).toEqual(pkg.engines);
+  });
+
+  it('runs the ratchet in CI, in the web job', () => {
+    const workflow = read('../.github/workflows/ci.yml');
+    const web = workflow.slice(workflow.indexOf('\n  web:'), workflow.indexOf('\n  web-e2e:'));
+    expect(web).toContain('npm run check:ratchet');
+  });
+});

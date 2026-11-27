@@ -21,7 +21,7 @@ Les créations, modifications, transitions, versions, imports, exports et relati
 
 ## Lancer
 
-Utilise Node 22.12 ou Node 24, la version de la CI.
+Utilise Node 22.12 ou Node 24, la version de la CI (`engines` dans `package.json`, `.nvmrc` : 24) : `npm ci` avertit (`EBADENGINE`) sur une autre version. Node 26 fait passer `typecheck`, `test` et `build` ; il ajoute deux avertissements `ExperimentalWarning: localStorage is not available` aux tests, et `@types/node` est déjà en 26 (à aligner sur 24 : voir #515).
 
 ```bash
 cd web
@@ -41,6 +41,7 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 ```bash
 npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
+npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères et les erreurs de noUncheckedIndexedAccess (tsconfig.index.json) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`npm run check:ratchet -- --update`, qui refuse d'écrire un fichier plus mauvais)
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- 'http://ogk-….localhost:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel

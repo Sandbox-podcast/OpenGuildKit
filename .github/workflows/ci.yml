@@ -205,6 +205,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run check:exports
+      - run: npm run check:ratchet
       - run: npm run build
 
   # The journeys of the demo and of the project interface (openguildkit ui on sample projects), in the
