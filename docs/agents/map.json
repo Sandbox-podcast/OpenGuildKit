@@ -7,6 +7,7 @@
         "module"
       ],
       "tests": [
+        "tests/test_lint_ratchet.py",
         "tests/test_python_floor.py"
       ],
       "doc": "docs/architecture.md"
