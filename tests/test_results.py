@@ -808,5 +808,31 @@ class ProportionateResultTests(ResultCase):
         self.assertNotIn("closed by", listing)
 
 
+class ResultProblemsTests(ResultCase):
+    def test_a_result_with_three_defects_is_refused_once_with_the_three_of_them(self):
+        """Issue #490: task result --file named one defect per call, where task submit lists them all."""
+        self.approved()
+        rules = self.rule_outcomes()
+        del rules[0]["owner"]
+        del rules[1]["owner"]
+        write_json(self.root / "result.json", {
+            "revision": "abc1234", "checks": rules,
+            "criteria": [{"criterion": "Customers see the status", "status": "maybe", "evidence": "tests/test_access.py"}]})
+        _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
+        self.assertIn("The result has 3 problems:", error)
+        self.assertIn("criteria[1]: A criterion status is met or not-met, not 'maybe'.", error)
+        for index in (1, 2):
+            self.assertIn(f"checks[{index}]: {rules[index - 1]['check']} owner must contain text.", error)
+        self.assertEqual(error.count("Run openguildkit task result"), 1)
+
+    def test_a_result_with_one_defect_keeps_its_message(self):
+        self.approved()
+        write_json(self.root / "result.json", {"revision": "abc1234", "checks": self.rule_outcomes(), "criteria": [
+            {"criterion": "x", "status": "maybe", "evidence": "y"}]})
+        _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
+        self.assertIn("A criterion status is met or not-met, not 'maybe'. Run openguildkit task result", error)
+        self.assertNotIn("problems:", error)
+
+
 if __name__ == "__main__":
     unittest.main()
