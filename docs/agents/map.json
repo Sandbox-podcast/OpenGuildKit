@@ -1261,6 +1261,7 @@
         "tests/test_check_links.py",
         "tests/test_features.py",
         "tests/test_new_brains.py",
+        "tests/test_registry_pins.py",
         "tests/test_sensitive.py",
         "tests/test_tool_registry.py",
         "tests/test_tools.py"

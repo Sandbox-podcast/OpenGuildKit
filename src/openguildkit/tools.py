@@ -62,7 +62,7 @@ SERVER_FIELDS = {
 }
 SERVER_OPTIONAL = {
     "url", "command", "args", "package", "repository", "license", "settings", "access", "scopes", "pin", "read_only", "reviewed",
-    "status_source",
+    "status_source", "pin_read",
 }
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
@@ -116,6 +116,8 @@ def _validate_server(server: object, label: str) -> None:
         _text(server["license"], f"{label} license")
     if "reviewed" in server:
         _read_on(server, "reviewed", label, "access, scopes and read-only mode were looked for")
+    if "pin_read" in server:
+        _read_on(server, "pin_read", label, "the version written in the launch was read in the package registry")
     for field in ("access", "scopes", "pin"):
         if field in server:
             _text(server[field], f"{label} {field}")
@@ -605,7 +607,8 @@ def _version(server: dict) -> str:
                                                        else "pinned by version."))
         else:
             text = f"{package['registry']} package {name}: version pinning {NOT_RECORDED}."
-    return text + (f" {server['pin']}" if "pin" in server else "")
+    day = f" Version read in the package registry on {server['pin_read']}." if "pin_read" in server else ""
+    return text + day + (f" {server['pin']}" if "pin" in server else "")
 
 
 def _credentials(server: dict, bearer: str | None) -> str:
