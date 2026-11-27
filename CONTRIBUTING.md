@@ -22,7 +22,7 @@ For larger changes, use an issue to discuss scope. Fork the repository, create a
 
 `python scripts/check_fast.py` runs the tests [docs/agents/map.json](docs/agents/map.json) attaches to the files changed since `origin/main`, working tree included. Add a module to that map when you add one under `src/openguildkit/`. The full suite remains `python -m unittest discover -s tests`. A coding agent starts with [AGENTS.md](AGENTS.md); [conventions for agents](docs/agents/conventions.md) lists what keeps the repository fast to search and to fix, each convention with its check.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 and 3.15 on Linux, macOS and Windows), the timed performance tests (Python 3.15 on each system), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails.
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 and 3.15 on Linux, macOS and Windows), the timed performance tests (Python 3.15 on each system), the wheel build, the CI coordinator, the checks and journeys of the web interface, and the lint ratchet of the Python code; a job that runs past its time limit fails.
 
 Two kinds of cancelled jobs are not failures of your change:
 
@@ -128,6 +128,7 @@ A maintainer validates every replacement in the pull request that makes it. Run 
 - The agent skill and subagent live in `src/openguildkit/agent_files/` and are copied in `integrations/`; edit both, the tests check that they match. An agent reads `SKILL.md` again at every turn, so it stays under 15 000 bytes (a test checks it): a procedure that only some sessions need goes in a file of `references/` next to it, which `SKILL.md` names with the condition to read it, and which `src/openguildkit/integrations.py` and the package data of `pyproject.toml` ship with the skill.
 
 - Python 3.11+, standard library only at runtime.
+- `python scripts/lint_ratchet.py` counts what `ruff` and `mypy` find against `scripts/lint-baseline.json` and fails when a count goes up: a finding your change adds fails the `lint` job. Fix it, or do not add it; the file only ever goes down ([testing](docs/testing.md#lint-and-types)).
 - Keep the CLI offline. It must never call a model provider or the network. The one exception is `docs share verify`, which a person runs to read their own Documentalist instance; do not add another without discussing it in an issue.
 - Add unit tests in `tests/` and, for a new command, an end-to-end test in `tests/e2e/`: `tests/test_cli_coverage.py` fails when a command has no test that runs it. Run the CLI from a test with `tests/support.py` (`run_cli`, `CapturedCli`, `copy_initialized_project`): it runs in the test process unless the test needs a real one ([testing](docs/testing.md#how-the-suite-runs-the-cli)).
 - Keep messages short and actionable, prefixed `OpenGuildKit:` on errors.
