@@ -18,7 +18,8 @@ L'interface a deux styles, choisis par l'interrupteur RPG / Pro de la barre du h
 
 | Identifiant | Usage et ancrage | Grille native ou dimensions | Source et fichier servi |
 | --- | --- | --- | --- |
-| `brand/logo` | Logo dans l'entrée et l'en-tête, aligné à gauche | PNG 2 172 × 724, WebP 543 × 181 au quart exact, transparence conservée | [Origine dépôt](../../assets/brand/logo.png), seul le [WebP sans perte](../public/assets/brand/logo.webp) est servi |
+| `brand/logo` | Logo de l'écran d'installation et de l'entrée de la démo, aligné à gauche | PNG 2 172 × 724, WebP 543 × 181 au quart exact, transparence conservée | [Origine dépôt](../../assets/brand/logo.png), le [WebP sans perte](../public/assets/brand/logo.webp) est servi à ces écrans |
+| `brand/logo-header` | Logo de l'en-tête, affiché à 108 × 36 pixels CSS, aligné à gauche | WebP sans perte 216 × 72 (11 Ko, contre 46 Ko pour le grand), transparence conservée | [WebP](../public/assets/brand/logo-header.webp), tiré du PNG d'origine : `magick assets/brand/logo.png -filter Lanczos -resize 216x72 png:- \| cwebp -lossless -z 9 -o web/public/assets/brand/logo-header.webp -- -` |
 | `brand/favicon` | Icône d'onglet | PNG du chantier initial | [favicon.png](../public/assets/brand/favicon.png) |
 | `world/guildhall` | Panorama de l'entrée, bâtiment à droite, recadrage mobile centré sur le bâtiment | PNG 1 536 × 1 024, WebP 1 536 × 1 024 et 558 × 512 | [Source](art/guildhall.png), [bureau](../public/assets/world/guildhall.webp), [mobile](../public/assets/world/guildhall-mobile.webp) |
 | `world/atelier-guilde` | Quatre postes, liens ancrés devant les bureaux à 16, 40, 63 et 86 % | PNG 1 900 × 828, WebP 1 440 × 628 et 720 × 314 | [Source](art/atelier-guilde.png), [bureau](../public/assets/world/atelier-guilde.webp), [mobile](../public/assets/world/atelier-guilde-mobile.webp) |
@@ -26,7 +27,7 @@ L'interface a deux styles, choisis par l'interrupteur RPG / Pro de la barre du h
 | `night-town` | Sol, rivière, végétation, voirie et terrasses. Origine en haut à gauche. Bâtiments placés selon `PLACE_POS` | 560 × 349 pour une ligne de produits, +59 px par ligne | [terrain.ts](../src/shared/pixel/terrain.ts) |
 | `building:<lieu>` | Un bâtiment par espace, contour transparent et porte reliée au chemin | De 46 × 98 à 82 × 74, dimensions détaillées ci-dessous | [buildings.ts](../src/shared/pixel/buildings.ts) |
 | `cottage:<couleur>:<archivé>` | Maison de projet, au pied de la terrasse, toiture de la couleur du produit, toiture éteinte si archivé | 22 × 20, fond transparent | [buildings.ts](../src/shared/pixel/buildings.ts) |
-| `rooms/<lieu>` | Douze décors d'en-tête RPG, sujet à droite après le fondu | WebP 768 × 192 (27 à 42 Ko), recadrés en 4:1 depuis trois planches | [Manifeste](art/rooms/README.md), [fichiers servis](../public/assets/rooms) |
+| `rooms/<lieu>` | Douze décors d'en-tête RPG, sujet à droite après le fondu | WebP 768 × 192 en qualité 82 (19 à 29 Ko, 292 Ko les douze), recadrés en 4:1 depuis trois planches | [Manifeste](art/rooms/README.md), [fichiers servis](../public/assets/rooms) |
 | `characters/<expertise ou humain>` | 14 expertises et 6 humains : personnage en pied, portrait et avatar, 32 couleurs dérivées du logo | WebP 80 × 112, 96 × 96 et 40 × 40 (60 fichiers, 128 Ko), fond transparent | [Manifeste](art/personnages/index.md), [fichiers servis](../public/assets/characters), [export](../scripts/export-characters.py) |
 | Icônes et marqueurs | Navigation, contrôle, état et guide. Icône centrée dans son bouton ou son badge | SVG sur grille 9 × 9, ancrage au centre, couleur courante | [icons.tsx](../src/shared/pixel/icons.tsx) |
 

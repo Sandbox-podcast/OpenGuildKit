@@ -137,7 +137,7 @@ cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie d
 python -m build --wheel
 ```
 
-`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 298 Ko, soit 1 180 Ko mesurés le 22 novembre 2026 plus 10 % ; la construction pèse 1 248 Ko le 25 novembre 2026, ce qui laisse 50 Ko, soit 4 %, de marge). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 263 Ko, soit 1 148 Ko mesurés le 27 novembre 2026 plus 10 % ; la construction pèse 1 148 Ko ce jour-là, ce qui laisse 115 Ko, soit 9 %, de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 

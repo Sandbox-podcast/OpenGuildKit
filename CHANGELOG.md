@@ -92,6 +92,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Web interface: the edge of a field at rest is the strong border, 3.50:1 in Pro and 4.59:1 in RPG instead of 1.29:1 and 2.09:1, a focused `.input` shows a 2 px outline in Pro, and a test computes the contrasts from the tokens and checks the table of `web/docs/accessibilite.md` (#471).
 - Web interface: the brains (`brains --json`, 145 KB) are no longer loaded on every screen for a closed search but when it has two letters; screens that show brain titles receive 5.6 KB instead of 145 KB; coming back to the browser tab reloads the project and not the catalog, so the first screen sends 3 API requests instead of 4 and Actualiser from the Royaume 6 KB instead of 148 KB (#469).
 - Web interface, Conseil: typing a reason or the name of a delegate in the routing step waits for a 450 ms pause before asking `task route`, so 40 characters send 1 request instead of 40, the grid of brains stays on screen instead of blinking 38 times, and the answers of questions typed over leave the cache (#467).
+- Web interface: the header serves a 216 x 72 logo of 11 KB instead of 46 KB, and the twelve header scenes are exported in quality 82 (415 KB to 292 KB, `node scripts/export-rooms.mjs`), so the build weighs 1,148 KB instead of 1,252 KB and the budget of `npm run bundle` falls from 1,298 KB to 1,263 KB (#513).
 
 ## 0.17.0
 

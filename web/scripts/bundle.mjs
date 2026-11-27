@@ -6,11 +6,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
- * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,180 KB measured on 22 November 2026
- * once the demo was left out, plus 10 %. The build weighed 1,248 KB on 25 November 2026, 50 KB (4 %) under the
- * budget, which was kept. Raise it only with the measure that justifies it.
+ * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,148 KB measured on 27 November 2026 once the
+ * demo was left out, the logo of the header shrunk and the header scenes re-exported in quality 82 (1,252 KB before),
+ * plus 10 %. The build weighed 1,148 KB that day, 115 KB (9 %) under the budget. Raise it only with the measure that
+ * justifies it.
  */
-export const BUDGET_KB = 1298;
+export const BUDGET_KB = 1263;
 
 /** What only the demo uses: the product build must not contain them (vite.config.ts leaves them out). */
 export const DEMO_ONLY = ['assets/world', 'assets/characters'];
