@@ -377,16 +377,41 @@ class ReleaseWorkflowTest(unittest.TestCase):
 
 
 class PackageJobTest(unittest.TestCase):
-    def test_wheel_is_built_and_installed_on_three_systems_and_the_python_bounds(self):
-        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["package"]
+    """Issue #474: the wheel and its web interface were built five times, once by each job that installs it."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+
+    def test_the_wheel_is_built_once_on_ubuntu_and_handed_on_as_an_artifact(self):
+        wheel = self.jobs["wheel"]
+        self.assertEqual(wheel["runs-on"], "ubuntu-latest")
+        self.assertNotIn("strategy", wheel)
+        script = run_text(wheel)
+        for command in ("npm ci --ignore-scripts", "npm run build", "npm run bundle", "python -m build"):
+            self.assertIn(command, script)
+        upload = next(step for step in steps(wheel) if "upload-artifact" in str(step.get("uses")))
+        self.assertEqual(upload["with"]["path"], "dist/*.whl")
+        self.assertEqual(upload["with"]["if-no-files-found"], "error")
+        for name, job in self.jobs.items():
+            if name != "wheel":
+                self.assertNotIn("python -m build", run_text(job), f"{name} builds a wheel of its own")
+
+    def test_the_wheel_is_installed_on_three_systems_and_the_python_bounds_without_being_built_again(self):
+        job = self.jobs["package"]
+        self.assertEqual(job["needs"], "wheel")
         matrix = job["strategy"]["matrix"]
         self.assertEqual(set(matrix["os"]), {"ubuntu-latest", "macos-latest", "windows-latest"})
         self.assertEqual({"3.11", "3.15"}, set(matrix["python"]))
         setup = next(s for s in steps(job) if "setup-python" in str(s.get("uses")))
         self.assertEqual(setup["with"]["python-version"], "${{ matrix.python }}")
+        upload = next(step for step in steps(self.jobs["wheel"]) if "upload-artifact" in str(step.get("uses")))
+        download = next(step for step in steps(job) if "download-artifact" in str(step.get("uses")))
+        self.assertEqual(download["with"], {"name": upload["with"]["name"], "path": "dist"})
         script = run_text(job)
-        self.assertIn("python -m build", script)
         self.assertIn("pip install dist/*.whl", script)
+        for built in ("npm ", "python -m build", "twine"):
+            self.assertNotIn(built, script)
+        self.assertFalse([step for step in steps(job) if "setup-node" in str(step.get("uses"))], "no Node to install a wheel")
 
 
 @unittest.skipIf(os.name == "nt", "the script is stopped with a signal, which Windows does not send the same way")
@@ -440,10 +465,17 @@ class ServeSampleTest(unittest.TestCase):
         self.assertIn("SIGTERM", text)
 
 
-def matrix_jobs(job: dict) -> list[dict]:
-    """The combinations a job's matrix runs: the product of its lists, less its excludes (no include is used)."""
+# A matrix key whose value is an expression: the list it gives when the event is the one named, [] otherwise.
+EVENT_LIST = re.compile(r"\$\{\{ fromJSON\(github\.event_name == '(\w+)' && '(\[.*\])' \|\| '\[\]'\) \}\}")
+
+
+def matrix_jobs(job: dict, event: str = "push") -> list[dict]:
+    """The combinations a job's matrix runs for an event: the product of its lists, less its excludes (no include is used)."""
     matrix = dict(job["strategy"]["matrix"])
     excluded = matrix.pop("exclude", None) or []
+    if isinstance(excluded, str):
+        named, listed = EVENT_LIST.fullmatch(excluded).groups()
+        excluded = json.loads(listed) if event == named else []
     combinations = [{}]
     for key, values in matrix.items():
         combinations = [{**combination, key: value} for combination in combinations for value in values]
@@ -456,13 +488,13 @@ class MacosRunnersTest(unittest.TestCase):
     def setUp(self):
         self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
 
-    def macos(self, name):
+    def macos(self, name, event="push"):
         job = self.jobs[name]
         if "matrix" not in job.get("strategy", {}):
             return [{}] if job["runs-on"] == "macos-latest" else []
-        return [c for c in matrix_jobs(job) if c.get("os") == "macos-latest"]
+        return [c for c in matrix_jobs(job, event) if c.get("os") == "macos-latest"]
 
-    def test_a_run_places_at_most_four_jobs_on_macos(self):
+    def test_a_push_places_at_most_four_jobs_on_macos(self):
         self.assertEqual([c["python"] for c in self.macos("test")], ["3.11", "3.15"])
         self.assertEqual(len(self.macos("package")), 1)
         self.assertEqual(sum(len(self.macos(name)) for name in self.jobs), 4)
@@ -470,10 +502,121 @@ class MacosRunnersTest(unittest.TestCase):
             linux = [c for c in matrix_jobs(self.jobs[name]) if c["os"] == "ubuntu-latest"]
             self.assertEqual(len(linux), len(self.jobs[name]["strategy"]["matrix"]["python"]), name)
 
+    def test_a_pull_request_places_three(self):
+        self.assertEqual([c["python"] for c in self.macos("test", "pull_request")], ["3.15"])
+        self.assertEqual(sum(len(self.macos(name, "pull_request")) for name in self.jobs), 3)
+
     def test_the_matrix_reader_applies_the_excludes(self):
         job = {"strategy": {"matrix": {"os": ["a", "b"], "python": ["1", "2"], "exclude": [{"os": "b", "python": "1"}]}}}
         self.assertEqual(matrix_jobs(job), [{"os": "a", "python": "1"}, {"os": "a", "python": "2"},
                                             {"os": "b", "python": "2"}])
+        job["strategy"]["matrix"]["exclude"] = ("${{ fromJSON(github.event_name == 'pull_request' && "
+                                                "'[{\"os\":\"b\",\"python\":\"1\"}]' || '[]') }}")
+        self.assertEqual(len(matrix_jobs(job, "pull_request")), 3)
+        self.assertEqual(len(matrix_jobs(job, "push")), 4)
+
+
+class PythonMatrixTest(unittest.TestCase):
+    """Issue #474: on a pull request, two of the six cells had never found a failure that no other cell found."""
+
+    def setUp(self):
+        self.job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["test"]
+
+    def cells(self, event: str) -> set[tuple[str, str]]:
+        return {(c["os"], c["python"]) for c in matrix_jobs(self.job, event)}
+
+    def test_a_pull_request_runs_four_cells_and_a_push_to_main_runs_all_six(self):
+        self.assertEqual(self.cells("pull_request"), {("ubuntu-latest", "3.11"), ("ubuntu-latest", "3.15"),
+                                                      ("macos-latest", "3.15"), ("windows-latest", "3.11")})
+        self.assertEqual(len(self.cells("push")), 6)
+        self.assertLess(self.cells("pull_request"), self.cells("push"))
+
+
+@unittest.skipIf(os.name == "nt", "the step is bash, as on the ubuntu-latest runner")
+@unittest.skipUnless(shutil.which("git") and shutil.which("bash"), "needs git and bash, as on the GitHub runner")
+class ChangedFilesTest(unittest.TestCase):
+    """Issue #474: a pull request that touches only docs/ ran the CI coordinator and the web checks."""
+
+    NOTHING = {"coordinator": "false", "web": "false", "journeys": "false"}
+    EVERYTHING = {"coordinator": "true", "web": "true", "journeys": "true"}
+
+    def setUp(self):
+        self.job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["changes"]
+        self.step = next(step for step in steps(self.job) if step.get("id") == "filter")
+        self.repo = Path(tempfile.mkdtemp(prefix="ogk-changes-test-"))
+        self.addCleanup(shutil.rmtree, self.repo, True)
+        self.git("init", "-q")
+        (self.repo / "README.md").write_text("first\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "first")
+
+    def git(self, *args: str) -> str:
+        done = subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
+                               "-c", "commit.gpgsign=false", *args], capture_output=True, text=True, check=True)
+        return done.stdout.strip()
+
+    def outputs(self, *paths: str, base: str | None = None) -> dict:
+        """What the step writes for a commit that touches these files, compared with its parent (or with BASE)."""
+        parent = self.git("rev-parse", "HEAD")
+        for path in paths:
+            (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / path).write_text("changed\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-q", "--allow-empty", "-m", "change")
+        written = self.repo / "github-output"
+        environment = {**os.environ, "GITHUB_OUTPUT": str(written), "BASE": parent if base is None else base}
+        result = subprocess.run(["bash", "-e", "-c", self.step["run"]], cwd=self.repo, env=environment,
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return dict(line.split("=", 1) for line in written.read_text(encoding="utf-8").splitlines())
+
+    def test_documentation_alone_starts_none_of_the_three_jobs(self):
+        self.assertEqual(self.outputs("docs/testing.md", "CHANGELOG.md", "README.md"), self.NOTHING)
+
+    def test_each_folder_starts_the_jobs_that_read_it(self):
+        cases = {
+            "integrations/ci/lib/a.mjs": {**self.NOTHING, "coordinator": "true"},
+            "examples/export-expiry/policy/rule.json": {**self.NOTHING, "coordinator": "true"},
+            "web/src/App.tsx": {**self.NOTHING, "web": "true", "journeys": "true"},
+            "src/openguildkit/guard.py": {**self.NOTHING, "journeys": "true"},
+            ".github/workflows/ci.yml": self.EVERYTHING,
+        }
+        for path, expected in cases.items():
+            with self.subTest(path=path):
+                self.assertEqual(self.outputs(path), expected)
+
+    def test_what_the_web_checks_read_outside_web_starts_them(self):
+        """The web checks read the registry of the CLI and the glossary of docs/ from outside web/."""
+        for path in ("src/openguildkit/registry/packs/x.json", "docs/glossary.md"):
+            with self.subTest(path=path):
+                self.assertEqual(self.outputs(path)["web"], "true")
+
+    def test_every_file_the_web_folder_reads_outside_itself_starts_the_web_checks(self):
+        web = ROOT / "web"
+        pattern = re.compile(r"""['"`]((?:\.\./)+[\w./*-]*)""")
+        outside = {}
+        for folder in ("src", "tests", "scripts"):
+            for path in sorted((web / folder).rglob("*")):
+                if not path.is_file() or path.suffix not in {".ts", ".tsx", ".mjs", ".js", ".py"}:
+                    continue
+                for found in pattern.findall(path.read_text(encoding="utf-8")):
+                    target = (path.parent / found.split("*")[0]).resolve()
+                    if web not in target.parents and target != web and (ROOT in target.parents) and target.exists():
+                        outside[target.relative_to(ROOT).as_posix()] = path.relative_to(ROOT).as_posix()
+        self.assertTrue(outside, "the web folder reads the registry of the CLI")
+        for target, reader in outside.items():
+            with self.subTest(target=target, reader=reader):
+                self.assertEqual(self.outputs(target if "." in Path(target).name else f"{target}/x.json")["web"], "true")
+
+    def test_when_the_files_cannot_be_listed_every_job_runs(self):
+        for base in ("", "0" * 40, "f" * 40):
+            with self.subTest(base=base):
+                self.assertEqual(self.outputs("docs/testing.md", base=base), self.EVERYTHING)
+
+    def test_the_step_reads_git_and_no_third_party_action(self):
+        self.assertEqual([step for step in steps(self.job) if "uses" in step and "checkout" not in step["uses"]], [])
+        checkout = next(step for step in steps(self.job) if "checkout" in str(step.get("uses")))
+        self.assertEqual(checkout["with"], {"persist-credentials": "false", "fetch-depth": "0"})
 
 
 class DependabotConfigTest(unittest.TestCase):
@@ -512,7 +655,7 @@ class DependabotConfigTest(unittest.TestCase):
         self.assertEqual(sorted(next(iter(npm["groups"].values()))["update-types"]), ["minor", "patch"])
 
 
-class TestJobLogTest(unittest.TestCase):
+class CiLogTest(unittest.TestCase):
     """Issue #517: the log of a test job held 15,355 lines, 81 % of them the catalog JSON that a step printed."""
 
     def setUp(self):
@@ -648,6 +791,21 @@ class ContributionChecksTest(unittest.TestCase):
         for words in ("No runner picked the job up", "These jobs never started", "Re-run failed jobs",
                       "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on Linux, macOS and Windows"):
             self.assertIn(words, section)
+
+    def test_a_job_the_path_filter_skipped_counts_as_passed_when_the_filter_itself_ran(self):
+        """Issue #474: `contribution-checks` must pass on a pull request that only touches docs/."""
+        for job in ("ci-coordinator", "web", "web-e2e"):
+            with self.subTest(job=job):
+                passed = self.run_gate({job: "skipped"}, [])
+                self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+                failed = self.run_gate({job: "skipped", "changes": "failure"}, [])
+                self.assertEqual(failed.returncode, 1, "a job skipped because the filter failed is not a pass")
+
+    def test_the_jobs_the_filter_does_not_govern_must_succeed(self):
+        for job in ("changes", "test", "performance", "wheel", "package"):
+            for result in ("skipped", "cancelled", "failure"):
+                with self.subTest(job=job, result=result):
+                    self.assertEqual(self.run_gate({job: result}, []).returncode, 1)
 
     def test_every_job_passed(self):
         result = self.run_gate({}, [])
