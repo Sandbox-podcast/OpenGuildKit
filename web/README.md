@@ -27,7 +27,7 @@ Utilise Node 22.12 ou Node 24, la version de la CI.
 cd web
 npm ci --ignore-scripts
 npm run dev          # http://localhost:5199 : la démonstration, ou le projet avec OGK_API
-npm run build        # typecheck + build de l'interface d'un projet dans dist/, sans la démo
+npm run build        # build de l'interface d'un projet dans dist/, sans la démo (sans vérifier les types : npm run typecheck)
 npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_dist) et vérifie son budget
 npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
@@ -39,7 +39,7 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 ## Vérifier
 
 ```bash
-npm run typecheck    # TypeScript strict
+npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
