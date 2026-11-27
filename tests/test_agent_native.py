@@ -177,6 +177,44 @@ class CheckFastTests(unittest.TestCase):
                          {"tests": [], "commands": [], "unattached": changed})
 
 
+class RootInstructionsTests(unittest.TestCase):
+    """AGENTS.md is what an agent reads first: short, and every path and command in it exists."""
+
+    def test_agents_md_stays_under_four_kilobytes_and_claude_md_imports_it(self):
+        self.assertLessEqual(len((REPO / "AGENTS.md").read_bytes()), 4096)
+        self.assertEqual((REPO / "CLAUDE.md").read_text(encoding="utf-8"), "@AGENTS.md\n")
+
+    def test_every_path_and_test_module_agents_md_names_exists(self):
+        text = (REPO / "AGENTS.md").read_text(encoding="utf-8")
+        built = {"web/dist", "src/openguildkit/web_dist"}
+        paths = [path for path in re.findall(r"`((?:src|scripts|tests|docs|web|integrations)/[\w./-]+)`", text)
+                 if path not in built]
+        modules = re.findall(r"\b(tests\.test_\w+)\b", text)
+        self.assertGreater(len(paths), 5)
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertTrue((REPO / path.split(" ")[0]).exists(), path)
+        for module in modules:
+            with self.subTest(module=module):
+                self.assertTrue((REPO / (module.replace(".", "/") + ".py")).is_file(), module)
+        for script in re.findall(r"python (scripts/\w+\.py)", text):
+            with self.subTest(script=script):
+                self.assertIn(script, check_fast.EXTRA)
+
+    def test_each_convention_has_a_rule_a_reason_a_check_and_an_issue(self):
+        text = (REPO / "docs" / "agents" / "conventions.md").read_text(encoding="utf-8")
+        sections = re.split(r"^### ", text, flags=re.M)[1:]
+        ids = [section.split("\n", 1)[0].strip().strip("`") for section in sections]
+        self.assertGreaterEqual(len(ids), 20)
+        self.assertEqual(len(ids), len(set(ids)))
+        for identifier, section in zip(ids, sections):
+            with self.subTest(convention=identifier):
+                self.assertRegex(identifier, r"^[a-z0-9]+(-[a-z0-9]+)*$")
+                for field in ("**Rule.**", "**Why.**", "**Check.**", "**Today.**"):
+                    self.assertIn(field, section)
+                self.assertRegex(section, r"#\d+")
+
+
 class BudgetTests(CapturedCli, unittest.TestCase):
     cli_output = "stdout"
 

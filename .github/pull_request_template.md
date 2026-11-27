@@ -13,3 +13,7 @@
 ## Verification
 
 <!-- List what you tested. For catalog-only changes, run the relevant command: openguildkit catalog, references or patterns. For CLI changes, run python -m unittest discover -s tests. -->
+
+## Not verified
+
+<!-- List what you did not run (a platform, a host, the web journeys, a migration), or write "nothing". docs/agents/conventions.md#not-verified-section says why. -->
