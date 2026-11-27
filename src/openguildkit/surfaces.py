@@ -38,12 +38,18 @@ CREDENTIAL_REACH = 1000  # characters around a match that are searched for a cre
 IGNORED_FOLDERS = frozenset({".git", "node_modules", ".venv"})
 IGNORED_TASKS = (".openguildkit", "tasks")
 LEVELS = ("error", "warning", "note")
-# What an agent reads as instructions: a file, or a folder read in full.
+# What an agent reads as instructions: a file, or a folder read in full. The files of TOOLS that carry instructions are
+# here too (tests/test_host_scan.py checks it).
 INSTRUCTION_PATHS = (
     "AGENTS.md", "CLAUDE.md", "GEMINI.md", "WARP.md", ".claude/agents", ".claude/skills", ".claude/commands",
     ".cursor/rules", ".cursorrules", ".github/copilot-instructions.md", ".github/instructions", ".windsurf/rules",
     ".windsurfrules", ".clinerules", ".roo", ".kilocode", ".junie", ".rules",
+    ".goosehints", ".opencode", ".claude/rules", ".claude/CLAUDE.md", "CLAUDE.local.md", "AGENTS.override.md",
+    ".agents/skills", ".gemini/commands", ".github/prompts", ".github/agents", ".cursor/commands", ".windsurf/workflows",
 )
+# The instruction files that an agent also reads in the subfolder it works in.
+NESTED_INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
+MAX_FOLDERS = 5_000  # folders searched for NESTED_INSTRUCTIONS
 # Settings and MCP configurations: read for downloads piped into an interpreter only.
 CONFIG_PATHS = (".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json", ".gemini/settings.json", ".codex/config.toml",
                 ".codex/hooks.json", ".claude/settings.json", ".claude/settings.local.json")
@@ -133,6 +139,24 @@ class _Collector:
 
     def skip(self, relative: str, reason: str) -> None:
         self.skipped.append({"path": relative, "reason": reason})
+
+    def visit_nested(self, names: tuple) -> None:
+        """The files of these names in the subfolders, in a walk of at most MAX_FOLDERS folders that starts no process."""
+        folders = 0
+        for folder, dirs, files in os.walk(self.root):
+            dirs[:] = sorted(name for name in dirs if name not in IGNORED_FOLDERS)
+            where = Path(folder).relative_to(self.root).as_posix()
+            if where == ".":
+                continue
+            if where.split("/")[:2] == list(IGNORED_TASKS):
+                dirs.clear()
+                continue
+            folders += 1
+            if folders > MAX_FOLDERS:
+                return self.skip(where, f"more than {MAX_FOLDERS} folders: the rest is not searched for {', '.join(names)}")
+            for name in names:
+                if name in files:
+                    self.visit(f"{where}/{name}")
 
     def visit(self, relative: str, config: bool = False) -> None:
         path = self.root / relative
@@ -424,6 +448,7 @@ def scan(root: Path) -> dict:
         collector.visit(relative)
     for relative in sorted(CONFIG_PATHS):
         collector.visit(relative, config=True)
+    collector.visit_nested(NESTED_INSTRUCTIONS)
     findings, read, spent = [], 0, 0
     for relative, real, config in collector.files:
         text, reason = _load(real, spent)

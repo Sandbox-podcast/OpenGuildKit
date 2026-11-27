@@ -16,9 +16,16 @@ The command works offline and in read-only mode. It opens no network connection,
 |---|---|
 | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `WARP.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `.github/copilot-instructions.md` | `hidden-character`, `instruction-override`, `remote-execution` |
 | `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.cursor/rules/`, `.github/instructions/`, `.windsurf/rules/`, `.roo/`, `.kilocode/`, `.junie/`, `.clinerules` (a file or a folder) | the same three codes, every file under the folder |
+| `.goosehints`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.override.md`, and the folders `.opencode/`, `.claude/rules/`, `.agents/skills/`, `.gemini/commands/`, `.github/prompts/`, `.github/agents/`, `.cursor/commands/`, `.windsurf/workflows/` | the same three codes (the places the tool table below already knew, added by issue #523) |
+| `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` in any subfolder | the same three codes |
 | `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.claude/settings.json`, `.claude/settings.local.json` | `remote-execution` only |
 
-Only the files at these places are read: an `AGENTS.md` in a subfolder is not. The reading is bounded like the machine checks of the rule packs (`rule_checks.py`):
+Only the files at these places are read.
+The subfolders are searched by a walk of the project that starts no process and follows no link, so a folder that Git ignores is searched too.
+The walk stops after 5,000 folders and says so in `scanned.skipped`.
+Whether each tool reads each of these places comes from that tool's own documentation, which was not re-read for issue #523: à vérifier.
+
+The reading is bounded like the machine checks of the rule packs (`rule_checks.py`):
 
 - a file larger than 1 MB is not read, and neither are the files past the 200th or past 20 MB in all;
 - a symbolic link that leaves the project is not followed, and a link that stays in the project is read once, under the first name in alphabetical order (`CLAUDE.md` linked to `AGENTS.md` is `AGENTS.md`);
@@ -127,7 +134,7 @@ The exit code is 1 when a finding is an `error`, and with `--strict` when there 
 - It blocks nothing. No hook of any agent runs it: a person runs it, or CI does. A clean scan says that these patterns are absent from these files, not that the files are safe; for any tool but Claude Code, Codex and Gemini CLI, no hook blocks an edit and the CI check (`guard --ci`) is the only barrier.
 - It does not detect every injection. Matching is by a short list of words in English and French, in the order and the distance the list names; a sentence in another language, another wording, a text split over lines or an instruction hidden in an image passes. Hidden characters outside the list above (soft hyphen, variation selectors, invisible mathematical operators) are not flagged. A `bash <(curl ...)` or `sh -c "$(curl ...)"` is not detected as `remote-execution`.
 - It reads files, not what an agent does with them. It does not check that a command a file asks for is safe, only that a line has this shape.
-- It does not read what a person puts elsewhere: `README.md`, source code, the files of a subfolder, the user-level settings of an agent in the home folder, a Codex profile (`[profiles.*]`) or a setting that another tool reads from an environment variable.
+- It does not read what a person puts elsewhere: `README.md`, source code, any subfolder file but `AGENTS.md`, `CLAUDE.md` and `GEMINI.md`, the user-level settings of an agent in the home folder, a Codex profile (`[profiles.*]`) or a setting that another tool reads from an environment variable.
 - A settings file is read as text, line by line, for `remote-execution`: it does not read hooks as structured data.
 - The inventory shows the files that exist, not which tool a person runs. A `.cursor` folder is present whether or not anyone uses Cursor, and a tool that leaves no file in the repository is not listed. The registry check recognises a server by what it runs: a server that the registry does not name, or that runs a fork, is shown as not in the registry, which is no verdict on it.
 - It never checks a package, an image or an address on the network: "version not fixed" says the launch does not name one version, not that the latest version is unsafe.
