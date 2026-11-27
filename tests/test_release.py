@@ -2,6 +2,9 @@
 release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
 import argparse
+import hashlib
+import importlib.metadata
+import importlib.util
 import json
 import os
 import re
@@ -20,6 +23,7 @@ from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, st
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 CHECK_INSTALLED = ROOT / ".github" / "scripts" / "check-installed-cli.py"
+MAKE_SBOM = ROOT / "scripts" / "make_sbom.py"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
 
 
@@ -178,6 +182,166 @@ class InstallGuideTest(unittest.TestCase):
         for text in (section, governance):
             for fact in ("npm run build", "npm run bundle", "web_dist/index.html"):
                 self.assertIn(fact, text)
+
+
+class ReleaseDocsTest(unittest.TestCase):
+    """Issue #503: the pages say what proves a release, how to install it without GitHub, and what is still open."""
+
+    def test_the_install_guide_gives_the_verification_the_offline_install_and_the_mirror(self):
+        """Issue #503: no offline section, no gh attestation verify, curl without --proto."""
+        guide = _read("docs/install.md")
+        self.assertIn("curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh", guide)
+        self.assertNotIn("curl -fsSL", guide)
+        verify = guide.split("## Verify where the files come from", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("gh attestation verify openguildkit-0.17.0-py3-none-any.whl --repo Sandbox-podcast/OpenGuildKit", verify)
+        for fact in ("--signer-workflow", "--source-ref", "workflow", "tag", "does not prove", "SBOM"):
+            self.assertIn(fact, verify)
+        offline = guide.split("## Offline and internal mirror", 1)[1].split("\n## ", 1)[0]
+        for fact in ("python -m pip install --no-index", "SHA256SUMS.txt", "internal", "no runtime dependency",
+                     "openguildkit-0.17.0.cdx.json"):
+            self.assertIn(fact, offline)
+
+    def test_the_governance_steps_name_the_sbom_the_attestation_and_the_second_build(self):
+        """Issue #503: the release steps of GOVERNANCE.md say nothing of what proves the files."""
+        section = _read("GOVERNANCE.md").split("## Releases", 1)[1].split("\n## ", 1)[0]
+        for fact in ("SBOM", "attest", "same SHA-256", "gh attestation verify", "SOURCE_DATE_EPOCH"):
+            self.assertIn(fact, section)
+        self.assertIn("not published on PyPI", _read("GOVERNANCE.md"), "the PyPI decision stays the maintainer's")
+
+    def test_the_build_tools_are_pinned_in_one_file_the_guide_names(self):
+        """Issue #503: build and setuptools floated; the constraints file is the single list of their versions."""
+        constraints = _read(".github/build-constraints.txt")
+        self.assertRegex(constraints, r"(?m)^build==\d+\.\d+\.\d+$")
+        self.assertRegex(constraints, r"(?m)^setuptools==\d+\.\d+\.\d+$")
+        self.assertIn(".github/build-constraints.txt", _read("docs/install.md"))
+
+
+def run_sbom(*arguments: str, env=None) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-I", str(MAKE_SBOM), *arguments], capture_output=True, text=True,
+                          encoding="utf-8", timeout=60, check=False, env={**os.environ, **(env or {})})
+
+
+LOCK = {"lockfileVersion": 3, "packages": {
+    "": {"name": "web", "dependencies": {"react": "^19.0.0", "@scope/font": "^1.0.0"}},
+    "node_modules/react": {"version": "19.3.1", "integrity": "sha512-" + "QUJD" * 21 + "QQ==", "license": "MIT"},
+    "node_modules/@scope/font": {"version": "1.2.3", "integrity": "sha512-" + "QUJD" * 21 + "QQ==",
+                                 "license": "(OFL-1.1 OR MIT)"},
+    "node_modules/react/node_modules/scheduler": {"version": "0.28.0", "optional": True},
+    "node_modules/vite": {"version": "8.0.0", "dev": True, "integrity": "sha512-" + "QUJD" * 21 + "QQ=="},
+    "node_modules/fsevents": {"version": "2.3.3", "dev": True, "optional": True},
+    "node_modules/esbuild-helper": {"version": "1.0.0", "devOptional": True},
+    "node_modules/linked": {"resolved": "../linked", "link": True},
+}}
+
+
+class SbomTest(unittest.TestCase):
+    """Issue #503: the release has no SBOM of the web interface its wheel embeds."""
+
+    def setUp(self):
+        self.temp = Path(tempfile.mkdtemp(prefix="ogk-sbom-"))
+        self.addCleanup(shutil.rmtree, self.temp, True)
+        self.wheel = self.temp / "openguildkit-9.9.9-py3-none-any.whl"
+        self.wheel.write_bytes(b"wheel bytes")
+
+    def sbom(self, lock: dict, **env) -> dict:
+        path = self.temp / "package-lock.json"
+        path.write_text(json.dumps(lock), encoding="utf-8")
+        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel), env=env)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_lists_the_runtime_packages_with_their_versions_and_leaves_the_development_ones(self):
+        """Issue #503: the SBOM lists react and the other runtime packages, not vite or fsevents."""
+        bom = self.sbom(LOCK)
+        self.assertEqual((bom["bomFormat"], bom["specVersion"]), ("CycloneDX", "1.5"))
+        found = {component["purl"]: component["version"] for component in bom["components"]}
+        self.assertEqual(found, {"pkg:npm/react@19.3.1": "19.3.1", "pkg:npm/%40scope/font@1.2.3": "1.2.3",
+                                 "pkg:npm/scheduler@0.28.0": "0.28.0"})
+
+    def test_a_component_carries_its_group_hash_and_licence(self):
+        font = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "font")
+        self.assertEqual(font["group"], "@scope")
+        self.assertEqual(font["bom-ref"], font["purl"])
+        self.assertEqual(font["hashes"], [{"alg": "SHA-512", "content": (b"ABC" * 21 + b"A").hex()}])
+        self.assertEqual(font["licenses"], [{"expression": "(OFL-1.1 OR MIT)"}])
+        react = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "react")
+        self.assertEqual(react["licenses"], [{"license": {"id": "MIT"}}])
+
+    def test_the_main_component_is_the_wheel_with_its_sha256(self):
+        main = self.sbom(LOCK)["metadata"]["component"]
+        self.assertEqual((main["name"], main["version"]), ("openguildkit", "9.9.9"))
+        self.assertEqual(main["hashes"], [{"alg": "SHA-256", "content": hashlib.sha256(b"wheel bytes").hexdigest()}])
+
+    def test_the_same_inputs_give_the_same_bytes_when_the_date_is_fixed(self):
+        first = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
+        second = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
+        self.assertEqual(first, second)
+        self.assertEqual(first["metadata"]["timestamp"], "2026-11-18T11:06:40Z")
+        self.assertRegex(first["serialNumber"], r"^urn:uuid:[0-9a-f-]{36}$")
+        self.assertNotEqual(first["serialNumber"], self.sbom({**LOCK, "packages": {}}, SOURCE_DATE_EPOCH="1795000000")["serialNumber"])
+
+    def test_a_lock_without_the_packages_table_is_refused(self):
+        path = self.temp / "old-lock.json"
+        path.write_text(json.dumps({"lockfileVersion": 1, "dependencies": {}}), encoding="utf-8")
+        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel))
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("lockfile version 2 or 3", done.stderr)
+
+    def test_the_real_lock_lists_every_runtime_dependency_of_the_web_interface(self):
+        """Issue #503: the acceptance criterion, on web/package-lock.json."""
+        direct = json.loads(_read("web/package.json"))["dependencies"]
+        lock = json.loads(_read("web/package-lock.json"))["packages"]
+        done = run_sbom("--lock", str(ROOT / "web" / "package-lock.json"), "--wheel", str(self.wheel))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        components = {(c.get("group", "") + "/" if c.get("group") else "") + c["name"]: c["version"]
+                      for c in json.loads(done.stdout)["components"]}
+        for name in direct:
+            self.assertEqual(components[name], lock[f"node_modules/{name}"]["version"], name)
+        self.assertIn("react", components)
+        for development in json.loads(_read("web/package.json"))["devDependencies"]:
+            self.assertNotIn(development, components)
+
+
+def setuptools_floor() -> bool:
+    try:
+        return tuple(map(int, importlib.metadata.version("setuptools").split(".")[:2])) >= (77, 0)
+    except (importlib.metadata.PackageNotFoundError, ValueError):
+        return False
+
+
+@unittest.skipUnless(importlib.util.find_spec("setuptools") and setuptools_floor(),
+                     "needs setuptools 77 or later, which the wheel's pyproject.toml asks for (not installed by default)")
+class ReproducibleWheelTest(unittest.TestCase):
+    """Issue #503: two builds of one commit gave two wheels, because of the date of the sources."""
+
+    def build(self, folder: Path, modified: int, **env) -> str:
+        sources = folder / "tree"
+        shutil.copytree(ROOT / "src", sources / "src", ignore=shutil.ignore_patterns("__pycache__", "web_dist"))
+        for name in ("pyproject.toml", "LICENSE"):
+            shutil.copy(ROOT / name, sources / name)
+        (sources / "docs").mkdir()
+        shutil.copy(ROOT / "docs" / "package-description.md", sources / "docs")
+        for path in [*sources.rglob("*")]:
+            os.utime(path, (modified, modified))
+        out = folder / "out"
+        out.mkdir()
+        code = "import setuptools.build_meta as b, sys; print(b.build_wheel(sys.argv[1]))"
+        done = subprocess.run([sys.executable, "-c", code, str(out)], cwd=sources, capture_output=True, text=True,
+                              env={**{k: v for k, v in os.environ.items() if k != "SOURCE_DATE_EPOCH"}, **env},
+                              timeout=300, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr[-2000:])
+        return hashlib.sha256((out / done.stdout.strip().splitlines()[-1]).read_bytes()).hexdigest()
+
+    def test_two_builds_with_source_date_epoch_give_the_same_wheel_whatever_the_dates_of_the_files(self):
+        """Issue #503: the same sources, built a year apart, give one SHA-256 when the date is the commit's."""
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            epoch = {"SOURCE_DATE_EPOCH": "1795000000"}
+            self.assertEqual(self.build(Path(first), 1_700_000_000, **epoch), self.build(Path(second), 1_760_000_000, **epoch))
+
+    def test_without_it_the_dates_of_the_files_change_the_wheel(self):
+        """The control of the test above: the build does depend on the dates, so the date fixes it."""
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            self.assertNotEqual(self.build(Path(first), 1_700_000_000), self.build(Path(second), 1_760_000_000))
 
 
 BUILD_STEPS = ("Build the web interface into the package", "Build the wheel",

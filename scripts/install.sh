@@ -1,12 +1,13 @@
 #!/bin/sh
 # Install the OpenGuildKit command from a GitHub release, in one line:
 #
-#   curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
-#   curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh -s -- --version 0.18.0
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh -s -- --version 0.18.0
 #
 # It downloads SHA256SUMS.txt and the wheel of the release, checks the wheel's SHA-256 against that file and
 # only then installs it with pipx, or with uv when pipx is missing. Without a version it takes the latest release,
 # which GitHub never sets to a pre-release; a pre-release is installed only when named with --version.
+# Its own downloads use https only, also after a redirect, and TLS 1.2 or later.
 # docs/install.md describes it, and the manual installation it replaces.
 #
 # OPENGUILDKIT_RELEASES_URL replaces https://github.com/Sandbox-podcast/OpenGuildKit/releases. It is reserved
@@ -15,10 +16,22 @@ set -eu
 
 RELEASES="${OPENGUILDKIT_RELEASES_URL:-https://github.com/Sandbox-podcast/OpenGuildKit/releases}"
 VERSION=""
+# https only, which curl also applies to a redirect. The tests serve a folder through file://.
+PROTO='=https'
+case "$RELEASES" in file://*) PROTO='=https,file' ;; esac
 
 fail() {
     printf 'openguildkit install: %s\n' "$1" >&2
     exit 1
+}
+
+# download URL FILE: the reason curl gives stays in $WORK/curl.err for the message that follows a failure.
+download() {
+    curl --proto "$PROTO" --tlsv1.2 -fsSL -o "$2" "$1" 2> "$WORK/curl.err"
+}
+
+why() {
+    sed -e '$!d' -e 's/^curl: //' "$WORK/curl.err"
 }
 
 usage() {
@@ -89,8 +102,8 @@ else
     SUMS_URL="$RELEASES/latest/download/SHA256SUMS.txt"
     WHERE="latest release"
 fi
-curl -fsSL -o "$WORK/SHA256SUMS.txt" "$SUMS_URL" 2> "$WORK/curl.err" \
-    || fail "could not download SHA256SUMS.txt of the $WHERE ($SUMS_URL). Check the version on $RELEASES."
+download "$SUMS_URL" "$WORK/SHA256SUMS.txt" \
+    || fail "could not download SHA256SUMS.txt of the $WHERE ($SUMS_URL): $(why). Check the version on $RELEASES."
 
 # The wheel's line names the version: the latest release says which one it is.
 LINE=$(grep -E '^[0-9a-fA-F]{64}  ?\*?openguildkit-[0-9A-Za-z.+]+-py3-none-any\.whl$' "$WORK/SHA256SUMS.txt" | head -n 1 || true)
@@ -105,8 +118,8 @@ fi
 VERSION="$FOUND"
 
 WHEEL_URL="$RELEASES/download/v$VERSION/$WHEEL"
-curl -fsSL -o "$WORK/$WHEEL" "$WHEEL_URL" 2> "$WORK/curl.err" \
-    || fail "could not download $WHEEL of release v$VERSION ($WHEEL_URL)."
+download "$WHEEL_URL" "$WORK/$WHEEL" \
+    || fail "could not download $WHEEL of release v$VERSION ($WHEEL_URL): $(why)."
 printf 'Downloaded OpenGuildKit %s from %s/tag/v%s\n' "$VERSION" "$RELEASES" "$VERSION"
 
 ACTUAL=$($SHA256 "$WORK/$WHEEL" | cut -d ' ' -f 1 | tr 'A-F' 'a-f')
