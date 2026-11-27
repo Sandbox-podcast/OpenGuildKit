@@ -2,7 +2,7 @@
 
 Les douze images s'affichent sur les vues principales en RPG. Le cadrage place le sujet à droite, dans la partie visible après le fondu de l'en-tête. Les scènes de la Guilde et du Conseil ci-dessous servent respectivement à la composition d'équipe et à la liste des conseils.
 
-Les planches PNG sont les sorties d'ImageGen intégré. Chaque case a été recadrée en 4:1, puis redimensionnée en 768 × 192 et exportée en WebP (qualité 90). Le rectangle se lit dans l'ordre gauche, haut, droite, bas, en pixels de la planche d'origine.
+Les planches PNG sont les sorties d'ImageGen intégré. Chaque case a été recadrée en 4:1, puis redimensionnée en 768 × 192 et exportée en WebP (qualité 90 à l'origine, 82 depuis le 27 novembre 2026). Le rectangle se lit dans l'ordre gauche, haut, droite, bas, en pixels de la planche d'origine. `node scripts/export-rooms.mjs` relit ce tableau et réexporte les douze fichiers (ImageMagick et `cwebp` requis).
 
 | Lieu | Planche | Sujet | Rectangle |
 | --- | --- | --- | --- |

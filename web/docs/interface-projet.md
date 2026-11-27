@@ -25,6 +25,11 @@ openguildkit ui --port 0 --no-browser
 
 Le serveur écoute seulement sur 127.0.0.1, sous un nom d'hôte propre à chaque lancement (`ogk-….localhost`), que les navigateurs envoient à la boucle locale. Si le port 7311 est pris, il en choisit un libre et l'affiche. Ctrl+C l'arrête.
 
+Les préférences de la page (style RPG ou Pro, mouvement réduit, raccourcis à une touche, nom de la personne qui décide) sont gardées par le navigateur, pour une origine : le nom d'hôte et le port. Comme le nom change à chaque lancement, chaque lancement les retrouve à leur valeur par défaut. `openguildkit ui --stable-address` donne au projet un nom fixe, `ogk-<empreinte du chemin du projet>.localhost` : le navigateur retrouve ses préférences d'un lancement à l'autre. Cette option est désactivée par défaut, avec deux limites :
+
+- l'origine ne reste la même qu'au même port : si 7311 est pris, le serveur en prend un autre, et les préférences repartent de zéro ;
+- le nom vient du chemin du projet, et non de la clé du lancement : un processus local qui connaît le chemin peut le calculer. La clé reste secrète (elle ne vit que dans l'adresse imprimée et le cookie), et le serveur répond sous ce seul nom ; mais un nom que personne d'autre ne peut deviner n'existe plus.
+
 Dans un projet sans `.openguildkit/project.json`, la page ouvre l'installation : le questionnaire de `init`, le plan des packs de règles qui s'appliqueront, puis l'écriture du profil.
 
 ## Ce que fait chaque lieu
@@ -69,6 +74,7 @@ Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un aut
 
 - Écoute sur 127.0.0.1 uniquement. L'en-tête `Host` doit être le nom d'hôte du lancement avec le bon port, ce qui bloque le rebinding DNS. Sur `127.0.0.1`, `localhost` ou `[::1]`, la page affiche seulement l'invitation à ouvrir l'adresse imprimée, même avec la clé.
 - `openguildkit ui` imprime une adresse qui porte une clé tirée au lancement, `http://ogk-….localhost:7311/?key=…`, et l'ouvre dans le navigateur. Seul le terminal qui a lancé la commande la voit. Le nom d'hôte `ogk-….localhost` est tiré de la clé. En ouvrant cette adresse, le navigateur reçoit la clé dans un cookie `HttpOnly` et `SameSite=Strict` de ce seul nom d'hôte (`ogk-7311`), et la clé quitte la barre d'adresse. Un navigateur envoie un cookie à tous les ports de l'hôte qui l'a posé : posé sur `127.0.0.1`, il partirait vers tout autre serveur du poste, comme le serveur de développement du projet. Sous le nom du lancement, aucun autre serveur ne le reçoit. Sans ce cookie, `/api/session` répond 403 (`open-printed-link`) et la page affiche, à la place de l'interface, l'invitation à ouvrir l'adresse imprimée. La clé change à chaque lancement : après un redémarrage, ouvre la nouvelle adresse.
+- Avec `--stable-address`, le nom d'hôte est tiré du chemin du projet et non de la clé : il ne change plus d'un lancement à l'autre, et un processus local qui connaît le chemin peut le calculer. La clé, elle, reste celle du lancement, et un autre serveur local ne la reçoit pas davantage. L'option est désactivée par défaut.
 - La clé protège la session : le jeton que `/api/session` remet à la page et que chaque appel de l'API porte. Un programme qui ne connaît pas la clé ne lit ni le jeton, ni le profil, ni les fichiers, et ne lance aucune commande. Elle ne protège pas d'un programme qui tourne sous ton propre compte : celui-là peut déjà lire les fichiers du projet et lancer la CLI.
 - Chaque appel de l'API est un `POST` JSON qui porte l'origine de la page et le jeton. Une page d'un autre site ne peut ni lire le jeton ni appeler l'API.
 - Sous Windows, le serveur réserve son port en exclusivité : un autre programme ne peut pas s'y lier pour recevoir les requêtes de la page.
@@ -137,7 +143,7 @@ cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie d
 python -m build --wheel
 ```
 
-`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 298 Ko, soit 1 180 Ko mesurés le 22 novembre 2026 plus 10 % ; la construction pèse 1 248 Ko le 25 novembre 2026, ce qui laisse 50 Ko, soit 4 %, de marge). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 263 Ko, soit 1 148 Ko mesurés le 27 novembre 2026 plus 10 % ; la construction pèse 1 148 Ko ce jour-là, ce qui laisse 115 Ko, soit 9 %, de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 
@@ -145,19 +151,26 @@ Le serveur garde entre deux commandes ce que chaque commande de la CLI reconstru
 
 - Une réponse JSON ne porte pas le texte imprimé en double. Un écran peut demander d'omettre les champs qu'il n'affiche pas : la fiche d'une quête laisse le texte de la consultation sur le serveur, l'historique ne garde que les dates et les décisions.
 - Les réponses de plus de 2 Ko sont compressées quand le navigateur l'accepte, ce qui compte à travers un tunnel SSH ou un port redirigé.
-- La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil.
+- La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil, et au clic sur « Actualiser ». Le retour sur l'onglet recharge le projet, pas le catalogue.
+- Les cerveaux (`brains --json`, 145 Ko dont 97 % de lentilles, de déclencheurs et de sources) ne se chargent que là où on les lit : la recherche les demande après deux lettres, les écrans qui n'affichent que des titres (Conseil, Quêtes, Blueprint) en reçoivent 5,6 Ko (`omit`), la Guilde et les avis du Conseil les lisent en entier.
+- Un champ dont le texte entre dans la clé d'une requête (motif et délégués du routage) attend 450 ms de pause avant de la lancer. La réponse d'une question dépassée sort du cache (`transient` dans `useQuery`), et le dernier routage reste affiché pendant le calcul du suivant.
 - Le lieu de l'adresse ouverte est chargé avant le premier rendu ; les autres se chargent en arrière-plan ensuite. Changer de lieu ne passe donc jamais par l'écran d'attente que React 19 retient environ 300 ms.
 
-Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
+Mesures du 27 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
 
 | Écran | Temps d'affichage | Requêtes d'API | Données reçues (décompressées) |
 | --- | ---: | ---: | ---: |
-| Premier écran (Royaume) | 341 ms | 4 | 508 Ko, dont 219 Ko de React |
-| Quêtes, Guilde, Tour de guet, Intendance, Blueprint | 3 à 15 ms | 0 | 2 à 43 Ko |
-| Conseil d'une quête | 17 ms | 3 | 31 Ko |
-| Forge d'une quête | 28 ms | 3 | 11 Ko |
-| Bibliothèque (464 références) | 51 ms | 1 | 308 Ko |
-| Chroniques | 50 ms | 1 | 49 Ko |
+| Premier écran (Royaume) | 407 ms | 3 | 508 Ko, dont 219 Ko de React |
+| Quêtes, Guilde, Tour de guet, Intendance | 6 à 16 ms | 0 | 2 à 24 Ko |
+| Blueprint | 14 ms | 2 | 11 Ko |
+| Conseil d'une quête | 30 ms | 4 | 178 Ko, dont 145 Ko de cerveaux lus en entier pour les avis |
+| Forge d'une quête | 62 ms | 4 | 14 Ko |
+| Bibliothèque (464 références) | 50 ms | 1 | 508 Ko |
+| Chroniques | 77 ms | 1 | 40 Ko |
+
+Le serveur ne renvoie plus `board_briefs` ni `domains` d'une consultation (jamais lus par la page), et la fiche de réalisation d'une tâche ne demande plus la consultation : la réponse de `task show` pour la Forge passe de 68 844 à 1 370 octets (tâche à réaliser `request-history`), de 74 021 à 6 199 pour une tâche terminée, qui garde son résultat. La fiche Quêtes passe de 85 865 à 18 940 octets et le Conseil de 102 612 à 35 687.
+
+Mesures du 27 novembre 2026 (Chrome, même projet d'exemple) : premier écran, 3 requêtes d'API au lieu de 4 (plus de `brains --json`) ; « Actualiser » depuis le Royaume, 2 requêtes et 6 Ko décompressés au lieu de 3 et 148 Ko ; 40 caractères tapés dans le motif d'un ajustement, 1 requête `task route` au lieu de 40, et la grille des cerveaux ne disparaît plus (38 fois avant). `tests/e2e/project-requests.spec.ts` compte ces requêtes.
 
 Avant ces optimisations, chaque changement de lieu prenait environ 320 ms, le premier écran environ 900 ms, et les Chroniques recevaient 1,3 Mo.
 
@@ -165,8 +178,8 @@ Avant ces optimisations, chaque changement de lieu prenait environ 320 ms, le pr
 
 ```bash
 python -m unittest tests.test_webui                    # tests du serveur : hôtes, origine, jeton, refus, chemins, envois, concurrence, cache, compression, profil
-cd web && npm test                                     # dont les tests unitaires du mode réel : libellés, citations, signaux, cache
-npm run build && npm run e2e:project                   # parcours et balayages sur des projets d'exemple neufs
+cd web && npm test                                     # dont les tests unitaires du mode réel (libellés, citations, signaux, cache) et ceux des composants (formulaires, routage, décision, installation, recherche), sans Chrome ni serveur
+npm run build && npm run e2e:project                   # parcours et balayages sur des projets d'exemple neufs ; ils échouent sur toute violation de la politique de sécurité de la page (`securitypolicyviolation`), qui n'autorise aucun style en ligne
 ```
 
 `npm run e2e:project` construit un projet d'exemple dans un dossier temporaire et le sert sur le port 7322 (`PW_PROJECT_PORT`), plus deux dossiers vides sur les ports 7323 et 7324 pour l'installation (l'un avec Stripe dans sa pile). Les parcours passent par chaque action de l'interface : nouvelle quête, refus de valider à la place d'une personne, dérogation, levée d'un blocage et autorisation renvoyées au terminal, arbitrage, renvoi au Conseil, cadrage et consultation, passes et avis de chaque cerveau, synthèse, refus d'une action externe, passation, vérifications, résultats et clôture, livrable métier, outil connecté et sa simulation, design system extrait puis généré, import d'un rapport de scanner, revue d'alerte et alerte critique renvoyée au terminal, contrôles, dossier de marché et veille, export Documentalist, partage puis retrait, historique, profil (y compris un profil refusé puis remis, et une protection affaiblie renvoyée au terminal), fichiers de l'agent, bibliothèque, recherche, raccourcis clavier, style Pro, installation d'un dossier vide, fonctionnalité de l'Arsenal activée puis désactivée. Les deux balayages ouvrent 35 routes en RPG sur bureau et en Pro sur mobile : aucune erreur, un seul titre principal, chaque champ et chaque bouton nommés, aucun identifiant en double, pas de défilement horizontal.
