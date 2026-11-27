@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
 from . import org_catalog_cli, projects_cli, trace_cli
+from .cli_errors import error_message, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
@@ -1478,7 +1479,8 @@ def main(argv: list[str] | None = None) -> int:
     except BrokenPipeError:
         return _reader_closed()
     except (OSError, ValueError, EOFError) as error:
-        print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
+        print_trace()
+        print(f"OpenGuildKit: {error_message(error, command_parser(), args)}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)

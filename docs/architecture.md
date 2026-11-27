@@ -41,6 +41,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `__main__.py` | Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI. |
 | `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
 | `cli_surface.py` | What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed. |
+| `cli_errors.py` | What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file. |
 | `wording.py` | The words of the outputs: a count with its noun, in the singular when the count is one. |
 | `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
