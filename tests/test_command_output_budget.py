@@ -223,6 +223,8 @@ EXAMPLES = [
     Example("recurring", "task retro --all --draft-rules drafts"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
+    # The audit log: the events rebuilt from the records, and a file that is not a log.
+    Example("exported", "audit export"), Example("exported", "audit verify $example/brief.md", code=1),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.
     Example("done", "projects $root"), Example("done", "projects $root --json"),
     Example("done", "projects $root --search status"),

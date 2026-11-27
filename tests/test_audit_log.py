@@ -1,0 +1,294 @@
+"""The audit log: one JSON event per line, chained, off by default (issue #454), and the seal that covers the date."""
+
+import hashlib
+import json
+import os
+import re
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from openguildkit import audit_log
+from openguildkit.decisions import PAYLOAD_VERSIONS, check_decision_seal, decision_payload, record_digest, seal
+from openguildkit.storage import read_json, write_json
+
+from tests.support import CapturedCli, openguildkit_on_path
+
+EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
+TASK = "request-status"
+ON = {audit_log.VARIABLE: "1"}
+POSIX_LINKS = unittest.skipUnless(hasattr(os, "symlink") and os.name == "posix", "symbolic links need POSIX here")
+
+
+def tree(root: Path) -> list[str]:
+    return sorted(path.relative_to(root).as_posix() for path in root.rglob("*"))
+
+
+class AuditCase(CapturedCli, unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        openguildkit_on_path(self)
+        self.log = self.root / ".openguildkit" / "audit" / "audit.jsonl"
+
+    def init(self, **extra):
+        write_json(self.root / "profile.json", {**json.loads((EXAMPLE / "profile.json").read_text()), **extra})
+        self.run_cli("init", "--answers", self.root / "profile.json")
+
+    def review(self):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        review = {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())}
+        write_json(self.root / "review.json", review)
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+
+    def approve(self):
+        self.review()
+        self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", typed=TASK)
+
+    def edit(self, path="app.py", content="SECRET-CONTENT"):
+        return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit",
+                           "tool_input": {"file_path": str(self.root / path), "new_string": content}})
+
+    def refuse(self, path="app.py"):
+        return self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit(path), code=2)
+
+    def events(self) -> list[dict]:
+        return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+
+
+class OffByDefaultTests(AuditCase):
+    def test_a_refusal_with_the_log_off_leaves_the_project_files_as_they_were(self):
+        """Issue #454: with the journal off, the files before and after a refusal are the same."""
+        self.init(guard="enforce")
+        before = tree(self.root)
+        self.refuse()
+        self.assertEqual(tree(self.root), before)
+        self.assertFalse(self.log.exists())
+
+
+class RefusalTests(AuditCase):
+    def test_a_refusal_adds_one_line_with_the_path_and_the_host_and_never_the_edited_content(self):
+        """Issue #454: a refusal in enforce wrote nothing, so the SOC could not see it."""
+        self.init(guard="enforce", host="claude-code")
+        with patch.dict(os.environ, ON):
+            self.refuse()
+        [event] = self.events()
+        self.assertEqual((event["v"], event["event"], event["host"], event["paths"], event["mode"]),
+                         (1, "guard.refused", "claude-code", ["app.py"], "enforce"))
+        self.assertEqual(event["prev"], audit_log.GENESIS)
+        self.assertRegex(event["at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$")
+        self.assertNotIn("SECRET-CONTENT", self.log.read_text(encoding="utf-8"))
+
+    def test_each_line_carries_the_hash_of_the_line_before_it(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON):
+            self.refuse()
+            self.refuse("other.py")
+        first, second = self.log.read_bytes().split(b"\n")[:2]
+        self.assertEqual(json.loads(second)["prev"], hashlib.sha256(first).hexdigest())
+
+    def test_the_log_stays_in_a_folder_git_ignores_and_the_guard_protects(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON):
+            self.refuse()
+        self.assertEqual((self.log.parent / ".gitignore").read_text(encoding="utf-8"), "*\n")
+        with patch.dict(os.environ, ON):
+            _, error = self.refuse(".openguildkit/audit/audit.jsonl")
+        self.assertIn("audit.jsonl", error)
+        self.assertIn("is written by the openguildkit commands", error)
+
+    def test_the_variable_names_a_file_of_the_audit_folder_and_nothing_else(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, {audit_log.VARIABLE: "soc.jsonl"}):
+            self.refuse()
+        self.assertTrue((self.log.parent / "soc.jsonl").is_file())
+        for value in ("../outside.jsonl", "/tmp/outside.jsonl", "a/b.jsonl", ".hidden"):
+            with self.subTest(value=value), patch.dict(os.environ, {audit_log.VARIABLE: value}):
+                _, error = self.refuse()
+                self.assertIn("audit log could not be written", error)
+                self.assertFalse((self.root.parent / "outside.jsonl").exists())
+
+    @POSIX_LINKS
+    def test_a_link_in_place_of_the_folder_or_the_file_is_never_followed(self):
+        """A write outside the project (SECURITY.md) must not come from a link in the audit folder."""
+        self.init(guard="enforce")
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: [path.unlink() for path in outside.iterdir()] and outside.rmdir() or None)
+        (self.root / ".openguildkit" / "audit").symlink_to(outside, target_is_directory=True)
+        with patch.dict(os.environ, ON):
+            _, error = self.refuse()
+        self.assertIn("audit log could not be written", error)
+        self.assertEqual(list(outside.iterdir()), [])
+        (self.root / ".openguildkit" / "audit").unlink()
+        (self.root / ".openguildkit" / "audit").mkdir()
+        target = outside / "target.jsonl"
+        target.write_text("", encoding="utf-8")
+        self.log.symlink_to(target)
+        with patch.dict(os.environ, ON):
+            _, error = self.refuse()
+        self.assertIn("audit log could not be written", error)
+        self.assertEqual(target.read_text(encoding="utf-8"), "")
+
+    def test_a_log_that_cannot_be_written_never_changes_the_answer_of_the_hook(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON), patch("openguildkit.audit_log._append", side_effect=OSError("disk full")):
+            _, error = self.refuse()
+        self.assertIn("Edit refused for", error)
+        self.assertIn("disk full", error)
+
+
+class EventTests(AuditCase):
+    def test_an_approval_a_withdrawal_and_a_profile_change_are_events(self):
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON):
+            self.approve()
+            sealed = read_json(self.root / ".openguildkit" / "tasks" / f"{TASK}.json")["decision"]["seal"]
+            self.run_cli("task", "revoke", TASK, "--by", "Camille", "--reason", "Plans changed", typed=TASK)
+            self.run_cli("profile", "set", "host", "claude-code", "--by", "Camille", "--reason", "Open sources")
+        approved, revoked, changed = self.events()
+        self.assertEqual((approved["event"], approved["task"], approved["by"], approved["seal"]),
+                         ("task.approved", TASK, "Camille", sealed))
+        self.assertEqual((revoked["event"], revoked["task"], revoked["by"]), ("task.revoked", TASK, "Camille"))
+        self.assertEqual((changed["event"], changed["by"], changed["change"]), ("profile.changed", "Camille", "set host claude-code"))
+        self.assertNotIn("Plans changed", self.log.read_text(encoding="utf-8"))
+        self.assertNotIn("Open sources", self.log.read_text(encoding="utf-8"))
+
+    def test_host_apply_is_an_event_with_the_files_it_wrote(self):
+        self.init(guard="enforce", host="claude-code")
+        with patch.dict(os.environ, ON):
+            self.run_cli("host", "apply", code=0)
+        [event] = self.events()
+        self.assertEqual((event["event"], event["host"], event["paths"]), ("host.applied", "claude-code", [".claude/settings.json"]))
+
+    def test_the_schema_has_one_documented_example_per_event_type(self):
+        text = (Path(__file__).resolve().parents[1] / "docs" / "audit-log.md").read_text(encoding="utf-8")
+        examples = [json.loads(line) for line in re.findall(r"^\{\"v\":.*\}$", text, re.MULTILINE)]
+        self.assertEqual(sorted(item["event"] for item in examples), sorted(audit_log.EVENTS))
+        for item in examples:
+            self.assertEqual(audit_log.problem_with_event(item), None, item)
+        self.assertIn("unknown event", audit_log.problem_with_event({**examples[0], "event": "guard.seen"}))
+        self.assertIn("unknown field", audit_log.problem_with_event({**examples[0], "content": "x"}))
+
+
+class VerifyTests(AuditCase):
+    def lines(self) -> list[bytes]:
+        return self.log.read_bytes().split(b"\n")[:-1]
+
+    def setUp(self):
+        super().setUp()
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON):
+            for name in ("a.py", "b.py", "c.py"):
+                self.refuse(name)
+
+    def test_an_intact_chain_says_how_many_events_it_holds(self):
+        output, _ = self.run_cli("audit", "verify")
+        self.assertEqual(output.strip(), "3 events, chain intact")
+        self.assertEqual(self.run_cli("audit", "verify", self.log)[0], output)
+
+    def test_a_modified_line_exits_1_and_names_the_line_that_no_longer_follows(self):
+        lines = self.lines()
+        lines[1] = lines[1].replace(b"b.py", b"z.py")
+        self.log.write_bytes(b"\n".join(lines) + b"\n")
+        _, error = self.run_cli("audit", "verify", code=1)
+        self.assertIn("line 3 does not follow line 2", error)
+
+    def test_a_removed_line_exits_1_and_names_the_line_after_the_gap(self):
+        lines = self.lines()
+        self.log.write_bytes(b"\n".join([lines[0], lines[2]]) + b"\n")
+        _, error = self.run_cli("audit", "verify", code=1)
+        self.assertIn("line 2 does not follow line 1", error)
+
+    def test_a_line_that_is_not_json_is_named(self):
+        lines = self.lines()
+        self.log.write_bytes(b"\n".join([lines[0], b"not json", lines[2]]) + b"\n")
+        _, error = self.run_cli("audit", "verify", code=1)
+        self.assertIn("line 2 is not a JSON event", error)
+
+    def test_an_unreadable_path_is_one_line(self):
+        _, error = self.run_cli("audit", "verify", self.root / "missing.jsonl", code=1)
+        self.assertEqual(len(error.strip().splitlines()), 1)
+
+
+class ExportTests(AuditCase):
+    def test_the_export_rebuilds_the_events_from_the_records_and_the_profile_history_and_verifies(self):
+        self.init(guard="enforce")
+        self.approve()
+        self.run_cli("task", "export", TASK)
+        self.run_cli("profile", "set", "host", "claude-code", "--by", "Lou", "--reason", "Open sources")
+        output, _ = self.run_cli("audit", "export")
+        events = [json.loads(line) for line in output.splitlines()]
+        # A profile change carries a day only, so it is dated 00:00:00 UTC and comes before the approval of that day.
+        self.assertEqual([item["event"] for item in events], ["profile.changed", "task.approved"])
+        change, approval = events
+        self.assertEqual((approval["task"], approval["by"], approval["reconstructed"]), (TASK, "Camille", True))
+        self.assertEqual(change["by"], "Lou")
+        self.assertTrue(change["at"].endswith("T00:00:00+00:00"))
+        exported = self.root / "events.jsonl"
+        exported.write_text(output, encoding="utf-8")
+        self.assertIn("2 events, chain intact", self.run_cli("audit", "verify", exported)[0])
+        self.assertEqual(self.run_cli("audit", "export", "--since", change["at"][:10])[0].count("\n"), 2)
+        self.assertEqual(self.run_cli("audit", "export", "--since", "2999-01-01")[0], "")
+
+    def test_since_is_a_day(self):
+        self.init()
+        _, error = self.run_cli("audit", "export", "--since", "yesterday", code=1)
+        self.assertIn("YYYY-MM-DD", error)
+
+
+class SealTests(AuditCase):
+    def sealed_task(self, on: bool = True) -> dict:
+        self.init(guard="enforce")
+        with patch.dict(os.environ, ON if on else {}):
+            self.approve()
+        return read_json(self.root / ".openguildkit" / "tasks" / f"{TASK}.json")
+
+    def test_without_the_log_a_local_approval_is_sealed_as_it_was_before_and_its_date_stays_outside(self):
+        """The date joins the seal only for a person who turned the audit log on: the default format does not change."""
+        task = self.sealed_task(on=False)
+        self.assertNotIn("at", check_decision_seal(task))
+        moved = {**task, "decision": {**task["decision"], "at": "2024-01-01T00:00:00+00:00"}}
+        self.assertEqual(check_decision_seal(moved), check_decision_seal(task))
+
+    def test_changing_the_date_of_a_local_approval_breaks_its_seal(self):
+        """Issue #454: decision.at was under neither the seal nor a signature."""
+        task = self.sealed_task()
+        self.assertEqual(check_decision_seal(task)["at"], task["decision"]["at"])
+        for day in ("2024-01-01T00:00:00+00:00", "2999-01-01T00:00:00+00:00"):
+            moved = {**task, "decision": {**task["decision"], "at": day}}
+            with self.assertRaises(ValueError):
+                check_decision_seal(moved)
+
+    def test_approvals_sealed_with_versions_1_to_3_still_verify_whatever_their_date(self):
+        task = self.sealed_task()
+        self.assertEqual(PAYLOAD_VERSIONS, (4, 3, 2, 1))
+        for version in (3, 2, 1):
+            payload = decision_payload(task, "Camille", "Agreed", task["decision"].get("base_revision"), version)
+            old = {**task, "decision": {**task["decision"], "seal": seal(payload), "at": "2024-01-01T00:00:00+00:00"}}
+            self.assertNotIn("at", check_decision_seal(old))
+
+    def test_the_exported_record_carries_the_date_and_ci_refuses_a_record_whose_date_was_changed(self):
+        task = self.sealed_task()
+        path = self.root / self.run_cli("task", "export", TASK)[0].strip()
+        record = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(record["decision"]["payload"]["at"], task["decision"]["at"])
+        from openguildkit.guard import _record_fault
+
+        self.assertIsNone(_record_fault(record, "r.json", self.fingerprint(), {"mode": "local"}, self.root, {}))
+        record["decision"]["at"] = "2024-01-01T00:00:00+00:00"
+        record["record_sha256"] = record_digest(record)
+        fault = _record_fault(record, "r.json", self.fingerprint(), {"mode": "local"}, self.root, {})
+        self.assertIsNotNone(fault, "a record whose date was changed after it was sealed passes")
+        self.assertEqual(fault[0], "decision-record-invalid")
+        self.assertIn("seal does not match", fault[1])
+
+    def fingerprint(self) -> str:
+        return read_json(self.root / ".openguildkit" / "tasks" / f"{TASK}.json")["profile_fingerprint"]
+
+
+if __name__ == "__main__":
+    unittest.main()

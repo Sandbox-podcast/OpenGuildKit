@@ -8,9 +8,9 @@ from pathlib import Path
 
 from . import clock, delivered_review, light_lane, requester
 from .decisions import (
-    EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
-    reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
-    verify_signature,
+    EARLIER_SIGNERS, PAYLOAD_VERSION, SEALED_VERSION, approval_policy, base_commit, check_decision_seal, decision_payload,
+    history_message, reconsult_command, revisions_outside_history, seal, signature_or_history_problem,
+    stale_approval_message, verify_signature,
 )
 from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .relevance import sensitive_area
@@ -1476,10 +1476,11 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
-    confirmed_removals: list[str] | None = None, separate: bool = False,
+    confirmed_removals: list[str] | None = None, separate: bool = False, dated: bool = False,
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
-    says that the profile separated the requester from the approver: the approval and its seal record it."""
+    says that the profile separated the requester from the approver: the approval and its seal record it. dated has
+    a local approval sealed with its date (version 4, #454); a signed one cannot, the signer signs before it is dated."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1503,7 +1504,8 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
-        payload = decision_payload(task, by, reason, base_revision, separate=separate)
+        version = SEALED_VERSION if dated and signature is None else PAYLOAD_VERSION
+        payload = decision_payload(task, by, reason, base_revision, version, separate=separate, at=decision["at"])
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:
             decision["separate_requester"] = True

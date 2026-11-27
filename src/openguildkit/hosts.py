@@ -12,6 +12,7 @@ import shutil
 import tomllib
 from pathlib import Path
 
+from . import audit_log
 from .storage import write_text
 
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
@@ -567,4 +568,6 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
                 )
             write_text(path, updated)
             written.append(CODEX_CONFIG_FILE.as_posix())
+    if written:
+        audit_log.record(root, "host.applied", host=host, paths=written)
     return written

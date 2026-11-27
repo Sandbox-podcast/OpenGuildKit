@@ -90,15 +90,19 @@ def record_digest(record: dict) -> str:
 
 
 # Approvals sealed from version 2 on also cover what their exported record shows; from version 3 on, the payload a
-# signer reads carries the brief and the review summary in clear. Earlier ones verify as before.
+# signer reads carries the brief and the review summary in clear; from version 4 on, the date of the decision (#454).
+# Earlier ones verify as before. A signer signs the payload before the decision is dated, so a signed approval stays at
+# PAYLOAD_VERSION; a local approval is sealed at SEALED_VERSION, with its date.
 PAYLOAD_VERSION = 3
-PAYLOAD_VERSIONS = (3, 2, 1)
+SEALED_VERSION = 4
+PAYLOAD_VERSIONS = (4, 3, 2, 1)
 
 
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
-                     separate: bool = False) -> dict:
+                     separate: bool = False, at: str | None = None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode. separate says that the profile
-    separated the requester from the approver when it was given (requester.py)."""
+    separated the requester from the approver when it was given (requester.py); at, the date of the decision, is part
+    of the payload from version 4."""
     payload = {
         "task": task["id"],
         "outcome": "approved",
@@ -132,6 +136,8 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         payload["shared_sha256"] = task_shared_digest(task)
     if version >= 3:
         payload.update(brief=task["brief"], summary=task["review"]["summary"])
+    if version >= 4:
+        payload["at"] = at
     return payload
 
 
@@ -355,7 +361,7 @@ def check_decision_seal(task: dict) -> dict:
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
     for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version,
-                                   separate=decision.get("separate_requester") is True)
+                                   separate=decision.get("separate_requester") is True, at=decision.get("at"))
         if seal(payload) == decision["seal"]:
             return payload
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")

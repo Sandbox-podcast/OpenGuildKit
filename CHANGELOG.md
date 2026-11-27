@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `openguildkit audit verify` and `audit export`, and an audit log, off by default (`OPENGUILDKIT_AUDIT_LOG=1`): one chained JSON event per line in `.openguildkit/audit/` for guard refusals, approvals, withdrawals, profile changes and `host apply`, never the content of an edit. With the log on, a local approval is sealed with its date (payload version 4); versions 1 to 3 verify as before (#454).
 - Tool registry: `servers[].pin_read` records the day the version written in a launch was read in the package registry, and `tools plan` prints it; `tests/test_registry_pins.py` lists the 34 launches that name no one version, with the day they were counted, and fails when a new one joins them. No version is written yet: none was read in a package registry (#489).
 - `host scan` also reads `.goosehints`, `.opencode/`, `.claude/rules/`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.override.md`, `.agents/skills/`, `.gemini/commands/`, `.github/prompts/`, `.github/agents/`, `.cursor/commands/`, `.windsurf/workflows/`, and the `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` of subfolders, for the three content codes (#523).
 - Contributing with a coding agent (#455): `AGENTS.md` and `CLAUDE.md` at the root give the commands to run, check and deliver a change in under 4 KB, `docs/agents/conventions.md` lists 29 conventions with their check and issue, and the pull request template asks what was not verified.

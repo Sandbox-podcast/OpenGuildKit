@@ -12,7 +12,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
-from . import light_lane, requester
+from . import audit_log, light_lane, requester
 from .clock import today
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
@@ -519,6 +519,7 @@ def write_change(root: Path, state: Path, args, edit, by: str, reason: str, conf
         sync_instructions(root, updated, catalog)
         write_json(state / "project.json", updated)
         write_lock(state, build_lock(updated, catalog, bundled, lock))
+    audit_log.record(root, "profile.changed", by=by, change=updated["changes"][-1]["change"])
     return updated, updated["changes"][-1], catalog
 
 

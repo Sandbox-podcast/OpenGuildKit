@@ -42,6 +42,7 @@ _PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$
 PROTECTED = (
     f"{STATE_DIR}/tasks/", f"{STATE_DIR}/{DECISIONS_DIR}/", f"{STATE_DIR}/project.json", f"{STATE_DIR}/{LOCK_FILE}",
     ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/rules/",
+    f"{STATE_DIR}/audit/",
 )
 # The host settings the guard relies on when the profile names that host: a project of another host may edit the file.
 HOST_PROTECTED = {"gemini-cli": (".gemini/settings.json",)}
@@ -333,6 +334,16 @@ def _one_line(error: BaseException) -> str:
 
 
 def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[int, str, str]:
+    """The answer of _decide_hook; a refusal is also written in the audit log, when a person turned it on."""
+    answer = _decide_hook(event, raw, project, load)
+    if answer[0] == 2:
+        from . import audit_log
+
+        audit_log.refused(raw, project)
+    return answer
+
+
+def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[int, str, str]:
     """Run a host hook so that, in enforce mode, any failure to decide refuses the edit.
 
     load() returns the project root, state, profile and catalog; it may raise. A profile that declares the guard
@@ -685,6 +696,8 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
         return "decision-record-invalid", f"{relative} carries no approval payload. {export_again}"
     expected = {"task": record["task"], "outcome": "approved", "profile_fingerprint": record["profile_fingerprint"],
                 "by": decision["by"], "reason": decision["reason"]}
+    if "at" in payload:  # Sealed from version 4: the date the record shows is the date that was sealed.
+        expected["at"] = decision.get("at")
     if any(payload.get(key) != value for key, value in expected.items()) or seal(payload) != decision["seal"]:
         return "decision-record-invalid", f"{relative}: the seal does not match the approval it records. {export_again}"
     if PurePosixPath(relative).parent.name == DECISIONS_DIR and PurePosixPath(relative).stem != record["task"]:

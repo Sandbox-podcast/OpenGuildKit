@@ -68,6 +68,33 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/audit_cli.py",
+      "role": "The `audit` commands: verify the chain of the audit log, and export its events for a SIEM.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_audit_log.py"
+      ],
+      "doc": "docs/audit-log.md"
+    },
+    {
+      "module": "src/openguildkit/audit_log.py",
+      "role": "The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies the chain and rebuilds events from the records.",
+      "entry": [
+        "record",
+        "refused",
+        "verify",
+        "reconstruct",
+        "log_path"
+      ],
+      "tests": [
+        "tests/test_audit_log.py"
+      ],
+      "doc": "docs/audit-log.md"
+    },
+    {
       "module": "src/openguildkit/brains.py",
       "role": "Assembles what a brain knows: its specialists' methods, packs and references.",
       "entry": [
@@ -319,7 +346,8 @@
         "tests/test_personal_data_doc.py",
         "tests/test_record_integrity.py",
         "tests/test_record_lifecycle.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_audit_log.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -434,7 +462,8 @@
         "tests/test_before_delivered_review.py",
         "tests/test_evidence_fingerprints.py",
         "tests/test_org_catalog.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_audit_log.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -455,7 +484,8 @@
         "tests/test_host_surfaces.py",
         "tests/test_hosts.py",
         "tests/test_next_steps.py",
-        "tests/test_unhooked_hosts.py"
+        "tests/test_unhooked_hosts.py",
+        "tests/test_audit_log.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -686,7 +716,8 @@
         "tests/test_light_lane.py",
         "tests/test_org_catalog.py",
         "tests/test_rule_decline.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_audit_log.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1162,7 +1193,8 @@
         "tests/test_gemini_host.py",
         "tests/test_host_scan.py",
         "tests/test_host_surfaces.py",
-        "tests/test_unhooked_hosts.py"
+        "tests/test_unhooked_hosts.py",
+        "tests/test_light_lane.py"
       ],
       "doc": "docs/host-scan.md"
     },
@@ -1226,7 +1258,8 @@
         "tests/test_before_delivered_review.py",
         "tests/test_task_dependencies.py",
         "tests/test_evidence_fingerprints.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_audit_log.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1345,6 +1378,18 @@
         "tests/test_evidence_fingerprints.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/workstation.py",
+      "role": "Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log.",
+      "entry": [
+        "policy",
+        "audit_setting"
+      ],
+      "tests": [
+        "tests/test_audit_log.py"
+      ],
+      "doc": "docs/audit-log.md"
     }
   ]
 }
