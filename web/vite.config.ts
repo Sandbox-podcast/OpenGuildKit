@@ -61,6 +61,6 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     },
-    test: { include: ['tests/domain/**/*.test.ts', 'tests/project/**/*.test.ts', 'tests/scripts/**/*.test.mjs'], environment: 'node' },
+    test: { include: ['tests/domain/**/*.test.ts', 'tests/project/**/*.test.{ts,tsx}', 'tests/scripts/**/*.test.mjs'], environment: 'node' },
   };
 });

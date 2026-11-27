@@ -166,7 +166,7 @@ function QuestionHelp({ q }: { q: Question }) {
     {q.unsure && <> Si tu ne sais pas : {unsure ? <span title={q.unsure}>{unsure}</span> : <span lang="en">{q.unsure}</span>}.</>}</>;
 }
 
-function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
+export function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
   const brains = useBrainTitles();
   const profile = useProfile();
   const json = JSON.stringify(answers);
@@ -457,7 +457,7 @@ function Blockers({ id }: { id: string }) {
 
 /* ------------------------------------------------------------------ decision */
 
-function Decide({ task }: { task: TaskRecord }) {
+export function Decide({ task }: { task: TaskRecord }) {
   const profile = useProfile();
   const blockers = useCli<BlockerItem[]>(['task', 'blockers', task.id, '--json']);
   const [by, setBy] = useRemembered('decider');

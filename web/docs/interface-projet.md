@@ -169,7 +169,7 @@ Avant ces optimisations, chaque changement de lieu prenait environ 320 ms, le pr
 
 ```bash
 python -m unittest tests.test_webui                    # tests du serveur : hôtes, origine, jeton, refus, chemins, envois, concurrence, cache, compression, profil
-cd web && npm test                                     # dont les tests unitaires du mode réel : libellés, citations, signaux, cache
+cd web && npm test                                     # dont les tests unitaires du mode réel (libellés, citations, signaux, cache) et ceux des composants (formulaires, routage, décision, installation, recherche), sans Chrome ni serveur
 npm run build && npm run e2e:project                   # parcours et balayages sur des projets d'exemple neufs
 ```
 

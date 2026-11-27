@@ -40,7 +40,7 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 
 ```bash
 npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
-npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
+npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage, et neuf composants du mode réel montés dans happy-dom (tests/project/views : faux fetch, ni Chrome ni serveur ; `// @vitest-environment happy-dom` en tête de chaque fichier)
 npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères et les erreurs de noUncheckedIndexedAccess (tsconfig.index.json) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`npm run check:ratchet -- --update`, qui refuse d'écrire un fichier plus mauvais)
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
