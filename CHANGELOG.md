@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `scripts/check_fix_trace.py --base origin/main` fails a branch that closes a bug (label `bug`) without a test that names `Issue #N` or a line in `docs/agents/fixes.jsonl`, the new ledger of fixes (issue, symptom, cause as `file:function`, test, commit) that holds the fifth audit, run by the `conventions` job of CI (#488)
 - Pull requests: the `conventions` job of CI fails a body without a filled `## Not verified` section (`scripts/check_pr_text.py`) and a branch that changes `src/` and removes a test assertion not listed under `## Assertions changed` (`scripts/check_oracle.py`); each suppression of a check carries `INTENTIONAL(#522): reason` (#522)
 - `scripts/agent_cost.py` counts a message once however many lines it fills, reads the `subagents/*.jsonl` files of a session folder, prices each model at its own rate and names a model with no rate, measures the wait from the timestamps, skips an unreadable line and counts it, and takes `--json` (#485)
 - Contributing with a coding agent (#455): `AGENTS.md` and `CLAUDE.md` at the root give the commands to run, check and deliver a change in under 4 KB, `docs/agents/conventions.md` lists 29 conventions with their check and issue, and the pull request template asks what was not verified.

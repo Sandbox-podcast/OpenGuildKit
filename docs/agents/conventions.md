@@ -170,7 +170,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A script that reads the `Closes #N` of the branch and requires `Issue #N` in `tests/` for each bug.
 
-**Today.** 25 % of closed bugs. Issue #488.
+**Today.** `scripts/check_fix_trace.py`, run by the `conventions` job of CI, asks it of each bug a pull request closes. Older bugs keep what they have. Issue #488.
 
 ### `fix-ledger`
 
@@ -180,7 +180,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A test that reads each line as JSON with its five fields, checks that the file of the cause exists and that the test loads.
 
-**Today.** Absent. Issue #488.
+**Today.** Done: `docs/agents/fixes.jsonl` holds the 31 issues of the fifth audit and #485, and `FixLedgerTests` reads it. `commit` is the commit of the fix, which a squash merge replaces. Issue #488.
 
 ### `commit-names-its-issues`
 

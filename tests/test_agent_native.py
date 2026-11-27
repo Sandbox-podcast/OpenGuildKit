@@ -1,5 +1,6 @@
 """The module map, the fast check, the pass budget and a local transcript total."""
 
+import importlib
 import importlib.util
 import inspect
 import io
@@ -340,6 +341,83 @@ class PullRequestTextTests(unittest.TestCase):
         for variable, expected in (("", 1), ("## Not verified\n\nnothing", 0)):
             result = _run_script(_repository(self), "check_pr_text", env={"PR_BODY": variable})
             self.assertEqual(result.returncode, expected, result.stdout)
+
+
+class FixTraceTests(unittest.TestCase):
+    """regression-test-names-issue: a branch that closes a bug has a test that names it and a line in the ledger."""
+
+    def setUp(self):
+        self.root = _repository(self)
+        _commit(self.root, {"src/mod.py": "x = 1\n", "tests/test_mod.py": "import unittest\n",
+                            "docs/agents/fixes.jsonl": ""}, "base")
+        _git(self.root, "branch", "base")
+        self.test = 'import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        """Issue #7: the page says 500."""\n'
+        self.line = json.dumps({"issue": 7, "symptom": "the page says 500", "cause": "src/mod.py:x",
+                                "test": "tests.test_mod.T.test_a", "commit": "abcdef0"}) + "\n"
+
+    def run_check(self, *args, body=""):
+        return _run_script(self.root, "check_fix_trace", "--base", "base", *args, env={"PR_BODY": body})
+
+    def test_a_bug_closed_without_a_test_that_names_it_and_a_ledger_line_fails(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Fix the page (#7)\n\nCloses #7")
+        result = self.run_check("--bugs", "7")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('#7: no test under tests/ names "Issue #7"', result.stdout)
+        self.assertIn("#7: no line in docs/agents/fixes.jsonl", result.stdout)
+
+    def test_the_test_and_the_line_make_it_pass_and_another_number_does_not_count(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n", "tests/test_mod.py": self.test.replace("#7:", "#70:")},
+                "Fix the page (#7)\n\nCloses #7")
+        self.assertIn('no test under tests/ names "Issue #7"', self.run_check("--bugs", "7").stdout)
+        _commit(self.root, {"tests/test_mod.py": self.test, "docs/agents/fixes.jsonl": self.line}, "Test it")
+        result = self.run_check("--bugs", "7")
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_only_a_bug_is_asked_and_the_body_of_the_pull_request_counts(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Add a thing (#8)\n\nCloses #8")
+        self.assertEqual(self.run_check("--bugs", "7").returncode, 0)
+        self.assertEqual(self.run_check("--bugs", "7", body="Fixes #7 and\nresolves: #8").returncode, 1)
+        self.assertEqual(self.run_check("--bugs", "8", body="x").returncode, 1)
+        self.assertEqual(self.run_check("--bugs", "").returncode, 0)
+
+    def test_without_a_closing_keyword_nothing_is_asked(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Part of #7\n\nSee #7, it is not fixed yet")
+        self.assertEqual(self.run_check("--bugs", "7").returncode, 0)
+
+
+class FixLedgerTests(unittest.TestCase):
+    """fix-ledger: one line per fixed bug, with the cause and the test that can be found."""
+
+    FIELDS = {"issue": int, "symptom": str, "cause": str, "test": str, "commit": str}
+
+    def setUp(self):
+        text = (REPO / "docs" / "agents" / "fixes.jsonl").read_text(encoding="utf-8")
+        self.entries = [json.loads(line) for line in text.splitlines()]
+
+    def test_each_line_has_its_five_fields_and_the_fifth_audit_is_all_there(self):
+        for entry in self.entries:
+            with self.subTest(issue=entry.get("issue")):
+                self.assertEqual({name: type(entry.get(name)) for name in self.FIELDS}, self.FIELDS)
+                self.assertEqual(set(entry), set(self.FIELDS))
+                self.assertTrue(all(entry[name] for name in self.FIELDS))
+                self.assertRegex(entry["commit"], r"^[0-9a-f]{7,40}$")
+                self.assertRegex(entry["cause"], r"^[\w./-]+:[\w.]+$")
+        issues = [entry["issue"] for entry in self.entries]
+        self.assertEqual(len(issues), len(set(issues)))
+        self.assertEqual(sorted(set(range(377, 408)) - set(issues)), [])
+
+    def test_the_file_of_each_cause_names_the_function_and_each_test_loads(self):
+        for entry in self.entries:
+            with self.subTest(issue=entry["issue"]):
+                path, function = entry["cause"].split(":")
+                source = (REPO / path).read_text(encoding="utf-8")
+                self.assertRegex(source, rf"\b{re.escape(function.rsplit('.', 1)[-1])}\b", entry["cause"])
+                if "::" in entry["test"]:
+                    file, title = entry["test"].split("::", 1)
+                    self.assertIn(title, (REPO / file).read_text(encoding="utf-8"), entry["test"])
+                else:
+                    module, owner, name = entry["test"].rsplit(".", 2)
+                    self.assertTrue(callable(getattr(getattr(importlib.import_module(module), owner), name)), entry["test"])
 
 
 class BudgetTests(CapturedCli, unittest.TestCase):

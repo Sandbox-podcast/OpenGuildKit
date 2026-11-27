@@ -250,10 +250,16 @@ jobs:
     name: Conventions for agents
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # issues: read lets check_fix_trace.py read the labels of the issues a pull request closes.
+    permissions:
+      contents: read
+      issues: read
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
       PR_BODY: ${{ github.event.pull_request.body }}
       BASE: origin/${{ github.base_ref }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -265,6 +271,9 @@ jobs:
       - name: Pull request text
         if: github.event_name == 'pull_request'
         run: python scripts/check_pr_text.py
+      - name: A closed bug has its test and its ledger line
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_fix_trace.py --base "$BASE"
       - name: Removed assertions are listed
         if: github.event_name == 'pull_request'
         run: python scripts/check_oracle.py --base "$BASE"
