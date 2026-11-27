@@ -223,7 +223,7 @@ class StuckApprovalTests(ApprovalCase):
 
     def test_task_list_names_the_withdrawal_for_an_approval_that_cannot_complete_otherwise(self):
         row, = json.loads(self.run_cli("task", "list", "--json")[0])
-        self.assertIn("Condition(s) of approval still open: security:1", row["next"])
+        self.assertIn("Condition of approval still open: security:1", row["next"])
         self.assertIn("the task cannot complete while one is open", row["next"])
         self.assertIn("openguildkit task revoke vb --by INITIALS --reason TEXT", row["next"])
 

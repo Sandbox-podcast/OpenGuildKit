@@ -23,6 +23,7 @@ from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_a
 from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data
 from .storage import write_text
+from .wording import plural
 from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
@@ -730,8 +731,8 @@ def result_warnings(task: dict, profile: dict, relevance: dict | None = None) ->
         if selected and len(names) > 1:
             shown = ", ".join(selected[:5]) + (f" and {len(selected) - 5} more" if len(selected) > 5 else "")
             warnings.append(f"{shown} {'is' if len(selected) == 1 else 'are'} selected by the task's "
-                            f"answers yet declared not applicable with the same reason as {len(names) - 1} other "
-                            "answer(s). Give the reason that applies to each.")
+                            f"answers yet declared not applicable with the same reason as {plural(len(names) - 1, 'other answer')}. "
+                            "Give the reason that applies to each.")
     passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
               and item["status"] == "passed"]
     warnings += _evidence_warnings(passed)

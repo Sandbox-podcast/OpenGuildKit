@@ -77,7 +77,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn('project_version: "1.4.0"', reference)
         self.assertEqual(reference.count("- Users only see their own requests."), 1)
         self.assertRegex(reference, r"Checks before release: 1 passed, [1-9][0-9]* not applicable")
-        self.assertRegex(reference, r"[1-9][0-9]* objection\(s\) between the boards were not deliberated")
+        self.assertRegex(reference, r"[1-9][0-9]* objections? between the boards (was|were) not deliberated")
         self.assertNotIn("tests/test_access.py", reference)
         self.assertNotIn("recommendation", reference)
         blog = next((site / "blog").glob(f"*-{TASK}.md"))

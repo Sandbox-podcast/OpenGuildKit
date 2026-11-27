@@ -173,7 +173,7 @@ class ProjectBrainTests(unittest.TestCase):
         self.assertTrue(line.startswith("the project catalog replaces parts of the bundled brain security "
                                         "(.openguildkit/catalog/boards/security.json): description "
                                         "'Proceed unless the requester objects.' in place of 'Review who can reach"), line)
-        self.assertIn("specialist(s) replaced: application-security (checks, focus, title), "
+        self.assertIn("2 specialists replaced: application-security (checks, focus, title), "
                       "privacy-engineering (checks, focus, title)",
                       line)
         self.assertNotIn("release-integrity", line)

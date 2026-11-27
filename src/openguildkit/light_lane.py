@@ -12,6 +12,8 @@ matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole s
 
 import re
 
+from .wording import plural
+
 LANE = "light"
 MAX_PATHS = 50
 DOCS_BOARD, TESTS_BOARD, DEFAULT_BOARD = "developer-relations-and-docs", "qa", "engineering"
@@ -196,7 +198,8 @@ def outside_message(task_id: str, task_paths: list[str], light_paths: list[str],
     the paths are held to."""
     shown = ", ".join(outside[:10]) + (f" and {len(outside) - 10} more" if len(outside) > 10 else "")
     return (f"Short-lane task {task_id} covers only {', '.join(task_paths)}, within the light_paths of {where} "
-            f"({', '.join(light_paths)}), and {len(outside)} changed file(s) are outside: {shown}. Rules, dependencies, "
+            f"({', '.join(light_paths)}), and {plural(len(outside), 'changed file')} {'is' if len(outside) == 1 else 'are'} outside: {shown}. "
+            f"Rules, dependencies, "
             f"the profile and agent instructions are never in the lane. Move the work to the full path: openguildkit "
             f'task new "BRIEF" --follows {task_id}.')
 

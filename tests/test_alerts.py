@@ -178,7 +178,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.init()
         self.cli("task", "new", "Upgrade Jinja in the report service.", "--id", "upgrade")
         output = self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "pip-audit.json")
-        self.assertIn("Imported 1 alert(s) from pip-audit", output)
+        self.assertIn("Imported 1 alert from pip-audit", output)
         self.assertTrue((self.root / ".openguildkit" / "alerts.json").is_file())
         write_json(self.root / "a.json", {"kind": "maintenance", "surface": ["service"], "data": "none", "research": "local",
                                           "concerns": ["none"]})
@@ -249,11 +249,11 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.init()
         front = f"{CRITICAL}@front"
         output = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", "front")
-        self.assertIn("npm audit (scope front): 1 alert(s) reported, 1 new, 0 reopened, 0 resolved.", output)
+        self.assertIn("npm audit (scope front): 1 alert reported, 1 new, 0 reopened, 0 resolved.", output)
         self.assertIn(f"new: {front}", output)
         self.cli("alerts", "set", front, "--status", "confirmed", "--by", "Alex")
         output = self.cli("alerts", "import", FIXTURES / "npm-audit.json", "--scope", "admin")
-        self.assertIn("npm audit (scope admin): 1 alert(s) reported, 1 new, 0 reopened, 0 resolved.", output)
+        self.assertIn("npm audit (scope admin): 1 alert reported, 1 new, 0 reopened, 0 resolved.", output)
         self.assertNotIn("Warning", output)
         changes = json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit.json", "--scope", "admin", "--json"))
         self.assertEqual((changes["scope"], changes["resolved"], changes["new"]), ("admin", [], []))
@@ -263,7 +263,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertIn(f"[confirmed] {front} critical <2.0.1 scope: front", self.cli("alerts", "list"))
         output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
         self.assertIn("0 resolved", output)
-        self.assertIn("Alerts of the scope(s) admin, front are left as they are", output)
+        self.assertIn("Alerts of the scopes admin, front are left as they are", output)
         self.assertEqual(json.loads(self.cli("alerts", "list", "--status", "confirmed", "--json"))["summary"]["total"], 1)
         self.assertIn("1 resolved", self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--scope", "front"))
         imports = load_register(self.root / ".openguildkit")["imports"]
@@ -406,7 +406,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         outcomes = [{"check": check["id"], "status": "not-applicable", "reason": "No change here.", "owner": "Camille"}
                     for check in checks]
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": [], "checks": outcomes})
-        self.assertIn("1 point(s)", self.cli("task", "result", "status", "--file", self.root / "result.json"))
+        self.assertIn("1 point", self.cli("task", "result", "status", "--file", self.root / "result.json"))
         error = self.cli("task", "complete", "status", code=1)
         self.assertIn(f"Dependency alert {CRITICAL}", error)
         self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")

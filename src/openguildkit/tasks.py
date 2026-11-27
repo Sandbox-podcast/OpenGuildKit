@@ -23,6 +23,7 @@ from .storage import read_json, write_json
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_not_found, consult, profile_settings
 from .questionnaire import validate_answers
+from .wording import plural
 from .workflow import (
     RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, decision_summary, is_decision_task,
     pending_removals, resolution_field, review_warnings, validate_board_entry, validate_deliberation, validate_review,
@@ -497,7 +498,7 @@ def _conditions_step(task: dict, profile: dict | None) -> str:
     expired = "".join(f" {expired_waiver_step(task, item)}" for item in expired_waivers(blocker_list(task)))
     if not waiting:
         return expired
-    text = (f" Condition(s) of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
+    text = (f" {'Condition' if len(waiting) == 1 else 'Conditions'} of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
             f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS.")
     if profile is not None and not waiver_policy(profile):
         text += (" The project allows no waiver, so the task cannot complete while one is open: if one cannot be met, "
@@ -534,7 +535,7 @@ def _approved_step(task: dict) -> str:
         index = int(item["check"].split(":")[1]) - 1 if item["check"].startswith("command:") else None
         what = f" (`{commands[index]}`)" if index is not None and index < len(commands) else ""
         cause = f": {item['message']}" if item.get("message") else ""
-        more = f" and {len(failed) - 1} other check(s)" if len(failed) > 1 else ""
+        more = f" and {plural(len(failed) - 1, 'other check')}" if len(failed) > 1 else ""
         return f"{item['check']}{what} failed{cause}{more}. Fix it, then run task verify {task_id}."
     waiting = result.get("waiting_for", [])
     if waiting:
@@ -1345,7 +1346,8 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
         raise ValueError(
-            f"{len(sensitive['points'])} data protection, security or AI point(s) are skipped, failed or declared not "
+            f"{plural(len(sensitive['points']), 'data protection, security or AI point')} "
+            f"{'is' if len(sensitive['points']) == 1 else 'are'} skipped, failed or declared not "
             "applicable as a pack. A person "
             f"confirms closing over them: openguildkit task complete {task['id']} --by INITIALS, at a terminal."
         )

@@ -8,17 +8,17 @@
   "guard": {
    "code": 0,
    "stderr": "",
-   "stdout": "Approved task(s) in progress:\n  approved-task: Show the export date in the name of the file the portal exports.\nThe guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\n"
+   "stdout": "Approved task in progress:\n  approved-task: Show the export date in the name of the file the portal exports.\nThe guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\n"
   },
   "guard --hook pre-edit": {
    "code": 0,
    "stderr": "",
-   "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"OpenGuildKit: approved task(s) in progress: approved-task (Show the export date in the name of the file the portal exports.). The guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\"}}\n"
+   "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"OpenGuildKit: approved work in progress: approved-task (Show the export date in the name of the file the portal exports.). The guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\"}}\n"
   },
   "guard --hook prompt": {
    "code": 0,
    "stderr": "",
-   "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"OpenGuildKit: approved task(s) in progress: approved-task (Show the export date in the name of the file the portal exports.). The guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\"}}\n"
+   "stdout": "{\"hookSpecificOutput\": {\"hookEventName\": \"UserPromptSubmit\", \"additionalContext\": \"OpenGuildKit: approved work in progress: approved-task (Show the export date in the name of the file the portal exports.). The guard does not compare the edited files with a task's scope: keep this work within the approved brief and bring anything else back to the person.\"}}\n"
   },
   "guard --json": {
    "code": 0,

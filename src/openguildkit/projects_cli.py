@@ -19,6 +19,7 @@ from .project import STATE_DIR, load_profile
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers
+from .wording import plural
 
 SHOWN_MATCHES = 50
 SHOWN_FOLDERS = 10
@@ -166,9 +167,9 @@ def _summary(row: dict) -> str:
     parts = [f"guard {row['guard']}", "approvals signed" if row["approvals"] == "signed" else "approvals not signed",
              f"tasks {tasks}" if tasks else "no task"]
     if row["attention"]:
-        parts.append(f"{row['attention']} approval(s) no longer hold")
+        parts.append(f"{plural(row['attention'], 'approval')} no longer {'holds' if row['attention'] == 1 else 'hold'}")
     if row["open_points"]:
-        parts.append(f"{row['open_points']} open point(s)")
+        parts.append(plural(row['open_points'], 'open point'))
     if row["critical_alerts"]:
         parts.append(f"{row['critical_alerts']} critical alert{'s' if row['critical_alerts'] > 1 else ''} confirmed")
     check = row["check"]

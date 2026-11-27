@@ -684,7 +684,7 @@ class HookTests(GuardCase):
         self.approved("typo", "docs/**")
         context = self.context("docs/guide.md")
         self.assertIn("typo (Fix a typo in the guide)", context)
-        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertIn("holds each edit to the paths of the short-lane task (typo (docs/**))", context)
         self.assertNotIn("does not compare", context)
         for outside in ("src/app.py", "README.md", "docs/example/package.json", "docs/AGENTS.md", "package.json",
                         ".github/workflows/ci.yml"):
@@ -723,7 +723,7 @@ class HookTests(GuardCase):
         prompt = json.loads(run_cli(self.root, "guard", "--hook", "prompt", stdin="").stdout)
         context = prompt["hookSpecificOutput"]["additionalContext"]
         self.assertIn("typo", context)
-        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertIn("holds each edit to the paths of the short-lane task (typo (docs/**))", context)
         self.assertNotIn("does not compare", context)
         text, _ = self.run_cli("guard")
         self.assertIn("typo: Fix a typo in the guide (short lane: docs/**)", text)
@@ -807,7 +807,7 @@ class CiTests(GitCase):
         self.assertEqual(len(result["problems"]), 1, result["problems"])
         problem = result["problems"][0]
         self.assertIn("Short-lane task typo covers only docs/**", problem)
-        self.assertIn("2 changed file(s) are outside: docs/example/package.json, src/app.py", problem)
+        self.assertIn("2 changed files are outside: docs/example/package.json, src/app.py", problem)
         self.assertIn("within the light_paths of the base revision main", problem)
         self.assertIn('openguildkit task new "BRIEF" --follows typo', problem)
         sarif = json.loads(self.ci("--format", "sarif", code=1))
@@ -863,17 +863,17 @@ class CompletionTests(GitCase):
         self.commit_all("The work")
         verified, _ = self.run_cli("task", "verify", "typo")
         self.assertIn("Short-lane task typo covers only docs/**, within the light_paths of this project", verified)
-        self.assertIn("1 changed file(s) are outside: src/app.py", verified)
+        self.assertIn("1 changed file is outside: src/app.py", verified)
         _, error = self.run_cli("task", "complete", "typo", code=1)
         self.assertIn("The task cannot be declared done:", error)
-        self.assertIn("1 changed file(s) are outside: src/app.py", error)
+        self.assertIn("1 changed file is outside: src/app.py", error)
         self.assertEqual(self.task()["status"], "approved")
         # Taking the file out again leaves nothing outside; a new file Git does not track yet counts as well.
         self.git("rm", "-q", "src/app.py")
         self.commit_all("Take it out")
         self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
         self.write("src/new.py", "print('y')\n")
-        self.assertIn("1 changed file(s) are outside: src/new.py", self.run_cli("task", "complete", "typo", code=1)[1])
+        self.assertIn("1 changed file is outside: src/new.py", self.run_cli("task", "complete", "typo", code=1)[1])
         (self.root / "src" / "new.py").unlink()
         self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
 

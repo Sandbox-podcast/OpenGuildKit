@@ -290,7 +290,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         self.write("docs/privacy/ropa.md")
         self.write("tests/test_export.py")
         _, error = self.run_cli("task", "export", TASK)
-        self.assertIn("2 new file(s) Git does not track yet are not in the record: docs/privacy/ropa.md, "
+        self.assertIn("2 new files Git does not track yet are not in the record: docs/privacy/ropa.md, "
                       "tests/test_export.py", error)
         record = json.loads((self.root / RECORD).read_text())
         self.assertEqual(record["files"], ["README.md"])

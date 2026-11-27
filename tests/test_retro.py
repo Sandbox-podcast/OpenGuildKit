@@ -204,7 +204,7 @@ class TaskFactsTests(unittest.TestCase):
         retro = task_retro(facts)
         self.assertEqual(len(retro["not_recorded"]), 1)
         self.assertIn("cannot be read", retro["not_recorded"][0])
-        self.assertIn("Committees: not read", "\n".join(render_task(retro)))
+        self.assertIn("Boards: not read", "\n".join(render_task(retro)))
         bare = {key: value for key, value in old.items() if key != "result"}
         self.assertEqual(facts_of_task(bare)["rules"], [])
 
@@ -263,7 +263,7 @@ class ExportedRecordFactsTests(unittest.TestCase):
         self.assertIsNone(facts["committees"])
         retro = task_retro(facts)
         self.assertEqual(retro["source"], "exported record")
-        self.assertTrue(any("committees" in note and "objection" in note for note in retro["not_recorded"]))
+        self.assertTrue(any("boards" in note and "objection" in note for note in retro["not_recorded"]))
         self.assertEqual(task_retro(facts_of_task(closed()))["not_recorded"], [])
         self.assertIn("not in the exported record", " ".join(render_task(retro)))
 
@@ -645,6 +645,21 @@ class RenderTests(unittest.TestCase):
         text = "\n".join(render_task(task_retro(facts_of_task(closed(boards={"security": "revise"}, objections=[
             {"id": "x", "from": "security", "to": "qa"}])))))
         self.assertIn("no rule set aside", text)
+
+    def test_the_retrospective_says_board_and_never_committee(self):
+        """Issue #527: task retro said "committee", a word the glossary does not have: it fixes board."""
+        silent = {"qa": "proceed", "product": "revise"}
+        tasks = [closed(f"t{number}", boards=silent, objections=[]) for number in (1, 2, 3)]
+        profile, catalog = profile_and_catalog()
+        retros = [task_retro(facts_of_task(tasks[0])), task_retro(facts_of_record(record_of(tasks[0]))),
+                  task_retro(facts_of_task({key: value for key, value in tasks[0].items() if key != "review"}))]
+        summaries = [project_summary([facts_of_task(task) for task in tasks], 3, profile, catalog, {}),
+                     project_summary([facts_of_task(tasks[0])], 1, profile, catalog, {})]
+        text = "\n".join([*(line for retro in retros for line in render_task(retro)),
+                          *(item for retro in retros for item in retro["not_recorded"]),
+                          *(line for summary in summaries for line in render_project(summary))])
+        self.assertIn("Boards: ", text)
+        self.assertNotIn("ommittee", text)
 
     def test_a_long_list_is_cut_with_the_command_that_shows_all_of_it(self):
         task = closed(checks=[skipped(f"rule:react/rule-{number}", f"Reason {number}.") for number in range(40)])

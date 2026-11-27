@@ -38,6 +38,7 @@ from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_issues
 from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
+from .wording import plural
 
 
 def _on_first_call(module: str, name: str):
@@ -558,12 +559,13 @@ def _print_catalog(catalog: dict, as_json: bool) -> None:
     if as_json:
         print_json({group: catalog[group] for group in groups})
         return
+    width = max(len(entry["id"]) for group in groups for entry in catalog[group].values())
     for group in groups:
         print(group.capitalize())
         for entry in catalog[group].values():
             preselected = _sector_packs(catalog, entry["id"]) if group == "sectors" else []
             suffix = f" (preselects {', '.join(preselected)})" if preselected else ""
-            print(f"  {entry['id']:<24} {entry['title']}{suffix}")
+            print(f"  {entry['id']:<{width}} {entry['title']}{suffix}")
 
 
 def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
@@ -809,7 +811,7 @@ def _guard(args, root: Path, state: Path) -> int:
         elif args.json:
             print_json(result)
         else:
-            print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
+            print(f"Guard mode on {args.base}: {result['mode']}. {plural(result['changed'], 'changed file')}.")
             for task_id in result["decisions"]:
                 # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
                 where = result["records"][task_id]
@@ -837,7 +839,7 @@ def _guard(args, root: Path, state: Path) -> int:
     elif not approvals:
         print(NO_TASK)
     else:
-        print("Approved task(s) in progress:")
+        print("Approved task in progress:" if len(approvals) == 1 else "Approved tasks in progress:")
         for item in approvals:
             print(f"  {approval_text(item)}")
         print(scope_note(approvals))
@@ -1010,7 +1012,7 @@ def _print_share_row(row: dict) -> None:
     """One share with its perimeter and state; one past its last day says which access to remove and which to keep."""
     space = row["space"] or "unknown: the portal address names no /p/SPACE"
     print(f"{row['id']} {row['deliverable']} (whole space {space}) until {row['until']} "
-          f"({len(row['recipients'])} recipient(s)): {row['state']}")
+          f"({plural(len(row['recipients']), 'recipient')}): {row['state']}")
     if row["also_in_space"]:
         dedicated = " although the space is recorded as dedicated to this deliverable" if row["dedicated"] else ""
         print(f"  its recipients can also read {', '.join(row['also_in_space'])}, shared through the same space{dedicated}")
@@ -1035,7 +1037,7 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         gaps = knowledge_gaps(catalog, families)
         for gap in gaps:
             print(f"- {gap}")
-        print(f"{len(boards)} brains, {len(gaps)} gap(s).")
+        print(f"{len(boards)} brains, {plural(len(gaps), 'gap')}.")
         return 1 if gaps else 0
     if args.json:
         if args.id:
@@ -1076,10 +1078,11 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         print(f"\nTools this brain can use ({len(used)}): {', '.join(used)}")
         print(f"  Details: openguildkit tools list --brain {args.id}")
     else:
+        width = max(len(board_id) for board_id in boards)
         for board in boards.values():
             reviewers = board.get("review", {}).get("specialists", [])
             count = f" ({len(reviewers)} specialists)" if reviewers else ""
-            print(f"  {board['id']:<23} {board['title']}{count}")
+            print(f"  {board['id']:<{width}} {board['title']}{count}")
     return 0
 
 
@@ -1125,7 +1128,7 @@ def _require_answers(answers: dict, questions: list[dict]) -> None:
         lines = "\n".join(f"- {question['id']}: {question['prompt']} Answer "
                           f"{', '.join(choice['id'] for choice in question.get('choices', []))} or unsure "
                           f"({question['unsure']})." for question in missing)
-        raise ValueError(f"The setup answers leave out {len(missing)} question(s) that need an answer. Nothing was "
+        raise ValueError(f"The setup answers leave out {plural(len(missing), 'question')} that {'needs' if len(missing) == 1 else 'need'} an answer. Nothing was "
                          f"written.\n{lines}")
 
 
@@ -1179,7 +1182,7 @@ def _sync(args, root: Path, state: Path) -> None:
         write_lock(state, lock)
     print("OpenGuildKit instructions updated.")
     if replaced:
-        print(f"Replaced {len(replaced)} line(s) edited by hand in the managed block of AGENTS.md; keep your own "
+        print(f"Replaced {plural(len(replaced), 'line')} edited by hand in the managed block of AGENTS.md; keep your own "
               "text outside the markers:")
         for line in replaced[:5]:
             print(f"  - {line[:100]}")
@@ -1218,7 +1221,7 @@ def _host(args, root: Path, profile: dict) -> int:
                   f"\n    {control['detail']}")
         settings = [control for control in missing if control.get("cause") != "path"]
         if settings:
-            print(f"{len(settings)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
+            print(f"{plural(len(settings), 'setting')} missing. Run openguildkit host apply, then openguildkit host check.")
         if len(settings) < len(missing):
             print(OFF_PATH)
         if not missing:

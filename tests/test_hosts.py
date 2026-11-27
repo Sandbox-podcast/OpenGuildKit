@@ -296,7 +296,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         # A setting the write did not install, as when the settings file cannot be written.
         with patch("openguildkit.cli.apply_host_settings", return_value=[]):
             output, _ = self.run_cli("host", "apply", code=1)
-        self.assertIn("setting(s) missing. Run openguildkit host apply", output)
+        self.assertIn("settings missing. Run openguildkit host apply", output)
         self.run_cli("host", "apply")
 
     def test_enforce_without_signed_approvals_is_flagged(self):

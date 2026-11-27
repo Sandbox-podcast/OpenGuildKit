@@ -705,7 +705,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertNotIn("high", webui.REFUSALS["alert-status-at-terminal"])
 
     def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
-        message = ("OpenGuildKit: 1 data protection, security or AI point(s) are skipped, failed or declared not "
+        message = ("OpenGuildKit: 1 data protection, security or AI point is skipped, failed or declared not "
                    "applicable as a pack. A person confirms closing over them: openguildkit task complete "
                    "request-history --by INITIALS, at a terminal.")
         with patch("openguildkit.cli.main", side_effect=lambda argv: print(message, file=__import__("sys").stderr) or 1):

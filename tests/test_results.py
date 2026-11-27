@@ -376,10 +376,10 @@ class ResultTests(ResultCase):
         output, _ = self.run_cli("task", "verify", TASK)
         listed = json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
         rules = [item for item in listed if item["kind"] in ("rule", "evidence") and item["concerned"]]
-        self.assertIn(f"- {len(rules)} rule(s) and named evidence to report: openguildkit task result {TASK} "
+        self.assertIn(f"- {len(rules)} rules and named evidence to report: openguildkit task result {TASK} "
                       "--template lists them", output)
         self.assertNotIn("is not reported", output)
-        self.assertIn(f"{len(rules)} point(s) before the task can be done.", output)
+        self.assertIn(f"{len(rules)} points before the task can be done.", output)
         # Issue 291: the README's order runs task verify before task result; its output stays short.
         self.assertLess(len(output.encode("utf-8")), 1500, output)
         # Once a report answered some rules, task verify lists the ones still missing, one by one.
@@ -611,7 +611,7 @@ class ProportionateResultTests(ResultCase):
                  "owner": "Camille"} for item in template["packs"]]
 
     def points(self, output):
-        return int(re.search(r"(\d+) point\(s\) before the task can be done", output).group(1))
+        return int(re.search(r"(\d+) points? before the task can be done", output).group(1))
 
     def assert_verify_keeps_the_pack_answers(self):
         self.run_cli("task", "verify", TASK)
@@ -654,7 +654,7 @@ class ProportionateResultTests(ResultCase):
         output, _ = self.file(*self.answers(), *self.documents())
         self.assertIn(f"openguildkit task complete {TASK} --by INITIALS", output)
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn("data protection, security or AI rule(s) are declared not applicable", error)
+        self.assertIn("data protection, security or AI rules are declared not applicable", error)
         self.assertIn("- rule:gdpr/confirm-lawful-basis is not-applicable: Nothing in this change touches "
                       "rule:gdpr/confirm-lawful-basis. (Camille) [data protection]", error)
         self.assertIn("rule:gdpr/apply-retention-period", error)
@@ -687,14 +687,14 @@ class ProportionateResultTests(ResultCase):
         self.assertIn(f"Ready to close with the person at a terminal", output)
         self.assertIn(f"openguildkit task complete {TASK} --by INITIALS", output)
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn("data protection, security or AI point(s) are skipped", error)
+        self.assertIn("data protection, security or AI point is skipped", error)
         self.assertIn("--by INITIALS", error)
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             output, notes = self.run_cli("task", "complete", TASK, "--by", "Camille")
         # The person read the open points at the prompt: they are printed once.
         self.assertEqual(notes.count("  - rule:gdpr/confirm-lawful-basis is skipped"), 1)
         self.assertNotIn("rule:gdpr/confirm-lawful-basis", output)
-        self.assertIn("open point(s), listed above", output)
+        self.assertIn("open points, listed above", output)
         self.assertEqual(output.splitlines()[0], "done-with-reservations")
         self.assertIn("--follows request-status", output)
         lines = notes.splitlines()
@@ -721,7 +721,7 @@ class ProportionateResultTests(ResultCase):
         self.assertIn(f"record the results: task verify {TASK} and task result {TASK}", next_step())
         output = self.run_cli("task", "verify", TASK, code=1)[0]
         self.assertIn("- command:1 is mandatory and failed", output)
-        self.assertIn(f"rule(s) and named evidence to report: openguildkit task result {TASK} --template", output)
+        self.assertIn(f"rules and named evidence to report: openguildkit task result {TASK} --template", output)
         step = next_step()
         self.assertTrue(step.startswith("command:1 (`"), step)
         self.assertIn(f"failed: ", step)

@@ -32,6 +32,7 @@ from .tasks import (
     STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
 )
 from .terminal import interactive
+from .wording import plural
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
@@ -222,7 +223,7 @@ def scope_note(approvals: list[dict]) -> str:
     are the only ones approved."""
     if not approvals or any(not item.get("lane") for item in approvals):
         return SCOPE_NOTE
-    return (f"The guard holds each edit to the paths of the short-lane task(s) ({light_lane.covered_summary(approvals)}), "
+    return (f"The guard holds each edit to the paths of the short-lane {'task' if len(approvals) == 1 else 'tasks'} ({light_lane.covered_summary(approvals)}), "
             "not to the brief: keep this work within the approved brief and bring anything else back to the person.")
 
 
@@ -251,7 +252,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if outcome == "covered":
         if dialect == "gemini" and event != "prompt":
             return 0, "", ""  # Before a tool, Gemini CLI has no documented way to tell the agent: the request hook did.
-        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {note}", dialect), ""
+        return 0, _context(event, f"OpenGuildKit: approved work in progress: {detail}. {note}", dialect), ""
     if event == "prompt":
         if outcome != "unchecked":
             return 0, _context(event, NO_TASK, dialect), ""
@@ -307,7 +308,7 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
         left = [relative for relative in work if not any(
             not item.get("lane") or light_lane.covers(relative, item["paths"], light) for item in approvals)]
         if left:
-            return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane task(s): "
+            return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane {'task' if len(approvals) == 1 else 'tasks'}: "
                                                     f"{light_lane.covered_summary(approvals)})", dialect)
         return hook_answer(event, mode, "covered", _describe(approvals), dialect, scope_note(approvals))
     return hook_answer(event, mode, "outside")
@@ -790,7 +791,7 @@ def _completion_problem(record: dict) -> str | None:
     if not isinstance(closing, dict) or not isinstance(closing.get("open_points"), list):
         return "no closing with its open points"
     if (status == "done-with-reservations") != bool(closing["open_points"]):
-        return f"the status is {status} while the closing lists {len(closing['open_points'])} group(s) of open points"
+        return f"the status is {status} while the closing lists {plural(len(closing['open_points']), 'group')} of open points"
     return None
 
 
@@ -952,9 +953,11 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
     if not missing:
         return None
     unlisted = [task for task, files in covers.items() if files is None]
-    detail = (f" The record(s) of {', '.join(unlisted)} list no files: approved before the project had a Git revision, "
+    detail = (f" The {'record' if len(unlisted) == 1 else 'records'} of {', '.join(unlisted)} "
+              f"{'lists' if len(unlisted) == 1 else 'list'} no files: approved before the project had a Git revision, "
               "or exported by an earlier release." if unlisted else "")
-    return (f"{len(missing)} changed file(s) are in no decision record of this change: {_shown_files(missing)}. A record "
+    return (f"{plural(len(missing), 'changed file')} {'is' if len(missing) == 1 else 'are'} in no decision record of this "
+            f"change: {_shown_files(missing)}. A record "
             "covers the files Git tracks that changed since its approval when it is exported: export it again once the "
             "work is committed (openguildkit task export ID), or open a task for this change." + detail)
 

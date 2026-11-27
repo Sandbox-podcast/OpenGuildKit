@@ -14,6 +14,7 @@ from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
 from .terminal import interactive
+from .wording import plural
 
 STATUS_CHOICES = (*REVIEW_STATUSES, "to-verify")
 
@@ -70,9 +71,9 @@ def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
         print(json_text({**data, "alerts": alerts}), end="")
         return
     for item in data.get("imports", []):
-        print(f"Imported {item['alerts']} alert(s) from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
+        print(f"Imported {plural(item['alerts'], 'alert')} from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
     counts = summary(alerts, [])["by_status"]
-    print(f"{len(alerts)} alert(s): " + ", ".join(f"{count} {status}" for status, count in counts.items()))
+    print(f"{plural(len(alerts), 'alert')}: " + ", ".join(f"{count} {status}" for status, count in counts.items()))
     for alert in alerts:
         fix = f" fix: {alert['fix']}" if alert.get("fix") else ""
         accepted = f" accepted by {alert['accepted']['by']}" if alert.get("accepted") else ""
@@ -86,7 +87,7 @@ def _print_changes(changes: dict, as_json: bool) -> None:
         print(json_text(changes), end="")
         return
     scope = f" (scope {changes['scope']})" if changes.get("scope") else ""
-    print(f"{changes['tool']}{scope}: {len(changes['reported'])} alert(s) reported, {len(changes['new'])} new, "
+    print(f"{changes['tool']}{scope}: {plural(len(changes['reported']), 'alert')} reported, {len(changes['new'])} new, "
           f"{len(changes['reopened'])} reopened, {len(changes['resolved'])} resolved.")
     if changes.get("nothing_analyzed"):
         print(f"  The report analyzed no dependency ({changes['nothing_analyzed']}): it resolves no alert.")
@@ -96,7 +97,7 @@ def _print_changes(changes: dict, as_json: bool) -> None:
               "resolves the alerts of the first. Declare the scope of each report with --scope NAME (for example "
               "--scope front) so that a report resolves only the alerts of its own scope.")
     if changes.get("other_scopes"):
-        print(f"  Alerts of the scope(s) {', '.join(changes['other_scopes'])} are left as they are: this import has no "
+        print(f"  Alerts of the {'scope' if len(changes['other_scopes']) == 1 else 'scopes'} {', '.join(changes['other_scopes'])} are left as they are: this import has no "
               "scope, so it concerns only the alerts without one.")
     for key in ("new", "reopened", "resolved"):
         for alert_id in changes[key]:

@@ -337,7 +337,7 @@ When tools are connected, each board's brief lists the ones it can query, and a 
 
 Use one of the project's connected tools. When recording a review, the CLI warns if the tool falls outside that board's scope. For a live tool, it warns when the local journals hold no call with the cited record: live host calls do not appear in them, so check those citations in the host.
 
-Evidence read from a mock is synthetic. It may be recorded, so a demo or a rehearsal completes, even behind a proceed with high confidence, and it is always labelled: the review warns that the cited record comes from the mock, or that the mock holds no such record and nothing supports the citation; the decision brief and the approval prompt carry one line, `Mock data: N evidence item(s) come from mock tools, ...`, and the exported decision record lists them under `mock_evidence`.
+Evidence read from a mock is synthetic. It may be recorded, so a demo or a rehearsal completes, even behind a proceed with high confidence, and it is always labelled: the review warns that the cited record comes from the mock, or that the mock holds no such record and nothing supports the citation; the decision brief and the approval prompt carry one line, `Mock data: N evidence items come from mock tools, ...`, and the exported decision record lists them under `mock_evidence`.
 
 Use HTTPS links without credentials for public evidence. The CLI checks the literal hostname and query without resolving the host. Cite internal evidence with a project file or a connected tool. A board only reads during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
 

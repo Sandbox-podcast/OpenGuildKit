@@ -1331,6 +1331,17 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/wording.py",
+      "role": "The words of the outputs: a count with its noun, in the singular when the count is one.",
+      "entry": [
+        "plural"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/workflow.py",
       "role": "Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff.",
       "entry": [

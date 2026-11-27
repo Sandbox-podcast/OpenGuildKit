@@ -17,6 +17,7 @@ from .consultation import (
 from .questionnaire import ASSUMPTIONS
 from .routing import normalize_text, trigger_matches
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
+from .wording import plural
 
 
 class TaskStateError(ValueError):
@@ -881,7 +882,8 @@ def decision_summary(task: dict) -> list[str]:
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     synthetic = mock_evidence(task)
     if synthetic:
-        lines.append(f"Mock data: {len(synthetic)} evidence item(s) come from mock tools, synthetic sample data and not "
+        lines.append(f"Mock data: {plural(len(synthetic), 'evidence item')} {'comes' if len(synthetic) == 1 else 'come'} from mock "
+                     "tools, synthetic sample data and not "
                      f"the real systems: {', '.join(synthetic)}.")
     lines += _board_change_lines(task)
     lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]

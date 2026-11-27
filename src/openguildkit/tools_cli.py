@@ -18,6 +18,7 @@ from .tools import (
     choose_server, connection_status, load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools,
     remove_connections, resolve_tool, scenario_fields, scenario_records,
 )
+from .wording import plural
 
 
 def add_parser(commands) -> None:
@@ -313,7 +314,7 @@ def _list(args, tools: dict, mocks: set, catalog: dict) -> int:
         server = choose_server(tool, community=True)
         mcp = "no MCP server" if server is None else f"{server['publisher']} MCP ({server['transport']})"
         print(f"{tool['id']:<20} {tool['category']:<15} {mcp:<32}{' mock' if tool['id'] in mocks else ''}")
-    print(f"{len(entries)} tool(s). Details: openguildkit tools show ID")
+    print(f"{plural(len(entries), 'tool')}. Details: openguildkit tools show ID")
     return 0
 
 

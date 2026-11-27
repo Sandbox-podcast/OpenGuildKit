@@ -13,6 +13,7 @@ from .cli_surface import add_by
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
+from .wording import plural
 
 
 def add_parser(commands) -> None:
@@ -37,7 +38,7 @@ def _print(view: list[dict]) -> None:
         for position, option in enumerate(feature["options"]):
             mark = "on " if option["enabled"] else "off"
             role = "lead" if position == 0 else "alternative"
-            servers = f"{option['servers']} MCP server(s)" if option["servers"] else "no MCP server on record"
+            servers = f"{plural(option['servers'], 'MCP server')}" if option["servers"] else "no MCP server on record"
             print(f"  [{mark}] {option['tool']}: {option['title']} ({role}, {servers})")
     print("Turn one on: openguildkit features enable ID --by INITIALS --reason WHY. Then openguildkit tools plan ID.")
 

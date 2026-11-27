@@ -3,10 +3,12 @@ the outputs. Each test reads the parser or runs a command through the CLI.
 """
 
 import argparse
+import ast
 import contextlib
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +16,7 @@ from unittest.mock import patch
 
 from openguildkit.cli import command_parser, main
 from openguildkit.cli_surface import COMMAND_ORDER, hoist_global_options
+from openguildkit.wording import plural
 from tests.support import run_cli
 from tests.test_cli_coverage import _subcommands
 
@@ -55,6 +58,11 @@ class HelpPageTests(unittest.TestCase):
             wide = {" ".join(path): max(len(line) for line in parser.format_help().splitlines())
                     for path, parser in walk(command_parser())}
         self.assertEqual({name: width for name, width in wide.items() if width > 80}, {})
+
+    def test_no_help_page_says_committee(self):
+        """Issue #527: the help of task retro said "committees", a word the glossary does not have: it fixes board."""
+        said = [" ".join(path) for path, parser in walk(command_parser()) if "ommittee" in parser.format_help()]
+        self.assertEqual(said, [])
 
     def test_the_usage_names_the_commands_once(self):
         """Issue #492: the choices of a group were written twice, in the usage and under it."""
@@ -232,6 +240,36 @@ class TaskShowTests(unittest.TestCase):
     def test_the_summary_and_the_closing_points_do_not_go_together(self):
         refused = run_cli(self.root, "task", "show", "status", "--summary", "--closing", expect=2)
         self.assertIn("not allowed with", refused.stderr)
+
+
+class WordingTests(unittest.TestCase):
+    def test_plural_gives_the_count_with_its_noun(self):
+        self.assertEqual([plural(count, "file") for count in (0, 1, 2)], ["0 files", "1 file", "2 files"])
+        self.assertEqual(plural(3, "task record"), "3 task records")
+
+    def test_no_output_writes_a_plural_with_a_parenthesis(self):
+        """Issue #527: 54 strings of 19 modules wrote "35 rule(s)" and "1 file(s) read"."""
+        found = []
+        for path in sorted((REPO / "src" / "openguildkit").glob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) and re.search(r"[a-z]\(s\)", node.value):
+                    found.append(f"{path.name}:{node.lineno}")
+        self.assertEqual(found, [])
+
+    def test_the_packs_line_of_a_pass_agrees_with_its_count(self):
+        """Issue #527: "1 other packs are in force for other boards"."""
+        from openguildkit.consultation import _other_packs_line
+
+        self.assertIn("1 other pack is in force", _other_packs_line(1, "t"))
+        self.assertIn("2 other packs are in force", _other_packs_line(2, "t"))
+
+    def test_catalog_and_brains_start_every_title_in_the_same_column(self):
+        """Issue #527: 13 identifiers of 168 in catalog and 1 of 27 in brains pushed their title to the right."""
+        for command in (["catalog"], ["brains"]):
+            with self.subTest(command=command):
+                _, out, _ = cli(*command)
+                columns = {m.end(2) for line in out.splitlines() if (m := re.match(r"^  (\S+)( +)\S", line))}
+                self.assertEqual(len(columns), 1, sorted(columns))
 
 
 if __name__ == "__main__":

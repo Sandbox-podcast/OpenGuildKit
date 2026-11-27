@@ -144,7 +144,7 @@ class GeminiHookTests(GeminiCase):
         approved_task(self, self.root)
         answer = json.loads(self.hook("prompt", PROMPT)[1])["hookSpecificOutput"]
         self.assertEqual(answer["hookEventName"], "BeforeAgent")
-        self.assertIn(f"approved task(s) in progress: {TASK}", answer["additionalContext"])
+        self.assertIn(f"approved work in progress: {TASK}", answer["additionalContext"])
 
     def test_claude_code_and_codex_keep_their_answers(self):
         self.init("observe", host="claude-code")
@@ -298,7 +298,7 @@ class GeminiCheckTests(GeminiCase):
         self.assertIn(".gemini/settings.json", board["detail"])
         output, _ = self.run_cli("host", "check", code=1)
         self.assertIn("[missing] The board is consulted before each change", output)
-        self.assertIn("setting(s) missing. Run openguildkit host apply", output)
+        self.assertIn("1 setting missing. Run openguildkit host apply", output)
         self.run_cli("check", code=1)
         self.run_cli("host", "apply")
         board = self.board()

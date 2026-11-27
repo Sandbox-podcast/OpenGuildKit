@@ -58,6 +58,7 @@ from .tasks import (
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
+from .wording import plural
 from .workflow import (
     RESOLUTION_RULE, TaskStateError, blocker_list, challenge_report, deliberation_request, handoff, is_decision_task,
     nothing_to_deliberate, pending_removals, review_lines, validate_review, verdict_lines,
@@ -130,7 +131,7 @@ def add_parser(commands) -> None:
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
     retro = actions.add_parser("retro", help="Read what a closed task, or every closed task, left to learn: rules set "
-                                             "aside, committees that said nothing, reservations, waived blockers. "
+                                             "aside, boards that said nothing, reservations, waived blockers. "
                                              "It writes nothing.")
     retro.add_argument("id", nargs="?", help="Task ID of a closed task, or none with --all.")
     retro.add_argument("--all", action="store_true",
@@ -686,7 +687,7 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
     if skipped:
         print(f"Not concerned, no answer needed (openguildkit task checks {task_id} --all asks them):")
         for name, (reason, count) in skipped.items():
-            print(f"  {name} ({count} check(s)): {reason}")
+            print(f"  {name} ({plural(count, 'check')}): {reason}")
 
 
 def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
@@ -721,7 +722,8 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     set_aside = set_aside_rules(current, profile, relevance)
     if set_aside and not (args.by or "").strip():
         raise ValueError(
-            f"{len(set_aside)} data protection, security or AI rule(s) are declared not applicable:\n- "
+            f"{plural(len(set_aside), 'data protection, security or AI rule')} "
+            f"{'is' if len(set_aside) == 1 else 'are'} declared not applicable:\n- "
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "
             "at a terminal.")
     if args.by:
@@ -752,7 +754,7 @@ def _print_closing(task: dict, listed: bool = False) -> None:
     groups = task["result"]["closing"]["open_points"]
     if groups and listed:
         count = sum(len(group["points"]) for group in groups)
-        print(f"{count} open point(s), listed above and kept for later: openguildkit task show {task['id']} --closing.")
+        print(f"{plural(count, 'open point')}, listed above and kept for later: openguildkit task show {task['id']} --closing.")
         print(f'To follow up, open a task linked to this one: openguildkit task new "BRIEF" --follows {task["id"]}')
     elif groups:
         print("Left open, most serious first:")
@@ -845,13 +847,13 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
     if folded:
-        print(f"- {len(folded)} rule(s) and named evidence to report: openguildkit task result {args.id} --template "
+        print(f"- {plural(len(folded), 'rule')} and named evidence to report: openguildkit task result {args.id} --template "
               "lists them with the answers each accepts.")
     for problem in problems:
         if problem.split(" ", 1)[0] not in folded:
             print(f"- {problem}")
     if problems:
-        print(f"{len(problems)} point(s) before the task can be done.")
+        print(f"{plural(len(problems), 'point')} before the task can be done.")
     elif held:
         print("Nothing else is missing, but some answers were not recorded (above): fix them, or run task complete "
               "with the answers already recorded.")
@@ -1132,7 +1134,7 @@ def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
     else:
         for name, (before, after) in comparison["changed"].items():
             print(f"{name}: {before or 'absent'} -> {after or 'absent'}")
-        print(f"{len(comparison['unchanged'])} scenario(s) unchanged")
+        print(f"{plural(len(comparison['unchanged']), 'scenario')} unchanged")
 
 
 def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1148,7 +1150,8 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     untracked = untracked_files(root) if task["decision"].get("base_revision") else []
     if untracked:
         shown = ", ".join(untracked[:10]) + (f" and {len(untracked) - 10} more" if len(untracked) > 10 else "")
-        print(f"OpenGuildKit: {len(untracked)} new file(s) Git does not track yet are not in the record: {shown}. "
+        print(f"OpenGuildKit: {plural(len(untracked), 'new file')} Git does not track yet "
+              f"{'is' if len(untracked) == 1 else 'are'} not in the record: {shown}. "
               "Add them with git add (or commit the work) and export again, or guard --ci finds them in no record.",
               file=sys.stderr)
     if "completed_at" not in task:
@@ -1506,7 +1509,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         print_json(rows)
     elif not rows:
         shared = len(exported_records(state))
-        print("No task matches." + (f" {shared} exported decision(s) of the repository, teammates' included: "
+        print("No task matches." + (f" {plural(shared, 'exported decision')} of the repository, teammates' included: "
                                     "openguildkit task list --decisions" if shared else ""))
     else:
         for row in rows:
