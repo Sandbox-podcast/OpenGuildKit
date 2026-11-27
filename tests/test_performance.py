@@ -51,6 +51,7 @@ BUDGETS = {
     f"guard --hook prompt ({bench.TASKS} tasks)": 5,
     f"detect (monorepo, {bench.PACKAGES} packages)": 11,
     f"init (monorepo, {bench.PACKAGES} packages)": 11,
+    f"projects --surfaces ({bench.FLEET} projects)": 50,
 }
 START_BUDGET = 25  # times a bare interpreter start
 CEILING_SECONDS = 60

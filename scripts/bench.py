@@ -6,9 +6,10 @@ Each command runs as a real process, as an agent or a hook runs it, in projects
 built in a temporary folder: the request status example (guard off), the same
 project with 500 tasks of which 5 are approved (guard enforce), that project
 again inside a Git repository whose commit the approvals record, a web project
-whose node_modules holds FILES files (50 000 by default), and a monorepo of 200
-packages. Python caches the bytecode in that folder, as an installed package
-does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
+whose node_modules holds FILES files (50 000 by default), a monorepo of 200
+packages, and a folder of 30 copies of the example project for `projects`.
+Python caches the bytecode in that folder, as an installed package does, even
+when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
 tests/test_performance.py runs the same measures with budgets, with a smaller
@@ -42,6 +43,7 @@ TASK = "request-status"
 TASKS = 500
 APPROVED = 5
 PACKAGES = 200
+FLEET = 30
 DEPENDENCY_FILES = 50_000
 BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
              "is never called.")
@@ -169,6 +171,14 @@ def monorepo(folder: Path) -> Path:
     return folder
 
 
+def fleet(folder: Path) -> Path:
+    """FLEET copies of the example project side by side, as a lead's code folder holds them."""
+    first = example_project(folder / "p00")
+    for index in range(1, FLEET):
+        shutil.copytree(first, folder / f"p{index:02d}")
+    return folder
+
+
 def edit_hook(project: Path) -> str:
     return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit", "cwd": str(project),
                        "tool_input": {"file_path": str(project / "src" / "app.py")}})
@@ -181,6 +191,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
     in_git = many_tasks(base / "many-tasks-git", in_git=True)
     web = web_project(base / "web", dependencies)
     repo = monorepo(base / "monorepo")
+    projects = fleet(base / "fleet")
     counter = iter(range(10 ** 6))
 
     def fresh_init():
@@ -221,6 +232,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         (f"guard --hook prompt ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "prompt", stdin="{}")),
         (f"detect (monorepo, {PACKAGES} packages)", lambda: cli(repo, "detect", "--json")),
         (f"init (monorepo, {PACKAGES} packages)", init_monorepo),
+        (f"projects --surfaces ({FLEET} projects)", lambda: cli(projects, "projects", projects, "--surfaces", "--json")),
     ]
 
 

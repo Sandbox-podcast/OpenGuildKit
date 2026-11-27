@@ -1,5 +1,7 @@
 """openguildkit projects FOLDER...: several projects at a glance, read only, and a search across them (issue #435)."""
 
+import csv
+import io
 import json
 import tempfile
 import unittest
@@ -9,6 +11,7 @@ from openguildkit.shell import shell_word
 from openguildkit.storage import write_json
 
 from tests.support import copy_initialized_project, run_cli
+from tests.test_org_catalog import git, pack, write_record
 from tests.test_trace import snapshot
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
@@ -126,6 +129,147 @@ class ProjectsTests(unittest.TestCase):
         self.projects(self.code, "--search", "read-only")
         self.assertEqual(snapshot(self.code), before)
 
+    def unequipped(self) -> Path:
+        """A folder without a profile where agents already work: Cursor rules and two MCP servers, one pinned."""
+        folder = self.code / "scratch"
+        folder.mkdir()
+        (folder / ".cursorrules").write_text("Be careful.\n", encoding="utf-8")
+        write_json(folder / ".mcp.json", {"mcpServers": {
+            "docs": {"command": "npx", "args": ["-y", "docs-mcp@1.2.3"]},
+            "search": {"command": "npx", "args": ["-y", "search-mcp"]}}})
+        return folder
+
+    def policy(self, **fields) -> Path:
+        path = self.code.parent / "policy.json"
+        write_json(path, fields)
+        return path
+
+    def row(self, folder: Path, *arguments) -> dict:
+        detail = json.loads(self.projects(self.code, *arguments, "--json")[0])
+        return next(item for item in detail["projects"] if item["path"] == folder.as_posix())
+
+    def test_surfaces_list_the_agent_tools_and_mcp_servers_host_scan_finds_in_a_folder_without_a_profile(self):
+        """Issue #479: a folder without a profile ended in 'Not OpenGuildKit projects' though agents work in it."""
+        folder = self.unequipped()
+        scan = json.loads(run_cli(folder, "host", "scan", "--json").stdout)
+        row = self.row(folder, "--surfaces")
+        self.assertEqual(row["state"], "not-a-project")
+        self.assertEqual(row["tools"], [item["id"] for item in scan["surfaces"]])
+        self.assertEqual(row["tools"], ["claude-code", "cursor"])
+        self.assertEqual(row["mcp_servers"], len(scan["mcp_servers"]))
+        self.assertEqual(row["mcp_unpinned"], sum(item["pinned"] is False for item in scan["mcp_servers"]))
+        self.assertEqual((row["mcp_servers"], row["mcp_unpinned"]), (2, 1))
+        out = self.projects(self.code, "--surfaces")[0]
+        self.assertIn(f"{folder.as_posix()}: not an OpenGuildKit project; agents at work: claude-code, cursor; "
+                      "2 MCP servers (1 not pinned", out)
+        self.assertIn(f"Not OpenGuildKit projects (1): {(self.code / 'notes').as_posix()}", out)
+        portal = self.row(self.portal, "--surfaces")
+        self.assertEqual((portal["host"], portal["hooks"], portal["tools"]), ("other", None, ["claude-code"]))
+        self.assertRegex(portal["lock"], r"^openguildkit ")
+        self.assertIsNone(portal["last_decision"])
+        self.assertNotIn("tools", self.row(self.portal))
+        for setting in (("host", "claude-code"), ("guard", "observe")):
+            run_cli(self.billing, "profile", "set", *setting, "--by", "CM", "--reason", "Pilot")
+        billing = self.row(self.billing, "--surfaces")
+        self.assertEqual((billing["host"], billing["hooks"]), ("claude-code", "missing"))
+        self.assertIn("host claude-code, hooks missing; agent tools claude-code", self.projects(self.code, "--surfaces")[0])
+
+    def test_surfaces_give_the_day_of_the_last_decision_and_the_commit_of_the_organization_catalog(self):
+        self.closed_task(self.portal)
+        org = self.code.parent / "org"
+        org.mkdir()
+        git(org, "init", "-q", "-b", "main")
+        write_record(org, "packs", pack("org-review"))
+        git(org, "add", "-A")
+        git(org, "commit", "-q", "-m", "First edition")
+        commit = git(org, "rev-parse", "HEAD")
+        run_cli(self.billing, "org-catalog", "set", "--repo", org, "--commit", commit, "--by", "CM", "--reason", "Pilot",
+                typed=commit[:12])
+        portal, billing = self.row(self.portal, "--surfaces"), self.row(self.billing, "--surfaces")
+        self.assertRegex(portal["last_decision"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertIsNone(portal["catalog_commit"])
+        self.assertEqual((billing["catalog_commit"], billing["last_decision"]), (commit, None))
+        self.assertIn(f"organization catalog {commit[:12]}", self.projects(self.code, "--surfaces")[0])
+
+    def test_csv_prints_a_stable_header_and_one_line_per_folder(self):
+        """Issue #479: the fleet could be read as text or JSON only, never as a table."""
+        self.unequipped()
+        out = self.projects(self.code, "--surfaces", "--format", "csv")[0]
+        lines = out.splitlines()
+        self.assertEqual(lines[0], "path,state,name,guard,approvals,tasks,attention,open_points,critical_alerts,check,"
+                                   "host,hooks,lock,catalog_commit,last_decision,tools,mcp_servers,mcp_unpinned,"
+                                   "mcp_unlisted,permissive,drift")
+        rows = list(csv.DictReader(io.StringIO(out)))
+        self.assertEqual({Path(item["path"]).name: item["state"] for item in rows},
+                         {"billing": "project", "notes": "not-a-project", "portal": "project", "scratch": "not-a-project"})
+        scratch = next(item for item in rows if item["path"].endswith("scratch"))
+        self.assertEqual((scratch["tools"], scratch["mcp_servers"], scratch["mcp_unpinned"]), ("claude-code;cursor", "2", "1"))
+        portal = next(item for item in rows if item["path"].endswith("portal"))
+        self.assertEqual((portal["guard"], portal["check"], portal["host"], portal["drift"]),
+                         ("off", "passes", "other", ""))
+        plain = next(csv.DictReader(io.StringIO(self.projects(self.code, "--format", "csv")[0])))
+        self.assertEqual(plain["host"], "")  # not asked: empty, where 0 would say that nothing was found
+        self.projects(self.code, "--format", "csv", "--json", code=1)
+        self.projects(self.code, "--format", "csv", "--search", "x", code=1)
+
+    def test_csv_keeps_a_cell_that_starts_like_a_formula_from_running_in_a_spreadsheet(self):
+        """Issue #479: a project name is typed by whoever owns the repository, and a spreadsheet runs '=...'."""
+        path = self.portal / ".openguildkit" / "project.json"
+        profile = json.loads(path.read_text(encoding="utf-8"))
+        path.write_text(json.dumps({**profile, "name": '=HYPERLINK("http://example.test","x")'}), encoding="utf-8")
+        rows = list(csv.DictReader(io.StringIO(self.projects(self.code, "--format", "csv")[0])))
+        portal = next(item for item in rows if item["path"].endswith("portal"))
+        self.assertEqual(portal["name"], '\'=HYPERLINK("http://example.test","x")')
+
+    def test_a_project_below_the_policy_carries_the_gap_and_strict_ends_in_1(self):
+        """Issue #479: nothing compared a project with a target, so there was no drift to see."""
+        run_cli(self.billing, "profile", "set", "guard", "observe", "--by", "CM", "--reason", "Pilot")
+        policy = self.policy(guard="enforce")
+        for name in ("portal", "billing"):
+            row = self.row(self.code / name, "--policy", policy)
+            self.assertEqual([item["field"] for item in row["drift"]], ["guard"])
+        self.assertEqual(self.row(self.billing, "--policy", policy)["drift"],
+                         [{"field": "guard", "policy": "enforce", "found": "observe"}])
+        out, _ = self.projects(self.code, "--policy", policy)
+        self.assertIn("policy gap: guard observe, the policy asks for enforce", out)
+        self.projects(self.code, "--policy", policy, "--strict", code=1)
+        self.projects(self.code, "--policy", self.policy(guard="off"), "--strict")
+        self.assertEqual(self.row(self.billing, "--policy", self.policy(guard="observe"))["drift"], [])
+        self.assertNotIn("drift", self.row(self.billing))
+
+    def test_the_policy_names_each_gap_and_an_unequipped_folder_where_agents_work_is_one(self):
+        self.unequipped()
+        policy = self.policy(guard="observe", approvals="signed", separate_requester=True)
+        portal = self.row(self.portal, "--policy", policy)
+        self.assertEqual([item["field"] for item in portal["drift"]], ["guard", "approvals", "separate_requester"])
+        scratch = self.row(self.code / "scratch", "--policy", policy)
+        self.assertEqual(scratch["drift"], [{"field": "project", "policy": "equipped", "found": "not-a-project"}])
+        self.assertEqual(self.row(self.code / "notes", "--policy", policy)["drift"], [])
+        self.assertEqual(scratch["tools"], ["claude-code", "cursor"])  # a policy reads the surfaces too
+        (self.billing / ".openguildkit" / "project.json").write_text("{broken", encoding="utf-8")
+        self.assertEqual(self.row(self.billing, "--policy", policy)["drift"],
+                         [{"field": "project", "policy": "readable", "found": "unreadable"}])
+
+    def test_a_policy_that_cannot_be_read_or_names_a_field_it_does_not_know_stops_the_command(self):
+        _, err = self.projects(self.code, "--policy", self.policy(guards="enforce"), code=1)
+        self.assertIn("guards", err)
+        self.assertIn("guard, approvals, separate_requester", err)
+        _, err = self.projects(self.code, "--policy", self.policy(guard="strict"), code=1)
+        self.assertIn("off, observe or enforce", err)
+        _, err = self.projects(self.code, "--policy", self.code / "nothing.json", code=1)
+        self.assertIn("nothing.json", err)
+        _, err = self.projects(self.code, "--strict", code=1)
+        self.assertIn("--policy", err)
+
+    def test_surfaces_policy_and_csv_read_and_write_nothing(self):
+        self.closed_task(self.portal)
+        self.unequipped()
+        policy = self.policy(guard="enforce")
+        before = snapshot(self.code)
+        for arguments in (("--surfaces",), ("--surfaces", "--format", "csv"), ("--policy", policy, "--format", "csv"),
+                          ("--policy", policy, "--strict", "--json")):
+            self.projects(self.code, *arguments, code=1 if "--strict" in arguments else 0)
+        self.assertEqual(snapshot(self.code), before)
 
     def test_the_web_interface_refuses_a_folder_outside_its_project(self):
         from openguildkit.cli import command_parser
@@ -136,6 +280,9 @@ class ProjectsTests(unittest.TestCase):
             check_paths(args, self.portal.resolve(), set())
         self.assertEqual(refused.exception.reason, "outside-project")
         check_paths(command_parser().parse_args(["projects"]), Path.cwd().resolve(), set())
+        args = command_parser().parse_args(["projects", "--policy", str(self.code.parent / "policy.json")])
+        with self.assertRaises(Refused):
+            check_paths(args, self.portal.resolve(), set())
 
 
 if __name__ == "__main__":
