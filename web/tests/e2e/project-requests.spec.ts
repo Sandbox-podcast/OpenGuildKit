@@ -117,3 +117,16 @@ test('asks for one routing while a reason is typed, and keeps the brains on scre
   expect(removals).toBe(0);
   await expect(page.locator('main .board-grid')).toBeVisible();
 });
+
+/** Issue #466: the Forge sheet of a task asked for the whole consultation (69 KB of a 69 KB answer), of which it reads nothing. */
+test('asks the server for a task sheet of the Forge under 5 KB', async ({ page }) => {
+  const sizes: number[] = [];
+  page.on('response', async (response) => {
+    const body = JSON.parse(response.request().postData() ?? '{}') as { argv?: string[] };
+    if (response.url().includes('/api/run') && body.argv?.slice(0, 2).join(' ') === 'task show') sizes.push((await response.body()).length);
+  });
+  await page.goto('/#/forge/request-history');
+  await expect(page.locator('.quest-head')).toBeVisible();
+  await expect.poll(() => sizes.length).toBeGreaterThan(0);
+  expect(Math.max(...sizes)).toBeLessThan(5_000);
+});

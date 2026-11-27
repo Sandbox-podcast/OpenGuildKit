@@ -150,16 +150,19 @@ Le serveur garde entre deux commandes ce que chaque commande de la CLI reconstru
 - Un champ dont le texte entre dans la clé d'une requête (motif et délégués du routage) attend 450 ms de pause avant de la lancer. La réponse d'une question dépassée sort du cache (`transient` dans `useQuery`), et le dernier routage reste affiché pendant le calcul du suivant.
 - Le lieu de l'adresse ouverte est chargé avant le premier rendu ; les autres se chargent en arrière-plan ensuite. Changer de lieu ne passe donc jamais par l'écran d'attente que React 19 retient environ 300 ms.
 
-Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
+Mesures du 27 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
 
 | Écran | Temps d'affichage | Requêtes d'API | Données reçues (décompressées) |
 | --- | ---: | ---: | ---: |
-| Premier écran (Royaume) | 341 ms | 4 | 508 Ko, dont 219 Ko de React |
-| Quêtes, Guilde, Tour de guet, Intendance, Blueprint | 3 à 15 ms | 0 | 2 à 43 Ko |
-| Conseil d'une quête | 17 ms | 3 | 31 Ko |
-| Forge d'une quête | 28 ms | 3 | 11 Ko |
-| Bibliothèque (464 références) | 51 ms | 1 | 308 Ko |
-| Chroniques | 50 ms | 1 | 49 Ko |
+| Premier écran (Royaume) | 407 ms | 3 | 508 Ko, dont 219 Ko de React |
+| Quêtes, Guilde, Tour de guet, Intendance | 6 à 16 ms | 0 | 2 à 24 Ko |
+| Blueprint | 14 ms | 2 | 11 Ko |
+| Conseil d'une quête | 30 ms | 4 | 178 Ko, dont 145 Ko de cerveaux lus en entier pour les avis |
+| Forge d'une quête | 62 ms | 4 | 14 Ko |
+| Bibliothèque (464 références) | 50 ms | 1 | 508 Ko |
+| Chroniques | 77 ms | 1 | 40 Ko |
+
+Le serveur ne renvoie plus `board_briefs` ni `domains` d'une consultation (jamais lus par la page), et la fiche de réalisation d'une tâche ne demande plus la consultation : la réponse de `task show` pour la Forge passe de 68 844 à 1 370 octets (tâche à réaliser `request-history`), de 74 021 à 6 199 pour une tâche terminée, qui garde son résultat. La fiche Quêtes passe de 85 865 à 18 940 octets et le Conseil de 102 612 à 35 687.
 
 Mesures du 27 novembre 2026 (Chrome, même projet d'exemple) : premier écran, 3 requêtes d'API au lieu de 4 (plus de `brains --json`) ; « Actualiser » depuis le Royaume, 2 requêtes et 6 Ko décompressés au lieu de 3 et 148 Ko ; 40 caractères tapés dans le motif d'un ajustement, 1 requête `task route` au lieu de 40, et la grille des cerveaux ne disparaît plus (38 fois avant). `tests/e2e/project-requests.spec.ts` compte ces requêtes.
 
