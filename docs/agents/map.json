@@ -198,6 +198,7 @@
         "tests/test_audit_fixes.py",
         "tests/test_brain_knowledge.py",
         "tests/test_chaosfolk_results.py",
+        "tests/test_ci_jobs.py",
         "tests/test_clean_errors.py",
         "tests/test_cli_coverage.py",
         "tests/test_command_output_budget.py",
