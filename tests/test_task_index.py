@@ -2,15 +2,18 @@
 
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import guard, task_index
+from openguildkit import guard, task_index, tasks
+from openguildkit.results import evidence_fingerprint
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
+from tests.test_performance import close_and_export
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 HOUR_NS = 3600 * 10 ** 9
@@ -163,6 +166,153 @@ class TaskIndexTests(CapturedCli, unittest.TestCase):
             self.edit()
         self.assertFalse(self.index.exists())
         self.assertEqual([path.name for path in self.tasks.iterdir() if path.name.endswith(".tmp")], [])
+
+
+class TaskListIndexTests(unittest.TestCase):
+    """task list reads the index first: a filter reads only the records it can list, and the output never depends on
+    the index."""
+
+    CLOSED = ["closed-0", "closed-1", "closed-2"]
+
+    @classmethod
+    def setUpClass(cls):
+        """Three tasks closed and exported, one approved and one consulted, built once and copied for each test."""
+        temporary = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(temporary.cleanup)
+        cls.template = template = Path(temporary.name).resolve()
+        write_json(template / "profile.json",
+                   {**json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")), "checks": []})
+        run_cli(template, "init", "--answers", template / "profile.json")
+        for task_id in cls.CLOSED:
+            close_and_export(template, task_id)
+        for task_id in ("approved-0", "consulted-0"):
+            run_cli(template, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
+            run_cli(template, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
+        consultation = json.loads(run_cli(template, "task", "template", "approved-0").stdout)["consultation_id"]
+        write_json(template / "review.json", {"consultation_id": consultation,
+                                              **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))})
+        run_cli(template, "task", "review", "approved-0", "--file", template / "review.json")
+        run_cli(template, "task", "decide", "approved-0", "--approve", "--by", "Camille", "--reason", "Agreed",
+                typed="approved-0")
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve() / "project"
+        shutil.copytree(self.template, self.root)
+        self.tasks = self.root / ".openguildkit" / "tasks"
+        self.index = self.tasks / task_index.INDEX_FILE
+        self.age_records()
+
+    def age_records(self):
+        """Date the task records and their exported records an hour back, as records of earlier days are."""
+        for path in [*self.tasks.glob("*.json"), *(self.root / ".openguildkit" / "decisions").glob("*.json")]:
+            info = path.stat()
+            os.utime(path, ns=(info.st_atime_ns - HOUR_NS, info.st_mtime_ns - HOUR_NS))
+
+    def listing(self, *options):
+        """What task list prints with these options, and the task records it read."""
+        with patch("openguildkit.tasks.read_task", wraps=tasks.read_task) as reader:
+            result = run_cli(self.root, "task", "list", *options)
+        return result.stdout + result.stderr, sorted(call.args[1] for call in reader.call_args_list)
+
+    def test_a_status_filter_reads_only_the_records_the_index_gives_that_status(self):
+        """Issue #534: task list --status approved read every record, 4.9 s to show 5 tasks of 1,000."""
+        self.listing()
+        out, reads = self.listing("--status", "approved", "--json")
+        self.assertEqual([row["id"] for row in json.loads(out)], ["approved-0"])
+        self.assertEqual(reads, ["approved-0"])
+
+    def test_ready_reads_none_of_the_closed_records(self):
+        """Issue #534: task list --ready read the closed records, which it never lists."""
+        self.listing()
+        out, reads = self.listing("--ready", "--json")
+        self.assertEqual(sorted(row["id"] for row in json.loads(out)), ["approved-0", "consulted-0"])
+        self.assertEqual(reads, ["approved-0", "consulted-0"])
+
+    def test_task_list_reads_no_closed_record_once_the_index_keeps_its_line(self):
+        """Issue #534: task list read every closed record at every run, 4.9 s at 1,000 tasks and 2.8 s read once."""
+        first = self.listing("--json")
+        self.assertEqual(first[1], ["approved-0", *self.CLOSED, "consulted-0"])
+        self.assertEqual(self.listing("--json"), (first[0], ["approved-0", "consulted-0"]))
+        data = json.loads(self.index.read_text(encoding="utf-8"))
+        data["tasks"]["closed-1.json"]["line"]["code"] = "another release"
+        self.index.write_text(json.dumps(data), encoding="utf-8")
+        self.assertEqual(self.listing("--json"), (first[0], ["approved-0", "closed-1", "consulted-0"]))
+
+    def test_a_kept_line_gives_way_when_the_rules_change(self):
+        """Issue #534: a closed task's line depends on the rules in force, which its record does not hold."""
+        self.listing()
+        run_cli(self.root, "profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Unit tests")
+        out, reads = self.listing("--json")
+        self.assertIn("completed under earlier rules", json.loads(out)[1]["next"])
+        self.assertEqual(reads, ["approved-0", *self.CLOSED, "consulted-0"])
+        self.index.unlink()
+        self.assertEqual(self.listing("--json")[0], out)
+
+    def test_a_kept_line_gives_way_when_another_task_takes_its_exported_record(self):
+        """Issue #534: a closed task listed from the index must still be named when a teammate's record takes its ID."""
+        self.listing()
+        decisions = self.root / ".openguildkit" / "decisions"
+        shutil.copyfile(decisions / "closed-1.json", decisions / "closed-0.json")
+        out, reads = self.listing()
+        self.assertIn("task closed-0 of this copy and the exported decision .openguildkit/decisions/closed-0.json", out)
+        self.assertEqual(reads, ["approved-0", "closed-0", "consulted-0"])
+        self.assertEqual(self.listing(), (out, reads))
+        self.index.unlink()
+        self.assertEqual(self.listing()[0], out)
+
+    def test_a_closed_task_whose_evidence_has_a_fingerprint_shows_its_evidence_as_it_is_now(self):
+        """Issue #534: the evidence a closed task cites can change on disk while its record does not."""
+        proof = self.root / "docs" / "proof.md"
+        proof.parent.mkdir()
+        proof.write_text("Two accounts tested.\n", encoding="utf-8")
+        record = json.loads((self.tasks / "closed-2.json").read_text(encoding="utf-8"))
+        record["result"]["checks"].append({"check": "evidence:proof", "status": "passed", "evidence": "docs/proof.md",
+                                           "fingerprint": evidence_fingerprint(self.root, "docs/proof.md"),
+                                           "owner": "Camille"})
+        write_json(self.tasks / "closed-2.json", record)
+        self.age_records()
+        self.assertNotIn("changed evidence", self.listing()[0])
+        self.assertNotIn("changed evidence", self.listing()[0])
+        proof.write_text("Rewritten.\n", encoding="utf-8")
+        out, reads = self.listing()
+        self.assertIn("    changed evidence: docs/proof.md changed since evidence:proof was recorded "
+                      "(confirmed by Camille)", out)
+        self.assertEqual(reads, ["approved-0", "closed-2", "consulted-0"])
+
+    def test_a_missing_stale_or_corrupt_index_lists_the_same_tasks(self):
+        """Issue #534: the index only saves reads; whatever its state, task list prints the same."""
+        write_json(self.tasks / "broken.json", {"schema_version": 1, "id": "broken", "status": "done"})
+        self.age_records()
+        options = [(), ("--json",), ("--status", "approved", "--json"), ("--status", "done"), ("--ready", "--json")]
+        expected = {}
+        for option in options:
+            self.index.unlink(missing_ok=True)
+            expected[option], reads = self.listing(*option)
+            self.assertEqual(reads, ["approved-0", "broken", *self.CLOSED, "consulted-0"])
+        self.assertIn("broken [unreadable]", expected[("--status", "done")])
+
+        def garbled(entry):
+            return {**entry, "checked": "yes", "line": ["garbage"]}
+
+        for state in ("up to date", "missing", "stale", "not json", "garbled"):
+            with self.subTest(index=state):
+                self.listing()
+                data = json.loads(self.index.read_text(encoding="utf-8"))
+                if state == "missing":
+                    self.index.unlink()
+                elif state == "stale":
+                    for entry in data["tasks"].values():
+                        entry["stamp"][0] += 1
+                    self.index.write_text(json.dumps(data), encoding="utf-8")
+                elif state == "not json":
+                    self.index.write_bytes(b"{not json")
+                elif state == "garbled":
+                    data["tasks"] = {name: garbled(entry) for name, entry in data["tasks"].items()}
+                    self.index.write_text(json.dumps(data), encoding="utf-8")
+                for option in options:
+                    self.assertEqual(self.listing(*option)[0], expected[option], option)
 
 
 if __name__ == "__main__":

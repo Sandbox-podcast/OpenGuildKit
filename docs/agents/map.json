@@ -434,7 +434,8 @@
         "tests/test_before_delivered_review.py",
         "tests/test_evidence_fingerprints.py",
         "tests/test_org_catalog.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_performance.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -776,7 +777,8 @@
       "tests": [
         "tests/test_architecture.py",
         "tests/test_command_output_budget.py",
-        "tests/test_projects.py"
+        "tests/test_projects.py",
+        "tests/test_performance.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1168,9 +1170,11 @@
     },
     {
       "module": "src/openguildkit/task_index.py",
-      "role": "Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit.",
+      "role": "Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit, and task list skips the records it does not list and lists closed tasks from the line it kept.",
       "entry": [
-        "tasks_with_status"
+        "tasks_with_status",
+        "entries",
+        "save"
       ],
       "tests": [
         "tests/test_performance.py",
@@ -1187,7 +1191,8 @@
         "read_task",
         "board_brief_problem",
         "validate_brief",
-        "create_task"
+        "create_task",
+        "write_task"
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
@@ -1203,7 +1208,8 @@
         "tests/test_before_delivered_review.py",
         "tests/test_task_dependencies.py",
         "tests/test_evidence_fingerprints.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_task_index.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1226,7 +1232,9 @@
         "tests/test_before_delivered_review.py",
         "tests/test_task_dependencies.py",
         "tests/test_evidence_fingerprints.py",
-        "tests/test_requester.py"
+        "tests/test_requester.py",
+        "tests/test_performance.py",
+        "tests/test_task_index.py"
       ],
       "doc": "docs/architecture.md"
     },

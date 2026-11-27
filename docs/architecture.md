@@ -74,7 +74,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
 | `owners.py` | Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record. |
 | `tasks.py` | Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal. |
-| `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit. |
+| `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit, and task list skips the records it does not list and lists closed tasks from the line it kept. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
 | `results.py` | Records what was delivered for an approved task and the checks that prove it. |
 | `retro.py` | The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type. |
@@ -123,7 +123,8 @@ your-project/
     storybook.json               the Storybook indexes the project records (commit it)
     storybook/                   inventory, proposals and generated files of storybook extract
     tasks/                       task records (local, git-ignored)
-      .status-index              each record's status, so the edit hook skips the ones that cannot cover an edit
+      .status-index              each record's status, so the edit hook skips the ones that cannot cover an edit,
+                                 and the line task list printed for a closed task, so it is not read again
     shares/                      who a deliverable is shared with (local, git-ignored)
     decisions/                   exported decision records (commit them)
     market/                      market dossiers (commit them)
