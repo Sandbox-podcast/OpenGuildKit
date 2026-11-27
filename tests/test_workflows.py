@@ -619,6 +619,45 @@ class ChangedFilesTest(unittest.TestCase):
         self.assertEqual(checkout["with"], {"persist-credentials": "false", "fetch-depth": "0"})
 
 
+class CoverageWorkflowTest(unittest.TestCase):
+    """Issue #472: no workflow measured which lines of the package the tests run, guard.py included."""
+
+    def setUp(self):
+        self.workflow = parse(ROOT / ".github" / "workflows" / "coverage.yml")
+        self.job = self.workflow["jobs"]["coverage"]
+        self.config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["coverage"]
+
+    def test_it_is_an_option_off_by_default_that_a_person_starts_by_hand(self):
+        """A floor that blocks merges is a constraint the maintainers choose: the workflow only runs on request."""
+        self.assertEqual(set(self.workflow["on"]), {"workflow_dispatch"})
+        self.assertEqual(self.workflow["permissions"], {"contents": "read"})
+        gate = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["contribution-checks"]
+        self.assertNotIn("coverage", gate["needs"])
+
+    def test_it_measures_branches_in_the_processes_the_tests_start_and_reports_each_module(self):
+        self.assertEqual(self.config["run"]["branch"], True)
+        self.assertEqual(self.config["run"]["parallel"], True, "one data file per process, combined afterwards")
+        self.assertIn("subprocess", self.config["run"]["patch"], "the CLI processes the tests start count")
+        self.assertEqual(self.config["run"]["source"], ["src/openguildkit"])
+        script = run_text(self.job)
+        self.assertLess(script.index("coverage run -m unittest discover -s tests"), script.index("coverage combine"))
+        self.assertLess(script.index("coverage combine"), script.index("coverage report --format=markdown"))
+        self.assertIn("$GITHUB_STEP_SUMMARY", script)
+
+    def test_guard_and_hosts_each_have_a_floor_that_fails_the_job(self):
+        script = run_text(self.job)
+        floors = dict(re.findall(r"coverage report --include='\*/openguildkit/(\w+)\.py' --fail-under=(\d+)", script))
+        self.assertEqual(set(floors), {"guard", "hosts"})
+        for module, floor in floors.items():
+            self.assertTrue(0 < int(floor) < 100, module)
+
+    def test_the_testing_guide_tells_the_coverage_of_the_code_from_that_of_the_catalog(self):
+        guide = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+        section = guide.split("## Code coverage", 1)[1].split("\n## ", 1)[0]
+        for fact in (".github/workflows/coverage.yml", "scripts/coverage.py", "catalog", "guard.py", "hosts.py"):
+            self.assertIn(fact, section)
+
+
 class DependabotConfigTest(unittest.TestCase):
     """Issue #473: nothing proposed the update of the pinned actions or of the npm packages of web/."""
 

@@ -157,6 +157,14 @@ In a test written with `unittest`, patch `sys.stdin.isatty` to return true and `
 
 `python scripts/agent_cost.py TRANSCRIPT.jsonl` reads one Claude Code transcript on disk and prints totals only: input, cache and output tokens, turns, subagents, command wait, and a cost from the rates named in the script. It prints no prompt and no tool result. It does not measure a live session and it sends nothing.
 
+## Code coverage
+
+`.github/workflows/coverage.yml` runs the whole suite under `coverage` (branches, and the processes the tests start), combines the measures and writes the percentage of each module of `src/openguildkit` in the summary of the run.
+It fails when `guard.py` or `hosts.py` falls under its floor: 85 % and 94 %, one point under what the audit measured with the 19 test files the map attaches to them (86 % and 95 %).
+It runs on request only (Actions, Run workflow); making it a check of every pull request is a decision for the maintainers.
+Do not confuse it with `scripts/coverage.py` and `docs/coverage.md`: they measure what the catalog covers (rules, sources, sectors), not which lines of the code a test runs.
+The settings are in `[tool.coverage.run]` of `pyproject.toml`; the data goes to `build/coverage/`, which Git ignores.
+
 ## Not covered
 
 - Windows behaviour is covered by CI only: the lock on Windows (`msvcrt.locking`) has not been run by hand, and the approval, waiver and authorization prompts are tested through a pseudo-terminal on Linux and macOS only.
