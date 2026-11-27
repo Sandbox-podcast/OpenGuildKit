@@ -185,8 +185,9 @@ BUILD_STEPS = ("Build the web interface into the package", "Build the wheel",
 
 
 def build_steps(job: dict) -> tuple[str, list[dict]]:
-    """The Node version and the steps that build the wheel, as the job runs them."""
-    node = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]["node-version"]
+    """The Node version (typed, or read from the .nvmrc a job names) and the steps that build the wheel."""
+    setup = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]
+    node = setup.get("node-version") or _read(setup["node-version-file"]).strip()
     return node, [{key: step.get(key) for key in ("name", "working-directory", "run")}
                   for step in steps(job) if step.get("name") in BUILD_STEPS]
 

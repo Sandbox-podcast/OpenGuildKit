@@ -452,6 +452,43 @@ class MacosRunnersTest(unittest.TestCase):
                                             {"os": "b", "python": "2"}])
 
 
+class ToolVersionFilesTest(unittest.TestCase):
+    """Issue #520: the versions of Python and Node of a workstation and of CI live in .python-version and .nvmrc."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+
+    def setups(self, action: str) -> list[tuple[str, dict]]:
+        return [(name, step) for name, job in self.jobs.items() for step in steps(job) if action in str(step.get("uses"))]
+
+    def test_the_files_hold_the_versions_the_maintainers_work_with(self):
+        python = (ROOT / ".python-version").read_text(encoding="utf-8").strip()
+        node = (ROOT / ".nvmrc").read_text(encoding="utf-8").strip()
+        self.assertRegex(python, r"^3\.\d+$")
+        self.assertRegex(node, r"^\d+$")
+        self.assertEqual(python, self.jobs["test"]["strategy"]["matrix"]["python"][-1], "the newest Python of the matrix")
+        release = parse(ROOT / ".github" / "workflows" / "release.yml")["jobs"]["build"]
+        built_with = next(step for step in steps(release) if "setup-node" in str(step.get("uses")))["with"]["node-version"]
+        self.assertEqual(node, built_with, "the release builds the web interface with the Node of .nvmrc")
+
+    def test_ci_reads_the_versions_from_the_files(self):
+        for name, step in self.setups("setup-python"):
+            with self.subTest(job=name, action="setup-python"):
+                with_ = step["with"]
+                if "python-version-file" in with_:
+                    self.assertEqual(with_["python-version-file"], ".python-version")
+                else:
+                    self.assertEqual(with_["python-version"], "${{ matrix.python }}", "a version typed in the job")
+        floor = json.loads((ROOT / "integrations" / "ci" / "package.json").read_text(encoding="utf-8"))["engines"]["node"]
+        for name, step in self.setups("setup-node"):
+            with self.subTest(job=name, action="setup-node"):
+                with_ = step["with"]
+                if "node-version-file" in with_:
+                    self.assertEqual(with_["node-version-file"], ".nvmrc")
+                else:
+                    self.assertEqual(f">={with_['node-version']}", floor, "only the floor of integrations/ci is typed")
+
+
 class ContributionChecksTest(unittest.TestCase):
     """The gate tells a job that never got a runner from a job that failed, and says to rerun the first."""
 
