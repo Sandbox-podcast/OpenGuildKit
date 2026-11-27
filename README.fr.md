@@ -184,6 +184,8 @@ openguildkit brains --id product
 
 `catalog` liste les packs, les boards et les secteurs, avec les packs que chaque secteur présélectionne (services financiers, assurance, santé, secteur public, e-commerce, éducation, infrastructures critiques). L'index donne accès aux sources et aux méthodes. Chaque pattern indique quand il s'applique et quels packs alimentent `AGENTS.md`. [Références](docs/references.md) · [Choix des patterns](docs/patterns.md)
 
+`openguildkit recommend` propose les packs de règles pertinents pour le projet. `openguildkit guard --ci` et `openguildkit check` contrôlent une pull request en CI ([le board avant chaque changement](integrations/README.md#the-board-before-every-change)). `openguildkit ci-check` est l'exemple d'une règle centrale : il évalue une seule règle, `export-link-expiry`, lue dans un dépôt de politique ([exemple](examples/export-expiry/README.md)).
+
 ## Documentation
 
 - [Installer une release GitHub](docs/install.md) et [journal des changements](CHANGELOG.md)

@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- README: `guard --ci` and `check` are named as the pull request checks in CI and `ci-check` as the example of a central rule, in English and French; both READMEs list the same commands to browse the catalog (a test compares them); the root help groups `--policy-repo` and `--policy-commit` under "central policy" (#497)
 - Exit codes: `docs/exit-codes.md` lists the commands that give 1 or 2 for a reason of their own (`guard --hook`, `guard --ci`, `check`, `ci-check`, `tools apply`, `host scan --strict`, `task verify`, `docs share check`), each replayed by a test; the table of `docs/workflow.md` no longer calls every 2 a usage error (#495)
 - Messages: the 15 that cited a page of `docs/` or `integrations/` (`init`, `check`, `guard --ci`, `profile`, `task`) now print its https address on GitHub, at the tag of the installed version (`main` for a checkout), which a pipx installation can open; a test fails when a cited heading is gone (#494)
 - task result: `--file` refuses a result with all its problems in one call, each under its entry (`criteria[n]`, `checks[n]`, `packs[n]`), as `task submit` does; a result with one problem keeps its message (#490)

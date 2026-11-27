@@ -175,11 +175,12 @@ openguildkit references
 openguildkit patterns --role project-management
 openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
+openguildkit brains --id product
 ```
 
 `catalog` lists the packs, boards and sectors you can use in a project, with the packs each sector preselects (financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure). The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks that `AGENTS.md` names by rule ID and a task prints in full.
 
-`openguildkit recommend` suggests relevant project rule packs. `openguildkit ci-check` checks a project in CI.
+`openguildkit recommend` suggests relevant project rule packs. `openguildkit guard --ci` and `openguildkit check` check a pull request in CI ([the board before every change](integrations/README.md#the-board-before-every-change)). `openguildkit ci-check` is the example of a central rule: it evaluates one rule, `export-link-expiry`, read from a policy repository ([example](examples/export-expiry/README.md)).
 
 ## Documentation
 
