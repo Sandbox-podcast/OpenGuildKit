@@ -713,6 +713,14 @@ def session_name(key: str) -> str:
     return f"ogk-{hashlib.sha256(key.encode('utf-8')).hexdigest()[:24]}.localhost"
 
 
+def stable_name(root: Path) -> str:
+    """The host name of a project for a person who asks to find the same address at each launch, so that the browser
+    keeps the preferences of the page, which it keeps per origin. It comes from the path of the project, not from the
+    key of the run: whoever knows the path can compute it, which session_name's does not allow."""
+    path = os.fsencode(os.path.normcase(str(root.resolve())))
+    return f"ogk-{hashlib.sha256(path).hexdigest()[:24]}.localhost"
+
+
 def launch_key() -> str:
     """The key of this run, which only the printed address carries. A script that starts the server for its own
     browser sets it with OPENGUILDKIT_UI_KEY; it is then as secret as that script keeps it."""
@@ -728,8 +736,9 @@ class WebApp:
     """The project behind the page. A browser opens the session with the key of the printed address, kept in a
     cookie of the host name of the run; the session gives the page the token that every API call carries."""
 
-    def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False):
+    def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False, stable_address: bool = False):
         self.root = root
+        self.stable_address = stable_address
         self.front = front
         self.key = launch_key()
         self.token = secrets.token_urlsafe(32)
@@ -743,7 +752,7 @@ class WebApp:
     def set_port(self, port: int) -> None:
         self.port = port
         # The page lives on the host name of the run only. The loopback names answer with the gate page.
-        self.host = f"{session_name(self.key)}:{port}"
+        self.host = f"{stable_name(self.root) if self.stable_address else session_name(self.key)}:{port}"
         self.hosts = {self.host}
         self.loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
         self.origin = f"http://{self.host}"
@@ -892,9 +901,10 @@ class LocalServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None, verbose: bool = False):
+def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None, verbose: bool = False,
+                stable_address: bool = False):
     """Bind the server on 127.0.0.1. Port 0 picks a free port."""
-    app = WebApp(root, front, port, verbose)
+    app = WebApp(root, front, port, verbose, stable_address)
 
     class BoundHandler(Handler):
         pass
@@ -907,15 +917,15 @@ def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None,
 
 
 def serve(root: Path, port: int = DEFAULT_PORT, static: Path | None = None, open_browser: bool = True,
-          verbose: bool = False) -> int:
+          verbose: bool = False, stable_address: bool = False) -> int:
     front = find_front_end(static)
     os.chdir(root)  # relative paths given in the page resolve inside the project, as in a terminal opened there
     try:
-        server, app = make_server(root, port, front, verbose)
+        server, app = make_server(root, port, front, verbose, stable_address)
     except OSError:
         if port == 0:
             raise
-        server, app = make_server(root, 0, front, verbose)
+        server, app = make_server(root, 0, front, verbose, stable_address)
         print(f"Port {port} is busy; using {app.port}.", file=sys.stderr)
     url = app.url
     print(f"OpenGuildKit interface for {root}\n{url}\nOpen this address: it carries the key of this run. "

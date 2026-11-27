@@ -185,6 +185,77 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertNotIn(self.app.key, headers)
             self.assertNotIn("Cookie", headers)
 
+    def serve_stable(self, root: Path):
+        server, app = make_server(root, 0, self.app.front, stable_address=True)
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return app
+
+    def test_the_address_is_drawn_for_each_run_unless_the_person_asks_for_a_stable_one(self):
+        """Issue #463: the preferences of the page are kept per origin, and the name of the host changed at each run."""
+        other, other_app = make_server(self.root, 0, self.app.front)
+        self.addCleanup(other.server_close)
+        self.assertNotEqual(self.app.host.rpartition(":")[0], other_app.host.rpartition(":")[0])
+
+    def test_a_stable_address_names_the_project_not_the_run_and_the_server_answers_under_that_name_only(self):
+        """Issue #463: with the option, the host name is the same at each run, and the protection of #281 holds."""
+        name = webui.stable_name(self.root)
+        self.assertRegex(name, r"^ogk-[0-9a-f]{24}\.localhost$")
+        self.assertEqual(webui.stable_name(self.root), name)
+        self.assertEqual(webui.stable_name(Path(str(self.root) + "/")), name)
+        self.assertNotEqual(webui.stable_name(self.root / "other"), name)
+        first, second = self.serve_stable(self.root), self.serve_stable(self.root)
+        self.assertNotEqual(first.key, second.key)
+        for app in (first, second):
+            self.assertEqual(app.host, f"{name}:{app.port}")
+            self.assertEqual(app.url, f"http://{name}:{app.port}/?key={app.key}")
+        port = first.port
+        status, headers, _ = fetch(port, f"/?key={first.key}", None, name)
+        self.assertEqual((status, headers["Location"]), (303, "/"))
+        cookie = headers["Set-Cookie"].split(";")[0]
+        self.assertEqual(fetch(port, "/api/session", cookie, name)[0], 200)
+        # Under any other name the server does not answer: the loopback names give the gate, the others a refusal.
+        for host in ("127.0.0.1", "localhost", "[::1]"):
+            status, headers, page = fetch(port, f"/?key={first.key}", None, host)
+            self.assertEqual((status, "Set-Cookie" in headers, b"openguildkit ui" in page), (403, False, True))
+        for host in (webui.stable_name(self.root / "other"), webui.session_name(first.key), "example.com"):
+            status, _, body = fetch(port, "/api/session", cookie, host)
+            self.assertEqual((status, json.loads(body)["reason"]), (421, "foreign-page"), host)
+        # The key of a run opens no other run: the cookie of another port is not the key of this one.
+        self.assertEqual(fetch(port, "/api/session", f"ogk-{second.port}={second.key}", name)[0], 403)
+
+    def test_another_local_server_does_not_receive_the_key_under_a_stable_address_either(self):
+        """Issue #463: the stable name must not give back what #281 closed: the key reaching another local server."""
+        received = []
+
+        class Recorder(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 - http.server naming
+                received.append(str(self.headers))
+                self.send_response(200)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+                pass
+
+        other = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
+        threading.Thread(target=other.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(other.server_close)
+        self.addCleanup(other.shutdown)
+        app = self.serve_stable(self.root)
+        browser = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()),
+                                              LoopbackHandler())
+        with browser.open(app.url, timeout=30) as response:
+            self.assertEqual(response.status, 200)
+        for host in ("127.0.0.1", "localhost"):
+            with browser.open(f"http://{host}:{other.server_address[1]}/", timeout=30) as response:
+                self.assertEqual(response.status, 200)
+        self.assertEqual(len(received), 2)
+        for headers in received:
+            self.assertNotIn(app.key, headers)
+            self.assertNotIn("Cookie", headers)
+
     def test_a_key_set_for_a_scripted_run_is_used_only_when_it_is_long_enough(self):
         from openguildkit.webui import launch_key
 
@@ -1255,6 +1326,27 @@ class UiCommandTests(unittest.TestCase):
         if os.name != "nt":
             self.assertEqual(code, 0, stderr)
             self.assertIn("OpenGuildKit interface stopped.", stderr)
+
+    def test_the_address_of_two_launches_has_the_same_origin_only_with_the_stable_option(self):
+        """Issue #463: the page lost its preferences at each launch, which opened an origin of its own."""
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        port = str(probe.getsockname()[1])
+        probe.close()
+        origins = {}
+        for option in ("--stable-address", None):
+            seen = []
+            for _ in range(2):
+                process, url = self.start("--port", port, "--static", str(self.front), *([option] if option else []))
+                seen.append(urllib.parse.urlsplit(url))
+                self.assertEqual(self.open_session(url)["port"], int(port))
+                self.stop(process)
+            origins[option] = [f"{address.scheme}://{address.netloc}" for address in seen]
+            self.assertNotEqual(seen[0].query, seen[1].query)
+        stable, drawn = origins["--stable-address"], origins[None]
+        self.assertEqual(stable[0], stable[1])
+        self.assertEqual(stable[0], f"http://{webui.stable_name(self.root)}:{port}")
+        self.assertNotEqual(drawn[0], drawn[1])
 
     def test_a_busy_port_gives_way_to_a_free_one(self):
         blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

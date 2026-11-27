@@ -94,6 +94,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit ui` no longer prints a Python trace in its terminal when a tab is closed or reloaded during a request: the closed connection is dropped without a report or a second write, and a real failure of a command still prints its trace and answers `server-error` (#516)
 - `openguildkit ui` no longer sends the page the `board_briefs` and `domains` of a consultation, which no screen reads: a task sheet weighs 29 KB instead of 96 KB on the example project. `task show` in a terminal prints them as before, and a page that asks for the printed text (`raw`) still gets them (#466)
 - `openguildkit ui` keeps the task records it has read in memory (up to 256 MB, by a digest of each file) and reads again only those that changed: the page's opening batch on 1,000 large closed tasks takes 5.0 s instead of 11.4 s (3.7 s of processor time instead of 9.4 s), and each task is parsed once per change instead of five times per batch (#537)
+- `openguildkit ui --stable-address`: option, off by default. The page is served at a host name drawn from the project's path, not from the run's key, so a browser on the same port keeps the style, the reduced motion and the shortcuts from one launch to the next. The name is no longer secret: whoever knows the path can compute it, which the default name (drawn at each launch) prevents (#463)
 
 ## 0.17.0
 
