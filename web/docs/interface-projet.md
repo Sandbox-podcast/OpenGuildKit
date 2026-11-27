@@ -147,6 +147,7 @@ Le serveur garde entre deux commandes ce que chaque commande de la CLI reconstru
 - Les réponses de plus de 2 Ko sont compressées quand le navigateur l'accepte, ce qui compte à travers un tunnel SSH ou un port redirigé.
 - La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil, et au clic sur « Actualiser ». Le retour sur l'onglet recharge le projet, pas le catalogue.
 - Les cerveaux (`brains --json`, 145 Ko dont 97 % de lentilles, de déclencheurs et de sources) ne se chargent que là où on les lit : la recherche les demande après deux lettres, les écrans qui n'affichent que des titres (Conseil, Quêtes, Blueprint) en reçoivent 5,6 Ko (`omit`), la Guilde et les avis du Conseil les lisent en entier.
+- Un champ dont le texte entre dans la clé d'une requête (motif et délégués du routage) attend 450 ms de pause avant de la lancer. La réponse d'une question dépassée sort du cache (`transient` dans `useQuery`), et le dernier routage reste affiché pendant le calcul du suivant.
 - Le lieu de l'adresse ouverte est chargé avant le premier rendu ; les autres se chargent en arrière-plan ensuite. Changer de lieu ne passe donc jamais par l'écran d'attente que React 19 retient environ 300 ms.
 
 Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
@@ -160,7 +161,7 @@ Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-
 | Bibliothèque (464 références) | 51 ms | 1 | 308 Ko |
 | Chroniques | 50 ms | 1 | 49 Ko |
 
-Mesures du 27 novembre 2026 (Chrome, même projet d'exemple) : premier écran, 3 requêtes d'API au lieu de 4 (plus de `brains --json`) ; « Actualiser » depuis le Royaume, 2 requêtes et 6 Ko décompressés au lieu de 3 et 148 Ko . `tests/e2e/project-requests.spec.ts` compte ces requêtes.
+Mesures du 27 novembre 2026 (Chrome, même projet d'exemple) : premier écran, 3 requêtes d'API au lieu de 4 (plus de `brains --json`) ; « Actualiser » depuis le Royaume, 2 requêtes et 6 Ko décompressés au lieu de 3 et 148 Ko ; 40 caractères tapés dans le motif d'un ajustement, 1 requête `task route` au lieu de 40, et la grille des cerveaux ne disparaît plus (38 fois avant). `tests/e2e/project-requests.spec.ts` compte ces requêtes.
 
 Avant ces optimisations, chaque changement de lieu prenait environ 320 ms, le premier écran environ 900 ms, et les Chroniques recevaient 1,3 Mo.
 

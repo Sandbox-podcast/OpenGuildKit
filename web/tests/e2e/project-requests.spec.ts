@@ -83,3 +83,33 @@ test('reloads the project, not the catalog, when the person comes back to the ta
   await page.getByRole('button', { name: 'Actualiser les données du projet' }).click();
   await expect.poll(() => count(sent, 'references --json')).toBe(1);
 });
+
+/** Issue #467: one `task route` per character typed in the reason of an adjustment, and the grid of brains blinked. */
+test('asks for one routing while a reason is typed, and keeps the brains on screen', async ({ page }) => {
+  const sent = recordCommands(page);
+  await page.goto('/#/conseil/closing-survey');
+  const reason = page.getByLabel('Motif de l’ajustement');
+  await expect(reason).toBeVisible();
+  await expect(page.locator('main .board-grid')).toBeVisible();
+  await page.waitForTimeout(800);
+  const before = count(sent, /^task route /);
+
+  let removals = 0;
+  await page.exposeFunction('gridRemoved', () => { removals++; });
+  await page.evaluate(() => {
+    let shown = !!document.querySelector('main .board-grid');
+    new MutationObserver(() => {
+      const now = !!document.querySelector('main .board-grid');
+      if (shown && !now) (window as unknown as { gridRemoved: () => void }).gridRemoved();
+      shown = now;
+    }).observe(document.querySelector('main')!, { childList: true, subtree: true });
+  });
+  const text = 'La sécurité doit relire ce flux de mails';
+  expect(text).toHaveLength(40);
+  await reason.pressSequentially(text, { delay: 40 });
+  await page.waitForTimeout(1500);
+
+  expect(count(sent, /^task route /) - before).toBeLessThanOrEqual(2);
+  expect(removals).toBe(0);
+  await expect(page.locator('main .board-grid')).toBeVisible();
+});

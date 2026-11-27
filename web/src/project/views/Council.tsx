@@ -12,7 +12,7 @@ import { listFiles, run, terminalCommand } from '../api';
 import { boardTitle, useBrains, useBrainTitles, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
 import { BASIS, BRAIN_FR, CONCERNS, CONFIDENCE, DATA, DATA_PHRASE, KIND, PASS, QUESTION_FR, QUESTION_HELP_FR, QUESTION_UNSURE_FR, RESEARCH, SURFACE, brainName, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
-import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
+import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useKept, useRemembered } from '../parts';
 import { usePrefs } from '../prefs';
 import { errorText } from '../refusals';
 import { isMultiple, questionList, toggleChoice, unanswered } from '../answers';
@@ -97,7 +97,7 @@ function useQuestionSets(id: string, answers: Answers) {
   const base = useCli<QuestionSet>(['task', 'questions', id]);
   const json = JSON.stringify(answers);
   const complete = !!base.data && unanswered(base.data.questions, answers as Record<string, unknown>).length === 0;
-  const extra = useQuery<QuestionSet | null>(complete ? `questions:${id}:${json}` : null, useCallback(async () => (await run<QuestionSet>(['task', 'questions', id, '--answers', '@upload:answers.json'], { 'answers.json': json })).json, [id, json]));
+  const extra = useQuery<QuestionSet | null>(complete ? `questions:${id}:${json}` : null, useCallback(async () => (await run<QuestionSet>(['task', 'questions', id, '--answers', '@upload:answers.json'], { 'answers.json': json })).json, [id, json]), { transient: true });
   return { base, extra };
 }
 
@@ -177,13 +177,21 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
   const [market, setMarket] = useState('');
   // After a request for changes, the person can revise the brief; the previous one stays in the task's history.
   const [revised, setRevised] = useState('');
-  const adjust = [...add.flatMap((b) => ['--add', b]), ...remove.flatMap((b) => ['--remove', b]), ...(reason ? ['--reason', reason] : []), ...Object.entries(delegates).filter(([, n]) => n.trim()).flatMap(([b, n]) => ['--delegate', `${b}=${n.trim()}`])];
-  const key = `route:${task.id}:${json}:${adjust.join('|')}`;
-  const route = useQuery<Route | null>(key, useCallback(async () => (await run<Route>(['task', 'route', task.id, '--answers', '@upload:answers.json', ...adjust, '--json'], { 'answers.json': json })).json, [key]));
+  const adjustments = (why: string, names: Record<string, string>) => [...add.flatMap((b) => ['--add', b]), ...remove.flatMap((b) => ['--remove', b]), ...(why ? ['--reason', why] : []), ...Object.entries(names).filter(([, n]) => n.trim()).flatMap(([b, n]) => ['--delegate', `${b}=${n.trim()}`])];
+  // The consultation sends what is typed; the preview of the routing follows it once typing pauses, not at every keystroke.
+  const adjust = adjustments(reason, delegates);
+  const settledReason = useDebounced(reason, 450);
+  const settledDelegates = useDebounced(delegates, 450);
+  const previewed = adjustments(settledReason, settledDelegates);
+  const key = `route:${task.id}:${json}:${previewed.join('|')}`;
+  const route = useQuery<Route | null>(key, useCallback(async () => (await run<Route>(['task', 'route', task.id, '--answers', '@upload:answers.json', ...previewed, '--json'], { 'answers.json': json })).json, [key]), { transient: true });
+  // The last routing stays on screen while the next one is computed.
+  const kept = useKept(route.data);
+  const shown = route.error ? undefined : kept;
   const dossiers = useQuery<string[]>('market-dossiers', useCallback(async () => (await listFiles('.openguildkit/market')).filter((e) => e.name.endsWith('.json')).map((e) => e.name.replace(/\.json$/, '')), []));
   const { act, busy } = useAction();
   const enabled = profile.data?.boards?.length ? profile.data.boards : Object.keys(brains.data ?? {});
-  const selected = Object.keys(route.data?.routing ?? {});
+  const selected = Object.keys(shown?.routing ?? {});
   const required = profile.data?.required_boards ?? [];
   const needsReason = (add.length > 0 || remove.length > 0) && !reason.trim();
 
@@ -193,7 +201,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
   return (
     <Section title="Routage : les cerveaux consultés" icon="guild">
       <p className="small muted">Le routage est déterministe : mêmes réponses, mêmes cerveaux. Ajoute ou retire un cerveau avec un motif ; il est consigné dans la consultation.</p>
-      <Q q={route} label="Calcul du routage">
+      <Q q={{ ...route, data: shown }} label="Calcul du routage">
         {(r) => r && <>
           <ul className="plain board-grid">{Object.entries(r.routing).map(([b, reasons]) => (
             <li key={b} className="card board-pick">

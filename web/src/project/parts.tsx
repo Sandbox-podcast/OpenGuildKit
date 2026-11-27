@@ -245,6 +245,13 @@ export function useDebounced<T>(value: T, ms: number): T {
   return settled;
 }
 
+/** The last defined value: a screen keeps showing its previous answer while the next one loads. */
+export function useKept<T>(value: T | undefined): T | undefined {
+  const [kept, setKept] = useState(value);
+  if (value !== undefined && value !== kept) setKept(value);
+  return value !== undefined ? value : kept;
+}
+
 /** Keeps a field's value in this browser between visits (the name of the decision owner), shared by every form of the page. */
 const remembered = new Map<string, string>();
 const rememberedListeners = new Set<() => void>();

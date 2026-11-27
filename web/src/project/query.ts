@@ -27,22 +27,30 @@ export async function load(key: string, fetcher: () => Promise<unknown>) {
   // An action that changed the project while this request was in flight marks the entry stale again:
   // the answer may predate the change, so the view reloads once more.
   const staleAgain = () => cache.get(key)?.stale ?? false;
+  let settled: Pick<Entry, 'data' | 'error'>;
   try {
-    const data = await fetcher();
-    cache.set(key, { data, loading: false, stale: staleAgain(), at: Date.now() });
+    settled = { data: await fetcher() };
   } catch (error) {
-    cache.set(key, { data: previous?.data, error: error instanceof ApiError ? error : new ApiError(String(error), 0), loading: false, stale: staleAgain(), at: Date.now() });
+    settled = { data: previous?.data, error: error instanceof ApiError ? error : new ApiError(String(error), 0) };
   }
+  // An entry forgotten while its request was in flight stays forgotten: nobody shows its answer any more.
+  if (!cache.has(key)) return;
+  cache.set(key, { ...settled, loading: false, stale: staleAgain(), at: Date.now() });
   emit();
 }
 
+/** Drops the entry of a question nobody asks any more (a field was typed in since), so the cache does not grow with it. */
+export const forget = (key: string) => { cache.delete(key); };
+
 export interface Query<T> { data: T | undefined; error: ApiError | undefined; loading: boolean; reload: () => void }
 
-export function useQuery<T>(key: string | null, fetcher: () => Promise<T>): Query<T> {
+/** transient: the key holds what a person types, so its entry is dropped when the key changes or the view goes away. */
+export function useQuery<T>(key: string | null, fetcher: () => Promise<T>, opts: { transient?: boolean } = {}): Query<T> {
   useSyncExternalStore(subscribe, () => version);
   const entry = key ? cache.get(key) : undefined;
   const missing = !!key && (!entry || entry.stale);
   useEffect(() => { if (key && missing) void load(key, fetcher); });
+  useEffect(() => (key && opts.transient ? () => forget(key) : undefined), [key, opts.transient]);
   const reload = useCallback(() => { if (key) void load(key, fetcher); }, [key, fetcher]);
   return { data: entry?.data as T | undefined, error: entry?.error, loading: !!key && (!entry || entry.loading || entry.stale) && entry?.data === undefined, reload };
 }
