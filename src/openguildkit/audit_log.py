@@ -80,6 +80,8 @@ def _append(path: Path, fields: dict) -> None:
         raise ValueError(f"{FOLDER} or its file is a link or leaves the project: nothing is written")
     with project_lock(folder):
         ignore = folder / ".gitignore"
+        if ignore.is_symlink():  # A link to a file that does not exist would have the write create it elsewhere.
+            raise ValueError(f"{FOLDER}/.gitignore is a link: nothing is written")
         if not ignore.exists():
             ignore.write_text("*\n", encoding="utf-8")
         flags = os.O_RDWR | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)

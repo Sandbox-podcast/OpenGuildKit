@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -117,7 +118,7 @@ class RefusalTests(AuditCase):
         """A write outside the project (SECURITY.md) must not come from a link in the audit folder."""
         self.init(guard="enforce")
         outside = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: [path.unlink() for path in outside.iterdir()] and outside.rmdir() or None)
+        self.addCleanup(shutil.rmtree, outside, ignore_errors=True)
         (self.root / ".openguildkit" / "audit").symlink_to(outside, target_is_directory=True)
         with patch.dict(os.environ, ON):
             _, error = self.refuse()
@@ -132,6 +133,14 @@ class RefusalTests(AuditCase):
             _, error = self.refuse()
         self.assertIn("audit log could not be written", error)
         self.assertEqual(target.read_text(encoding="utf-8"), "")
+        # The .gitignore of the folder is a link to a file that does not exist: writing it would create that file.
+        self.log.unlink()
+        planted = outside / "created-by-the-cli"
+        (self.log.parent / ".gitignore").symlink_to(planted)
+        with patch.dict(os.environ, ON):
+            _, error = self.refuse()
+        self.assertIn("audit log could not be written", error)
+        self.assertFalse(planted.exists(), "the CLI wrote a file outside the project through a link")
 
     def test_a_log_that_cannot_be_written_never_changes_the_answer_of_the_hook(self):
         self.init(guard="enforce")
