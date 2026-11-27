@@ -27,6 +27,7 @@ from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_cli
@@ -503,6 +504,21 @@ def find_front_end(explicit: Path | None) -> Path | None:
     return max(found, key=lambda folder: (folder / "index.html").stat().st_mtime).resolve() if found else None
 
 
+class Asset(NamedTuple):
+    """A file of the front end as the page gets it: its type, its ETag, its body, and its gzip form when it has one."""
+
+    kind: str
+    etag: str
+    body: bytes
+    packed: bytes | None
+
+
+def _matches(header: str | None, etag: str) -> bool:
+    """Whether an If-None-Match header names this ETag, weak or strong, or any."""
+    tags = [part.strip().removeprefix("W/") for part in (header or "").split(",")]
+    return "*" in tags or etag in tags
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "OpenGuildKit"
     sys_version = ""
@@ -601,20 +617,21 @@ class Handler(BaseHTTPRequestHandler):
         if not target.is_file():
             self._refuse(Refused("Not found.", status=HTTPStatus.NOT_FOUND, reason="not-found"))
             return
-        body = target.read_bytes()
-        if target.name == "index.html":
-            # Tells the page it is served by the CLI, so it loads the project code and its session together.
-            body = body.replace(b"<head>", b'<head><meta name="openguildkit-ui" content="1">', 1)
-        kind = CONTENT_TYPES.get(target.suffix.lower(), "application/octet-stream")
-        text = kind.startswith(TEXT_TYPES)
-        if text:
-            kind += "; charset=utf-8"
+        asset = self.app.asset(target)
         cache = "no-cache" if target.name == "index.html" else "public, max-age=31536000, immutable" \
             if "/assets/" in f"/{relative}" and re.search(r"-[A-Za-z0-9_-]{8,}\.", target.name) else "no-cache"
-        extra = {"Content-Security-Policy": CSP, "Cache-Control": cache}
-        if text:
-            body = self._compressed(body, extra)
-        self._send(HTTPStatus.OK, body, kind, extra)
+        packed = asset.packed is not None and "gzip" in (self.headers.get("Accept-Encoding") or "")
+        # The gzip form is another representation: it has its own ETag.
+        etag = asset.etag[:-1] + '-gzip"' if packed else asset.etag
+        extra = {"Content-Security-Policy": CSP, "Cache-Control": cache, "ETag": etag}
+        if asset.packed is not None:
+            extra["Vary"] = "Accept-Encoding"
+        if _matches(self.headers.get("If-None-Match"), etag):
+            self._send(HTTPStatus.NOT_MODIFIED, b"", asset.kind, extra)
+            return
+        if packed:
+            extra["Content-Encoding"] = "gzip"
+        self._send(HTTPStatus.OK, asset.packed if packed else asset.body, asset.kind, extra)
 
     def do_POST(self):  # noqa: N802
         try:
@@ -698,6 +715,7 @@ class WebApp:
         self.files = ProjectFiles(root)
         self.version = package_version()
         self.verbose = verbose
+        self.assets: dict[Path, tuple[tuple[int, int], Asset]] = {}
         self.set_port(port)
 
     def set_port(self, port: int) -> None:
@@ -726,6 +744,26 @@ class WebApp:
             return False
         morsel = cookies.get(self.cookie)
         return morsel is not None and _same(morsel.value, self.key)
+
+    def asset(self, target: Path) -> Asset:
+        """The file as it is served, kept until its size or modification time changes: a text file past 2 KB is
+        compressed once, at a level that costs more than a request can spare but pays back through a tunnel."""
+        with open(target, "rb") as handle:
+            info = os.fstat(handle.fileno())
+            stamp = (info.st_size, info.st_mtime_ns)
+            kept = self.assets.get(target)
+            if kept is not None and kept[0] == stamp:
+                return kept[1]
+            body = handle.read()
+        if target.name == "index.html":
+            # Tells the page it is served by the CLI, so it loads the project code and its session together.
+            body = body.replace(b"<head>", b'<head><meta name="openguildkit-ui" content="1">', 1)
+        kind = CONTENT_TYPES.get(target.suffix.lower(), "application/octet-stream")
+        text = kind.startswith(TEXT_TYPES)
+        packed = gzip.compress(body, compresslevel=6, mtime=0) if text and len(body) > 2048 else None
+        asset = Asset(kind + "; charset=utf-8" if text else kind, f'"{stamp[0]:x}-{stamp[1]:x}"', body, packed)
+        self.assets[target] = (stamp, asset)
+        return asset
 
     def session(self) -> dict:
         return {

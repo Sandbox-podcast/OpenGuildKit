@@ -1021,6 +1021,57 @@ class WebInterfaceTests(unittest.TestCase):
                     self.assertEqual((status, headers["Content-Type"]), (200, expected))
 
 
+    def test_a_file_answers_304_to_its_own_etag_and_a_modified_file_changes_it(self):
+        """Issue #470: files without a hashed name left no way to revalidate, and the whole body came back each time."""
+        rooms = self.app.front / "assets" / "rooms"
+        rooms.mkdir()
+        (rooms / "forge.webp").write_bytes(b"RIFF" + bytes(4096))
+        for name, cache in (("index.html", "no-cache"), ("assets/rooms/forge.webp", "no-cache"),
+                            ("assets/app-0123456789.js", "public, max-age=31536000, immutable")):
+            with self.subTest(name=name):
+                status, headers, body = self.request(f"/{name}")
+                etag = headers["ETag"]
+                self.assertEqual((status, headers["Cache-Control"]), (200, cache))
+                self.assertRegex(etag, r'^"[0-9a-f]+-[0-9a-f]+"$')
+                self.assertTrue(body)
+                for given in (etag, f"W/{etag}", f'"other", {etag}', "*"):
+                    status, headers, body = self.request(f"/{name}", headers={"If-None-Match": given})
+                    self.assertEqual((status, body, headers["ETag"], headers["Cache-Control"]), (304, b"", etag, cache))
+                    self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+                for given in ('"other"', etag[:-1] + 'x"', ""):
+                    self.assertEqual(self.request(f"/{name}", headers={"If-None-Match": given})[0], 200)
+        etag = self.request("/assets/rooms/forge.webp")[1]["ETag"]
+        self.assertEqual(self.request("/assets/rooms/forge.webp", method="HEAD")[1]["ETag"], etag)
+        (rooms / "forge.webp").write_bytes(b"RIFF" + bytes(4097))
+        status, headers, body = self.request("/assets/rooms/forge.webp", headers={"If-None-Match": etag})
+        self.assertEqual((status, len(body)), (200, 4101))
+        self.assertNotEqual(headers["ETag"], etag)
+
+    def test_a_text_file_is_compressed_once_and_its_gzip_form_has_its_own_etag(self):
+        """Issue #470: each request compressed the same script again, and no answer could be revalidated."""
+        script = self.app.front / "assets" / "big-0123456789.js"
+        script.write_text("console.log('page');\n" * 500, encoding="utf-8")
+        gzip_only = {"Accept-Encoding": "gzip"}
+        with patch.object(gzip, "compress", wraps=gzip.compress) as compress:
+            first = self.request("/assets/big-0123456789.js", headers=gzip_only)
+            second = self.request("/assets/big-0123456789.js", headers=gzip_only)
+        self.assertEqual(compress.call_count, 1)
+        self.assertEqual(compress.call_args.kwargs["compresslevel"], 6)
+        for status, headers, body in (first, second):
+            self.assertEqual((status, headers["Content-Encoding"], headers["Vary"]), (200, "gzip", "Accept-Encoding"))
+            self.assertEqual(gzip.decompress(body).decode("utf-8"), script.read_text(encoding="utf-8"))
+        self.assertEqual(first[2], second[2])
+        plain = self.request("/assets/big-0123456789.js")
+        self.assertIsNone(plain[1]["Content-Encoding"])
+        self.assertNotEqual(plain[1]["ETag"], first[1]["ETag"])
+        for etag, headers in ((first[1]["ETag"], gzip_only), (plain[1]["ETag"], {})):
+            status, _, body = self.request("/assets/big-0123456789.js", headers={**headers, "If-None-Match": etag})
+            self.assertEqual((status, body), (304, b""))
+        # What a browser that revalidated the plain form must not receive: a 304 for the form it did not hold.
+        self.assertEqual(self.request("/assets/big-0123456789.js",
+                                      headers={**gzip_only, "If-None-Match": plain[1]["ETag"]})[0], 200)
+
+
 class UiCommandTests(unittest.TestCase):
     """The ui command itself, started in a subprocess as a person starts it, then stopped."""
 
