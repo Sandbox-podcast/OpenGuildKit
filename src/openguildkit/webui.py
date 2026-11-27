@@ -14,7 +14,6 @@ import gzip
 import hashlib
 import io
 import json
-import mimetypes
 import os
 import re
 import secrets
@@ -123,6 +122,11 @@ GATE = ("<!doctype html><html lang=\"fr\"><meta charset=utf-8><title>OpenGuildKi
         "<code>openguildkit ui</code> a imprimée dans ton terminal : elle porte la clé de cette session, qui change "
         "à chaque lancement.</p><p lang=\"en\">Open the address <code>openguildkit ui</code> printed in your "
         "terminal: it carries the key of this run, which changes at each start.</p></html>")
+# The types of the files the page is made of, kept here: mimetypes reads the registry of the workstation, where a
+# program can declare .js as text/plain, and nosniff then leaves the page blank.
+CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
+                 ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2"}
+TEXT_TYPES = ("text/", "application/json", "image/svg+xml")
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; "
        "object-src 'none'")
@@ -601,13 +605,14 @@ class Handler(BaseHTTPRequestHandler):
         if target.name == "index.html":
             # Tells the page it is served by the CLI, so it loads the project code and its session together.
             body = body.replace(b"<head>", b'<head><meta name="openguildkit-ui" content="1">', 1)
-        kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-        if kind.startswith("text/") or kind in ("application/javascript", "application/json", "image/svg+xml"):
+        kind = CONTENT_TYPES.get(target.suffix.lower(), "application/octet-stream")
+        text = kind.startswith(TEXT_TYPES)
+        if text:
             kind += "; charset=utf-8"
         cache = "no-cache" if target.name == "index.html" else "public, max-age=31536000, immutable" \
             if "/assets/" in f"/{relative}" and re.search(r"-[A-Za-z0-9_-]{8,}\.", target.name) else "no-cache"
         extra = {"Content-Security-Policy": CSP, "Cache-Control": cache}
-        if kind.startswith(("text/", "application/javascript", "application/json", "image/svg+xml")):
+        if text:
             body = self._compressed(body, extra)
         self._send(HTTPStatus.OK, body, kind, extra)
 

@@ -4,6 +4,7 @@ import http.client
 import http.cookiejar
 import io
 import json
+import mimetypes
 import os
 import shlex
 import signal
@@ -997,6 +998,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/../profile.json")[0], 404)
         self.assertEqual(self.request("/%2e%2e/profile.json")[0], 404)
         self.assertEqual(self.request("/", method="HEAD")[0], 200)
+
+
+    def test_a_file_is_served_with_the_type_of_its_extension_whatever_the_workstation_says(self):
+        """Issue #468: a .js that the workstation's registry declares text/plain gives a blank page under nosniff."""
+        served = {
+            "index.html": "text/html; charset=utf-8", "assets/a-0123456789.js": "text/javascript; charset=utf-8",
+            "assets/a-0123456789.css": "text/css; charset=utf-8", "assets/a.json": "application/json; charset=utf-8",
+            "assets/a.svg": "image/svg+xml; charset=utf-8", "assets/a.webp": "image/webp", "assets/a.png": "image/png",
+            "assets/a.woff2": "font/woff2", "assets/a.bin": "application/octet-stream",
+            "assets/a": "application/octet-stream",
+        }
+        for name in served:
+            (self.app.front / name).write_bytes(b"x")
+        with patch.dict(mimetypes.types_map):
+            for extension, kind in ((".js", "text/plain"), (".css", "text/plain"), (".woff2", "text/plain"),
+                                    (".webp", "application/x-wrong")):
+                mimetypes.add_type(kind, extension)
+            for name, expected in served.items():
+                with self.subTest(name=name):
+                    status, headers, _ = self.request(f"/{name}")
+                    self.assertEqual((status, headers["Content-Type"]), (200, expected))
 
 
 class UiCommandTests(unittest.TestCase):
