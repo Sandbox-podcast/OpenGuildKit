@@ -1057,6 +1057,16 @@ class UiCommandTests(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertIn("OpenGuildKit interface stopped.", stderr)
 
+    def test_the_server_starts_without_a_reverse_lookup_of_its_address(self):
+        """Issue #450: openguildkit ui took 35 s to print its address on macOS runners, waiting on socket.getfqdn."""
+        def lookup(name=""):
+            raise AssertionError(f"socket.getfqdn({name!r}) was called: a reverse lookup can take 35 s")
+
+        with patch("socket.getfqdn", lookup):
+            server, app = make_server(self.root, 0, self.front)
+        self.addCleanup(server.server_close)
+        self.assertEqual((server.server_name, server.server_port), ("127.0.0.1", app.port))
+
     def test_a_busy_port_gives_way_to_a_free_one(self):
         blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.addCleanup(blocker.close)
