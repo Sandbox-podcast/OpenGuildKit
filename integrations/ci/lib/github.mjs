@@ -11,8 +11,46 @@ import { sameRepository, sameRepositoryUrl } from './github-identifiers.mjs';
 const repositoryPattern = /^[a-z\d][a-z\d-]*\/[a-z\d_.-]+$/i;
 const branchPattern = /^refs\/heads\/[\w./-]+$/;
 
+// The one wrapper around the GitHub CLI: a `gh` that does not answer stops after 30 seconds instead of holding a job.
+function run(args, input) {
+  return execFileSync('gh', args, { encoding: 'utf8', timeout: 30_000, input }).trim();
+}
+
 export function gh(...args) {
-  return execFileSync('gh', args, { encoding: 'utf8', timeout: 30_000 }).trim();
+  return run(args);
+}
+
+// For the calls that read their body from the standard input (`--input -`, `workflow run --json`).
+export function ghWithInput(input, ...args) {
+  return run(args, input);
+}
+
+// The tickets a PR declares, one per `OpenGuildKit-Ticket: #N` line.
+export const ticketNumbers = body => [...(body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)]
+  .map(match => match[1]);
+
+// Files `bytes` at `path` on `branch`, and returns the commit that holds them: the one that already does, or a new one.
+export function archiveFile({ project, branch, path, bytes, message, subject }) {
+  const endpoint = `repos/${project}/contents/${path}`;
+  let saved;
+  try {
+    saved = JSON.parse(gh('api', `${endpoint}?ref=${encodeURIComponent(branch)}`));
+  } catch (error) {
+    if (!String(error.stderr).includes('HTTP 404')) throw error;
+  }
+  let commit;
+  if (saved) {
+    if (!Buffer.from(saved.content, 'base64').equals(bytes)) {
+      throw new Error(`The existing ${subject} differs from the expected ${subject}.`);
+    }
+    commit = gh('api', '--method', 'GET', `repos/${project}/commits`,
+      '-f', `sha=${branch}`, '-f', `path=${path}`, '-F', 'per_page=1', '--jq', '.[0].sha');
+  } else {
+    const input = JSON.stringify({ branch, message, content: bytes.toString('base64') });
+    commit = JSON.parse(ghWithInput(input, 'api', endpoint, '--method', 'PUT', '--input', '-')).commit.sha;
+  }
+  if (!gitSha.test(commit)) throw new Error(`GitHub did not confirm the commit of the ${subject}.`);
+  return commit;
 }
 
 // The combined status lists the latest status of each context, one page at a time.
@@ -38,9 +76,9 @@ export function readGitHubTicket({ repo, pullRequest, commit }, api = endpoint =
   if (pr.state !== 'open' || pr.head.sha !== commit || !sameRepositoryUrl(pr.html_url, pullUrl)) {
     throw new Error('The PR or its current commit no longer matches the request.');
   }
-  const links = [...(pr.body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)];
+  const links = ticketNumbers(pr.body);
   if (links.length !== 1) throw new Error('The PR must declare a single ticket with OpenGuildKit-Ticket: #NUMBER.');
-  const number = links[0][1];
+  const [number] = links;
   const issue = api(`repos/${repo}/issues/${number}`);
   if (issue.pull_request || !sameRepositoryUrl(issue.html_url, `https://github.com/${repo}/issues/${number}`)) {
     throw new Error('The reference must point to a ticket in the repository of the PR.');
@@ -152,19 +190,78 @@ function synchronize(configPath, dependencies) {
   return { policyRepo: { path: policy.path, ref: policyRef, waiversPath: policy.waiversPath }, projects, errors };
 }
 
-function publishObservation(entry, reportUrl, request) {
+// The open PRs of a repository, with the head and the statuses of each, in one GraphQL query: the cost of reading
+// them does not grow with the number of PRs. The statuses are those of the head commit, in the shape of the REST API.
+const openPullsQuery = `query($owner: String!, $name: String!, $endCursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: OPEN, first: 100, after: $endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number state headRefOid body
+        commits(last: 1) { nodes { commit { oid status { contexts { context state description targetUrl } } } } }
+      }
+    }
+  }
+}`;
+
+export function readOpenPulls(project, request = gh) {
+  const [owner, name] = project.split('/');
+  const pages = JSON.parse(request('api', 'graphql', '--paginate', '--slurp',
+    '-f', `query=${openPullsQuery}`, '-f', `owner=${owner}`, '-f', `name=${name}`));
+  const nodes = pages.flatMap(page => {
+    const found = page.data?.repository?.pullRequests?.nodes;
+    if (!Array.isArray(found)) throw new Error(`GitHub did not list the open PRs of ${project}.`);
+    return found;
+  });
+  return new Map(nodes.map(pr => {
+    const { oid, status } = pr.commits?.nodes?.[0]?.commit ?? {};
+    // Statuses of another commit than the head say nothing about the head: they are left out, and the write goes on.
+    const contexts = oid === pr.headRefOid ? (status?.contexts ?? []).map(item => ({
+      context: item.context, state: String(item.state).toLowerCase(), description: item.description, target_url: item.targetUrl,
+    })) : undefined;
+    return [pr.number, { state: String(pr.state).toLowerCase(), head: pr.headRefOid, body: pr.body, statuses: contexts }];
+  }));
+}
+
+// Reads the open PRs of each repository once, when the first PR of that repository is published, and keeps the answer
+// (or the failure) for the others.
+export function openPullReader(request = gh) {
+  const read = new Map();
+  return project => {
+    const key = project.toLowerCase();
+    if (!read.has(key)) {
+      try {
+        read.set(key, { pulls: readOpenPulls(project, request) });
+      } catch (error) {
+        read.set(key, { error });
+      }
+    }
+    const { pulls, error } = read.get(key);
+    if (error) throw error;
+    return pulls;
+  };
+}
+
+// The head is read again right before a write: the snapshot is as old as the cycle, a push may have come since.
+export function headStillIs(project, pullRequest, commit, request = gh) {
+  const pr = JSON.parse(request('api', `repos/${project}/pulls/${pullRequest}`));
+  return pr.state === 'open' && pr.head.sha === commit;
+}
+
+function publishObservation(entry, reportUrl, request, pulls) {
   const { project, pullRequest, commit, policyCommit, profileCommit, work } = entry;
   const status = entry.decision.effectiveStatus;
-  const pr = JSON.parse(request('api', `repos/${project}/pulls/${pullRequest}`));
-  if (pr.state !== 'open' || pr.head.sha !== commit) return { work, posted: false };
+  const pr = pulls(project).get(pullRequest);
+  if (pr?.state !== 'open' || pr.head !== commit) return { work, posted: false };
 
   const state = { success: 'success', failure: 'success', waived: 'success', pending: 'pending', error: 'error' }[status];
   const label = { success: 'Compliant', failure: 'Deviation', waived: 'Waived', pending: 'Pending', error: 'Undetermined' }[status];
   const description = `${label} (obs.) | rule ${policyCommit.slice(0, 12)} | profile ${profileCommit.slice(0, 12)} | ${work.slice(0, 12)}`;
   const context = `openguildkit/observation-pr-${pullRequest}`;
-  if (sameStatus(latestStatus(project, commit, context, request), { state, description, url: reportUrl })) {
+  if (sameStatus(pr.statuses?.find(item => item.context === context), { state, description, url: reportUrl })) {
     return { work, posted: false };
   }
+  if (!headStillIs(project, pullRequest, commit, request)) return { work, posted: false };
   const target = reportUrl ? ['-f', `target_url=${reportUrl}`] : [];
   request('api', `repos/${project}/statuses/${commit}`, '-f', `context=${context}`, '-f', `state=${state}`, '-f', `description=${description}`, ...target);
   return { work, posted: true };
@@ -179,9 +276,10 @@ export function reconcileGithub({ publish, reportUrl, ...options }, { request = 
   });
   if (publish) {
     result.publications = [];
+    const pulls = openPullReader(request);
     for (const entry of result.current) {
       try {
-        result.publications.push(publishObservation(entry, reportUrl, request));
+        result.publications.push(publishObservation(entry, reportUrl, request, pulls));
       } catch (error) {
         result.errors.push({ work: entry.work, message: error.message });
       }

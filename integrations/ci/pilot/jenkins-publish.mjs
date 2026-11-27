@@ -1,11 +1,6 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { sameRepositoryUrl } from '../lib/github-identifiers.mjs';
-import { latestStatus, sameStatus } from '../lib/github.mjs';
-
-function gh(args, input) {
-  return execFileSync('gh', args, { encoding: 'utf8', input }).trim();
-}
+import { archiveFile, gh, latestStatus, sameStatus } from '../lib/github.mjs';
 
 function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !file || !/^openguildkit\/[a-z\d/-]+$/.test(context)) {
@@ -25,7 +20,7 @@ function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
         !sameRepositoryUrl(report.pullRequest, `https://github.com/${repo}/pull/${number}`)) {
       throw new Error('Invalid PR or brief digest.');
     }
-    const pr = JSON.parse(gh(['api', `repos/${repo}/pulls/${number}`]));
+    const pr = JSON.parse(gh('api', `repos/${repo}/pulls/${number}`));
     if (!sameRepositoryUrl(pr.html_url, report.pullRequest) || pr.state !== 'open' || pr.head.sha !== report.commit) {
       throw new Error('The PR or its current commit no longer matches the report.');
     }
@@ -36,27 +31,15 @@ function publish([repo, file, context = 'openguildkit/pilot-jenkins']) {
   const branch = 'pilot/evidence';
   const suffix = agentProof ? `-${report.briefSha256}` : '';
   const path = `evidence/${report.commit}/${report.kitVersion}/${report.policyCommit}-${report.profileSha256}${suffix}.json`;
-  const endpoint = `repos/${repo}/contents/${path}`;
-  const content = bytes.toString('base64');
-  let evidenceCommit;
-  try {
-    const saved = JSON.parse(gh(['api', `${endpoint}?ref=${encodeURIComponent(branch)}`]));
-    if (!Buffer.from(saved.content, 'base64').equals(bytes)) throw new Error('The existing evidence is different.');
-    evidenceCommit = gh(['api', `repos/${repo}/commits`, '--method', 'GET',
-      '-f', `sha=${branch}`, '-f', `path=${path}`, '-F', 'per_page=1', '--jq', '.[0].sha']);
-  } catch (error) {
-    if (!String(error.stderr).includes('HTTP 404')) throw error;
-    const created = gh(['api', endpoint, '--method', 'PUT', '--input', '-'],
-      JSON.stringify({ branch, message: 'Archive OpenGuildKit Jenkins evidence', content }));
-    evidenceCommit = JSON.parse(created).commit.sha;
-  }
+  const evidenceCommit = archiveFile({ project: repo, branch, path, bytes, subject: 'evidence',
+    message: 'Archive OpenGuildKit Jenkins evidence' });
   const observation = report.state === 'success' ? 'Compliant' : 'Deviation';
   const url = `https://github.com/${repo}/blob/${evidenceCommit}/${path}`;
   if (agentProof) verifyAgentPull();
   const description = `${observation} (obs.) | rule ${report.policyCommit}`;
   if (!sameStatus(latestStatus(repo, report.commit, context), { state: 'success', description, url })) {
-    gh(['api', `repos/${repo}/statuses/${report.commit}`, '-f', `context=${context}`,
-      '-f', 'state=success', '-f', `description=${description}`, '-f', `target_url=${url}`]);
+    gh('api', `repos/${repo}/statuses/${report.commit}`, '-f', `context=${context}`,
+      '-f', 'state=success', '-f', `description=${description}`, '-f', `target_url=${url}`);
   }
   console.log(url);
 }

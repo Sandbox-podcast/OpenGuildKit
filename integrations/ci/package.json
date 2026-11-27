@@ -13,7 +13,6 @@
     "bin",
     "lib",
     "pilot",
-    "prototype/demo/check.mjs",
     "prototype/windows"
   ],
   "engines": {

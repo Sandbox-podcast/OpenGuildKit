@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
@@ -6,7 +5,7 @@ import {
 import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-import { gh, reconcileGithub } from './github.mjs';
+import { gh, ghWithInput, openPullReader, reconcileGithub } from './github.mjs';
 import { sameRepository, sameRepositoryUrl } from './github-identifiers.mjs';
 import { parseJsonObject } from './json.mjs';
 import { checkStateDirectory } from './state-directory.mjs';
@@ -39,10 +38,8 @@ const notFound = error => /HTTP 404/.test(`${error.stderr ?? ''} ${error.message
 
 const githubActions = {
   dispatch({ project, pullRequest, commit, work }, { file, ref }, attempt, expected) {
-    const output = execFileSync('gh', ['workflow', 'run', file, '-R', project, '--ref', ref, '--json'], {
-      input: JSON.stringify({ pr: String(pullRequest), commit, work, attempt, expected: JSON.stringify(expected) }),
-      encoding: 'utf8', timeout: 30_000,
-    }).trim();
+    const input = JSON.stringify({ pr: String(pullRequest), commit, work, attempt, expected: JSON.stringify(expected) });
+    const output = ghWithInput(input, 'workflow', 'run', file, '-R', project, '--ref', ref, '--json');
     const match = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/(\d+)$/.exec(output);
     if (!match || !sameRepositoryUrl(output, `https://github.com/${project}/actions/runs/${match[1]}`)) {
       throw new Error('GitHub Actions did not return a run ID.');
@@ -326,7 +323,7 @@ export function acquireWatchLock(stateDir, { alive = processAlive, now = Date.no
 
 export function watchGithub({ publish, reset: requestedResets = [], ...options }, {
   reconcile = reconcileGithub, actions = githubActions, publishReport = publishWatchReport, clock = Date.now,
-  lock = acquireWatchLock,
+  lock = acquireWatchLock, openPulls = openPullReader,
 } = {}) {
   const { configPath, stateDir, kitVersion } = options;
   checkStateDirectory(stateDir);
@@ -404,11 +401,13 @@ export function watchGithub({ publish, reset: requestedResets = [], ...options }
         errors.push({ message: `Publication skipped, the active references could not be read again: ${error.message}` });
         return result;
       }
+      // One read of the open PRs of each repository serves every report of the cycle.
+      const pulls = openPulls();
       for (const target of targets) {
         const live = latest.get(target.work);
         if (!live || !isDeepStrictEqual(live.decision, target.decision)) continue;
         try {
-          result.publications.push(publishReport(target, projects.get(target.project.toLowerCase()).workflow.evidenceBranch));
+          result.publications.push(publishReport(target, projects.get(target.project.toLowerCase()).workflow.evidenceBranch, pulls));
         } catch (error) {
           errors.push({ work: target.work, message: error.message });
         }
