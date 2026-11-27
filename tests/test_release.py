@@ -2,6 +2,7 @@
 release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -127,6 +128,58 @@ class ChangelogTest(unittest.TestCase):
                        "openguildkit tools", "mock", "openguildkit alerts", "openguildkit market",
                        "openguildkit storybook", "openguildkit docs export", "relevan"):
             self.assertIn(change, section)
+
+
+ENTRY_LIMIT = 400
+SHAPE_BASE = ROOT / "docs" / "agents" / "changelog-shape-base.json"
+
+
+def unreleased_entries() -> list[str]:
+    """The entries under `## Unreleased`: a line that starts with "- ", and the lines that follow it up to a blank one."""
+    section = re.search(r"^## Unreleased\s*$(.*?)(?=^## |\Z)", _read("CHANGELOG.md"), re.MULTILINE | re.DOTALL).group(1)
+    return ["\n".join(block) for block in (part.split("\n") for part in re.split(r"\n(?=- )", section.strip()))]
+
+
+def entry_problems(entry: str) -> list[str]:
+    """What keeps an entry from being searchable by issue: it spans lines, passes 400 characters or has no final (#N)."""
+    found = []
+    if "\n" in entry:
+        found.append("spans several lines")
+    if len(entry) > ENTRY_LIMIT:
+        found.append(f"is {len(entry)} characters long")
+    if not re.search(r"\(#\d+\)$", entry):
+        found.append("does not end with its issue (#N)")
+    return found
+
+
+def entry_key(entry: str) -> str:
+    return hashlib.sha256(entry.strip().encode("utf-8")).hexdigest()[:12]
+
+
+class ChangelogShapeTest(unittest.TestCase):
+    """changelog-entry-shape: one line of 400 characters at most that ends with its issue. The entries of
+    `## Unreleased` that predate the rule are listed in docs/agents/changelog-shape-base.json, each with the first 12
+    characters of the SHA-256 of its line. The list can only shrink: shorten an entry and delete its line, the test
+    fails on an entry that complies and is still listed, and on any entry that breaks the shape and is not."""
+
+    def test_an_entry_is_one_line_of_400_characters_that_ends_with_its_issue(self):
+        self.assertEqual(entry_problems("- `task list` shows the period (#380)"), [])
+        self.assertEqual(entry_problems("- " + "x" * (ENTRY_LIMIT - 2 - len(" (#7)")) + " (#7)"), [])
+        self.assertEqual(entry_problems("- " + "x" * (ENTRY_LIMIT - 1 - len(" (#7)")) + " (#7)")[0][:6], "is 401")
+        self.assertEqual(entry_problems("- Shows the period"), ["does not end with its issue (#N)"])
+        self.assertEqual(entry_problems("- Shows the period (#7), see #8"), ["does not end with its issue (#N)"])
+        self.assertEqual(entry_problems("- Shows it\n  and more (#7)"), ["spans several lines"])
+        self.assertTrue(unreleased_entries())
+
+    def test_unreleased_has_no_entry_that_breaks_the_shape_outside_the_base(self):
+        base = json.loads(SHAPE_BASE.read_text(encoding="utf-8"))
+        listed = [item["sha256"] for item in base]
+        self.assertEqual(listed, sorted(listed))
+        breaking = {entry_key(entry): entry for entry in unreleased_entries() if entry_problems(entry)}
+        new = [f"{entry[:70]}... {' and '.join(entry_problems(entry))}" for key, entry in breaking.items() if key not in listed]
+        self.assertEqual(new, [], "Shorten the entry to one line of 400 characters that ends with (#N).")
+        stale = [item["start"] for item in base if item["sha256"] not in breaking]
+        self.assertEqual(stale, [], "These entries were fixed or removed: delete their line from the base.")
 
 
 class PackageMetadataTest(unittest.TestCase):

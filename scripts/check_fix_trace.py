@@ -3,7 +3,7 @@
     PR_BODY=... python scripts/check_fix_trace.py [--base REF] [--bugs N,M]
 
 REF defaults to origin/main. The issues closed are the `Closes #N` (or `Fixes`, `Resolves`) of the commit messages
-since the common ancestor of REF and HEAD, and of PR_BODY. An issue is a bug when it has the label `bug`, read with
+since the common ancestor of REF and HEAD, and of PR_BODY (its comments left out). An issue is a bug when it has the label `bug`, read with
 `gh issue view` (GH_TOKEN and GH_REPO in CI; an issue whose label cannot be read is taken for a bug); --bugs names
 the bugs instead, and asks nothing of GitHub. For each bug the script wants `Issue #N` in a file under tests/,
 web/tests/ or integrations/ci/test/, and its line in docs/agents/fixes.jsonl. Exit 1 says what is missing.
@@ -47,7 +47,8 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     args = parser.parse_args(argv)
     mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True)
     since = mine.stdout.strip() if mine.returncode == 0 and mine.stdout.strip() else args.base
-    messages = _git(root, "log", "--format=%B", f"{since}..HEAD") + "\n" + os.environ.get("PR_BODY", "")
+    body = re.sub(r"<!--.*?-->", "", os.environ.get("PR_BODY", ""), flags=re.DOTALL)
+    messages = _git(root, "log", "--format=%B", f"{since}..HEAD") + "\n" + body
     closed = sorted({int(number) for number in CLOSING.findall(messages)})
     if args.bugs is not None:
         wanted = {int(number) for number in args.bugs.split(",") if number.strip()}

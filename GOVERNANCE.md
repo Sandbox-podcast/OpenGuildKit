@@ -20,6 +20,10 @@ OpenGuildKit has one maintainer today. Until a second one joins, that maintainer
 
 The pull request records the proposal, review and decision. Link an existing issue when there is one. For a focused contribution, open a pull request directly. GitHub adds labels from the changed paths and reports the result of the test matrix, the wheel build and the web interface checks as `contribution-checks`.
 
+## Merging
+
+`main` takes a squash merge after one approval and a green `contribution-checks`, whatever the number of issues the pull request closes. The description of a pull request that closes issues has one line per issue, `#N symptom (file:function)`, which the squash commit keeps, and CI refuses a title or a commit subject that names a range of issues. A merge commit or a rebase for a pull request of several issues, to keep one commit per issue for `git blame`, is proposed in issue #483 and not adopted: it depends on the signature rule of `main`, which has not been checked.
+
 ## Becoming a steward or maintainer
 
 A contributor with several merged pull requests in a domain can ask, or be proposed, in an issue. The maintainer decides; once there are several maintainers, they decide by lazy consensus. Inactive stewards and maintainers move to an emeritus list and can return by asking.

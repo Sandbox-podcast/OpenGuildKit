@@ -342,6 +342,42 @@ class PullRequestTextTests(unittest.TestCase):
             result = _run_script(_repository(self), "check_pr_text", env={"PR_BODY": variable})
             self.assertEqual(result.returncode, expected, result.stdout)
 
+    def test_a_title_or_a_subject_names_no_range_and_no_list_of_issues(self):
+        check = _load("check_pr_text")
+        notes = "\n\n## Not verified\n\nnothing"
+        for title in ("Fix the fifth audit findings (#377 to #407) (#409)", "Fix the page (#12, #13)",
+                      "Close #12, #13 and more"):
+            with self.subTest(title=title):
+                found = check.problems(title, notes)
+                self.assertEqual(len(found), 1, found)
+                self.assertIn("range", found[0])
+        for title in ("Fix the page (#12)", "Add 3 to 4 retries (#7)", "Fix #12 and #13 apart"):
+            with self.subTest(title=title):
+                self.assertEqual(check.problems(title, notes), [])
+        self.assertEqual(len(check.problems("Fix it (#1)", notes, ["Fix a (#1 to #4)", "Fix b (#5)"])), 1)
+        root = _repository(self)
+        _commit(root, {"a.txt": "1"}, "base")
+        _git(root, "branch", "base")
+        _commit(root, {"a.txt": "2"}, "Fix many things (#377 to #407)")
+        _commit(root, {"a.txt": "3"}, "Fix one thing (#5)")
+        result = _run_script(root, "check_pr_text", "--base", "base", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("Fix many things (#377 to #407)", result.stdout)
+        self.assertNotIn("Fix one thing", result.stdout)
+
+    def test_the_body_has_one_line_for_each_issue_it_closes(self):
+        check = _load("check_pr_text")
+        notes = "\n\n## Not verified\n\nnothing"
+        body = "Closes #12\nFixes #13" + notes
+        found = check.problems("Fix it (#12)", body)
+        self.assertEqual(len(found), 2)
+        self.assertIn("#12", found[0])
+        self.assertIn("#13", found[1])
+        lines = "Closes #12\nFixes #13\n\n#12 the page says 500 (src/mod.py:render)\n- #13 it hangs (src/mod.py:wait)" + notes
+        self.assertEqual(check.problems("Fix it (#12)", lines), [])
+        self.assertEqual(check.problems("Fix it", "Part of #12" + notes), [])
+        self.assertEqual(len(check.problems("Fix it", "Closes #12\n#12\n" + notes)), 1)
+
 
 class FixTraceTests(unittest.TestCase):
     """regression-test-names-issue: a branch that closes a bug has a test that names it and a line in the ledger."""
@@ -379,6 +415,7 @@ class FixTraceTests(unittest.TestCase):
         self.assertEqual(self.run_check("--bugs", "7", body="Fixes #7 and\nresolves: #8").returncode, 1)
         self.assertEqual(self.run_check("--bugs", "8", body="x").returncode, 1)
         self.assertEqual(self.run_check("--bugs", "").returncode, 0)
+        self.assertEqual(self.run_check("--bugs", "7", body='<!-- Use "Closes #7"\nif it resolves it -->').returncode, 0)
 
     def test_without_a_closing_keyword_nothing_is_asked(self):
         _commit(self.root, {"src/mod.py": "x = 2\n"}, "Part of #7\n\nSee #7, it is not fixed yet")

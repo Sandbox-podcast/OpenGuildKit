@@ -190,7 +190,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A CI step that rejects a pull request title with a range of issues and a body without one line per `Closes #N`.
 
-**Today.** 10 subjects of 105 list several issues, 4 by a range. Issue #483.
+**Today.** Done for the pull requests to come: `scripts/check_pr_text.py`, run by the `conventions` job of CI, checks the title, the commit subjects and the body, and `GOVERNANCE.md#merging` says how `main` merges. The 10 subjects already on `main` stay. Issue #483.
 
 ### `changelog-entry-shape`
 
@@ -200,7 +200,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `tests/test_release.py`, to extend with the shape above.
 
-**Today.** Absent. Issue #483.
+**Today.** `ChangelogShapeTest` in `tests/test_release.py` checks `## Unreleased`. The 84 entries that predate it are in `docs/agents/changelog-shape-base.json`, a list that can only shrink; released sections are left as they are. Issue #483.
 
 ### `protected-oracle-diff`
 

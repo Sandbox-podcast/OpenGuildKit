@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Pull requests: the `conventions` job of CI refuses a title or a commit subject that names a range of issues (`#377 to #407`) and a `Closes #N` with no `#N symptom (file:function)` line in the body; an entry of `## Unreleased` must be one line of 400 characters that ends with `(#N)`, the older ones listed in a base that can only shrink (#483)
 - `scripts/check_fix_trace.py --base origin/main` fails a branch that closes a bug (label `bug`) without a test that names `Issue #N` or a line in `docs/agents/fixes.jsonl`, the new ledger of fixes (issue, symptom, cause as `file:function`, test, commit) that holds the fifth audit, run by the `conventions` job of CI (#488)
 - Pull requests: the `conventions` job of CI fails a body without a filled `## Not verified` section (`scripts/check_pr_text.py`) and a branch that changes `src/` and removes a test assertion not listed under `## Assertions changed` (`scripts/check_oracle.py`); each suppression of a check carries `INTENTIONAL(#522): reason` (#522)
 - `scripts/agent_cost.py` counts a message once however many lines it fills, reads the `subagents/*.jsonl` files of a session folder, prices each model at its own rate and names a model with no rate, measures the wait from the timestamps, skips an unreadable line and counts it, and takes `--json` (#485)

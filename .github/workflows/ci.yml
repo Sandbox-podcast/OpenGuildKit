@@ -270,7 +270,7 @@ jobs:
           python-version: "3.15"
       - name: Pull request text
         if: github.event_name == 'pull_request'
-        run: python scripts/check_pr_text.py
+        run: python scripts/check_pr_text.py --base "$BASE"
       - name: A closed bug has its test and its ledger line
         if: github.event_name == 'pull_request'
         run: python scripts/check_fix_trace.py --base "$BASE"

@@ -4,7 +4,7 @@
 
 ## Related issue
 
-<!-- Link an existing issue if there is one. Use "Closes #123" if this resolves it. A focused contribution can start with this pull request. -->
+<!-- Link an existing issue if there is one. Use "Closes #123" if this resolves it, then one line per issue that the squash commit keeps: "#123 the symptom (file:function)". A title and a commit subject name one issue, never a range. A focused contribution can start with this pull request. -->
 
 ## Effect on existing projects
 
