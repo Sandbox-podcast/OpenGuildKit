@@ -37,11 +37,11 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openguildkit.catalog import load_catalog  # noqa: E402
-from openguildkit.clock import today  # noqa: E402
-from openguildkit.deliverables import load_deliverables  # noqa: E402
-from openguildkit.references import load_references  # noqa: E402
-from openguildkit.tools import load_tools  # noqa: E402
+from openguildkit.catalog import load_catalog  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.clock import today  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.deliverables import load_deliverables  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.references import load_references  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.tools import load_tools  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 RECHECK_CODES = {202, 401, 403, 429, 502, 503, 504}

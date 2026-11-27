@@ -170,7 +170,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A script that reads the `Closes #N` of the branch and requires `Issue #N` in `tests/` for each bug.
 
-**Today.** 25 % of closed bugs. Issue #488.
+**Today.** `scripts/check_fix_trace.py`, run by the `conventions` job of CI, asks it of each bug a pull request closes. Older bugs keep what they have. Issue #488.
 
 ### `fix-ledger`
 
@@ -180,7 +180,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A test that reads each line as JSON with its five fields, checks that the file of the cause exists and that the test loads.
 
-**Today.** Absent. Issue #488.
+**Today.** Done: `docs/agents/fixes.jsonl` holds the 31 issues of the fifth audit and #485, and `FixLedgerTests` reads it. `commit` is the commit of the fix, which a squash merge replaces. Issue #488.
 
 ### `commit-names-its-issues`
 
@@ -190,7 +190,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A CI step that rejects a pull request title with a range of issues and a body without one line per `Closes #N`.
 
-**Today.** 10 subjects of 105 list several issues, 4 by a range. Issue #483.
+**Today.** Done for the pull requests to come: `scripts/check_pr_text.py`, run by the `conventions` job of CI, checks the title, the commit subjects and the body, and `GOVERNANCE.md#merging` says how `main` merges. The 10 subjects already on `main` stay. Issue #483.
 
 ### `changelog-entry-shape`
 
@@ -200,7 +200,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `tests/test_release.py`, to extend with the shape above.
 
-**Today.** Absent. Issue #483.
+**Today.** `ChangelogShapeTest` in `tests/test_release.py` checks `## Unreleased`. The 84 entries that predate it are in `docs/agents/changelog-shape-base.json`, a list that can only shrink; released sections are left as they are. Issue #483.
 
 ### `protected-oracle-diff`
 
@@ -210,7 +210,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/check_oracle.py --base origin/main`, to add: each removed line that holds `self.assert` or `expect(` must be listed.
 
-**Today.** Absent. Issue #522.
+**Today.** Done: `scripts/check_oracle.py` runs in the `conventions` job of CI, and the pull request template holds the section. Issue #522.
 
 ### `not-verified-section`
 
@@ -220,7 +220,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** The pull request template holds the section; a CI step fails when it is missing or empty.
 
-**Today.** The template has the section since the pull request that adds this page; the CI step is missing. Issue #522.
+**Today.** Done: the template holds the section and `scripts/check_pr_text.py`, run by the `conventions` job of CI, fails when it is missing or empty. Issue #522.
 
 ### `intent-markers-on-suppressions`
 
@@ -230,7 +230,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `grep -rnE 'noqa|type: ignore|eslint-disable|@ts-(ignore|expect-error)' src tests scripts web/src integrations/ci | grep -vc INTENTIONAL` prints 0.
 
-**Today.** 24 suppressions without a marker. Issue #522.
+**Today.** Done: the 25 suppressions (24 in the issue and one in `web/scripts`) carry the marker, and `SuppressionTests` in `tests/test_agent_native.py` fails on one without. Issue #522.
 
 ## Verify fast
 
@@ -274,7 +274,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `AgentCostTests` in `tests/test_agent_native.py`, to extend with a session folder holding one subagent file and two models.
 
-**Today.** One file, one price. Issue #485.
+**Today.** Done for the session folder, the message counted once and the price by model (a model without a rate is named, none but one has a rate yet); the total is not yet tied to a task. Issue #485.
 
 ## Stay fast
 

@@ -343,10 +343,44 @@ jobs:
       - name: Compare the findings with the baseline
         run: python scripts/lint_ratchet.py
 
+  # The conventions of docs/agents/conventions.md that a pull request can break. A push to main has no pull
+  # request: its steps are skipped.
+  conventions:
+    name: Conventions for agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # issues: read lets check_fix_trace.py read the labels of the issues a pull request closes.
+    permissions:
+      contents: read
+      issues: read
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      BASE: origin/${{ github.base_ref }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Pull request text
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_pr_text.py --base "$BASE"
+      - name: A closed bug has its test and its ledger line
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_fix_trace.py --base "$BASE"
+      - name: Removed assertions are listed
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_oracle.py --base "$BASE"
+
   contribution-checks:
     name: contribution-checks
     if: ${{ !cancelled() }}
-    needs: [changes, test, performance, wheel, package, ci-coordinator, web, web-e2e, lint]
+    needs: [changes, test, performance, wheel, package, ci-coordinator, web, web-e2e, lint, conventions]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Reads the jobs of this run, to tell a job that no runner picked up from a job that failed.
@@ -365,11 +399,12 @@ jobs:
           WEB_RESULT: ${{ needs.web.result }}
           WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
           LINT_RESULT: ${{ needs.lint.result }}
+          CONVENTIONS_RESULT: ${{ needs.conventions.result }}
         run: |
-          printf 'Changed files: %s\nTests: %s\nPerformance: %s\nWheel build: %s\nWheel install: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\nLint: %s\n' "$CHANGES_RESULT" "$TEST_RESULT" "$PERFORMANCE_RESULT" "$WHEEL_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT" "$LINT_RESULT"
+          printf 'Changed files: %s\nTests: %s\nPerformance: %s\nWheel build: %s\nWheel install: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\nLint: %s\nConventions: %s\n' "$CHANGES_RESULT" "$TEST_RESULT" "$PERFORMANCE_RESULT" "$WHEEL_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT" "$LINT_RESULT" "$CONVENTIONS_RESULT"
           # The CI coordinator, the web checks and the web journeys are skipped when no file they read changed: that
           # counts as a pass, but only when the job that decided it succeeded.
-          if test "$CHANGES_RESULT" = success && test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$WHEEL_RESULT" = success && test "$PACKAGE_RESULT" = success && { test "$COORDINATOR_RESULT" = success || test "$COORDINATOR_RESULT" = skipped; } && { test "$WEB_RESULT" = success || test "$WEB_RESULT" = skipped; } && { test "$WEB_E2E_RESULT" = success || test "$WEB_E2E_RESULT" = skipped; } && test "$LINT_RESULT" = success; then
+          if test "$CHANGES_RESULT" = success && test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$WHEEL_RESULT" = success && test "$PACKAGE_RESULT" = success && { test "$COORDINATOR_RESULT" = success || test "$COORDINATOR_RESULT" = skipped; } && { test "$WEB_RESULT" = success || test "$WEB_RESULT" = skipped; } && { test "$WEB_E2E_RESULT" = success || test "$WEB_E2E_RESULT" = skipped; } && test "$LINT_RESULT" = success && test "$CONVENTIONS_RESULT" = success; then
             exit 0
           fi
           # A job cancelled before any step ran never got a runner: GitHub gave up waiting for one. That says

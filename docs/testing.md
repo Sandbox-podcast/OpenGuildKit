@@ -170,7 +170,9 @@ In a test written with `unittest`, patch `sys.stdin.isatty` to return true and `
 
 ## What a local transcript cost
 
-`python scripts/agent_cost.py TRANSCRIPT.jsonl` reads one Claude Code transcript on disk and prints totals only: input, cache and output tokens, turns, subagents, command wait, and a cost from the rates named in the script. It prints no prompt and no tool result. It does not measure a live session and it sends nothing.
+`python scripts/agent_cost.py TRANSCRIPT.jsonl` reads one Claude Code transcript on disk and prints totals only: input, cache and output tokens, turns, subagents, command wait, lines skipped, and a cost from the rates named in the script. It prints no prompt and no tool result.
+`python scripts/agent_cost.py SESSION_FOLDER` adds the files of `subagents/*.jsonl` to the main transcript and prints one line per file; `subagents` is the number of those files. `--json` prints the whole report.
+A message is counted once however many lines it fills. Each model has its rate in `RATES`, and a model without one is named as `unpriced_model` and left out of the cost. The wait is the time between a tool call and its result. It does not measure a live session and it sends nothing.
 
 ## Code coverage
 

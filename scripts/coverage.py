@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openguildkit.catalog import load_catalog  # noqa: E402
-from openguildkit.references import load_references  # noqa: E402
+from openguildkit.catalog import load_catalog  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.references import load_references  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
 
 OUTPUT = ROOT / "docs" / "coverage.md"
 

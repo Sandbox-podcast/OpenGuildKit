@@ -27,6 +27,11 @@ MAP = ROOT / "docs" / "agents" / "map.json"
 EXTRA = {
     "scripts/check_fast.py": ["tests/test_agent_native.py"],
     "scripts/agent_cost.py": ["tests/test_agent_native.py"],
+    "scripts/check_fix_trace.py": ["tests/test_agent_native.py"],
+    "scripts/check_oracle.py": ["tests/test_agent_native.py"],
+    "docs/agents/fixes.jsonl": ["tests/test_agent_native.py"],
+    "docs/agents/changelog-shape-base.json": ["tests/test_release.py"],
+    "scripts/check_pr_text.py": ["tests/test_agent_native.py"],
     "AGENTS.md": ["tests/test_agent_native.py"],
     "CLAUDE.md": ["tests/test_agent_native.py"],
     "docs/agents/conventions.md": ["tests/test_agent_native.py"],
