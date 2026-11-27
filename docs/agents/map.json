@@ -463,7 +463,8 @@
         "tests/test_evidence_fingerprints.py",
         "tests/test_org_catalog.py",
         "tests/test_requester.py",
-        "tests/test_audit_log.py"
+        "tests/test_audit_log.py",
+        "tests/test_managed_settings.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -485,7 +486,8 @@
         "tests/test_hosts.py",
         "tests/test_next_steps.py",
         "tests/test_unhooked_hosts.py",
-        "tests/test_audit_log.py"
+        "tests/test_audit_log.py",
+        "tests/test_managed_settings.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -553,6 +555,19 @@
         "tests/test_upgrades.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/managed.py",
+      "role": "Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running.",
+      "entry": [
+        "add_options",
+        "run",
+        "only_managed_hooks"
+      ],
+      "tests": [
+        "tests/test_managed_settings.py"
+      ],
+      "doc": "docs/managed-settings.md"
     },
     {
       "module": "src/openguildkit/market.py",
@@ -1387,7 +1402,8 @@
         "audit_setting"
       ],
       "tests": [
-        "tests/test_audit_log.py"
+        "tests/test_audit_log.py",
+        "tests/test_managed_settings.py"
       ],
       "doc": "docs/audit-log.md"
     }

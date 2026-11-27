@@ -222,6 +222,16 @@ printf '%s' '{"hook_event_name":"BeforeTool","tool_name":"replace","tool_input":
 
 Without an approved task, the first prints the reminder as `additionalContext` under `BeforeAgent` and exits with 0; each edit exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as a `systemMessage` and exits with 0.
 
+## Managed settings: one deployment for every project
+
+`openguildkit host apply` writes the settings of one project. Each of the three hosts also reads a layer that the company manages and that wins over the others, which an MDM deploys. `openguildkit host managed --host claude-code|codex|gemini-cli --os macos|linux|windows` prints the file for that layer, or writes it in a folder you give it, and installs nothing; [the page](../docs/managed-settings.md) says what each file holds, where each system expects it and what is left to verify.
+
+The pages behind it were read on 2026-11-26 by the audit of issue #453 and not read again when the command was written:
+
+- Claude Code, [Managed settings](https://code.claude.com/docs/en/managed-settings.md): the files `managed-settings.json` and the folder `managed-settings.d/`, the macOS profile `com.anthropic.claudecode`, the registry key `HKLM\SOFTWARE\Policies\ClaudeCode`; and [Settings reference](https://code.claude.com/docs/en/settings-reference.md): `allowManagedHooksOnly`, "Run only the hooks your organization deploys". With it, the hooks of a project do not run, and `host check` says so.
+- Codex, [Managed configuration](https://learn.chatgpt.com/docs/enterprise/managed-configuration.md): `requirements.toml` at `/etc/codex/` and `%ProgramData%\OpenAI\Codex\`, the MDM key `com.openai.codex:requirements_toml_base64`, and the pin of `[features].hooks = true` that keeps the hooks on. The key names of managed hooks and rules were not read: à vérifier.
+- Gemini CLI, [Configuration](https://geminicli.com/docs/reference/configuration/): the system settings file at `/etc/gemini-cli/settings.json`, `/Library/Application Support/GeminiCli/settings.json` and `C:\ProgramData\gemini-cli\settings.json`, which overrides the other files.
+
 ## Hooks of other tools: what was read and why none was added
 
 An issue asked for the hosts whose official documentation describes a hook that runs before a file edit and can refuse it. A host is added only when the documentation shows the input of that hook for an edit: the guard needs the path of the file to protect the task records and the profile, and a guard that guesses the key would either refuse every edit in `enforce` or let a protected file through. These pages were first read on 2026-11-25; the pages of Cursor and GitHub Copilot were read again on 2026-11-26 (issue #430), with the same answer. No live session of any of these tools was run.

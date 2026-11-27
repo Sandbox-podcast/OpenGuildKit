@@ -32,6 +32,7 @@ from .tasks import (
     STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
 )
 from .terminal import interactive
+from .workstation import no_profile_answer
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 
 MODES = ("off", "observe", "enforce")
@@ -350,7 +351,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
     off ends the hook before load(): whatever the catalog and the profile say, the answer is to let the edit through.
     """
     if _declared_mode(project) == "off":
-        return hook_answer(event, "off", "outside")
+        return no_profile_answer(event, project) or hook_answer(event, "off", "outside")
     mode, dialect = None, "claude"
     try:
         root, state, profile, catalog = load()

@@ -232,6 +232,20 @@ def _guard_hooks(host: str) -> dict:
     }
 
 
+def guard_hooks(host: str, command: str = "openguildkit", block_on_failure: bool = False) -> dict:
+    """The two guard hooks of a host, running `command` instead of the name on the PATH (a managed file gives its full
+    path). block_on_failure adds Claude Code's onFailure: block to the edit hook."""
+    hooks = json.loads(json.dumps(_guard_hooks(host)))
+    for groups in hooks.values():
+        for group in groups:
+            for handler in group["hooks"]:
+                edit = handler["command"] == GUARD_EDIT
+                handler["command"] = command + handler["command"].removeprefix("openguildkit")
+                if edit and block_on_failure and host == "claude-code":
+                    handler["onFailure"] = "block"
+    return hooks
+
+
 def _claude_hooks_present(hooks: object) -> bool:
     if not isinstance(hooks, dict):
         return False
@@ -374,6 +388,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
     """Whether the guard hooks are installed, protect the files they rely on, and can run on this workstation."""
     title = "The board is consulted before each change"
     shell = " Shell commands (sed -i, echo > file) do not go through the hook."
+    only = None
     if host == "claude-code":
         settings = _claude_settings(root)
         missing = [rule for rule in CLAUDE_PROTECTED_RULES if rule not in _claude_denied(root)]
@@ -389,6 +404,11 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
                      if unblocked else "")
                   + (" The settings lack \"disableAllHooks\": false, so a user setting can turn the hooks off."
                      if switchable else "") + shell)
+        from .managed import only_managed_hooks  # Here, not on top: managed.py imports this module.
+
+        only = only_managed_hooks()
+        if only:  # allowManagedHooksOnly: the hooks of the project do not run, only the managed ones do.
+            present, detail = only[1], only[0] + shell
     elif host == "codex":
         present = _claude_hooks_present(_codex_hooks(root).get("hooks", {}))
         detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
@@ -398,7 +418,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
     else:
         return _control("board", title, "instruction",
                         "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions.")
-    if present and shutil.which("openguildkit") is None:
+    if present and not only and shutil.which("openguildkit") is None:
         return _control("board", title, "missing", f"The hooks are installed, but {OFF_PATH}", cause="path")
     return _control("board", title, "enforced" if present else "missing", detail)
 

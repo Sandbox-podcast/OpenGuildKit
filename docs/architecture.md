@@ -51,6 +51,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `trace_cli.py` | The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only. |
 | `audit_cli.py` | The `audit` commands: verify the chain of the audit log, and export its events for a SIEM. |
 | `audit_log.py` | The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies the chain and rebuilds events from the records. |
+| `managed.py` | Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running. |
 | `workstation.py` | Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
 | `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |

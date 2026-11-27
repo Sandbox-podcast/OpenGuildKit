@@ -84,6 +84,8 @@ EXAMPLES = [
     Example("observed", "guard --hook pre-edit", sends=(EDIT_HOOK,)),
     Example("claude", "host check", code=1), Example("claude", "host check --json", code=1),
     Example("claude", "host apply"),
+    Example("bare", "host managed --host claude-code --os linux"),
+    Example("bare", "host managed --host claude-code --os linux --json", code=1),
     Example("claude", "host scan"), Example("suspect", "host scan --strict", code=1),
     Example("suspect", "host scan --json", code=1),
     Example("init", "integrations --host claude-code"),
