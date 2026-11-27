@@ -6,7 +6,7 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { useCli } from './query';
-import { useBrains, useTasks } from './data';
+import { useBrainTitles, useTasks } from './data';
 import { brainName } from './labels';
 import { PROJECT_PLACES } from './ProjectShell';
 import type { Pattern, Reference } from './types';
@@ -16,9 +16,11 @@ interface Hit { kind: string; icon: PixelIconName; title: string; detail: string
 export function ProjectSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState('');
   const tasks = useTasks();
-  const brains = useBrains();
-  const refs = useCli<Reference[]>(open && q.length >= 2 ? ['references', '--json'] : null);
-  const patterns = useCli<Pattern[]>(open && q.length >= 2 ? ['patterns', '--json'] : null);
+  // The shell mounts the search on every place: nothing but the tasks is read until a person types two letters.
+  const searching = open && q.length >= 2;
+  const brains = useBrainTitles(searching);
+  const refs = useCli<Reference[]>(searching ? ['references', '--json'] : null);
+  const patterns = useCli<Pattern[]>(searching ? ['patterns', '--json'] : null);
   const hits = useMemo<Hit[]>(() => {
     const words = norm(q).split(/\s+/).filter(Boolean);
     const match = (text: string) => { const t = norm(text); return words.every((w) => t.includes(w)); };

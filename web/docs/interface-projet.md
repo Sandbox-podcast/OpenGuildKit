@@ -145,7 +145,8 @@ Le serveur garde entre deux commandes ce que chaque commande de la CLI reconstru
 
 - Une réponse JSON ne porte pas le texte imprimé en double. Un écran peut demander d'omettre les champs qu'il n'affiche pas : la fiche d'une quête laisse le texte de la consultation sur le serveur, l'historique ne garde que les dates et les décisions.
 - Les réponses de plus de 2 Ko sont compressées quand le navigateur l'accepte, ce qui compte à travers un tunnel SSH ou un port redirigé.
-- La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil.
+- La vue d'ensemble (quêtes, contrôle des instructions, alertes, partages, veille, catalogue, hôte) part en une seule requête. Elle seule se recharge après une action ; ce qui ne dépend que du catalogue (cerveaux, références, packs, outils, modèles) ne se recharge qu'après `sync`, `update`, `init` ou une modification du profil, et au clic sur « Actualiser ». Le retour sur l'onglet recharge le projet, pas le catalogue.
+- Les cerveaux (`brains --json`, 145 Ko dont 97 % de lentilles, de déclencheurs et de sources) ne se chargent que là où on les lit : la recherche les demande après deux lettres, les écrans qui n'affichent que des titres (Conseil, Quêtes, Blueprint) en reçoivent 5,6 Ko (`omit`), la Guilde et les avis du Conseil les lisent en entier.
 - Le lieu de l'adresse ouverte est chargé avant le premier rendu ; les autres se chargent en arrière-plan ensuite. Changer de lieu ne passe donc jamais par l'écran d'attente que React 19 retient environ 300 ms.
 
 Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-project.mjs` suivi de l'adresse imprimée par `openguildkit ui` (Chrome, navigateur neuf à chaque exécution, médiane de 3) :
@@ -158,6 +159,8 @@ Mesures du 21 novembre 2026 sur le projet d'exemple, avec `node scripts/measure-
 | Forge d'une quête | 28 ms | 3 | 11 Ko |
 | Bibliothèque (464 références) | 51 ms | 1 | 308 Ko |
 | Chroniques | 50 ms | 1 | 49 Ko |
+
+Mesures du 27 novembre 2026 (Chrome, même projet d'exemple) : premier écran, 3 requêtes d'API au lieu de 4 (plus de `brains --json`) ; « Actualiser » depuis le Royaume, 2 requêtes et 6 Ko décompressés au lieu de 3 et 148 Ko . `tests/e2e/project-requests.spec.ts` compte ces requêtes.
 
 Avant ces optimisations, chaque changement de lieu prenait environ 320 ms, le premier écran environ 900 ms, et les Chroniques recevaient 1,3 Mo.
 

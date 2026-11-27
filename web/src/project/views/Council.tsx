@@ -9,7 +9,7 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Markdown } from '@/shared/ui/markdown';
 import { Icon } from '@/shared/pixel/icons';
 import { listFiles, run, terminalCommand } from '../api';
-import { boardTitle, useBrains, useProfile, useTasks } from '../data';
+import { boardTitle, useBrains, useBrainTitles, useProfile, useTasks } from '../data';
 import { invalidate, showTerminal, useAction, useCli, useCliText, useQuery } from '../query';
 import { BASIS, BRAIN_FR, CONCERNS, CONFIDENCE, DATA, DATA_PHRASE, KIND, PASS, QUESTION_FR, QUESTION_HELP_FR, QUESTION_UNSURE_FR, RESEARCH, SURFACE, brainName, fmtWhen, isDecided, needsReconsult, nextLabel, nextLang, openPointLabel, verdict } from '../labels';
 import { ActionForm, CommandLine, ErrorNotice, FilePick, JsonDetails, Q, Section, StepRail, TaskStatusBadge, UnreadableTask, copyText, useDebounced, useRemembered } from '../parts';
@@ -167,7 +167,7 @@ function QuestionHelp({ q }: { q: Question }) {
 }
 
 function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
-  const brains = useBrains();
+  const brains = useBrainTitles();
   const profile = useProfile();
   const json = JSON.stringify(answers);
   const [add, setAdd] = useState<string[]>([]);
@@ -231,7 +231,7 @@ function Routing({ task, answers }: { task: TaskRecord; answers: Answers }) {
 
 function Passes({ task }: { task: TaskRecord }) {
   const progress = useCli<PassProgress[]>(['task', 'progress', task.id, '--json']);
-  const brains = useBrains();
+  const brains = useBrainTitles();
   const { mode } = usePrefs();
   const [pass, setPass] = useState<{ board: string; start: boolean } | null>(null);
   const [summary, setSummary] = useState('');

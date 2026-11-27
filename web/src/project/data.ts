@@ -39,6 +39,12 @@ export const useUpdate = () => useOverviewPart<Update>('update');
 export const useHost = () => useOverviewPart<HostControl[]>('host');
 /** The brains only change with the catalog: kept out of the overview, which reloads after each action. */
 export const useBrains = () => useCli<Record<string, Brain>>([...ARGV.brains]);
+/**
+ * Titles and descriptions only: the lenses, triggers, sources and questions of each brain are 97 % of its 146 KB, and
+ * only the Guilde and the reviews show them. `enabled` false loads nothing, for a search that is closed.
+ */
+export const BRAIN_TITLES_OMIT = ['review', 'triggers', 'sources', 'questions', 'expertises'];
+export const useBrainTitles = (enabled = true) => useCli<Record<string, Pick<Brain, 'id' | 'title' | 'description'>>>(enabled ? [...ARGV.brains] : null, { omit: BRAIN_TITLES_OMIT });
 export const useGuard = () => useCli<Guard>([...ARGV.guard]);
 /** `check` answers through its exit code: the full result, success or not. */
 export function useCheck(): Query<CliResult> {
@@ -53,7 +59,7 @@ export function useProfile() {
 }
 
 /** The French name of a brain, or the catalog's title for a brain the page does not know. */
-export const boardTitle = (brains: Record<string, Brain> | undefined, id: string) => brainName(id, brains?.[id]?.title);
+export const boardTitle = (brains: Record<string, { title: string }> | undefined, id: string) => brainName(id, brains?.[id]?.title);
 
 const OVERVIEW = ['tasks', 'check', 'alerts', 'shares', 'due', 'update', 'host'] as const;
 type OverviewPart = (typeof OVERVIEW)[number];

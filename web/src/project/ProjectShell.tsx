@@ -90,12 +90,12 @@ export function ProjectShell({ children }: { children: ReactNode }) {
   useShortcuts({ openSearch: () => setSearchOpen(true), go: (to) => navigate(to), toggleMode: () => setPrefs({ mode: pro ? 'explorer' : 'focus' }) });
 
   // Work done in a terminal (an approval, a waiver) shows up when the person comes back to the page.
-  // A quick switch of tabs does not reload everything.
+  // A quick switch of tabs does not reload everything, and the catalog (brains, references) stays: only Actualiser reloads it.
   useEffect(() => {
     let hiddenAt = 0;
     const onFocus = () => {
       if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
-      if (Date.now() - hiddenAt > 1500) invalidate();
+      if (Date.now() - hiddenAt > 1500) invalidate('project');
     };
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);

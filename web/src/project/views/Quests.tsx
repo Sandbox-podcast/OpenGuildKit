@@ -6,7 +6,7 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';
 import { projectPath } from '../api';
-import { useBrains, useTasks, boardTitle } from '../data';
+import { useBrainTitles, useTasks, boardTitle } from '../data';
 import { useAction, useCli } from '../query';
 import { CLOSING_GROUP, CONCERNS, DATA, KIND, RESEARCH, SURFACE, decidedBy, fmtDay, fmtWhen, isBlocked, isDecided, needsReconsult, nextLabel, nextLang, statusesOf, taskStatus, verdict } from '../labels';
 import { ExternalLink, JsonDetails, Q, StepRail, TaskLink, TaskStatusBadge, UnreadableTask } from '../parts';
@@ -133,7 +133,7 @@ export function QuestSheet({ id }: { id: string }) {
 function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
   const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template', 'scope'] });
   const list = useTasks();
-  const brains = useBrains();
+  const brains = useBrainTitles();
   const [followUp, setFollowUp] = useState(false);
   const { act, busy } = useAction();
   const children = (list.data ?? []).filter((t) => t.follows === id);

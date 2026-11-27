@@ -7,7 +7,7 @@ import { Brand } from '@/app/Brand';
 import { Badge, Button, Checkbox, KV, Notice, Panel, Tabs, TextArea, TextField } from '@/shared/ui/core';
 import { Icon } from '@/shared/pixel/icons';
 import { ApiError, cliMessage, currentSession, run, saveProfile, terminalCommand } from '../api';
-import { useBrains, useProfile } from '../data';
+import { useBrainTitles, useProfile } from '../data';
 import { invalidate, reportTouched, showTerminal, useAction, useCli, useQuery } from '../query';
 import { toast } from '@/shared/ui/toast';
 import { NORM_FR, SECTOR_FR, reasonLabel } from '../labels';
@@ -215,7 +215,7 @@ async function save(next: Profile | string) {
 
 function ProfileEditor() {
   const profile = useProfile();
-  const brains = useBrains();
+  const brains = useBrainTitles();
   const [draft, setDraft] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (profile.data) setDraft(profile.data); }, [profile.data]);
