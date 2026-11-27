@@ -1,8 +1,9 @@
 """The `org-catalog` commands: follow an organization catalog pinned at a commit of a local Git copy (RFC #446).
 
 `show` says what the project follows; `set` shows what a commit brings and, with --by and --reason at a terminal,
-pins it in the catalog lock; `accept` records that a person accepts a project record that replaces an organization
-record; `off` stops following it. Nothing here runs for a project that never calls them.
+pins it in the catalog lock (with --name, under a name that carries no path); `accept` records that a person accepts a
+project record that replaces an organization record; `off` stops following it. The lock keeps each pin and each stop
+with who, when and why. Nothing here runs for a project that never calls them.
 """
 
 import os
@@ -15,7 +16,10 @@ from .lock import (
     COLLECTIONS, used_ids, apply_lock, build_lock, central_policy, installed_catalog, package_version, project_catalog,
     read_lock, write_lock,
 )
-from .org_catalog import changes, organization_in, read_files, records_of, replacements, unaccepted_replacements
+from .org_catalog import (
+    MIGRATE_COMMAND, NAME, changes, copies_read_from, organization_in, read_files, records_of, replacements,
+    unaccepted_replacements, variable_name,
+)
 from .profile_cli import print_touched
 from .project import load_profile, sync_instructions
 from .shell import shell_word
@@ -40,6 +44,9 @@ def add_parser(commands) -> None:
                     "--reason, a person pins it at a terminal.")
     setter.add_argument("--repo", type=Path, required=True, help="The local Git copy of the organization catalog.")
     setter.add_argument("--commit", required=True, help="The full SHA of the commit to follow.")
+    setter.add_argument("--name", help="Pin it under this name, which carries no path: each machine points "
+                                       "OPENGUILDKIT_ORG_CATALOG_NAME at its copy, and guard --ci takes "
+                                       "--org-catalog NAME=PATH.")
     setter.add_argument("--by", help="The person who pins it.")
     setter.add_argument("--reason", help="Why, in one line.")
     setter.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -81,11 +88,15 @@ def _stored_repo(repo: Path, root: Path) -> str:
 def _show(args, root: Path, state: Path) -> int:
     lock = read_lock(state)
     pin = (lock or {}).get("organization")
+    history = (lock or {}).get("organization_history", [])
     if pin is None:
         if args.json:
-            print_json({"organization": None})
+            print_json({"organization": None, **({"history": history} if history else {})})
         else:
             print("No organization catalog: the project uses the bundled catalog and its own records.")
+            if history and history[-1]["action"] == "stopped":
+                last = history[-1]
+                print(f"Stopped by {last['by']} on {last['on']} at {last['commit'][:12]}: {last['reason']}")
             print("To follow one: openguildkit org-catalog set --repo PATH --commit SHA shows what it brings.")
         return 0
     catalog = project_catalog(args, state)
@@ -97,12 +108,16 @@ def _show(args, root: Path, state: Path) -> int:
                 if record_id in provided[collection]]
     rows = replacements(catalog, lock)
     if args.json:
-        print_json({"organization": {key: pin[key] for key in ("repo", "commit", "fingerprint", "pinned")},
-                    "records": provided, "used": used, "replaced": rows})
+        print_json({"organization": {key: pin[key] for key in ("name", "repo", "commit", "fingerprint", "pinned")
+                                     if key in pin},
+                    "records": provided, "used": used, "replaced": rows,
+                    **({"migrate": MIGRATE_COMMAND} if "repo" in pin else {}), **({"history": history} if history else {})})
         return 0
     pinned = pin["pinned"]
-    print(f"Organization catalog: {pin['repo']} at {pin['commit'][:12]}, pinned by {pinned['by']} on {pinned['on']}: "
-          f"{pinned['reason']}")
+    print(f"Organization catalog: {pin.get('name') or pin['repo']} at {pin['commit'][:12]}, pinned by {pinned['by']} on "
+          f"{pinned['on']}: {pinned['reason']}")
+    if "repo" in pin:
+        print(f"The lock keeps the path of one machine's copy, which another machine and CI cannot resolve: {MIGRATE_COMMAND}.")
     counts = ", ".join(f"{len(ids)} {collection if len(ids) > 1 else collection[:-1]}"
                        for collection, ids in provided.items() if ids) or "no records"
     print(f"It provides {counts}; the profile uses {', '.join(used) or 'none of them'}.")
@@ -141,11 +156,15 @@ def _print_changes(found: dict, commit: str) -> None:
 def _set(args, root: Path, state: Path) -> int:
     if (args.by is None) != (args.reason is None):
         raise ValueError("Supply --by and --reason together to pin the commit, or neither to see what it brings.")
-    stored = _stored_repo(args.repo, root)
-    read = read_files(stored, args.commit, root)
+    if args.name is not None and not NAME.fullmatch(args.name):
+        raise ValueError("--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
+    folder = args.repo.resolve()
+    stored = args.name or _stored_repo(args.repo, root)
+    read = read_files(stored, args.commit, root, folder if args.name else None)
     target = load_catalog(state / "catalog", central_policy=central_policy(args), organization=read)
     after = records_of(target)
-    before, unreadable = _current_records(read_lock(state), state)
+    with copies_read_from(root, {args.name: str(folder)} if args.name else None):
+        before, unreadable = _current_records(read_lock(state), state)
     found = changes(before, after)
     found["versions"] = {name: record["version"] for name, record in after.items() if "version" in record}
     if args.by is None:
@@ -163,14 +182,17 @@ def _set(args, root: Path, state: Path) -> int:
     with project_lock(state):
         lock = read_lock(state)
         earlier = (lock or {}).get("organization") or {}
-        pin = {"repo": stored, "commit": args.commit, "fingerprint": read["fingerprint"], "pinned": person,
-               "exceptions": earlier.get("exceptions", [])}
-        touched = _write_pinned(root, state, args, lock, read, pin)
+        pin = {"name" if args.name else "repo": stored, "commit": args.commit, "fingerprint": read["fingerprint"],
+               "pinned": person, "exceptions": earlier.get("exceptions", [])}
+        touched = _write_pinned(root, state, args, lock, read, pin, {"action": "pinned", "commit": args.commit, **person})
     if args.json:
         print_json({"repo": stored, "commit": args.commit, "applied": True, "changes": _public(found)})
     else:
         _print_changes(found, args.commit)
         print(f"Pinned the organization catalog at {args.commit[:12]} ({stored}), by {person['by']}.")
+        if args.name:
+            print(f"Each machine points at its copy: {variable_name(args.name)}=PATH (guard --ci: --org-catalog "
+                  f"{args.name}=PATH).")
         print_touched(touched)
         print("Next: openguildkit check; openguildkit profile add pack ID adds one of its packs.")
     return 0
@@ -180,10 +202,11 @@ def _public(found: dict) -> dict:
     return {key: found[key] for key in ("added", "removed", "changed")}
 
 
-def _write_pinned(root: Path, state: Path, args, lock: dict | None, read: dict | None, pin: dict | None) -> list:
+def _write_pinned(root: Path, state: Path, args, lock: dict | None, read: dict | None, pin: dict | None,
+                  entry: dict) -> list:
     """Under the project lock: rewrite the instructions and the catalog lock for the organization catalog pinned
-    (pin) or for none (None), and return the tasks the change touches. A profile that uses a record the new
-    catalog lacks stops it, and nothing is written."""
+    (pin) or for none (None), add entry (who, when, why and the commit) to the history the lock keeps, and return the
+    tasks the change touches. A profile that uses a record the new catalog lacks stops it, and nothing is written."""
     live = load_catalog(state / "catalog", central_policy=central_policy(args), organization=read)
     bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
     catalog = apply_lock(live, lock)
@@ -206,6 +229,7 @@ def _write_pinned(root: Path, state: Path, args, lock: dict | None, read: dict |
     built.pop("organization", None)
     if pin is not None:
         built["organization"] = pin
+    built["organization_history"] = [*(lock or {}).get("organization_history", []), entry]
     write_lock(state, built)
     return touched
 
@@ -241,7 +265,9 @@ def _off(args, root: Path, state: Path) -> int:
         return 0
     _confirm("off", "stop following the organization catalog")
     with project_lock(state):
-        touched = _write_pinned(root, state, args, read_lock(state), None, None)
+        lock = read_lock(state)
+        touched = _write_pinned(root, state, args, lock, None, None,
+                                {"action": "stopped", "commit": lock["organization"]["commit"], **person})
     print(f"The project no longer follows the organization catalog, by {person['by']}: {person['reason']}")
     print_touched(touched)
     return 0

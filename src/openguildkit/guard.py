@@ -5,6 +5,7 @@ hooks run it when a request arrives and before a file edit. In CI, it checks tha
 pull request carries an exported decision that matches the rules of its base revision.
 """
 
+import calendar
 import hashlib
 import io
 import json
@@ -13,18 +14,19 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path, PurePosixPath
 
-from . import light_lane, requester
+from . import incident, light_lane, requester, roles
 from .catalog import load_catalog
 from .delivered_review import exported_review
 from .decisions import (
-    DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
+    CLOCK_SKEW, DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
     revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
-from .org_catalog import organization_in
+from .org_catalog import copies_read_from, organization_in, parse_copies
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import parse_json, read_json, write_json
@@ -286,11 +288,17 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     if mode == "off":
         return 0, "", ""
     dialect = hook_dialect(hook_input)
+    freeze = incident.frozen(profile)
+    if freeze and event == "prompt":
+        return 0, _context(event, f"OpenGuildKit: {incident.frozen_text(freeze)}. File edits are refused. {incident.LIFT}",
+                           dialect), ""
     approvals = covering_approvals(root, state, profile, catalog)
     if event == "prompt":
         return hook_answer(event, mode, "covered" if approvals else "uncovered", _describe(approvals), dialect,
                            scope_note(approvals))
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
+    if freeze and inside:  # Whatever the mode and the approvals: the person lifts the freeze.
+        return 2, "", f"OpenGuildKit: Edit refused: {incident.frozen_text(freeze)}. {incident.LIFT}"
     signers = signers_file(root, profile)
     keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
     host = profile.get("host")
@@ -754,7 +762,8 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
                 verify_recorded_signature(base_root, policy, payload, decision["signature"], decision["signer"],
                                           committed=not extracted, history=history)
             else:
-                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False)
+                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False,
+                                 at_signing=True)
         except ValueError as error:
             return "decision-signature-invalid", f"{relative}: {error}"
     return None
@@ -1001,6 +1010,23 @@ def _lane_fault(record: dict, files: list[str] | None, light: list[str], base: s
     return light_lane.outside_message(record["task"], record["paths"], light, outside, where) if outside else None
 
 
+def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | None:
+    """Why a new record cannot be true: its approval says it was signed (signed_at) after the commit of the change that
+    first carries the record, the clocks of two machines allowed to differ by CLOCK_SKEW."""
+    moment = (record["decision"].get("payload") or {}).get("signed_at")
+    brought = _git(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative)
+    first = brought.stdout.split()[:1]
+    try:
+        signed = calendar.timegm(time.strptime(moment, "%Y-%m-%dT%H:%M:%SZ"))
+    except (TypeError, ValueError):  # None, or malformed: the signature check says so.
+        return None
+    if brought.returncode or not first or signed <= int(first[0]) + CLOCK_SKEW.total_seconds():
+        return None
+    return (f"{relative}: the approval says it was signed at {moment}, after the commit that brings this record "
+            f"({time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(int(first[0])))}): a signature cannot be later than the "
+            "change that carries it. Sign and export the decision again.")
+
+
 def changes_since_approval(root: Path, task: dict) -> list[str] | None:
     """The files Git tracks that changed since the task's approval, committed or not, and the new files it does not
     track yet (the decision records left out); None when the approval named no Git revision."""
@@ -1065,14 +1091,16 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."
 
 
-def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None) -> dict:
+def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None,
+             org_catalog: list[str] | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
     cannot weaken the rules it is judged by. Each changed file must be listed by a valid record the change brings;
     a record of an approval already on base covers only the files its base version listed, so re-exporting an
-    old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory.
-    require_signed makes local approvals a problem.
+    old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory, inside
+    copies_read_from: the copy of an organization catalog is looked for from the real root, or at the NAME=PATH given
+    as org_catalog. require_signed makes local approvals a problem.
 
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
@@ -1104,9 +1132,16 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         _extract_base(root, base, base_root, [name for name in names
                                               if not name.startswith((f"{STATE_DIR}/tasks/", prefix))])
         base_state = base_root / STATE_DIR
-        catalog = catalog_for(base_state)
+        with copies_read_from(root, parse_copies(org_catalog)):
+            catalog = catalog_for(base_state)
         profile = load_profile(base_state, catalog)
         policy = approval_policy(profile)
+        freeze = incident.frozen(profile)
+        # A frozen base fails every change but the one that lifts the freeze, whatever the guard mode (incident.py).
+        if freeze and changed and not incident.lifts_freeze(base_state / "project.json", root / incident.PROFILE,
+                                                            changed, records):
+            problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
+                                                 f"{incident.LIFT}"))
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = Fingerprints(profile, catalog)
@@ -1152,7 +1187,14 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                 record, record["task"] not in earlier)
             if same:
                 problems.append(flag(same[0], f"{relative}: {same[1]}", relative))
-            if not fault and not journal and not outside and not same:
+            late = None if fault or record["task"] in earlier else _signed_late(root, base, record, relative)
+            if late:
+                problems.append(flag("decision-signed-late", late, relative))
+            # The roles of the base revision judge a record it does not carry: who cleared, who approved (roles.py).
+            outside_role = [] if fault or record["task"] in earlier else roles.record_problems(record, profile)
+            for message in outside_role:
+                problems.append(flag("decision-role-outside", f"{relative}: {message}", relative))
+            if not fault and not journal and not outside and not same and not late and not outside_role:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
@@ -1170,5 +1212,5 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             notes.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
-    return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
+    return {"mode": "enforce" if freeze else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}

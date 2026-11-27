@@ -6,11 +6,12 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
-from openguildkit.decisions import decision_payload, seal
+from openguildkit.decisions import decision_payload, payload_text, seal, verify_recorded_signature
 from openguildkit.storage import write_json
 
 from tests.support import CapturedCli
@@ -364,6 +365,163 @@ class DecisionTests(CapturedCli, unittest.TestCase):
             self.assertEqual(main(["--project", str(self.root), "guard", "--hook", "pre-edit"]), 2)
         self.forge_approval()
         self.run_cli("task", "handoff", TASK)
+
+    # Issue #478: certificates of an authority, and the time a signature was made.
+    PRINCIPAL = "camille@example.org"
+
+    def authority(self, valid: str = "-1h:+1h") -> Path:
+        """A folder with an SSH authority, a key certified by it for PRINCIPAL during `valid` (ssh-keygen -V), and an
+        allowed signers file that trusts the authority, not the key."""
+        keys = self.keys("ca", "camille")
+        subprocess.run(["ssh-keygen", "-q", "-s", str(keys / "ca"), "-I", "camille-certificate", "-n", self.PRINCIPAL,
+                        "-V", valid, str(keys / "camille.pub")], check=True, capture_output=True)
+        authority = " ".join((keys / "ca.pub").read_text().split()[:2])
+        (self.root / "allowed_signers").write_text(f"{self.PRINCIPAL} cert-authority {authority}\n", encoding="utf-8")
+        return keys
+
+    def signed_project(self):
+        self.git("init", "-q", "-b", "main")
+        self.reviewed({"guard": "enforce", "approval": {
+            "mode": "signed", "allowed_signers": "allowed_signers", "approvers": [self.PRINCIPAL]}})
+        self.git("add", "allowed_signers", ".openguildkit/project.json")
+        self.git("commit", "-q", "-m", "signers")
+
+    def decide_signed(self, keys, name, signed_at=None, code=0):
+        """decision-payload, the signature of `name`, then decide; signed_at goes to both commands."""
+        option = ["--signed-at", signed_at] if signed_at else []
+        self.run_cli("task", "decision-payload", TASK, "--by", "Camille", "--reason", "Agreed",
+                     "--output", keys / "decision.json", *option)
+        with patch("sys.stdin.isatty", return_value=False):
+            return self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
+                                "--signer", self.PRINCIPAL, "--signature", self.sign(keys, name), *option, code=code)
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_issue_478_a_certificate_of_the_authority_signs_an_approval(self):
+        """Issue #478: a certificate signed by an authority (cert-authority) verified, and no test or page said so."""
+        keys = self.authority()
+        self.signed_project()
+        self.decide_signed(keys, "camille-cert.pub")
+        self.run_cli("task", "handoff", TASK)
+        self.assertEqual(len(json.loads(self.run_cli("guard", "--json")[0])["covered_by"]), 1)
+        # The authority vouches for the principal, not the key: the bare key signs nothing.
+        self.run_cli("task", "revoke", TASK, "--by", "Camille", "--reason", "Again", typed=TASK)
+        self.run_cli("task", "consult", TASK, "--reuse-answers")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"],
+                                               **json.loads((EXAMPLE / "review.json").read_text())})
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        _, error = self.decide_signed(keys, "camille", code=1)
+        self.assertIn("does not verify", error)
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")
+    def test_issue_478_an_approval_signed_while_the_certificate_was_valid_holds_after_it_expires(self):
+        """Issue #478: the check ran at the current time, so an expiry invalidated every approval already recorded."""
+        keys = self.authority("20250101:20250102")
+        policy = {"mode": "signed", "allowed_signers": "allowed_signers", "approvers": [self.PRINCIPAL]}
+
+        def refusal(**extra) -> str:
+            """What verify_recorded_signature says about a payload signed with the certificate, empty when it holds."""
+            payload = {"task": TASK, "outcome": "approved", **extra}
+            (keys / "payload.json").write_bytes(payload_text(payload).encode("utf-8"))
+            signature = self.sign(keys, "camille-cert.pub", "payload.json")
+            try:
+                verify_recorded_signature(self.root, policy, payload, signature.read_text(), self.PRINCIPAL,
+                                          committed=False)
+            except ValueError as error:
+                return str(error)
+            return ""
+
+        self.assertIn("Certificate invalid: expired", refusal())
+        self.assertEqual(refusal(signed_at="2025-01-01T12:00:00Z"), "")
+        self.assertIn("Certificate invalid: expired", refusal(signed_at="2025-01-03T12:00:00Z"))
+        self.assertIn("YYYY-MM-DDTHH:MM:SSZ", refusal(signed_at="yesterday"))
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_issue_478_task_decide_verifies_at_the_current_time_and_refuses_a_signature_after_the_expiry(self):
+        """Issue #478: a new approval is judged now, whatever time the signature claims."""
+        keys = self.authority("20250101:20250102")
+        self.signed_project()
+        for claimed in ("2026-01-15T10:00:00Z", "2025-01-01T12:00:00Z"):
+            with self.subTest(claimed=claimed):
+                _, error = self.decide_signed(keys, "camille-cert.pub", claimed, code=1)
+                self.assertIn("Certificate invalid: expired", error)
+        for claimed, said in (("2099-01-01T00:00:00Z", "in the future"), ("tomorrow", "YYYY-MM-DDTHH:MM:SSZ")):
+            for command in (("decision-payload",), ("decide", "--approve", "--signer", self.PRINCIPAL, "--signature",
+                                                    keys / "decision.json.sig")):
+                _, error = self.run_cli("task", command[0], TASK, "--by", "Camille", "--reason", "Agreed", *command[1:],
+                                        "--signed-at", claimed, code=1)
+                self.assertIn(said, error)
+        self.assertEqual(json.loads(self.task_path().read_text())["status"], "reviewed")
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_issue_478_the_time_of_the_signature_is_signed_and_changing_it_breaks_the_signature(self):
+        """Issue #478: signed_at is part of what the approver signs and of the seal."""
+        keys = self.keys("camille")
+        (self.root / "allowed_signers").write_text(
+            f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
+        self.signed_project()
+        moment = "2026-01-15T10:00:00Z"
+        self.run_cli("task", "decision-payload", TASK, "--by", "Camille", "--reason", "Agreed", "--signed-at", moment,
+                     "--output", keys / "decision.json")
+        self.assertEqual(json.loads((keys / "decision.json").read_text())["signed_at"], moment)
+        signature = self.sign(keys, "camille")
+        decide = ["task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", "--signer",
+                  self.PRINCIPAL, "--signature", signature]
+        with patch("sys.stdin.isatty", return_value=False):
+            _, error = self.run_cli(*decide, code=1)
+            self.assertIn("does not verify", error)
+            self.assertIn("--signed-at", error)
+            _, error = self.run_cli(*decide, "--signed-at", "2026-01-15T10:00:01Z", code=1)
+            self.assertIn("does not verify", error)
+            self.run_cli(*decide, "--signed-at", moment)
+        record = json.loads(self.task_path().read_text())
+        self.assertEqual(record["decision"]["signed_at"], moment)
+        self.run_cli("task", "handoff", TASK)
+        record["decision"]["signed_at"] = "2026-01-15T10:00:01Z"
+        self.task_path().write_text(json.dumps(record), encoding="utf-8")
+        _, error = self.run_cli("task", "handoff", TASK, code=1)
+        self.assertIn("no longer matches what was approved", error)
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_issue_478_a_signature_without_signed_at_is_what_it_was_before(self):
+        """Issue #478: nothing changes for an approver who does not ask for signed_at."""
+        keys = self.keys("camille")
+        (self.root / "allowed_signers").write_text(
+            f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
+        self.signed_project()
+        refused = self.run_cli("task", "decide", TASK, "--signed-at", "2026-01-15T10:00:00Z", "--request-changes",
+                               "--by", "Camille", "--reason", "x", code=1)[1]
+        self.assertIn("goes with approving", refused)
+        self.decide_signed(keys, "camille")
+        self.assertNotIn("signed_at", json.loads((keys / "decision.json").read_text()))
+        self.assertNotIn("signed_at", json.loads(self.task_path().read_text())["decision"])
+
+    @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
+    def test_issue_478_guard_ci_refuses_a_signature_later_than_the_commit_that_brings_the_record(self):
+        """Issue #478: a signed_at after the date of the commit that carries the record cannot be true."""
+        keys = self.keys("camille")
+        (self.root / "allowed_signers").write_text(
+            f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
+        self.signed_project()
+        self.git("checkout", "-q", "-b", "late")
+        moment = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.decide_signed(keys, "camille", moment)
+        self.run_cli("task", "export", TASK)
+        record = f".openguildkit/decisions/{TASK}.json"
+        self.git("add", "-f", record)
+        for branch, date in (("late", "2020-01-01T00:00:00Z"), ("on-time", "2099-01-01T00:00:00Z")):
+            if branch == "on-time":
+                self.git("checkout", "-q", "-b", branch, "main")
+                self.git("checkout", "late", "--", record)
+            subprocess.run(["git", "-C", str(self.root), "commit", "-q", "-m", "record"], check=True, capture_output=True,
+                           env={**os.environ, "GIT_COMMITTER_DATE": date, "GIT_AUTHOR_DATE": date})
+            late = branch == "late"
+            result = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--json", code=1 if late else 0)[0])
+            self.assertEqual(result["ok"], not late, result)
+            if late:
+                self.assertIn("signed at", " ".join(result["problems"]))
+                sarif = json.loads(self.run_cli("guard", "--ci", "--base", "main", "--format", "sarif", code=1)[0])
+                self.assertIn("decision-signed-late", {item["ruleId"] for item in sarif["runs"][0]["results"]})
 
 
 if __name__ == "__main__":

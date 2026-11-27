@@ -236,6 +236,156 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertIn("No organization catalog", self.cli("org-catalog", "show").stdout)
         self.cli("check")
 
+    # Issue #457: the lock keeps a name, not a path; guard --ci reads the copy; off keeps who and why.
+    def commit_project(self):
+        for arguments in (("init", "-q", "-b", "main"), ("add", "-A"), ("commit", "-q", "-m", "base")):
+            git(self.root, *arguments)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        (self.root / "app.py").write_text("print('change')\n", encoding="utf-8")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-q", "-m", "change")
+
+    def ci(self, *options, code=0) -> dict:
+        return json.loads(self.cli("guard", "--ci", "--base", "main", "--json", *options, code=code).stdout)
+
+    def pin_named(self, commit: str, name: str = "acme"):
+        return self.cli("org-catalog", "set", "--name", name, "--repo", self.org, "--commit", commit, "--by", "CM",
+                        "--reason", "Platform packs", typed=commit[:12])
+
+    def test_issue_457_guard_ci_judges_a_pull_request_of_a_project_pinned_at_a_relative_path(self):
+        """Issue #457: guard --ci failed with 'is not a Git repository' because the copy's relative path was read
+        from the temporary folder that holds the base revision."""
+        self.pin(self.first)
+        self.commit_project()
+        result = self.ci()
+        self.assertEqual(result["problems"], ["The changes come with no exported decision (openguildkit task export ID)."])
+
+    def test_issue_457_a_missing_copy_names_the_resolved_path(self):
+        """Issue #457: the message named the path of the lock, never the folder it resolved to."""
+        self.pin(self.first)
+        shutil.move(self.org, self.base / "elsewhere")
+        refused = self.cli("check", code=1).stderr
+        self.assertIn("../org", refused)
+        self.assertIn(str((self.root / "../org").resolve()), refused)
+
+    def test_issue_457_a_named_pin_keeps_no_path_and_each_machine_points_at_its_own_copy(self):
+        """Issue #457: the committed lock held the path of the person who pinned, the same for every machine."""
+        refused = self.cli("org-catalog", "set", "--name", "Not A Name", "--repo", self.org, "--commit", self.first,
+                           "--by", "CM", "--reason", "x", typed=self.first[:12], code=1)
+        self.assertIn("name", refused.stderr)
+        pinned = self.pin_named(self.first)
+        self.assertIn("OPENGUILDKIT_ORG_CATALOG_ACME", pinned.stdout)
+        organization = self.lock()["organization"]
+        self.assertEqual(organization["name"], "acme")
+        self.assertNotIn("repo", organization)
+        text = (self.root / ".openguildkit" / "catalog.lock.json").read_text(encoding="utf-8")
+        self.assertNotIn(str(self.org), text)
+        before = text.encode("utf-8")
+        unset = self.cli("check", code=1).stderr
+        self.assertIn("OPENGUILDKIT_ORG_CATALOG_ACME", unset)
+        self.assertIn("--org-catalog acme=", unset)
+        other = self.base / "second-machine" / "catalogs" / "acme"
+        other.parent.mkdir(parents=True)
+        shutil.copytree(self.org, other)
+        for folder in (self.org, other):
+            with patch.dict("os.environ", {"OPENGUILDKIT_ORG_CATALOG_ACME": str(folder)}):
+                self.assertIn("org-review", json.loads(self.cli("catalog", "--json").stdout)["packs"])
+                shown = json.loads(self.cli("org-catalog", "show", "--json").stdout)["organization"]
+                self.assertEqual((shown["name"], "repo" in shown), ("acme", False))
+        self.assertEqual((self.root / ".openguildkit" / "catalog.lock.json").read_bytes(), before)
+
+    def test_issue_457_guard_ci_takes_the_copy_of_a_named_pin_from_the_flag_or_the_variable(self):
+        """Issue #457: guard --ci had no way to be told where the organization catalog is on a runner."""
+        self.pin_named(self.first)
+        self.commit_project()
+        problem = ["The changes come with no exported decision (openguildkit task export ID)."]
+        self.assertIn("OPENGUILDKIT_ORG_CATALOG_ACME", self.cli("guard", "--ci", "--base", "main", code=1).stderr)
+        self.assertEqual(self.ci("--org-catalog", f"acme={self.org}")["problems"], problem)
+        with patch.dict("os.environ", {"OPENGUILDKIT_ORG_CATALOG_ACME": str(self.org)}):
+            self.assertEqual(self.ci()["problems"], problem)
+        malformed = self.cli("guard", "--ci", "--base", "main", "--org-catalog", "acme", code=1)
+        self.assertIn("NAME=PATH", malformed.stderr)
+
+    def test_issue_457_a_decision_is_judged_under_the_rules_of_a_pinned_catalog(self):
+        """Issue #457: a pull request of such a project could not be judged at all, so none could be approved."""
+        self.pin_named(self.first)
+        work = self.root / ".openguildkit" / "work"
+        work.mkdir()
+        (work / "answers.json").write_text(json.dumps(
+            {"kind": "bug", "surface": ["service"], "data": "none", "research": "local", "concerns": ["none"]}),
+            encoding="utf-8")
+        (self.root / "notes.md").write_text("The export job retries once.\n", encoding="utf-8")
+        with patch.dict("os.environ", {"OPENGUILDKIT_ORG_CATALOG_ACME": str(self.org)}):
+            self.cli("profile", "add", "pack", "org-review", "--by", "CM", "--reason", "Shared rule")
+            self.cli("profile", "set", "guard", "enforce", "--by", "CM", "--reason", "Gate")
+            for arguments in (("init", "-q", "-b", "main"), ("add", "-A"), ("commit", "-q", "-m", "base")):
+                git(self.root, *arguments)
+            git(self.root, "checkout", "-q", "-b", "feature")
+            self.cli("task", "new", "Add a retry", "--id", "retry")
+            self.cli("task", "consult", "retry", "--answers", work / "answers.json")
+            template = json.loads(self.cli("task", "template", "retry").stdout)
+            template["summary"] = "The boards agree."
+            for entry in template["boards"]:
+                entry.update(recommendation="Add it.", open_questions=[],
+                             evidence=[{"source": "project-file", "ref": "notes.md", "supports": "It retries."}])
+                for lens in entry["challenge"]["specialists"]:
+                    lens.update(finding="Seen in the notes.", basis="observed", evidence_refs=[1])
+                entry["challenge"].update(verdict="proceed", confidence="medium", alternative="None.",
+                                          failure_mode="None.", verification="Run it twice.")
+            (work / "review.json").write_text(json.dumps(template), encoding="utf-8")
+            self.cli("task", "review", "retry", "--file", work / "review.json")
+            self.cli("task", "decide", "retry", "--approve", "--by", "Camille", "--reason", "Agreed", typed="retry")
+            (self.root / "app.py").write_text("print('retry')\n", encoding="utf-8")
+            git(self.root, "add", "-A")
+            git(self.root, "commit", "-q", "-m", "work")
+            self.cli("task", "export", "retry")
+            git(self.root, "add", "-f", ".openguildkit/decisions/retry.json")
+            git(self.root, "commit", "-q", "-m", "decision")
+        result = self.ci("--org-catalog", f"acme={self.org}")
+        self.assertEqual((result["ok"], result["decisions"]), (True, ["retry"]))
+
+    def test_issue_457_a_lock_with_a_path_is_still_read_and_show_proposes_the_migration(self):
+        """Issue #457: the current format (repo) must keep working, with the way to the portable one."""
+        self.pin(self.first)
+        shown = self.cli("org-catalog", "show")
+        self.assertIn("org-catalog set --name NAME --repo PATH --commit", shown.stdout)
+        migrate = json.loads(self.cli("org-catalog", "show", "--json").stdout)["migrate"]
+        self.assertIn("--name NAME", migrate)
+        self.pin_named(self.first)
+        with patch.dict("os.environ", {"OPENGUILDKIT_ORG_CATALOG_ACME": str(self.org)}):
+            self.assertNotIn("--name NAME", self.cli("org-catalog", "show").stdout)
+            self.assertNotIn("migrate", json.loads(self.cli("org-catalog", "show", "--json").stdout))
+
+    def test_issue_457_off_keeps_who_why_when_and_the_commit_left(self):
+        """Issue #457: org-catalog off printed the person and the reason and wrote them nowhere."""
+        self.pin(self.first)
+        write_record(self.org, "packs", pack("org-review", "1.1.0"))
+        second = self.commit("Second edition")
+        self.pin(second, "Second edition")
+        self.cli("org-catalog", "off", "--by", "mallory", "--reason", "too strict", typed="off")
+        for name in ("catalog.lock.json", "project.json"):
+            text = (self.root / ".openguildkit" / name).read_text(encoding="utf-8")
+            self.assertEqual(("mallory" in text, "too strict" in text), (name == "catalog.lock.json",) * 2, name)
+        shown = json.loads(self.cli("org-catalog", "show", "--json").stdout)
+        self.assertIsNone(shown["organization"])
+        stopped = shown["history"][-1]
+        self.assertEqual({key: stopped[key] for key in ("action", "by", "reason", "commit")},
+                         {"action": "stopped", "by": "mallory", "reason": "too strict", "commit": second})
+        self.assertRegex(stopped["on"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertEqual([item["action"] for item in shown["history"]], ["pinned", "pinned", "stopped"])
+        self.assertEqual(shown["history"][0]["commit"], self.first)
+        self.assertIn("Stopped by mallory", self.cli("org-catalog", "show").stdout)
+        self.cli("update", "--apply")
+        self.cli("sync")
+        self.assertEqual(len(self.lock()["organization_history"]), 3)
+
+    def test_issue_457_a_project_that_never_pins_one_has_no_history_and_the_same_output(self):
+        """Issue #457: a project without an organization catalog reads and writes what it did before."""
+        before = (self.root / ".openguildkit" / "catalog.lock.json").read_bytes()
+        self.cli("update", "--apply")
+        self.assertEqual((self.root / ".openguildkit" / "catalog.lock.json").read_bytes(), before)
+        self.assertEqual(json.loads(self.cli("org-catalog", "show", "--json").stdout), {"organization": None})
+
 
 if __name__ == "__main__":
     unittest.main()

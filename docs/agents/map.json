@@ -465,6 +465,21 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/incident.py",
+      "role": "Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an approval, both set with `profile set`.",
+      "entry": [
+        "frozen",
+        "frozen_text",
+        "max_age_days",
+        "expired_problem",
+        "lifts_freeze"
+      ],
+      "tests": [
+        "tests/test_incident.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/integrations.py",
       "role": "Installs the agent skill and the subagents shipped with this version.",
       "entry": [
@@ -933,6 +948,21 @@
         "tests/test_rule_decline.py"
       ],
       "doc": "docs/workflow.md"
+    },
+    {
+      "module": "src/openguildkit/roles.py",
+      "role": "Roles by committee, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`.",
+      "entry": [
+        "members",
+        "clearance_problem",
+        "blocking_boards",
+        "approval_problem",
+        "record_problems"
+      ],
+      "tests": [
+        "tests/test_roles.py"
+      ],
+      "doc": "docs/architecture.md"
     },
     {
       "module": "src/openguildkit/routing.py",

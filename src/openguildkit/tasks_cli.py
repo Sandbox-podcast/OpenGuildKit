@@ -10,15 +10,15 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, delivered_review, light_lane, requester
+from . import alerts_cli, delivered_review, light_lane, requester, roles
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
 from .clock import today
 from .consultation import board_brief, pack_rules
 from .decisions import (
-    DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
-    ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
+    DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, SignerNotCurrent, approval_policy, decision_payload, exported_records,
+    git_revision, ignored_by_git, payload_text, reconsult_command, record_digest, signing_time, verify_signature,
 )
 from .guard import (
     changes_since_approval, export_decision, export_withdrawal, exported_decisions, record_of_another_task,
@@ -308,6 +308,8 @@ def _decide_options(command) -> None:
     _decision_reason_options(command)
     command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
     command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
+    command.add_argument("--signed-at", metavar="TIME", help="The signed_at line of the payload (signed projects), "
+                                                             "UTC as YYYY-MM-DDTHH:MM:SSZ.")
 
 
 def _revoke_options(command) -> None:
@@ -318,6 +320,10 @@ def _revoke_options(command) -> None:
 def _payload_options(command) -> None:
     _decision_reason_options(command)
     command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
+    command.add_argument("--signed-at", nargs="?", const="now", metavar="TIME",
+                         help="Add the time you sign at (now, or UTC as YYYY-MM-DDTHH:MM:SSZ): once recorded, the "
+                              "approval is verified at that time, so a key or certificate that expires later voids "
+                              "nothing. Pass the same value to task decide.")
 
 
 # The options of each action, in the order its help lists them.
@@ -552,6 +558,10 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
+    if args.signed_at and not (args.approve and policy["mode"] == "signed"):
+        raise ValueError("--signed-at goes with approving in a project that requires signed approvals. Nothing was "
+                         "written.")
+    signed_at = signing_time(args.signed_at)
     if args.approve and policy["mode"] == "signed":
         if not args.signature or not args.signer:
             raise ValueError(
@@ -559,16 +569,24 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
                 f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
             )
         text = args.signature.read_text(encoding="utf-8")
-        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base, separate=separate), text,
-                         args.signer)
+        try:
+            # Always at the current time: a key or a certificate that has expired signs no new approval.
+            verify_signature(root, policy, decision_payload(task, args.by, args.reason, base, separate=separate,
+                                                            signed_at=signed_at), text, args.signer)
+        except SignerNotCurrent as error:
+            hint = " If the payload you signed has a signed_at line, pass --signed-at VALUE." if not signed_at else ""
+            raise SignerNotCurrent(f"{error}{hint}") from None
         signature = {"signer": args.signer, "text": text}
+    # The roles of the boards that blocked (roles.py): the verified signer, or the name typed.
+    if args.approve and (outside := roles.approval_problem(task, profile, args.by, args.signer)):
+        raise ValueError(outside)
     register = load_register(state)
     blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals,
-                             separate=args.approve and separate)
+                             separate=args.approve and separate, signed_at=signed_at)
     if args.approve:
         if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
@@ -1399,7 +1417,8 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
     # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
     print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
     text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root),
-                                         separate=requester.active(profile)))
+                                         separate=requester.active(profile),
+                                         signed_at=signing_time(args.signed_at, now_ok=True)))
     if args.output:
         # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
         args.output.write_bytes(text.encode("utf-8"))
