@@ -14,6 +14,10 @@
 
 <!-- List what you tested. For catalog-only changes, run the relevant command: openguildkit catalog, references or patterns. For CLI changes, run python -m unittest discover -s tests. -->
 
+## Assertions changed
+
+<!-- Only when the change touches src/ and removes or changes an assertion of tests/: list each one, the line as it was (a self.assert or expect( line). Otherwise delete this section. docs/agents/conventions.md#protected-oracle-diff says why. -->
+
 ## Not verified
 
 <!-- List what you did not run (a platform, a host, the web journeys, a migration), or write "nothing". docs/agents/conventions.md#not-verified-section says why. -->

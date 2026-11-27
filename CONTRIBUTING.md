@@ -22,7 +22,7 @@ For larger changes, use an issue to discuss scope. Fork the repository, create a
 
 `python scripts/check_fast.py` runs the tests [docs/agents/map.json](docs/agents/map.json) attaches to the files changed since `origin/main`, working tree included. Add a module to that map when you add one under `src/openguildkit/`. The full suite remains `python -m unittest discover -s tests`. A coding agent starts with [AGENTS.md](AGENTS.md); [conventions for agents](docs/agents/conventions.md) lists what keeps the repository fast to search and to fix, each convention with its check.
 
-GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 and 3.15 on Linux, macOS and Windows), the timed performance tests (Python 3.15 on each system), the wheel build, the CI coordinator, and the checks and journeys of the web interface; a job that runs past its time limit fails.
+GitHub labels PRs from their changed files and requests a review from the owners in `.github/CODEOWNERS`. The `contribution-checks` status combines the test matrix (Python 3.11 and 3.15 on Linux, macOS and Windows), the timed performance tests (Python 3.15 on each system), the wheel build, the CI coordinator, the checks and journeys of the web interface, and the conventions for agents (the text of the pull request, the assertions it removes); a job that runs past its time limit fails.
 
 Two kinds of cancelled jobs are not failures of your change:
 

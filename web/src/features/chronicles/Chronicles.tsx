@@ -33,7 +33,7 @@ function Timeline() {
     (!f.projet || e.projectId === f.projet) &&
     (!f.acteur || (f.acteur === 'agent' ? e.actor.type === 'agent' : f.acteur === 'system' ? e.actor.type === 'system' : e.actor.type === 'human' && e.actor.userId === f.acteur)) &&
     (!f.objet || e.object.kind === f.objet) && (!f.type || e.action.split('.')[0] === f.type) &&
-    (!f.periode || e.at >= now - Number(f.periode) * DAY) && (!f.q || e.summary.toLowerCase().includes(f.q.toLowerCase()))), [all, JSON.stringify(f), now]); // eslint-disable-line react-hooks/exhaustive-deps
+    (!f.periode || e.at >= now - Number(f.periode) * DAY) && (!f.q || e.summary.toLowerCase().includes(f.q.toLowerCase()))), [all, JSON.stringify(f), now]); // eslint-disable-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the filters object is new at each render, its JSON is the key
   const [sel, setSel] = useState<ID[]>([]);
   const humans = [...new Set(all.flatMap((e) => (e.actor.type === 'human' ? [e.actor.userId] : [])))];
   const chosen = events.filter((e) => sel.includes(e.id));

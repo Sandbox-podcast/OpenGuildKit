@@ -34,8 +34,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src"
 sys.path.insert(0, str(SOURCE))
 
-from openguildkit.cli import main as openguildkit_main  # noqa: E402
-from openguildkit.storage import write_json  # noqa: E402
+from openguildkit.cli import main as openguildkit_main  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.storage import write_json  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
 
 EXAMPLE = ROOT / "examples" / "request-status"
 TASK = "request-status"

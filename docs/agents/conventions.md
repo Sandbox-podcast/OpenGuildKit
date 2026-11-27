@@ -210,7 +210,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/check_oracle.py --base origin/main`, to add: each removed line that holds `self.assert` or `expect(` must be listed.
 
-**Today.** Absent. Issue #522.
+**Today.** Done: `scripts/check_oracle.py` runs in the `conventions` job of CI, and the pull request template holds the section. Issue #522.
 
 ### `not-verified-section`
 
@@ -220,7 +220,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** The pull request template holds the section; a CI step fails when it is missing or empty.
 
-**Today.** The template has the section since the pull request that adds this page; the CI step is missing. Issue #522.
+**Today.** Done: the template holds the section and `scripts/check_pr_text.py`, run by the `conventions` job of CI, fails when it is missing or empty. Issue #522.
 
 ### `intent-markers-on-suppressions`
 
@@ -230,7 +230,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `grep -rnE 'noqa|type: ignore|eslint-disable|@ts-(ignore|expect-error)' src tests scripts web/src integrations/ci | grep -vc INTENTIONAL` prints 0.
 
-**Today.** 24 suppressions without a marker. Issue #522.
+**Today.** Done: the 25 suppressions (24 in the issue and one in `web/scripts`) carry the marker, and `SuppressionTests` in `tests/test_agent_native.py` fails on one without. Issue #522.
 
 ## Verify fast
 

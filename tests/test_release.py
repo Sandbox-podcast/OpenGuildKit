@@ -371,7 +371,7 @@ class CiWorkflowTest(unittest.TestCase):
     def test_contributing_names_every_job_contribution_checks_requires(self):
         named = {"test": "test matrix", "performance": "performance tests", "package": "wheel build",
                  "ci-coordinator": "CI coordinator", "web": "checks and journeys of the web interface",
-                 "web-e2e": "checks and journeys of the web interface"}
+                 "web-e2e": "checks and journeys of the web interface", "conventions": "conventions for agents"}
         self.assertEqual(set(named), set(self.jobs["contribution-checks"]["needs"]))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "`contribution-checks` status" in block)
         for job, words in named.items():

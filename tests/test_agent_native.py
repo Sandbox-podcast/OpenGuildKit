@@ -4,8 +4,11 @@ import importlib.util
 import inspect
 import io
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -35,6 +38,42 @@ def _load(name: str):
 
 check_fast = _load("check_fast")
 agent_cost = _load("agent_cost")
+
+
+def _git(root, *args):
+    command = ["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+               "-c", "commit.gpgsign=false", *args]
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout
+
+
+def _commit(root, files, message):
+    """Write the files (None deletes one) in a repository under root, commit them and return the commit."""
+    for name, text in files.items():
+        if text is None:
+            (root / name).unlink()
+            continue
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text(text, encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", message)
+    return _git(root, "rev-parse", "HEAD").strip()
+
+
+def _repository(case):
+    """A temporary repository whose first commit is `main`, with a copy of each script under scripts/."""
+    temporary = tempfile.TemporaryDirectory()
+    case.addCleanup(temporary.cleanup)
+    root = Path(temporary.name)
+    _git(root, "init", "-q", "-b", "main")
+    return root
+
+
+def _run_script(root, name, *args, env=None):
+    """Run a copy of scripts/NAME.py placed in root, so that the script reads the repository under root."""
+    (root / "scripts").mkdir(exist_ok=True)
+    shutil.copy(REPO / "scripts" / f"{name}.py", root / "scripts" / f"{name}.py")
+    return subprocess.run([sys.executable, str(root / "scripts" / f"{name}.py"), *args], cwd=root, check=False,
+                          capture_output=True, text=True, env={**os.environ, "PR_BODY": "", "PR_TITLE": "", **(env or {})})
 
 
 def _roles() -> dict[str, str]:
@@ -213,6 +252,94 @@ class RootInstructionsTests(unittest.TestCase):
                 for field in ("**Rule.**", "**Why.**", "**Check.**", "**Today.**"):
                     self.assertIn(field, section)
                 self.assertRegex(section, r"#\d+")
+
+
+class SuppressionTests(unittest.TestCase):
+    """A suppression of a check says on its line that it is intended, and why (intent-markers-on-suppressions)."""
+
+    # Written in pieces so that this file does not match its own search.
+    SUPPRESSIONS = re.compile("|".join(("no" + "qa", "type: " + "ignore", "eslint-" + "disable",
+                                        "@ts-" + "ignore", "@ts-" + "expect-error")))
+    MARKER = re.compile(r"INTENTIONAL\(#\d+\): \S")
+    FOLDERS = ("src", "tests", "scripts", "web/src", "web/tests", "web/scripts", "integrations/ci")
+    SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+    SKIPPED = {"node_modules", "__pycache__", "dist", "web_dist"}
+
+    def test_every_suppression_carries_an_intent_marker_with_its_reason(self):
+        found = 0
+        missing = []
+        for folder in self.FOLDERS:
+            for path in sorted((REPO / folder).rglob("*")):
+                if path.suffix not in self.SUFFIXES or self.SKIPPED & set(path.parts) or not path.is_file():
+                    continue
+                for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                    if self.SUPPRESSIONS.search(line):
+                        found += 1
+                        if not self.MARKER.search(line):
+                            missing.append(f"{path.relative_to(REPO).as_posix()}:{number}")
+        self.assertGreaterEqual(found, 24)
+        self.assertEqual(missing, [])
+
+
+class OracleTests(unittest.TestCase):
+    """protected-oracle-diff: an assertion a branch removes while it changes src/ is listed in the pull request."""
+
+    TEST_BEFORE = (
+        "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+        "        self.assertEqual(f(), 2)\n        self.assertTrue(g())\n"
+    )
+    TEST_AFTER = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(g())\n"
+
+    def setUp(self):
+        self.root = _repository(self)
+        _commit(self.root, {"src/mod.py": "def f():\n    return 2\n", "tests/test_mod.py": self.TEST_BEFORE,
+                            "web/tests/page.test.ts": "expect(a).toBe(1);\nexpect(b).toBe(2);\n"}, "base")
+        _git(self.root, "branch", "base")
+
+    def test_a_removed_assertion_next_to_a_change_of_src_must_be_listed(self):
+        _commit(self.root, {"src/mod.py": "def f():\n    return 3\n", "tests/test_mod.py": self.TEST_AFTER}, "weaken")
+        result = _run_script(self.root, "check_oracle", "--base", "base")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("tests/test_mod.py: self.assertEqual(f(), 2)", result.stdout)
+        self.assertNotIn("assertTrue", result.stdout)
+        listed = "## What\n\nx\n\n## Assertions changed\n\n- `self.assertEqual(f(),   2)` became 3.\n\n## Not verified\n\nnothing\n"
+        result = _run_script(self.root, "check_oracle", "--base", "base", env={"PR_BODY": listed})
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_an_assertion_of_a_web_test_is_read_as_well(self):
+        _commit(self.root, {"src/mod.py": "def f():\n    return 3\n", "web/tests/page.test.ts": "expect(a).toBe(1);\n"}, "weaken")
+        result = _run_script(self.root, "check_oracle", "--base", "base")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("web/tests/page.test.ts: expect(b).toBe(2);", result.stdout)
+
+    def test_nothing_is_asked_without_a_change_of_src_or_for_a_moved_or_added_assertion(self):
+        _commit(self.root, {"tests/test_mod.py": self.TEST_AFTER}, "tests only")
+        self.assertEqual(_run_script(self.root, "check_oracle", "--base", "base").returncode, 0)
+        _git(self.root, "checkout", "-q", "-B", "second", "base")
+        moved = self.TEST_AFTER + "    def test_b(self):\n        self.assertEqual(f(),    2)\n"
+        _commit(self.root, {"src/mod.py": "def f():\n    return 2  # x\n", "tests/test_mod.py": moved}, "move")
+        self.assertEqual(_run_script(self.root, "check_oracle", "--base", "base").returncode, 0)
+
+
+class PullRequestTextTests(unittest.TestCase):
+    """not-verified-section: the pull request says what was not run, or `nothing`."""
+
+    def test_the_not_verified_section_must_exist_and_say_something(self):
+        check = _load("check_pr_text")
+        template = (REPO / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        self.assertIn("## Not verified", template)
+        self.assertTrue(check.problems("Title", template), "the empty template must be refused")
+        ok = "## What changes\n\nx\n\n## Not verified\n\nThe Windows run.\n\n## Assertions changed\n\nnone\n"
+        self.assertEqual(check.problems("Title", ok), [])
+        self.assertEqual(check.problems("Title", "## Not verified\n\nnothing"), [])
+        for body in ("", "## What changes\n\nx", "## Not verified\n\n<!-- say it -->\n\n## Other\n\ntext",
+                     "## Not verified\n   \n"):
+            with self.subTest(body=body):
+                self.assertEqual(len(check.problems("Title", body)), 1)
+                self.assertIn("Not verified", check.problems("Title", body)[0])
+        for variable, expected in (("", 1), ("## Not verified\n\nnothing", 0)):
+            result = _run_script(_repository(self), "check_pr_text", env={"PR_BODY": variable})
+            self.assertEqual(result.returncode, expected, result.stdout)
 
 
 class BudgetTests(CapturedCli, unittest.TestCase):
