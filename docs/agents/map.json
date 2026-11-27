@@ -68,6 +68,19 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/allowlist.py",
+      "role": "The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and matched against what a project configures.",
+      "entry": [
+        "load_allow",
+        "mcp_allowed",
+        "address_allowed"
+      ],
+      "tests": [
+        "tests/test_host_surfaces.py"
+      ],
+      "doc": "docs/host-scan.md"
+    },
+    {
       "module": "src/openguildkit/audit_cli.py",
       "role": "The `audit` commands: verify the chain of the audit log, and export its events for a SIEM.",
       "entry": [

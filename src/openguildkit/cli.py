@@ -1252,7 +1252,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     """Read the instruction files and settings of the project, list its agent tools and MCP servers, and report what
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
-    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"))
+    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
         print(scan_sarif(result, root), end="")
     elif args.json:
@@ -1353,8 +1353,8 @@ def _run(args) -> int | None:
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
-    if args.command == "host" and args.strict and args.mode != "scan":
-        raise ValueError("--strict is an option of openguildkit host scan.")
+    if args.command == "host" and (args.strict or args.allow) and args.mode != "scan":
+        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     if args.command == "mcp" and args.project is None:
         raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)

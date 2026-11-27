@@ -49,6 +49,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
 | `projects_cli.py` | The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only. |
 | `trace_cli.py` | The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only. |
+| `allowlist.py` | The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and matched against what a project configures. |
 | `audit_cli.py` | The `audit` commands: verify the chain of the audit log, and export its events for a SIEM. |
 | `audit_log.py` | The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies the chain and rebuilds events from the records. |
 | `managed.py` | Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running. |

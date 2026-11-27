@@ -64,12 +64,14 @@ CLAUDE_FOLDER = Path(CLAUDE_FOLDERS.get(sys.platform, "/etc/claude-code"))
 
 
 def add_options(host) -> None:
-    """The options of `host managed` and `host scan --allow` on the host parser."""
+    """The options of `host managed` and of `host scan --allow` on the host parser."""
     host.add_argument("--host", choices=hosts.HOOK_HOSTS, help="With managed: the host whose file to produce.")
     host.add_argument("--os", choices=OS_NAMES, help="With managed: the system it will be deployed on.")
     host.add_argument("--output", type=Path, help="With managed: a folder to write the file in (default: print it).")
     host.add_argument("--command", dest="hook_command", default="openguildkit",
                       help="With managed: the command the hooks run (default openguildkit; give a full path).")
+    host.add_argument("--allow", type=Path, metavar="FILE", help="With scan: an allow list of MCP servers, models and "
+                      "provider addresses (docs/host-scan.md); what it does not name is an error.")
     host.add_argument("--block-on-failure", action="store_true",
                       help="With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).")
 

@@ -500,7 +500,10 @@ class SarifTests(ScanCase):
         write(root, ".mcp.json", json.dumps({"mcpServers": {
             "docs": {"command": "npx", "args": ["-y", "some-docs-server"]},
             "remote": {"url": "http://example.test/mcp"}}}))
-        write(root, ".claude/settings.json", json.dumps({"permissions": {"defaultMode": "bypassPermissions"}}))
+        write(root, ".claude/settings.json", json.dumps({"permissions": {"defaultMode": "bypassPermissions"},
+                                                         "model": "unlisted-model",
+                                                         "env": {"ANTHROPIC_BASE_URL": "https://gateway.example.test/v1"}}))
+        write(root, "allow.json", json.dumps({"mcp_servers": [], "models": [], "endpoints": []}))  # Issue #480: an empty list allows nothing.
         (root / ".cursor").mkdir()
 
     def sarif(self, *arguments, code=None) -> dict:
@@ -511,7 +514,7 @@ class SarifTests(ScanCase):
         from tests.test_sarif import machine_paths, structure_problems
 
         self.rich_project()
-        document = self.sarif(code=1)
+        document = self.sarif("--allow", self.root / "allow.json", code=1)
         self.assertEqual(structure_problems(document), [])
         self.assertEqual(machine_paths(document), [])
         results = document["runs"][0]["results"]

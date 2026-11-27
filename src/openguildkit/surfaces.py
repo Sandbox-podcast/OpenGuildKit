@@ -22,6 +22,7 @@ from itertools import groupby, islice
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .allowlist import address_allowed, load_allow, mcp_allowed
 from .hosts import HOOK_HOSTS, UNHOOKED_TOOLS, board_control, unhooked_detail, unhooked_source
 from .project import managed_block_lines
 from .sensitive import looks_like_credential, redact_credentials
@@ -833,8 +834,9 @@ def _line_of(text: str, *needles: str) -> int | None:
     return None
 
 
-def _server(name: str, spec: dict, relative: str, host: str, text: str, index: list) -> tuple[dict, list[dict]]:
-    """One configured MCP server as the inventory shows it, and the findings about it."""
+def _server(name: str, spec: dict, relative: str, host: str, text: str, index: list,
+            allow: dict | None = None) -> tuple[dict, list[dict]]:
+    """One configured MCP server as the inventory shows it, and the findings about it. allow is the allow list, if any."""
     command = spec["command"] if isinstance(spec.get("command"), str) else ""
     args = [arg for arg in spec["args"] if isinstance(arg, str)] if isinstance(spec.get("args"), list) else []
     url = next((spec[key] for key in ("url", "httpUrl") if isinstance(spec.get(key), str)), "")
@@ -852,6 +854,13 @@ def _server(name: str, spec: dict, relative: str, host: str, text: str, index: l
               "program": _program(command), "address": _address(url) if url and len(url) < MAX_MATCHED else ""}
     entry["registry"] = None if len(" ".join(args)) > MAX_MATCHED else _registry_match(lookup, index)
     findings = []
+    if allow is not None and "mcp_servers" in allow and not mcp_allowed(
+            allow["mcp_servers"], (*package, _canonical(*package)) if package else None, url, _program(command)):
+        what = (f"the {package[0]} package {_visible(package[1])[:80]}" if package else _show_address(url) if url
+                else f"the command {_visible(_program(command))[:60] or 'of no name'}")
+        findings.append(_finding(
+            "mcp-not-allowed", "error", f'MCP server "{_visible(name)[:60]}" runs {what}, which the allow list does not name.',
+            relative, line))
     if pinned is False:
         what = {"npm": "npm package", "pypi": "Python package", "docker": "Docker image"}[package[0]]
         findings.append(_finding(
@@ -868,6 +877,38 @@ def _server(name: str, spec: dict, relative: str, host: str, text: str, index: l
                 "mcp-insecure-transport", "error", f'MCP server "{_visible(name)[:60]}" connects to {_show_address(url)}: an http '
                 "address is not encrypted. Use https, or a server on localhost.", relative, line))
     return entry, findings
+
+
+def _outside_allow_list(configs: _Configs, allow: dict) -> list[dict]:
+    """The model and the provider address of Claude Code and Codex that the allow list does not name. A finding names the
+    key and the host of an address, never another value of the environment, and carries no excerpt."""
+    found = []
+    for relative, group_key in ((CLAUDE_SETTINGS[0], "env"), (CLAUDE_SETTINGS[1], "env"), (CODEX_CONFIG, "model_providers")):
+        data, text = configs.get(relative)
+        if not data:
+            continue
+        model = data.get("model")
+        if "models" in allow and isinstance(model, str) and model not in allow["models"]:
+            found.append(_finding("model-not-allowed", "error", f'{relative} sets the model "{_visible(model)[:60]}", '
+                                  "which the allow list does not name.", relative, _line_of(text, '"model"', "model =")))
+        if "endpoints" not in allow:
+            continue
+        group = data.get(group_key) if isinstance(data.get(group_key), dict) else {}
+        if group_key == "env":
+            addresses = [("env.ANTHROPIC_BASE_URL", "ANTHROPIC_BASE_URL", group.get("ANTHROPIC_BASE_URL"))]
+        else:
+            addresses = [(f"model_providers.{_visible(str(name))[:40]}.base_url", "base_url", spec.get("base_url"))
+                         for name, spec in sorted(group.items(), key=lambda item: str(item[0])) if isinstance(spec, dict)]
+        for label, needle, value in addresses:
+            if isinstance(value, str) and not address_allowed(allow["endpoints"], value):
+                try:
+                    host_name = urlsplit(value).hostname or "[no host]"
+                except ValueError:
+                    host_name = "[unreadable address]"
+                found.append(_finding("endpoint-not-allowed", "error", f"{relative} sets {label} to an address on "
+                                      f"{_visible(host_name)[:80]}, which the allow list does not name.", relative,
+                                      _line_of(text, needle)))
+    return found
 
 
 def _setting(relative: str, text: str, needle: str, message: str) -> dict:
@@ -897,9 +938,10 @@ def _permissive(configs: _Configs) -> list[dict]:
     return found
 
 
-def discover(root: Path, profile: dict | None = None, tools: dict | None = None) -> dict:
+def discover(root: Path, profile: dict | None = None, tools: dict | None = None, allow: dict | None = None) -> dict:
     """The agent tools the files of a project show, its MCP servers, and the findings about them and about the
-    permissive settings. The profile gives the guard and the host; tools is the registry (the bundled one by default)."""
+    permissive settings. The profile gives the guard and the host; tools is the registry (the bundled one by default);
+    allow is an allow list (allowlist.py), whose absence leaves the findings as they were."""
     profile, configs = profile or {}, _Configs(root)
     servers, found, index = [], [], None
     for relative, key, host in MCP_FILES:
@@ -907,10 +949,10 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None)
         listed = data.get(key) if data and isinstance(data.get(key), dict) else {}
         for name, spec in sorted((str(name), spec) for name, spec in listed.items() if isinstance(spec, dict)):
             index = _registry_index(load_tools() if tools is None else tools) if index is None else index
-            entry, findings = _server(name, spec, relative, host, text, index)
+            entry, findings = _server(name, spec, relative, host, text, index, allow)
             servers.append(entry)
             found += findings
-    found += _permissive(configs)
+    found += _permissive(configs) + (_outside_allow_list(configs, allow) if allow is not None else [])
     present = []
     for tool in TOOLS:
         files = [path for path in tool["files"] if os.path.lexists(root / path)]
@@ -928,9 +970,10 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None)
             "findings": sorted(found, key=_order), "skipped": configs.skipped}
 
 
-def scan_report(root: Path, profile: dict | None = None, tools: dict | None = None) -> dict:
-    """What `host scan` prints with --json: the inventory, the findings of both analyses in one list, the sources."""
-    content, inventory = scan(root), discover(root, profile, tools)
+def scan_report(root: Path, profile: dict | None = None, tools: dict | None = None, allow: Path | None = None) -> dict:
+    """What `host scan` prints with --json: the inventory, the findings of both analyses in one list, the sources.
+    allow is the file of an allow list: what it does not name is an error."""
+    content, inventory = scan(root), discover(root, profile, tools, load_allow(allow) if allow else None)
     skipped = {(item["path"], item["reason"]): item for item in content["scanned"]["skipped"] + inventory["skipped"]}
     return {"surfaces": inventory["surfaces"], "mcp_servers": inventory["mcp_servers"],
             "findings": sorted(content["findings"] + inventory["findings"], key=_order),
@@ -1013,6 +1056,11 @@ SARIF_RULES = {code: {"name": name, "description": description, "help": SARIF_HE
      "An MCP server is reached over http outside the machine."),
     ("permissive-setting", "Permissive agent setting",
      "A setting gives the agent every shell command or takes away its prompts or its sandbox."),
+    ("mcp-not-allowed", "MCP server outside the allow list",
+     "An MCP server is not named by the allow list given to the scan."),
+    ("model-not-allowed", "Model outside the allow list", "A setting names a model that the allow list does not name."),
+    ("endpoint-not-allowed", "Provider address outside the allow list",
+     "A setting points at a model provider address that the allow list does not name."),
     ("surface-uncovered", "Agent tool the guard cannot block",
      "An agent tool is present in the project and no hook of OpenGuildKit blocks an edit made through it."),
 )}
