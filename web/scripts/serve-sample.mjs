@@ -5,7 +5,7 @@
 //   node scripts/serve-sample.mjs --gdpr    (the GDPR pattern and one approved task on personal data)
 // The built front end (npm run build) is served from web/dist. OGK_PYTHON picks the interpreter.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
@@ -32,7 +32,14 @@ if (!free) {
 }
 const env = { ...process.env, PYTHONPATH: [join(repo, 'src'), process.env.PYTHONPATH].filter(Boolean).join(delimiter), PYTHONIOENCODING: 'utf-8' };
 const name = stripe ? 'new-shop' : empty ? 'new-portal' : gdpr ? 'gdpr-portal' : 'portal';
-const project = join(mkdtempSync(join(tmpdir(), 'ogk-e2e-')), name);
+const root = mkdtempSync(join(tmpdir(), 'ogk-e2e-'));
+const project = join(root, name);
+let server;
+// Playwright ends this script with SIGTERM (gracefulShutdown in its config): the sample project goes with it.
+process.on('exit', () => {
+  server?.kill();
+  try { rmSync(root, { recursive: true, force: true, maxRetries: 3 }); } catch { /* the next cleaning of the temporary folder takes it */ }
+});
 if (empty) {
   mkdirSync(project);
   const dependencies = { react: '^19.0.0', ...(stripe ? { stripe: '^14.0.0' } : {}) };
@@ -41,9 +48,8 @@ if (empty) {
   const built = spawnSync(python, [join(web, 'scripts', 'sample-project.py'), project, ...(gdpr ? ['--gdpr'] : [])], { env, stdio: 'inherit' });
   if (built.status !== 0) process.exit(built.status ?? 1);
 }
-const server = spawn(python, ['-m', 'openguildkit', '--project', project, 'ui', '--no-browser', '--port', port, '--static', join(web, 'dist')], { env, stdio: 'inherit' });
+server = spawn(python, ['-m', 'openguildkit', '--project', project, 'ui', '--no-browser', '--port', port, '--static', join(web, 'dist')], { env, stdio: 'inherit' });
 const stop = () => { server.kill(); process.exit(0); };
-process.on('exit', () => server.kill());
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 server.on('exit', (code) => process.exit(code ?? 0));

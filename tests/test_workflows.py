@@ -8,8 +8,12 @@ import json
 import os
 import re
 import shutil
+import signal
+import socket
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -359,6 +363,57 @@ class PackageJobTest(unittest.TestCase):
         script = run_text(job)
         self.assertIn("python -m build", script)
         self.assertIn("pip install dist/*.whl", script)
+
+
+@unittest.skipIf(os.name == "nt", "the script is stopped with a signal, which Windows does not send the same way")
+@unittest.skipUnless(shutil.which("node"), "needs node, as the web journeys do")
+class ServeSampleTest(unittest.TestCase):
+    """web/scripts/serve-sample.mjs starts one sample project per server of the web journeys."""
+
+    def start(self) -> tuple[subprocess.Popen, Path]:
+        """Run the script from a copy of the tree it expects (web/scripts, web/dist, src), with its own TMPDIR."""
+        folder = Path(tempfile.mkdtemp(prefix="ogk-serve-sample-test-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        (folder / "web" / "scripts").mkdir(parents=True)
+        (folder / "web" / "dist").mkdir()
+        (folder / "web" / "dist" / "index.html").write_text("<!doctype html>", encoding="utf-8")
+        shutil.copy(ROOT / "web" / "scripts" / "serve-sample.mjs", folder / "web" / "scripts")
+        (folder / "src").symlink_to(ROOT / "src", target_is_directory=True)
+        (folder / "tmp").mkdir()
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        environment = {**os.environ, "TMPDIR": str(folder / "tmp"), "PW_PROJECT_PORT": str(port),
+                       "OGK_PYTHON": sys.executable, "OPENGUILDKIT_UI_KEY": "k" * 64}
+        with open(folder / "log.txt", "wb") as log:
+            process = subprocess.Popen(["node", str(folder / "web" / "scripts" / "serve-sample.mjs"), "--empty"],
+                                       env=environment, stdout=log, stderr=log)
+        self.addCleanup(process.kill)
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            try:
+                socket.create_connection(("127.0.0.1", port), timeout=0.5).close()
+                return process, folder / "tmp"
+            except OSError:
+                self.assertIsNone(process.poll(), (folder / "log.txt").read_text(encoding="utf-8"))
+                time.sleep(0.2)
+        self.fail("the server did not answer: " + (folder / "log.txt").read_text(encoding="utf-8"))
+
+    def test_the_project_folder_is_removed_when_the_script_is_stopped(self):
+        """Issue #518: each server of the web journeys leaves an ogk-e2e-* folder in the temporary folder."""
+        for stop in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=stop.name):
+                process, temporary = self.start()
+                self.assertEqual(len(list(temporary.glob("ogk-e2e-*"))), 1, "the script makes its project here")
+                process.send_signal(stop)
+                process.wait(timeout=30)
+                self.assertEqual(list(temporary.glob("ogk-e2e-*")), [])
+
+    def test_playwright_stops_each_server_with_a_signal_the_script_can_answer(self):
+        """Issue #518: by default Playwright ends a web server with SIGKILL, which no script can answer."""
+        text = (ROOT / "web" / "playwright.project.config.ts").read_text(encoding="utf-8")
+        self.assertEqual(text.count("gracefulShutdown"), text.count("node scripts/serve-sample.mjs"))
+        self.assertIn("SIGTERM", text)
 
 
 def matrix_jobs(job: dict) -> list[dict]:
