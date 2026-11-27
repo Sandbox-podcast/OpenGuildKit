@@ -19,7 +19,7 @@ COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 LOCK_NAME = ".openguildkit/catalog.lock.json"
-SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by NAME --reason WHY"
+SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY"
 PIN_FIELDS = {"repo", "commit", "fingerprint", "pinned", "exceptions"}
 PERSON_FIELDS = {"by", "reason", "on"}
 
@@ -201,5 +201,5 @@ def unaccepted_replacements(catalog: dict, lock: dict | None) -> dict[str, str]:
     """The line check prints for each replacement no person accepted, by collection/id."""
     return {row["record"]: (f"the project catalog replaces {row['record']} of the organization catalog "
                             f"(.openguildkit/catalog/{row['record']}.json). If a person agrees, openguildkit "
-                            f"org-catalog accept {row['record']} --by NAME --reason WHY at a terminal.")
+                            f"org-catalog accept {row['record']} --by INITIALS --reason WHY at a terminal.")
             for row in replacements(catalog, lock) if row["accepted"] is None}

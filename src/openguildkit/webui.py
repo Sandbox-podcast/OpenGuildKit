@@ -160,7 +160,7 @@ def terminal_command(root: Path, argv: list[str]) -> str:
 
 
 def named_command(message: str) -> list[str] | None:
-    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by NAME, at a terminal."),
+    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by INITIALS, at a terminal."),
     up to the end of its clause, or None when it names none."""
     match = re.search(r"\bopenguildkit (.+)", message)
     if match is None:

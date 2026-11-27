@@ -382,16 +382,16 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         before = self.path.read_bytes()
         refused = self.cli("market", "checked", "support-portals", "--url", self.URL, code=1)
         self.assertIn("Research is local-only", refused)
-        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", refused)
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by INITIALS", refused)
         change = ("market", "change", "support-portals", "--competitor", "vendor-a", "--what", "Added labels.",
                   "--source", self.URL, "--date", "2026-11-10", "--verified-by", "Camille Martin")
         refused = self.cli(*change, code=1)
-        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", refused)
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by INITIALS", refused)
         self.assertEqual(self.path.read_bytes(), before)
         self.assertIn(self.URL, self.cli("market", "due", "support-portals"))
         # The issue the scheduled job opens names the command the policy allows.
         body = json.loads(self.cli("market", "due", "--all", "--json"))["due"][0]["issue"]["body"]
-        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by NAME", body)
+        self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by INITIALS", body)
         self.assertNotIn("market checked", body)
         # A change from a page that is not watched does not mark a page reviewed: it is recorded.
         self.cli("market", "change", "support-portals", "--competitor", "vendor-a", "--what", "Shared in a meeting.",

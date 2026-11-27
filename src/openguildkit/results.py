@@ -499,7 +499,7 @@ def keep_declarations(task: dict, ran: list[dict]) -> tuple[list[dict], list[str
             notes.append(f"{outcome['check']} still cannot run here: {declaration['owner']} declared it "
                          f"({declaration['reason']}). The declaration stays until the command passes or "
                          f"{declaration['owner']} withdraws it with task verify {task['id']} --withdraw "
-                         f"{outcome['check']} --by NAME.")
+                         f"{outcome['check']} --by INITIALS.")
             continue
         if declaration:
             notes.append(f"{outcome['check']} passes now: the declaration by {declaration['owner']} is replaced.")

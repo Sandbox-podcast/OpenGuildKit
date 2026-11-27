@@ -97,7 +97,7 @@ def _changed(args, dossier: dict) -> dict:
 
 
 LOCAL_ONLY_DUE = ("Research is local-only: a person reviews each page, then records it with "
-                  "openguildkit market provided ID --url URL --by NAME.")
+                  "openguildkit market provided ID --url URL --by INITIALS.")
 
 
 def _due(args, state: Path, research: str) -> None:
@@ -140,7 +140,7 @@ def _person_reviews(args, dossier: dict, research: str) -> None:
         return
     then = " first, then record the change" if args.mode == "change" else ""
     raise ValueError(f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
-                     f"openguildkit market provided {args.dossier} --url {url} --by NAME{then}.")
+                     f"openguildkit market provided {args.dossier} --url {url} --by INITIALS{then}.")
 
 
 def run(args, state: Path, profile: dict) -> None:

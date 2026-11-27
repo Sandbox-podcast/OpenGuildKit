@@ -39,7 +39,7 @@ def _print(view: list[dict]) -> None:
             role = "lead" if position == 0 else "alternative"
             servers = f"{option['servers']} MCP server(s)" if option["servers"] else "no MCP server on record"
             print(f"  [{mark}] {option['tool']}: {option['title']} ({role}, {servers})")
-    print("Turn one on: openguildkit features enable ID --by NAME --reason WHY. Then openguildkit tools plan ID.")
+    print("Turn one on: openguildkit features enable ID --by INITIALS --reason WHY. Then openguildkit tools plan ID.")
 
 
 def _targets(names: list[str], features: list[dict], tools: dict) -> list[str]:

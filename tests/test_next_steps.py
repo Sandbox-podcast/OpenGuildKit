@@ -210,7 +210,7 @@ class ApprovalWarningTests(Project):
         self.assertNotIn('"approval": {', warning)
         start = warning.index("openguildkit profile set")
         command = warning[start:warning.index(" (docs/", start)]
-        self.assertEqual(command, "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME "
+        self.assertEqual(command, "openguildkit profile set approval signed --signers PATH --approver NAME --by INITIALS "
                                   "--reason WHY")
         values = {"PATH": ".openguildkit/allowed_signers", "NAME": "camille@example.test", "WHY": "The guard enforces"}
         words = [values.get(word, word) for word in command.split()[1:]]

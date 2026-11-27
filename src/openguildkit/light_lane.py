@@ -260,7 +260,7 @@ def board_for(paths: list[str]) -> tuple[str, str]:
 def activation_command(paths: list[str] | tuple[str, ...]) -> str:
     from .shell import shell_command
 
-    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "NAME", "--reason", "WHY"])
+    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "INITIALS", "--reason", "WHY"])
 
 
 def _usable(paths: list[str] | None) -> list[str]:
@@ -345,7 +345,7 @@ def proposed_routing(task: dict, profile: dict, catalog: dict) -> dict | None:
     if board not in set(profile.get("boards") or catalog["boards"]):
         raise ValueError(
             f"The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not "
-            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by NAME "
+            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS "
             f"--reason WHY), or the work takes the full path ({FULL_PATH}).")
     return {board: [reason]}
 

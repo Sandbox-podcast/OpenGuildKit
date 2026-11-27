@@ -392,11 +392,11 @@ def next_command(task: dict) -> str:
         return f"{'; '.join(steps)}; then {review}" if steps else f"every pass is done: {review}"
     if status == "reviewed":
         decide = (f"the person decides at their terminal: openguildkit task decide {task_id} --approve (or "
-                  "--request-changes) --by NAME --reason TEXT")
+                  "--request-changes) --by INITIALS --reason TEXT")
         blockers = unresolved_blockers(task)
         if blockers:
             return (f"the person clears {', '.join(blockers)} at their terminal (openguildkit task clear {task_id} "
-                    f"BLOCKER --evidence PATH --supports TEXT --by NAME) or requests changes, then {decide}")
+                    f"BLOCKER --evidence PATH --supports TEXT --by INITIALS) or requests changes, then {decide}")
         return decide
     if status == "changes-requested":
         return f"consult again: {reconsult_command(task_id)} (--answers FILE to change the answers)"
@@ -475,7 +475,7 @@ STALE_DAYS = 14
 
 def revoke_command(task_id: str) -> str:
     """The person's command that withdraws an approval, the same in every message that names it."""
-    return f"openguildkit task revoke {task_id} --by NAME --reason TEXT"
+    return f"openguildkit task revoke {task_id} --by INITIALS --reason TEXT"
 
 
 def days_since(moment: str | None) -> int | None:
@@ -498,7 +498,7 @@ def _conditions_step(task: dict, profile: dict | None) -> str:
     if not waiting:
         return expired
     text = (f" Condition(s) of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
-            f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by NAME.")
+            f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS.")
     if profile is not None and not waiver_policy(profile):
         text += (" The project allows no waiver, so the task cannot complete while one is open: if one cannot be met, "
                  f"the person withdraws the approval at their terminal: {revoke_command(task['id'])}.")
@@ -1083,7 +1083,7 @@ def expired_waiver_step(task: dict, item: dict) -> str:
     if item.get("phase") == "verification":
         return (f"The waiver of {blocker_id} expired on {until}, so the blocker is open again: the person clears it with "
                 f"its evidence (openguildkit task clear {task_id} {blocker_id} --evidence PATH --supports TEXT --by "
-                f"NAME), grants a new waiver (openguildkit task waive {task_id} {blocker_id} --by NAME --reason TEXT "
+                f"NAME), grants a new waiver (openguildkit task waive {task_id} {blocker_id} --by INITIALS --reason TEXT "
                 f"--scope TEXT --until YYYY-MM-DD), or withdraws the approval: {revoke_command(task_id)}.")
     return (f"The waiver of {blocker_id} expired on {until}, and the approval rested on it: the person withdraws the "
             f"approval ({revoke_command(task_id)}), then the task is consulted again and the blocker cleared with its "
@@ -1193,12 +1193,12 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         policy = waiver_policy(profile)
         if not policy:
             clear = (f"Clear {blocker_id} with its evidence at the person's terminal (openguildkit task clear "
-                     f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by NAME)")
+                     f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by INITIALS)")
             if verification:
                 raise ValueError(f"The project's policy allows no waiver. {clear}; if it cannot be met, the person "
                                  f"withdraws the approval: {revoke_command(task['id'])}.")
             raise ValueError(f"The project's policy allows no waiver. {clear}, or the person requests changes: "
-                             f"openguildkit task decide {task['id']} --request-changes --by NAME --reason TEXT.")
+                             f"openguildkit task decide {task['id']} --request-changes --by INITIALS --reason TEXT.")
         if by not in policy["allowed_by"]:
             raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
         until = resolution.get("until", "")
@@ -1347,7 +1347,7 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
         raise ValueError(
             f"{len(sensitive['points'])} data protection, security or AI point(s) are skipped, failed or declared not "
             "applicable as a pack. A person "
-            f"confirms closing over them: openguildkit task complete {task['id']} --by NAME, at a terminal."
+            f"confirms closing over them: openguildkit task complete {task['id']} --by INITIALS, at a terminal."
         )
     result = {**task.get("result", {}),
               "closing": {"open_points": groups, "not_concerned": not_concerned(task, profile, relevance)}}
@@ -1558,7 +1558,7 @@ def stale_review_message(task_id: str) -> str:
     """What a review given under other rules, checks or boards than the profile's waits for: task decide, task list
     and task consult say it in the same words (a project upgraded from 0.16.1 has its reviewed tasks in this state)."""
     return (f"The rules, checks or boards of the project changed since {task_id} was consulted. The person requests "
-            f"changes (openguildkit task decide {task_id} --request-changes --by NAME --reason TEXT), then you consult "
+            f"changes (openguildkit task decide {task_id} --request-changes --by INITIALS --reason TEXT), then you consult "
             "again.")
 
 

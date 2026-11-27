@@ -343,7 +343,7 @@ def proposed_reason(item: dict) -> str:
 
 def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powershell: bool | None) -> dict:
     """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force.
-    The command carries a prefilled reason that names the tasks; --by NAME stays the person's to fill in."""
+    The command carries a prefilled reason that names the tasks; --by INITIALS stays the person's to fill in."""
     for action, field, value, pack in _candidates(item, profile, catalog):
         try:
             updated, weakens = check_proposal(profile, catalog, action, field, value)
@@ -356,7 +356,7 @@ def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powers
         if item["kind"] == "committee" and item["board"] in after["boards"]:
             continue  # the last board removed leaves every board advising
         reason = proposed_reason(item)
-        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "NAME", "--reason",
+        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "INITIALS", "--reason",
                  reason]
         return {"command": shell_command(words, powershell), "needs_terminal": bool(weakens),
                 "also_drops": sorted(dropped - {pack}) if pack is not None else [], "proposed_reason": reason}
@@ -619,4 +619,4 @@ def render_draft(draft: dict | None, minimum: int) -> list[str]:
                 "failed has its profile command above."]
     return [f"Draft rule pack written: {draft['path']} ({_plural(draft['rules'], 'rule')} to write, not active). Next: "
             "write each rule and replace each TODO and the description, copy the file to .openguildkit/catalog/packs/, "
-            f"then openguildkit profile add pack {draft['pack']} --by NAME --reason WHY."]
+            f"then openguildkit profile add pack {draft['pack']} --by INITIALS --reason WHY."]

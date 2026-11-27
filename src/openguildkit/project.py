@@ -1119,7 +1119,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
         "rule_warning": (
             f"{count} rules in force. A task is asked only the rules that concern it, but each pattern adds rules "
             f"to read and to answer: above {RULE_WARNING}, check that each pattern below concerns the project and "
-            "decline the others (openguildkit profile decline PATTERN --by NAME --reason WHY)."
+            "decline the others (openguildkit profile decline PATTERN --by INITIALS --reason WHY)."
             if count > RULE_WARNING else None
         ),
         "patterns": [

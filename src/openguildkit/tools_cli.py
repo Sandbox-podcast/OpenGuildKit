@@ -382,7 +382,7 @@ def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: 
         print(f"{name}: not in the registry. Add it in .openguildkit/catalog/tools/ or connect it yourself.")
     if not result["tools"] and not result["unknown"]:
         print("No tool named in the profile and none detected. Name them with openguildkit profile add tool TOOL "
-              "--by NAME --reason WHY.")
+              "--by INITIALS --reason WHY.")
     elif pending := [item["id"] for item in result["tools"] if not item["connections"]]:
         print("Next: openguildkit tools plan " + " ".join(pending))
     return 0

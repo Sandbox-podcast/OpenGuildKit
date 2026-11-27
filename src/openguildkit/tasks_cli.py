@@ -703,7 +703,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     if blocking:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
     if args.defer and not args.by:
-        raise ValueError("Name the person who hands the evidence to a follow-up task: --by NAME.")
+        raise ValueError("Name the person who hands the evidence to a follow-up task: --by INITIALS.")
     deferrals = []
     for item in args.defer:
         check_id, _, follow_up = item.rpartition("=")
@@ -716,7 +716,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     if set_aside and not (args.by or "").strip():
         raise ValueError(
             f"{len(set_aside)} data protection, security or AI rule(s) are declared not applicable:\n- "
-            + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by NAME, "
+            + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "
             "at a terminal.")
     if args.by:
         if not interactive():
@@ -776,7 +776,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
     if check_id not in commands:
         raise ValueError(f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
-        raise ValueError("Name the person with --by NAME.")
+        raise ValueError("Name the person with --by INITIALS.")
     if not interactive():
         raise ValueError("Declaring whether a command can run needs the person at an interactive terminal.")
     return commands
@@ -819,7 +819,7 @@ def _withdraw(args, root: Path, state: Path, task: dict, profile: dict, relevanc
 
 NO_CHECK_COMMAND = (
     "No project check command is configured: task verify ran no test. To have it run one: openguildkit profile add "
-    "check \"COMMAND\" --by NAME --reason WHY (docs/workflow.md#project-checks); the change applies to tasks "
+    "check \"COMMAND\" --by INITIALS --reason WHY (docs/workflow.md#project-checks); the change applies to tasks "
     "consulted after it."
 )
 
@@ -853,7 +853,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
           or set_aside_rules(task, profile, relevance)):
         # task complete refuses these without the person: say so now rather than at the closing.
         print(f"Ready to close with the person at a terminal: a data protection, security or AI point stays open, "
-              f"so they run openguildkit task complete {args.id} --by NAME.")
+              f"so they run openguildkit task complete {args.id} --by INITIALS.")
     else:
         print("Ready: run task complete.")
     failed = [item for item in task["result"]["checks"]
@@ -1102,7 +1102,7 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     for item in result["result"].get("waiting_for", []):
         print(f"Waiting for {item['check']}: {item['title']}, provided by {item['owner']} (required because "
               f"{item['why']}). Ask them for it, or hand it to a follow-up task: task complete {args.id} "
-              f"--defer {item['check']}=FOLLOW-UP --by NAME.")
+              f"--defer {item['check']}=FOLLOW-UP --by INITIALS.")
     if criteria_summary(result["result"]):
         print(criteria_summary(result["result"]))
     for warning in result["result"].get("warnings", []):

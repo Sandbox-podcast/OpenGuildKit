@@ -143,6 +143,16 @@ class ByOptionTests(unittest.TestCase):
         self.assertEqual({(action.help, action.metavar) for _, action in found},
                          {("Your initials or team handle, not your full name: it is committed.", "INITIALS")})
 
+    def test_no_command_proposed_by_the_tool_asks_for_a_name(self):
+        """Issue #493: 49 strings of src proposed `--by NAME`, against the rule of the initials."""
+        # The managed block of AGENTS.md: a block changed without INSTRUCTIONS_LAYOUT raised reads as edited by hand.
+        kept = {"agent_workflow.py"}
+        sources = [path for path in (REPO / "src" / "openguildkit").rglob("*")
+                   if path.is_file() and path.suffix in (".py", ".md") and path.name not in kept]
+        found = [path.relative_to(REPO).as_posix() for path in sources
+                 if "--by NAME" in (text := path.read_text(encoding="utf-8")) or '"--by", "NAME"' in text]
+        self.assertEqual(found, [])
+
     def test_a_name_with_an_address_is_accepted_with_a_warning_that_cites_the_rule(self):
         """Issue #493: a full name and an address went into the committed profile without a word."""
         with tempfile.TemporaryDirectory(prefix="ogk-by-") as folder:

@@ -39,7 +39,7 @@ def declared(name: str | None, profile: dict) -> str | None:
 
 
 def _ask_another(task_id: str) -> str:
-    return (f"Ask another person to approve it at their terminal: openguildkit task decide {task_id} --approve --by NAME "
+    return (f"Ask another person to approve it at their terminal: openguildkit task decide {task_id} --approve --by INITIALS "
             f"--reason WHY, or request changes ({SECTION}).")
 
 

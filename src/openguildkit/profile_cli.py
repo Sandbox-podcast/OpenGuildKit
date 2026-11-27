@@ -133,7 +133,7 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     required rule, required board or check command removed, every rule no longer asked, a path added to the short
     lane, the separation of the requester and the approver turned on or off. The profile commands and the web page ask
     this."""
-    person = ["--by", "NAME", "--reason", "WHY"]
+    person = ["--by", "INITIALS", "--reason", "WHY"]
     changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person),
                *_light_changes(before, after, person), *_requester_changes(before, after, person)]
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
@@ -315,7 +315,7 @@ def _decline_rule(profile: dict, value: str, catalog: dict, by: str, reason: str
     if required:
         raise ValueError(f"Rule {rule} is required by the profile (required_rules lists {required[0]}): remove it from "
                          f"the required rules first, at a terminal: openguildkit profile remove required-rule "
-                         f"{required[0]} --by NAME --reason WHY. Nothing was written.")
+                         f"{required[0]} --by INITIALS --reason WHY. Nothing was written.")
     if [item["id"] for item in rules_in_force(catalog["packs"][pack_id], profile)["rules"]] == [rule_id]:
         raise ValueError(f"{rule_id} is the last rule of pack {pack_id} in force: remove the pack (openguildkit profile "
                          f"remove pack {pack_id}) or decline the pattern that brings it, rather than each of its rules. "
@@ -345,7 +345,7 @@ def _rule_argument(args) -> str | None:
         return None
     if rule is None:
         raise ValueError(f"profile {args.profile_action} rule needs PACK/RULE, such as openguildkit profile "
-                         f"{args.profile_action} rule python/follow-python-style --by NAME --reason WHY.")
+                         f"{args.profile_action} rule python/follow-python-style --by INITIALS --reason WHY.")
     return rule
 
 
@@ -558,7 +558,7 @@ def _target(args) -> str:
 # What profile export never carries, whatever the profile holds: in the words of its last line.
 LEFT_ASIDE = ("the project name", "the history of changes", "people's names", "the signers file",
               "component paths", "check commands", "the host's tool connections")
-PERSON = "--by NAME --reason WHY"
+PERSON = "--by INITIALS --reason WHY"
 
 
 def _yes_no(value: object) -> str:
@@ -676,7 +676,7 @@ def run(args, root: Path, state: Path) -> int:
     if rule is not None:
         name = record["change"].split(" ", 2)[2]
         print(f"Tasks consulted from now on are not asked {name}; to restore it: openguildkit profile adopt rule "
-              f"{name} --by NAME --reason WHY." if args.profile_action == "decline" else
+              f"{name} --by INITIALS --reason WHY." if args.profile_action == "decline" else
               f"Rule {name} is asked again of the tasks it concerns, from their next consultation.")
     if updated.get("light_paths") and args.profile_action == "set" and args.field == "light-paths":
         print(f'Short lane: openguildkit task new "BRIEF" --id ID --lane light --paths '

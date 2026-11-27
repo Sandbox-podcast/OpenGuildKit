@@ -125,7 +125,7 @@ Turning a feature on connects nothing. `features enable` prints the `tools plan`
 
 ## From a project's stack to its servers
 
-1. Name the tools in the profile, in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know; `openguildkit profile add tool Jira --by NAME --reason WHY` adds one later. The profile then holds `"tools": ["Jira", "Factorial", "Snyk"]`.
+1. Name the tools in the profile, in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know; `openguildkit profile add tool Jira --by INITIALS --reason WHY` adds one later. The profile then holds `"tools": ["Jira", "Factorial", "Snyk"]`.
 2. `openguildkit tools recommend` resolves those names and adds what the repository shows: a `.github/workflows` folder, a `sentry-sdk` dependency, a `.storybook` folder, a `playwright.config.ts`. Names it does not know are listed apart.
 3. `openguildkit tools plan jira factorial snyk` prints what would be configured and writes nothing:
 

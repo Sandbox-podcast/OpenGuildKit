@@ -82,7 +82,7 @@ class OrgCatalogTests(unittest.TestCase):
     def test_set_shows_what_the_commit_brings_then_a_person_pins_it_at_a_terminal(self):
         preview = self.cli("org-catalog", "set", "--repo", self.org, "--commit", self.first)
         self.assertIn("+ packs/org-review 1.0.0", preview.stdout)
-        self.assertIn("--by NAME --reason WHY", preview.stdout)
+        self.assertIn("--by INITIALS --reason WHY", preview.stdout)
         self.assertNotIn("organization", self.lock())
         refused = self.cli("org-catalog", "set", "--repo", self.org, "--commit", self.first, "--by", "CM",
                            "--reason", "Pilot", code=1)
@@ -161,7 +161,7 @@ class OrgCatalogTests(unittest.TestCase):
         write_record(self.root / ".openguildkit" / "catalog", "packs", pack("org-review", "1.0.1"))
         checked = self.cli("check")
         self.assertIn("replaces packs/org-review of the organization catalog", checked.stderr)
-        self.assertIn("openguildkit org-catalog accept packs/org-review --by NAME --reason WHY", checked.stderr)
+        self.assertIn("openguildkit org-catalog accept packs/org-review --by INITIALS --reason WHY", checked.stderr)
         shown = json.loads(self.cli("org-catalog", "show", "--json").stdout)
         self.assertEqual(shown["replaced"], [{"record": "packs/org-review", "accepted": None}])
         self.cli("org-catalog", "accept", "packs/org-review", "--by", "CM", "--reason", "Local", code=1)

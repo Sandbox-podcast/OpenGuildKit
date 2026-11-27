@@ -483,7 +483,7 @@ NO_HOST_SETTINGS = (
     "the project's host is other, so host apply wrote nothing: OpenGuildKit writes host settings only for "
     "claude-code, codex and gemini-cli. The rules above stay with the AGENTS.md instructions and the CI check. To "
     "install the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
-    "--by NAME --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
+    "--by INITIALS --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
 )
 
 
@@ -515,7 +515,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
     print(f"Board guard: {GUARD_MODES[mode]}")
     if mode != "off" and host not in HOOK_HOSTS:
         print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
-    print("  To change it: openguildkit profile set guard off|observe|enforce --by NAME --reason WHY "
+    print("  To change it: openguildkit profile set guard off|observe|enforce --by INITIALS --reason WHY "
           "(lowering it is typed by the person at a terminal).")
     if mode != "off" and (profile.get("approval") or {}).get("mode") != "signed":
         print("  Approvals are sealed locally: a seal catches an accidental edit, not an agent that writes files. "
@@ -948,7 +948,7 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
                   "too. Record each one:")
             for other in others:
-                print(f"  openguildkit docs share revoke --id {other['id']} --by NAME   "
+                print(f"  openguildkit docs share revoke --id {other['id']} --by INITIALS   "
                       f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
         return 0
     if args.share_action == "verify":
@@ -992,7 +992,7 @@ def _print_share_added(share: dict) -> None:
               "its navigation and search show only this deliverable.")
     print("Invite the recipients now in that space's reader settings (magic link mode).")
     print(f"Set the last day {share['until']} in Documentalist if supported. On older versions remove access there "
-          f"after that day, then run openguildkit docs share revoke --id {share['id']} --by NAME. "
+          f"after that day, then run openguildkit docs share revoke --id {share['id']} --by INITIALS. "
           "The local check is a reminder; it does not contact the portal.")
 
 
@@ -1024,7 +1024,7 @@ def _print_share_row(row: dict) -> None:
     for recipient, other in sorted(row["kept"].items()):
         print(f"  keep {recipient}: share {other['share']} gives the same space until {other['until']}")
     if row["remove"]:
-        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by NAME")
+        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by INITIALS")
 
 
 def _print_brains(args, catalog: dict, families: dict) -> int:
@@ -1095,7 +1095,7 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
         return 0
     profile = load_profile(state, catalog)
     if profile["boards"]:
-        print(f"The profile lists its boards: openguildkit profile add board {args.new} --by NAME --reason WHY "
+        print(f"The profile lists its boards: openguildkit profile add board {args.new} --by INITIALS --reason WHY "
               "lets it review tasks.")
         return 0
     already = {task["id"] for task in tasks_touched(state, profile, catalog)}

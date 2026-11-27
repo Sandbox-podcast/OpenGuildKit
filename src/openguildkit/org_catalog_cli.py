@@ -26,7 +26,7 @@ from .terminal import interactive
 
 __all__ = ["add_parser", "run", "unaccepted_replacements"]
 
-PERSON = "--by NAME --reason WHY"
+PERSON = "--by INITIALS --reason WHY"
 
 
 def add_parser(commands) -> None:
