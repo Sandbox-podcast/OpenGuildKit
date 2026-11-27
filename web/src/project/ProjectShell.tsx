@@ -45,7 +45,9 @@ function useMotion() {
   const { motion } = usePrefs();
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const apply = () => { document.documentElement.dataset.motion = motion === 'reduced' || (motion === 'system' && mq.matches) ? 'reduced' : 'full'; };
+    const apply = () => {
+      document.documentElement.dataset.motion = motion === 'reduced' || (motion === 'system' && mq.matches) ? 'reduced' : 'full';
+    };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
@@ -55,19 +57,45 @@ function useMotion() {
 function ModePicker() {
   const { mode } = usePrefs();
   const pro = mode === 'focus';
-  return <div className="appearance-picker">
-    <Segmented label="Style de l'interface" value={mode} onChange={(m) => setPrefs({ mode: m })} options={[{ value: 'explorer', label: 'RPG' }, { value: 'focus', label: 'Pro' }]} />
-    <button className="appearance-compact" role="switch" aria-checked={pro} aria-label="Mode Pro" onClick={() => setPrefs({ mode: pro ? 'explorer' : 'focus' })}>
-      <span aria-hidden="true">{pro ? 'Pro' : 'RPG'}</span><span aria-hidden="true" className="appearance-dot" />
-    </button>
-  </div>;
+  return (
+    <div className="appearance-picker">
+      <Segmented
+        label="Style de l'interface"
+        value={mode}
+        onChange={(m) => setPrefs({ mode: m })}
+        options={[
+          { value: 'explorer', label: 'RPG' },
+          { value: 'focus', label: 'Pro' },
+        ]}
+      />
+      <button
+        className="appearance-compact"
+        role="switch"
+        aria-checked={pro}
+        aria-label="Mode Pro"
+        onClick={() => setPrefs({ mode: pro ? 'explorer' : 'focus' })}
+      >
+        <span aria-hidden="true">{pro ? 'Pro' : 'RPG'}</span>
+        <span aria-hidden="true" className="appearance-dot" />
+      </button>
+    </div>
+  );
 }
 
 /** Shell of the setup screen: the project has no profile yet, so it reads nothing. */
 export function BareShell({ children }: { children: ReactNode }) {
   const { mode } = usePrefs();
   useMotion();
-  return <div className={`app bare mode-${mode}`}><div className="bare-preferences"><ModePicker /></div>{children}<TerminalDialog /><Toasts /></div>;
+  return (
+    <div className={`app bare mode-${mode}`}>
+      <div className="bare-preferences">
+        <ModePicker />
+      </div>
+      {children}
+      <TerminalDialog />
+      <Toasts />
+    </div>
+  );
 }
 
 export function ProjectShell({ children }: { children: ReactNode }) {
@@ -86,75 +114,157 @@ export function ProjectShell({ children }: { children: ReactNode }) {
   const place = placeOf(route.path);
   useMotion();
 
-  useEffect(() => { setNavOpen(false); }, [route.path]);
-  useShortcuts({ openSearch: () => setSearchOpen(true), go: (to) => navigate(to), toggleMode: () => setPrefs({ mode: pro ? 'explorer' : 'focus' }) });
+  useEffect(() => {
+    setNavOpen(false);
+  }, [route.path]);
+  useShortcuts({
+    openSearch: () => setSearchOpen(true),
+    go: (to) => navigate(to),
+    toggleMode: () => setPrefs({ mode: pro ? 'explorer' : 'focus' }),
+  });
 
   // Work done in a terminal (an approval, a waiver) shows up when the person comes back to the page.
   // A quick switch of tabs does not reload everything, and the catalog (brains, references) stays: only Actualiser reloads it.
   useEffect(() => {
     let hiddenAt = 0;
     const onFocus = () => {
-      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
       if (Date.now() - hiddenAt > 1500) invalidate('project');
     };
     document.addEventListener('visibilitychange', onFocus);
     return () => document.removeEventListener('visibilitychange', onFocus);
   }, []);
 
-  const closeNavigation = () => { setNavOpen(false); navToggle.current?.focus(); };
+  const closeNavigation = () => {
+    setNavOpen(false);
+    navToggle.current?.focus();
+  };
   return (
     <div className={`app project-app mode-${mode}`}>
-      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>Aller au contenu</a>
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById('main')?.focus();
+        }}
+      >
+        Aller au contenu
+      </a>
       <header className="topbar">
-        <button ref={navToggle} className="btn ghost icon nav-toggle" aria-label={navOpen ? 'Fermer la navigation' : 'Ouvrir la navigation'} aria-controls="main-navigation" aria-expanded={navOpen} onClick={() => (navOpen ? closeNavigation() : setNavOpen(true))}><Icon name={navOpen ? 'cross' : 'menu'} /></button>
-        <a href="#/royaume" className="brand-link" aria-label="Accueil du projet"><Brand /></a>
+        <button
+          ref={navToggle}
+          className="btn ghost icon nav-toggle"
+          aria-label={navOpen ? 'Fermer la navigation' : 'Ouvrir la navigation'}
+          aria-controls="main-navigation"
+          aria-expanded={navOpen}
+          onClick={() => (navOpen ? closeNavigation() : setNavOpen(true))}
+        >
+          <Icon name={navOpen ? 'cross' : 'menu'} />
+        </button>
+        <a href="#/royaume" className="brand-link" aria-label="Accueil du projet">
+          <Brand />
+        </a>
         <div className="project-chip" title={session?.project.root}>
           <Icon name="crown" size={14} />
           <span className="project-chip-name">{profile.data?.name ?? session?.project.name}</span>
           <span className="badge tone-success project-chip-live">Projet réel</span>
         </div>
         <button className="searchbox" onClick={() => setSearchOpen(true)} aria-keyshortcuts="Control+K">
-          <Icon name="search" size={16} /><span>Rechercher</span><kbd>Ctrl K</kbd>
+          <Icon name="search" size={16} />
+          <span>Rechercher</span>
+          <kbd>Ctrl K</kbd>
         </button>
         <div className="topbar-actions">
-          <Button size="small" variant="ghost" icon="replace" onClick={() => invalidate()} aria-label="Actualiser les données du projet">Actualiser</Button>
+          <Button size="small" variant="ghost" icon="replace" onClick={() => invalidate()} aria-label="Actualiser les données du projet">
+            Actualiser
+          </Button>
           <ModePicker />
         </div>
       </header>
 
       {navOpen && <div className="nav-scrim" aria-hidden="true" onClick={closeNavigation} />}
-      <nav id="main-navigation" className={`sidebar ${navOpen ? 'open' : ''}`} aria-label={pro ? 'Navigation principale' : 'Lieux du royaume'} onKeyDown={(e) => { if (navOpen && e.key === 'Escape') closeNavigation(); }}>
-        {PLACE_GROUPS.map((group) => <div className="nav-group" key={group.name}>
-          <p className="nav-group-label">{group.name}</p>
-          <ul className="plain">
-            {group.keys.map((key) => {
-              const p = PLACES.find((c) => c.key === key)!;
-              const c = counts[p.key];
-              const name = placeName(p, pro);
-              const role = PROJECT_PLACES[p.key].role;
-              return (
-                <li key={p.key}>
-                  <a href={`#${p.route}`} aria-current={place?.key === p.key ? 'page' : undefined} className="nav-item" title={role} onClick={() => setNavOpen(false)}>
-                    {pro ? <NavigationIcon place={p.key} /> : <Icon name={p.icon} size={20} />}
-                    <span className="nav-text"><span className="nav-name">{name}</span>{!pro && <> <span className="nav-role">{role}</span></>}</span>
-                    {c && <><span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">{c.n}</span><span className="sr-only">, {c.n} {c.label}</span></>}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </div>)}
-        <span className="nav-room-note" role="note"><Icon name="shield" size={13} /> OpenGuildKit {session?.version} · 127.0.0.1</span>
+      <nav
+        id="main-navigation"
+        className={`sidebar ${navOpen ? 'open' : ''}`}
+        aria-label={pro ? 'Navigation principale' : 'Lieux du royaume'}
+        onKeyDown={(e) => {
+          if (navOpen && e.key === 'Escape') closeNavigation();
+        }}
+      >
+        {PLACE_GROUPS.map((group) => (
+          <div className="nav-group" key={group.name}>
+            <p className="nav-group-label">{group.name}</p>
+            <ul className="plain">
+              {group.keys.map((key) => {
+                const p = PLACES.find((c) => c.key === key)!;
+                const c = counts[p.key];
+                const name = placeName(p, pro);
+                const role = PROJECT_PLACES[p.key].role;
+                return (
+                  <li key={p.key}>
+                    <a
+                      href={`#${p.route}`}
+                      aria-current={place?.key === p.key ? 'page' : undefined}
+                      className="nav-item"
+                      title={role}
+                      onClick={() => setNavOpen(false)}
+                    >
+                      {pro ? <NavigationIcon place={p.key} /> : <Icon name={p.icon} size={20} />}
+                      <span className="nav-text">
+                        <span className="nav-name">{name}</span>
+                        {!pro && (
+                          <>
+                            {' '}
+                            <span className="nav-role">{role}</span>
+                          </>
+                        )}
+                      </span>
+                      {c && (
+                        <>
+                          <span className={`badge count ${c.tone}`} title={`${c.n} ${c.label}`} aria-hidden="true">
+                            {c.n}
+                          </span>
+                          <span className="sr-only">
+                            , {c.n} {c.label}
+                          </span>
+                        </>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+        <span className="nav-room-note" role="note">
+          <Icon name="shield" size={13} /> OpenGuildKit {session?.version} · 127.0.0.1
+        </span>
       </nav>
 
       <main id="main" tabIndex={-1} className="main" inert={navOpen}>
-        {overview.error && <div className="notice danger" role="alert"><Icon name="warn" size={16} /><div><span lang={errorText(overview.error).lang}>{errorText(overview.error).text}</span><ServerWords detail={errorText(overview.error).detail} /></div></div>}
+        {overview.error && (
+          <div className="notice danger" role="alert">
+            <Icon name="warn" size={16} />
+            <div>
+              <span lang={errorText(overview.error).lang}>{errorText(overview.error).text}</span>
+              <ServerWords detail={errorText(overview.error).detail} />
+            </div>
+          </div>
+        )}
         {place && <PlaceHeader place={place} pro={pro} compact={route.parts.length > 1} />}
         <TouchedNotice />
-        {actionWarning && <Notice tone="warn" title="Avertissements de la commande">
-          <Pre text={actionWarning} />
-          <Button size="small" onClick={() => showActionWarning('')}>Masquer les avertissements</Button>
-        </Notice>}
+        {actionWarning && (
+          <Notice tone="warn" title="Avertissements de la commande">
+            <Pre text={actionWarning} />
+            <Button size="small" onClick={() => showActionWarning('')}>
+              Masquer les avertissements
+            </Button>
+          </Notice>
+        )}
         {children}
       </main>
       <ProjectSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -169,10 +279,19 @@ function PlaceHeader({ place, pro, compact }: { place: Place; pro: boolean; comp
   return (
     <header className={`place-heading ${illustrated ? 'illustrated' : ''}`}>
       <div className="place-heading-copy">
-        {!pro && <p className="place-heading-label"><Icon name={place.icon} size={16} />{PROJECT_PLACES[place.key].role}</p>}
+        {!pro && (
+          <p className="place-heading-label">
+            <Icon name={place.icon} size={16} />
+            {PROJECT_PLACES[place.key].role}
+          </p>
+        )}
         <h1>{placeName(place, pro)}</h1>
       </div>
-      {illustrated && <div className="place-heading-art" aria-hidden="true"><SceneArt place={place.key} /></div>}
+      {illustrated && (
+        <div className="place-heading-art" aria-hidden="true">
+          <SceneArt place={place.key} />
+        </div>
+      )}
     </header>
   );
 }

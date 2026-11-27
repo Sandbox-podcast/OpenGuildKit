@@ -12,9 +12,25 @@ const quality = process.argv[2] ?? '82';
 // The file of a place is its name without accents, except the Tour de guet (tour.webp).
 const fileOf = (place) => (place === 'Tour de guet' ? 'tour' : place.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase());
 
-const rows = readFileSync(join(sheets, 'README.md'), 'utf8').matchAll(/^\| ([^|]+) \| \[[^\]]+\]\(([^)]+\.png)\) \| [^|]+ \| (\d+), (\d+), (\d+), (\d+) \|$/gm);
+const rows = readFileSync(join(sheets, 'README.md'), 'utf8').matchAll(
+  /^\| ([^|]+) \| \[[^\]]+\]\(([^)]+\.png)\) \| [^|]+ \| (\d+), (\d+), (\d+), (\d+) \|$/gm,
+);
 for (const [, place, sheet, left, top, right, bottom] of rows) {
-  const png = execFileSync('magick', [join(sheets, sheet), '-crop', `${right - left}x${bottom - top}+${left}+${top}`, '+repage', '-filter', 'Lanczos', '-resize', '768x192!', 'png:-'], { maxBuffer: 1 << 26 });
+  const png = execFileSync(
+    'magick',
+    [
+      join(sheets, sheet),
+      '-crop',
+      `${right - left}x${bottom - top}+${left}+${top}`,
+      '+repage',
+      '-filter',
+      'Lanczos',
+      '-resize',
+      '768x192!',
+      'png:-',
+    ],
+    { maxBuffer: 1 << 26 },
+  );
   const target = join(web, 'public', 'assets', 'rooms', `${fileOf(place)}.webp`);
   execFileSync('cwebp', ['-quiet', '-q', quality, '-m', '6', '-o', target, '--', '-'], { input: png });
   console.log(`${place.padEnd(14)} ${target.replace(`${web}/`, '')}`);

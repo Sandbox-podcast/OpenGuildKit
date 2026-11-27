@@ -8,13 +8,25 @@ afterEach(cleanup);
 
 const task = (id: string) => ({ id, status: 'draft', brief: 'Send a survey when a request closes.', rounds: [] }) as unknown as TaskRecord;
 const answers = { kind: 'feature', surface: ['web'], data: 'none' };
-const route = { routing: { security: ['handles personal data'], qa: ['a feature'] }, excluded: {}, expected_not_selected: {}, not_selected: ['privacy'], adjustments: [] };
+const route = {
+  routing: { security: ['handles personal data'], qa: ['a feature'] },
+  excluded: {},
+  expected_not_selected: {},
+  not_selected: ['privacy'],
+  adjustments: [],
+};
 const commands = {
-  'brains --json': { security: { id: 'security', title: 'Security', description: '' }, qa: { id: 'qa', title: 'Quality', description: '' }, privacy: { id: 'privacy', title: 'Privacy', description: '' } },
+  'brains --json': {
+    security: { id: 'security', title: 'Security', description: '' },
+    qa: { id: 'qa', title: 'Quality', description: '' },
+    privacy: { id: 'privacy', title: 'Privacy', description: '' },
+  },
   'task route': route,
   'task consult': { consultation_id: 'c1' },
 };
-const files = { '.openguildkit/project.json': JSON.stringify({ name: 'Portail support', boards: ['security', 'qa', 'privacy'], required_boards: [] }) };
+const files = {
+  '.openguildkit/project.json': JSON.stringify({ name: 'Portail support', boards: ['security', 'qa', 'privacy'], required_boards: [] }),
+};
 const REASON = 'La sécurité doit relire ce flux de mails';
 
 describe('Routing', () => {
@@ -28,7 +40,10 @@ describe('Routing', () => {
     const asked = api.sent('task route').length;
 
     const grids: number[] = [];
-    new MutationObserver(() => grids.push(container.querySelectorAll('.board-grid').length)).observe(container, { childList: true, subtree: true });
+    new MutationObserver(() => grids.push(container.querySelectorAll('.board-grid').length)).observe(container, {
+      childList: true,
+      subtree: true,
+    });
     expect(REASON).toHaveLength(40);
     for (let i = 1; i <= REASON.length; i++) {
       await type(field(container, 'Motif de l’ajustement'), REASON.slice(0, i));

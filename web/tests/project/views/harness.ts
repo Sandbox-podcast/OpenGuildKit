@@ -30,7 +30,9 @@ export async function fakeApi(commands: Record<string, unknown>, files: Record<s
   const answer = (argv: string[], uploads: Record<string, string> = {}): CliResult => {
     const line = argv.join(' ');
     sent.push(line);
-    const start = Object.keys(commands).filter((prefix) => line.startsWith(prefix)).sort((a, b) => b.length - a.length)[0];
+    const start = Object.keys(commands)
+      .filter((prefix) => line.startsWith(prefix))
+      .sort((a, b) => b.length - a.length)[0];
     if (start === undefined) throw new Error(`the fake API has no answer for: ${line}`);
     const value = commands[start];
     return ok(typeof value === 'function' ? value(argv, uploads) : value);
@@ -38,17 +40,31 @@ export async function fakeApi(commands: Record<string, unknown>, files: Record<s
   const json = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
   vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {};
-    if (input.endsWith('/api/session')) return json({ app: 'openguildkit-ui', version: '0.0.0-test', token: 'test', project: { root: '/tmp/portal', name: 'Portail support', initialized: true }, human_only: [] });
+    if (input.endsWith('/api/session'))
+      return json({
+        app: 'openguildkit-ui',
+        version: '0.0.0-test',
+        token: 'test',
+        project: { root: '/tmp/portal', name: 'Portail support', initialized: true },
+        human_only: [],
+      });
     if (input.endsWith('/api/files/read')) return json({ path: body.path, text: files[body.path] ?? null });
     if (input.endsWith('/api/files/list')) return json({ entries: [] });
-    if (body.batch) return json({ results: Object.fromEntries(Object.entries(body.batch as Record<string, string[]>).map(([name, argv]) => [name, answer(argv)])) });
+    if (body.batch)
+      return json({
+        results: Object.fromEntries(Object.entries(body.batch as Record<string, string[]>).map(([name, argv]) => [name, answer(argv)])),
+      });
     return json(answer(body.argv, body.uploads));
   });
   await detectSession();
   return { commands: sent, sent: (prefix) => sent.filter((line) => line.startsWith(prefix)) };
 }
 
-export interface Mounted { container: HTMLElement; root: Root; unmount: () => Promise<void> }
+export interface Mounted {
+  container: HTMLElement;
+  root: Root;
+  unmount: () => Promise<void>;
+}
 const mounted: Mounted[] = [];
 
 /** Renders `ui` into the page and lets its first effects and requests settle. */
@@ -56,8 +72,17 @@ export async function mount(ui: ReactNode): Promise<Mounted> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => { root.render(ui); });
-  const handle: Mounted = { container, root, unmount: async () => { await act(async () => root.unmount()); container.remove(); } };
+  await act(async () => {
+    root.render(ui);
+  });
+  const handle: Mounted = {
+    container,
+    root,
+    unmount: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
   mounted.push(handle);
   return handle;
 }
@@ -71,11 +96,17 @@ export async function cleanup() {
 }
 
 /** Lets time pass, on the fake clock when the test installed one, and the requests that follow settle. */
-export const wait = (ms = 0) => act(async () => { if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(ms); else await new Promise((resolve) => setTimeout(resolve, ms)); });
+export const wait = (ms = 0) =>
+  act(async () => {
+    if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(ms);
+    else await new Promise((resolve) => setTimeout(resolve, ms));
+  });
 
 /** The field a label names: the input, textarea or select its `for` points to, or the one inside it; else an `aria-label`. */
 export function field(container: ParentNode, label: string | RegExp): HTMLInputElement & HTMLTextAreaElement & HTMLSelectElement {
-  const named = [...container.querySelectorAll('label')].find((l) => (typeof label === 'string' ? l.textContent?.trim() === label : label.test(l.textContent ?? '')));
+  const named = [...container.querySelectorAll('label')].find((l) =>
+    typeof label === 'string' ? l.textContent?.trim() === label : label.test(l.textContent ?? ''),
+  );
   const labelled = typeof label === 'string' ? container.querySelector(`[aria-label="${label}"]`) : null;
   if (!named && labelled) return labelled as never;
   if (!named) throw new Error(`no label ${String(label)}`);
@@ -86,7 +117,9 @@ export function field(container: ParentNode, label: string | RegExp): HTMLInputE
 
 /** The first button whose text is `name` (or matches it). */
 export function button(container: ParentNode, name: string | RegExp): HTMLButtonElement {
-  const found = [...container.querySelectorAll('button')].find((b) => (typeof name === 'string' ? b.textContent?.trim() === name : name.test(b.textContent ?? '')));
+  const found = [...container.querySelectorAll('button')].find((b) =>
+    typeof name === 'string' ? b.textContent?.trim() === name : name.test(b.textContent ?? ''),
+  );
   if (!found) throw new Error(`no button ${String(name)}`);
   return found;
 }
@@ -95,7 +128,13 @@ export function button(container: ParentNode, name: string | RegExp): HTMLButton
 export async function type(element: HTMLInputElement | HTMLTextAreaElement, text: string) {
   const prototype = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   const set = Object.getOwnPropertyDescriptor(prototype, 'value')!.set!;
-  await act(async () => { set.call(element, text); element.dispatchEvent(new Event('input', { bubbles: true })); });
+  await act(async () => {
+    set.call(element, text);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 }
 
-export const click = (element: HTMLElement) => act(async () => { element.click(); });
+export const click = (element: HTMLElement) =>
+  act(async () => {
+    element.click();
+  });

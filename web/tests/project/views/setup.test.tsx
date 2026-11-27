@@ -7,14 +7,31 @@ afterEach(cleanup);
 
 const questions = [
   { id: 'name', prompt: 'Project name', type: 'text', required: true },
-  { id: 'stack', prompt: 'Stack', type: 'multi-select', choices: [{ id: 'react', label: 'React' }, { id: 'node', label: 'Node.js' }] },
+  {
+    id: 'stack',
+    prompt: 'Stack',
+    type: 'multi-select',
+    choices: [
+      { id: 'react', label: 'React' },
+      { id: 'node', label: 'Node.js' },
+    ],
+  },
 ];
-const plan = { packs: [{ id: 'core', title: 'Core rules', version: '1.2.0', provenance: ['OpenGuildKit'], scope: {}, rules: ['a', 'b', 'c'] }], excluded: [], conflicts: [], conventions: ['Small commits'], checks: ['npm test'] };
+const plan = {
+  packs: [{ id: 'core', title: 'Core rules', version: '1.2.0', provenance: ['OpenGuildKit'], scope: {}, rules: ['a', 'b', 'c'] }],
+  excluded: [],
+  conflicts: [],
+  conventions: ['Small commits'],
+  checks: ['npm test'],
+};
 const uploaded: string[] = [];
 const commands = {
   'init --questions': questions,
   recommend: { matched: [] },
-  preview: (_argv: string[], uploads: Record<string, string>) => { uploaded.push(uploads['profile.json']); return plan; },
+  preview: (_argv: string[], uploads: Record<string, string>) => {
+    uploaded.push(uploads['profile.json']);
+    return plan;
+  },
   'init --answers': { initialized: true },
 };
 
@@ -36,7 +53,10 @@ describe('installation of the guild in a project without a profile', () => {
     const { container } = await mount(<Setup />);
     await wait();
     uploaded.length = 0;
-    for (const text of ['P', 'Po', 'Por', 'Port', 'Portail']) { await type(field(container, /Nom du projet/), text); await wait(50); }
+    for (const text of ['P', 'Po', 'Por', 'Port', 'Portail']) {
+      await type(field(container, /Nom du projet/), text);
+      await wait(50);
+    }
     // Nothing is asked for a name still being typed; the install waits for the plan of the answers as they stand.
     const names = () => uploaded.map((upload) => JSON.parse(upload).name).filter(Boolean);
     expect(names()).toEqual([]);

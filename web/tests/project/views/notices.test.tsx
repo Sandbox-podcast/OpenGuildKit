@@ -21,7 +21,9 @@ describe('what a place says about the checks', () => {
 
   it('names the tasks that only a person can repair when the instructions are in line', async () => {
     const failing = result(1, '', 'OpenGuildKit: the instructions match the project profile; 2 tasks fail.');
-    const { container } = await mount(<CheckNotice result={failing} tasks={[task('a', 'unreadable'), task('b', 'approved', 'error'), task('c', 'draft')]} />);
+    const { container } = await mount(
+      <CheckNotice result={failing} tasks={[task('a', 'unreadable'), task('b', 'approved', 'error'), task('c', 'draft')]} />,
+    );
     expect(container.textContent).toContain('des tâches sont à reprendre par une personne');
     expect([...container.querySelectorAll('li a')].map((a) => a.getAttribute('href'))).toEqual(['#/quetes/a', '#/conseil/b']);
     expect(container.textContent).toContain('fichier illisible, à réparer');
@@ -49,7 +51,9 @@ describe('steps of a task', () => {
 
 describe('refusals', () => {
   it('shows the failure of a command, with the words of the server behind it', async () => {
-    const { container } = await mount(<ErrorNotice error={new ApiError('A task needs a brief.', 200, { lang: 'en' })} title="Ouverture refusée" />);
+    const { container } = await mount(
+      <ErrorNotice error={new ApiError('A task needs a brief.', 200, { lang: 'en' })} title="Ouverture refusée" />,
+    );
     expect(container.textContent).toContain('Ouverture refusée');
     expect(container.querySelector('[lang="en"]')!.textContent).toContain('A task needs a brief.');
   });
@@ -57,11 +61,19 @@ describe('refusals', () => {
   it('hands a decision reserved to a person to the terminal, with the command to type', async () => {
     const { container } = await mount(<TerminalDialog />);
     expect(container.querySelector('dialog')!.textContent).toBe('');
-    await act(async () => { showTerminal({ title: 'À faire dans ton terminal', why: 'Seule une personne approuve.', command: 'openguildkit task decide x --approve' }); });
+    await act(async () => {
+      showTerminal({
+        title: 'À faire dans ton terminal',
+        why: 'Seule une personne approuve.',
+        command: 'openguildkit task decide x --approve',
+      });
+    });
     const dialog = container.querySelector('dialog')!;
     expect(dialog.textContent).toContain('À faire dans ton terminal');
     expect(dialog.querySelector('[aria-label="Commande"]')!.textContent).toBe('openguildkit task decide x --approve');
-    await act(async () => { showTerminal(null); });
+    await act(async () => {
+      showTerminal(null);
+    });
     expect(dialog.textContent).toBe('');
   });
 });

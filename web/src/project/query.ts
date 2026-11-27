@@ -8,13 +8,27 @@ import { toast } from '@/shared/ui/toast';
 import { touchedTasks } from './labels';
 import { errorText } from './refusals';
 
-interface Entry { data?: unknown; error?: ApiError; loading: boolean; stale: boolean; at: number }
+interface Entry {
+  data?: unknown;
+  error?: ApiError;
+  loading: boolean;
+  stale: boolean;
+  at: number;
+}
 
 const cache = new Map<string, Entry>();
 const listeners = new Set<() => void>();
 let version = 0;
-const emit = () => { version++; listeners.forEach((listener) => listener()); };
-const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+const emit = () => {
+  version++;
+  listeners.forEach((listener) => listener());
+};
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
 
 /** Exported for the tests; views use the hooks. */
 export const peek = (key: string) => cache.get(key);
@@ -40,19 +54,35 @@ export async function load(key: string, fetcher: () => Promise<unknown>) {
 }
 
 /** Drops the entry of a question nobody asks any more (a field was typed in since), so the cache does not grow with it. */
-export const forget = (key: string) => { cache.delete(key); };
+export const forget = (key: string) => {
+  cache.delete(key);
+};
 
-export interface Query<T> { data: T | undefined; error: ApiError | undefined; loading: boolean; reload: () => void }
+export interface Query<T> {
+  data: T | undefined;
+  error: ApiError | undefined;
+  loading: boolean;
+  reload: () => void;
+}
 
 /** transient: the key holds what a person types, so its entry is dropped when the key changes or the view goes away. */
 export function useQuery<T>(key: string | null, fetcher: () => Promise<T>, opts: { transient?: boolean } = {}): Query<T> {
   useSyncExternalStore(subscribe, () => version);
   const entry = key ? cache.get(key) : undefined;
   const missing = !!key && (!entry || entry.stale);
-  useEffect(() => { if (key && missing) void load(key, fetcher); });
+  useEffect(() => {
+    if (key && missing) void load(key, fetcher);
+  });
   useEffect(() => (key && opts.transient ? () => forget(key) : undefined), [key, opts.transient]);
-  const reload = useCallback(() => { if (key) void load(key, fetcher); }, [key, fetcher]);
-  return { data: entry?.data as T | undefined, error: entry?.error, loading: !!key && (!entry || entry.loading || entry.stale) && entry?.data === undefined, reload };
+  const reload = useCallback(() => {
+    if (key) void load(key, fetcher);
+  }, [key, fetcher]);
+  return {
+    data: entry?.data as T | undefined,
+    error: entry?.error,
+    loading: !!key && (!entry || entry.loading || entry.stale) && entry?.data === undefined,
+    reload,
+  };
 }
 
 const keyOf = (argv: string[]) => argv.join('\u0001');
@@ -64,24 +94,38 @@ export const resultKey = (argv: string[]) => `result:${keyOf(argv)}`;
 export function useCli<T>(argv: string[] | null, opts: Pick<RunOptions, 'omit'> = {}): Query<T> {
   const key = argv ? `${jsonKey(argv)}${opts.omit ? `|omit:${opts.omit.join(',')}` : ''}` : null;
   remember(key, argv);
-  return useQuery<T>(key, useCallback(async () => {
-    const result = await run<T>(argv!, undefined, { omit: opts.omit });
-    if (result.json === null) throw new ApiError(`La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`, 200, { result });
-    return result.json;
-  }, [key]));
+  return useQuery<T>(
+    key,
+    useCallback(async () => {
+      const result = await run<T>(argv!, undefined, { omit: opts.omit });
+      if (result.json === null)
+        throw new ApiError(
+          `La commande « ${argv!.join(' ')} » n’a pas renvoyé de JSON.${result.stdout ? ` Sortie : ${result.stdout.slice(0, 200)}` : ''}`,
+          200,
+          { result },
+        );
+      return result.json;
+    }, [key]),
+  );
 }
 
 /** Text output of a read command (Markdown briefs, handoffs). */
 export function useCliText(argv: string[] | null): Query<string> {
   const key = argv ? `text:${keyOf(argv)}` : null;
   remember(key, argv);
-  return useQuery<string>(key, useCallback(async () => (await run(argv!, undefined, { raw: true })).stdout, [key]));
+  return useQuery<string>(
+    key,
+    useCallback(async () => (await run(argv!, undefined, { raw: true })).stdout, [key]),
+  );
 }
 
 /** Full result, including a non-zero exit code: `check` and `docs share check` answer through their code. */
 export function useCliResult(argv: string[] | null): Query<CliResult> {
   const key = argv ? resultKey(argv) : null;
-  return useQuery<CliResult>(key, useCallback(() => run(argv!, undefined, { allowFailure: true, raw: true }), [key]));
+  return useQuery<CliResult>(
+    key,
+    useCallback(() => run(argv!, undefined, { allowFailure: true, raw: true }), [key]),
+  );
 }
 
 /**
@@ -90,31 +134,70 @@ export function useCliResult(argv: string[] | null): Query<CliResult> {
  */
 const catalogKeys = new Set<string>();
 const CATALOG = /^(brains|references|patterns|catalog)\u0001|^tools\u0001list|^deliverable\u0001(list|show)|^init\u0001--questions/;
-export const remember = (key: string | null, argv: string[] | null) => { if (key && argv && CATALOG.test(argv.join('\u0001'))) catalogKeys.add(key); };
+export const remember = (key: string | null, argv: string[] | null) => {
+  if (key && argv && CATALOG.test(argv.join('\u0001'))) catalogKeys.add(key);
+};
 /** Commands that can change the catalog in force or the profile. */
 export const changesCatalog = (argv: string[]) => ['update', 'sync', 'init', 'integrations'].includes(argv[0]);
 
 /** Marks the cache stale; mounted views reload. 'project' keeps what depends only on the catalog. */
 export function invalidate(scope: 'all' | 'project' = 'all') {
-  cache.forEach((entry, key) => { if (scope === 'all' || !catalogKeys.has(key)) cache.set(key, { ...entry, stale: true }); });
+  cache.forEach((entry, key) => {
+    if (scope === 'all' || !catalogKeys.has(key)) cache.set(key, { ...entry, stale: true });
+  });
   emit();
 }
 
 /* ------------------------------------------------------------------ terminal hand-off */
 /** why: what the page says, in French or marked English (lang); detail: the server's own words behind a French text. */
-export interface TerminalRequest { title: string; why: string; lang?: 'en'; detail?: string; command: string; after?: string }
+export interface TerminalRequest {
+  title: string;
+  why: string;
+  lang?: 'en';
+  detail?: string;
+  command: string;
+  after?: string;
+}
 let terminal: TerminalRequest | null = null;
 const terminalListeners = new Set<() => void>();
-export const showTerminal = (request: TerminalRequest | null) => { terminal = request; terminalListeners.forEach((l) => l()); };
-export const useTerminalRequest = () => useSyncExternalStore((l) => { terminalListeners.add(l); return () => { terminalListeners.delete(l); }; }, () => terminal);
+export const showTerminal = (request: TerminalRequest | null) => {
+  terminal = request;
+  terminalListeners.forEach((l) => l());
+};
+export const useTerminalRequest = () =>
+  useSyncExternalStore(
+    (l) => {
+      terminalListeners.add(l);
+      return () => {
+        terminalListeners.delete(l);
+      };
+    },
+    () => terminal,
+  );
 
 /* ------------------------------------------------------------------ tasks a change of rules touched */
-interface Touched { id: string; status: string; step: string }
+interface Touched {
+  id: string;
+  status: string;
+  step: string;
+}
 let touched: Touched[] | null = null;
 const touchedListeners = new Set<() => void>();
 /** Keeps on screen the tasks that sync, update --apply or a saved profile names, until the person closes the list. */
-export const showTouched = (list: Touched[] | null) => { touched = list?.length ? list : null; touchedListeners.forEach((l) => l()); };
-export const useTouched = () => useSyncExternalStore((l) => { touchedListeners.add(l); return () => { touchedListeners.delete(l); }; }, () => touched);
+export const showTouched = (list: Touched[] | null) => {
+  touched = list?.length ? list : null;
+  touchedListeners.forEach((l) => l());
+};
+export const useTouched = () =>
+  useSyncExternalStore(
+    (l) => {
+      touchedListeners.add(l);
+      return () => {
+        touchedListeners.delete(l);
+      };
+    },
+    () => touched,
+  );
 /** After a command that rewrites the rules, the tasks it names (or none: the earlier list no longer applies). */
 export function reportTouched(argv: string[], stdout: string) {
   const list = touchedTasks(stdout);
@@ -130,14 +213,24 @@ export function showActionWarning(text: string) {
   warningListeners.forEach((listener) => listener());
 }
 export function useActionWarning() {
-  return useSyncExternalStore((listener) => {
-    warningListeners.add(listener);
-    return () => { warningListeners.delete(listener); };
-  }, () => actionWarning);
+  return useSyncExternalStore(
+    (listener) => {
+      warningListeners.add(listener);
+      return () => {
+        warningListeners.delete(listener);
+      };
+    },
+    () => actionWarning,
+  );
 }
 
 /* ------------------------------------------------------------------ actions */
-export interface ActionOptions { uploads?: Record<string, string>; success?: string; quiet?: boolean; onDone?: (r: CliResult) => void }
+export interface ActionOptions {
+  uploads?: Record<string, string>;
+  success?: string;
+  quiet?: boolean;
+  onDone?: (r: CliResult) => void;
+}
 
 /** Runs a command that changes the project, reports it, then refreshes the views. */
 export function useAction() {
@@ -154,7 +247,16 @@ export function useAction() {
       const warnings = [result.stderr.trim(), relatedShares].filter(Boolean).join('\n');
       if (warnings) showActionWarning(warnings);
       const printed = result.stdout.trim().split('\n').slice(0, 2).join(' ').slice(0, 180);
-      if (!opts.quiet) toast({ tone: 'success', title: opts.success ?? 'Enregistré', ...(named.length ? { text: `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` } : printed ? { text: printed, lang: 'en' as const } : {}) });
+      if (!opts.quiet)
+        toast({
+          tone: 'success',
+          title: opts.success ?? 'Enregistré',
+          ...(named.length
+            ? { text: `${named.length} tâche(s) consultée(s) sous les règles précédentes : la liste est affichée sur la page.` }
+            : printed
+              ? { text: printed, lang: 'en' as const }
+              : {}),
+        });
       opts.onDone?.(result);
       invalidate(changesCatalog(argv) ? 'all' : 'project');
       return result;
@@ -163,8 +265,18 @@ export function useAction() {
       // A refused command can still have recorded something: task submit keeps a failed pass, task verify its checks.
       if (failure.result) invalidate('project');
       const shown = errorText(failure);
-      if (failure.command) showTerminal({ title: 'À faire dans ton terminal', why: shown.text, lang: shown.lang, detail: shown.detail, command: failure.command });
-      else { setError(failure); toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang }); }
+      if (failure.command)
+        showTerminal({
+          title: 'À faire dans ton terminal',
+          why: shown.text,
+          lang: shown.lang,
+          detail: shown.detail,
+          command: failure.command,
+        });
+      else {
+        setError(failure);
+        toast({ tone: 'danger', title: 'Commande refusée', text: shown.text.slice(0, 240), lang: shown.lang });
+      }
       return null;
     } finally {
       setBusy(null);

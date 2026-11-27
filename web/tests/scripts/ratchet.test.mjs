@@ -15,7 +15,9 @@ function project(files) {
   }
   return root;
 }
-afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 describe('npm run check:ratchet', () => {
   /** Issue #515: lines of 731 characters, and nothing to stop a new one. */
@@ -62,10 +64,16 @@ describe('npm run check:ratchet', () => {
 
   it('lets a file get better, and a file with no baseline stay at zero', () => {
     expect(compare({ 'src/a.ts': 3 }, { 'src/a.ts': 3 })).toEqual({ worse: [], better: [] });
-    expect(compare({ 'src/a.ts': 3, 'src/b.ts': 1 }, { 'src/a.ts': 1 }).better).toEqual(['src/a.ts: 1 (baseline 3)', 'src/b.ts: 0 (baseline 1)']);
+    expect(compare({ 'src/a.ts': 3, 'src/b.ts': 1 }, { 'src/a.ts': 1 }).better).toEqual([
+      'src/a.ts: 1 (baseline 3)',
+      'src/b.ts: 0 (baseline 1)',
+    ]);
   });
 
   it('refuses a file that gets worse, and a new file with a deviation', () => {
-    expect(compare({ 'src/a.ts': 3 }, { 'src/a.ts': 4, 'src/new.ts': 1 }).worse).toEqual(['src/a.ts: 4 (baseline 3)', 'src/new.ts: 1 (baseline 0)']);
+    expect(compare({ 'src/a.ts': 3 }, { 'src/a.ts': 4, 'src/new.ts': 1 }).worse).toEqual([
+      'src/a.ts: 4 (baseline 3)',
+      'src/new.ts: 1 (baseline 0)',
+    ]);
   });
 });

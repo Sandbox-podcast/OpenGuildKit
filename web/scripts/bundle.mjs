@@ -29,8 +29,9 @@ export function sizeKb(folder) {
 /** The problems that keep a build out of the package: no page, the demo, or more than the budget. */
 export function bundleProblems(folder, budget = BUDGET_KB) {
   if (!existsSync(join(folder, 'index.html'))) return [`${folder}/index.html is missing: run npm run build first.`];
-  const problems = DEMO_ONLY.filter((path) => existsSync(join(folder, path)))
-    .map((path) => `${path} belongs to the demo: build with npm run build, not npm run build:demo.`);
+  const problems = DEMO_ONLY.filter((path) => existsSync(join(folder, path))).map(
+    (path) => `${path} belongs to the demo: build with npm run build, not npm run build:demo.`,
+  );
   const size = sizeKb(folder);
   if (size > budget) problems.push(`The build takes ${size} KB, over its budget of ${budget} KB (BUDGET_KB in web/scripts/bundle.mjs).`);
   return problems;

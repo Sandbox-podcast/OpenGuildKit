@@ -6,7 +6,12 @@ import { button, cleanup, click, field, mount, type } from './harness';
 afterEach(cleanup);
 
 const fields = [
-  { name: 'id', label: 'Identifiant', required: true, check: (v: string) => (/^[a-z-]+$/.test(v) ? null : 'Des lettres minuscules et des tirets.') },
+  {
+    name: 'id',
+    label: 'Identifiant',
+    required: true,
+    check: (v: string) => (/^[a-z-]+$/.test(v) ? null : 'Des lettres minuscules et des tirets.'),
+  },
   { name: 'brief', label: 'Ce que l’équipe doit faire', required: true, multiline: true },
 ];
 

@@ -24,7 +24,7 @@ function useOverviewPart<T>(name: OverviewPart): Query<T> {
   const r = overview.data?.[name];
   const failed = r && (r.code !== 0 || r.json == null);
   return {
-    data: r && !failed ? r.json as T : undefined,
+    data: r && !failed ? (r.json as T) : undefined,
     error: failed ? cliError(r) : overview.error,
     loading: overview.data === undefined && !overview.error,
     reload: overview.reload,
@@ -44,18 +44,31 @@ export const useBrains = () => useCli<Record<string, Brain>>([...ARGV.brains]);
  * only the Guilde and the reviews show them. `enabled` false loads nothing, for a search that is closed.
  */
 export const BRAIN_TITLES_OMIT = ['review', 'triggers', 'sources', 'questions', 'expertises'];
-export const useBrainTitles = (enabled = true) => useCli<Record<string, Pick<Brain, 'id' | 'title' | 'description'>>>(enabled ? [...ARGV.brains] : null, { omit: BRAIN_TITLES_OMIT });
+export const useBrainTitles = (enabled = true) =>
+  useCli<Record<string, Pick<Brain, 'id' | 'title' | 'description'>>>(enabled ? [...ARGV.brains] : null, { omit: BRAIN_TITLES_OMIT });
 export const useGuard = () => useCli<Guard>([...ARGV.guard]);
 /** `check` answers through its exit code: the full result, success or not. */
 export function useCheck(): Query<CliResult> {
   const overview = useOverview();
-  return { data: overview.data?.check, error: overview.error, loading: overview.data === undefined && !overview.error, reload: overview.reload };
+  return {
+    data: overview.data?.check,
+    error: overview.error,
+    loading: overview.data === undefined && !overview.error,
+    reload: overview.reload,
+  };
 }
 
 export function useProfile() {
-  return useQuery<Profile | null>('file:profile', useCallback(async () => {
-    try { return await readJson<Profile>('.openguildkit/project.json'); } catch { return null; }
-  }, []));
+  return useQuery<Profile | null>(
+    'file:profile',
+    useCallback(async () => {
+      try {
+        return await readJson<Profile>('.openguildkit/project.json');
+      } catch {
+        return null;
+      }
+    }, []),
+  );
 }
 
 /** The French name of a brain, or the catalog's title for a brain the page does not know. */
@@ -69,11 +82,15 @@ type OverviewPart = (typeof OVERVIEW)[number];
  * Failures stay per command (an empty project has no market dossier).
  */
 export function useOverview() {
-  return useQuery<Record<string, CliResult>>('overview', useCallback(() => batch(Object.fromEntries(OVERVIEW.map((name) => [name, [...ARGV[name]]]))), []));
+  return useQuery<Record<string, CliResult>>(
+    'overview',
+    useCallback(() => batch(Object.fromEntries(OVERVIEW.map((name) => [name, [...ARGV[name]]]))), []),
+  );
 }
 
 type Count = { n: number; tone: 'danger' | 'warning' | 'info'; label: string };
-const count = (n: number, tone: Count['tone'], one: string, many = one): Count | null => (n > 0 ? { n, tone, label: n === 1 ? one : many } : null);
+const count = (n: number, tone: Count['tone'], one: string, many = one): Count | null =>
+  n > 0 ? { n, tone, label: n === 1 ? one : many } : null;
 
 export interface ProjectSignals {
   tasks: TaskListItem[];
@@ -98,7 +115,8 @@ export interface ProjectSignals {
 }
 
 export function signalsOf(overview: Record<string, CliResult> | undefined): ProjectSignals {
-  const json = <T,>(key: string, fallback: T): T => (overview?.[key]?.code === 0 && overview[key].json != null ? overview[key].json as T : fallback);
+  const json = <T>(key: string, fallback: T): T =>
+    overview?.[key]?.code === 0 && overview[key].json != null ? (overview[key].json as T) : fallback;
   const tasks = json<TaskListItem[]>('tasks', []);
   const alerts = json<AlertRegister | null>('alerts', null);
   const update = json<Update | null>('update', null);
@@ -133,9 +151,12 @@ export function placeCounts(s: ProjectSignals): Partial<Record<PlaceKey, Count |
   const consulting = s.tasks.filter((t) => t.status === 'consulting' || t.status === 'changes-requested').length;
   const stuck = s.blocked.length + s.reconsult.length + s.unreadable.length;
   return {
-    blueprint: s.offPath ? count(1, 'danger', 'commande absente du PATH') : count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
+    blueprint: s.offPath
+      ? count(1, 'danger', 'commande absente du PATH')
+      : count(s.instructionsDrift ? 1 : 0, 'danger', 'instructions à synchroniser'),
     conseil: count(consulting + s.awaitingDecision.length, 'info', 'à arbitrer'),
-    quetes: stuck === s.blocked.length ? count(stuck, 'danger', 'bloquée', 'bloquées') : count(stuck, 'danger', 'à reprendre par une personne'),
+    quetes:
+      stuck === s.blocked.length ? count(stuck, 'danger', 'bloquée', 'bloquées') : count(stuck, 'danger', 'à reprendre par une personne'),
     forge: count(s.toBuild.length, 'info', 'tâche à réaliser', 'tâches à réaliser'),
     tour: count(s.alertsOpen, 'danger', 'alerte à revoir', 'alertes à revoir'),
     observatoire: count(s.marketDue, 'info', 'source à relire', 'sources à relire'),

@@ -26,7 +26,9 @@ function sources(folder) {
 export function longLines(root) {
   const counts = {};
   for (const path of sources(join(root, 'src'))) {
-    const n = readFileSync(path, 'utf8').split('\n').filter((line) => line.length > MAX_LINE).length;
+    const n = readFileSync(path, 'utf8')
+      .split('\n')
+      .filter((line) => line.length > MAX_LINE).length;
     if (n) counts[relative(root, path)] = n;
   }
   return counts;
@@ -48,7 +50,12 @@ export function parseEslint(json, root) {
 
 /** The files of `prettier --list-different`, one each. */
 export function parseList(output) {
-  return Object.fromEntries(output.split('\n').filter(Boolean).map((file) => [file, 1]));
+  return Object.fromEntries(
+    output
+      .split('\n')
+      .filter(Boolean)
+      .map((file) => [file, 1]),
+  );
 }
 
 /** Runs a tool of node_modules (its `bin`) in `root`; the exit code is the tool's verdict, not a failure of the run. */
@@ -58,7 +65,8 @@ function tool(root, bin, args) {
 
 function unsafeIndexes(root) {
   const run = tool(root, 'typescript/bin/tsc', ['-p', 'tsconfig.index.json', '--noEmit', '--pretty', 'false']);
-  if (run.status === null || (run.status !== 0 && !/error TS\d+/.test(run.stdout))) throw new Error(`tsc failed: ${run.stderr || run.stdout}`);
+  if (run.status === null || (run.status !== 0 && !/error TS\d+/.test(run.stdout)))
+    throw new Error(`tsc failed: ${run.stderr || run.stdout}`);
   return parseTsc(run.stdout);
 }
 
@@ -95,7 +103,10 @@ function main() {
   const update = process.argv.includes('--update');
   const named = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
   const unknown = named.filter((name) => !(name in RULES));
-  if (unknown.length) { console.error(`Unknown rule: ${unknown.join(', ')}. Rules: ${Object.keys(RULES).join(', ')}.`); process.exit(2); }
+  if (unknown.length) {
+    console.error(`Unknown rule: ${unknown.join(', ')}. Rules: ${Object.keys(RULES).join(', ')}.`);
+    process.exit(2);
+  }
   const rules = named.length ? named : Object.keys(RULES);
   const baseline = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
   const current = Object.fromEntries(rules.map((rule) => [rule, RULES[rule](root)]));
@@ -111,10 +122,15 @@ function main() {
     console.log(`Baseline of ${rules.join(', ')} written to ${relative(root, file)}.`);
   } else if (worse.length || better.length) {
     console.error([...worse, ...better].join('\n'));
-    console.error(worse.length ? 'Fix the files that got worse.' : `Lock in the gain: node scripts/check-ratchet.mjs ${rules.join(' ')} --update`);
+    console.error(
+      worse.length ? 'Fix the files that got worse.' : `Lock in the gain: node scripts/check-ratchet.mjs ${rules.join(' ')} --update`,
+    );
     process.exit(1);
   } else {
-    for (const rule of rules) console.log(`${rule}: ${Object.values(current[rule]).reduce((a, b) => a + b, 0)} deviations in ${Object.keys(current[rule]).length} files, as in the baseline.`);
+    for (const rule of rules)
+      console.log(
+        `${rule}: ${Object.values(current[rule]).reduce((a, b) => a + b, 0)} deviations in ${Object.keys(current[rule]).length} files, as in the baseline.`,
+      );
   }
 }
 

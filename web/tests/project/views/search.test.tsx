@@ -9,14 +9,38 @@ afterEach(cleanup);
 const commands = {
   // The overview the shell reads in one batch.
   'task list': [{ id: 'closing-survey', status: 'draft', brief: 'Send a survey when a request closes', next: '' }],
-  check: 'ok', 'alerts list': { summary: { total: 0, by_status: {}, by_severity: {}, imports: [] }, alerts: [] }, 'docs share list': [], 'market due': { due: [] },
-  update: { changes: [], conflicts: [], applied: false, stale_tasks: [] }, 'host check': [],
-  'brains --json': { security: { id: 'security', title: 'Security', description: 'Threats, secrets and access' }, qa: { id: 'qa', title: 'Quality', description: 'Tests and acceptance' } },
-  'references --json': [{ id: 'owasp-top-10', title: 'OWASP Top 10', summary: 'Web application risks', aliases: [], category: 'security', kind: 'list', status: 'current', family: 'owasp', family_title: 'OWASP', applies_when: '', sources: [] }],
+  check: 'ok',
+  'alerts list': { summary: { total: 0, by_status: {}, by_severity: {}, imports: [] }, alerts: [] },
+  'docs share list': [],
+  'market due': { due: [] },
+  update: { changes: [], conflicts: [], applied: false, stale_tasks: [] },
+  'host check': [],
+  'brains --json': {
+    security: { id: 'security', title: 'Security', description: 'Threats, secrets and access' },
+    qa: { id: 'qa', title: 'Quality', description: 'Tests and acceptance' },
+  },
+  'references --json': [
+    {
+      id: 'owasp-top-10',
+      title: 'OWASP Top 10',
+      summary: 'Web application risks',
+      aliases: [],
+      category: 'security',
+      kind: 'list',
+      status: 'current',
+      family: 'owasp',
+      family_title: 'OWASP',
+      applies_when: '',
+      sources: [],
+    },
+  ],
   'patterns --json': [],
 };
 const hits = (container: HTMLElement) => [...container.querySelectorAll('.palette-hit')].map((a) => a.textContent ?? '');
-const press = (element: HTMLElement, key: string) => act(async () => { element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })); });
+const press = (element: HTMLElement, key: string) =>
+  act(async () => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  });
 
 describe('search of the project', () => {
   /** Issue #469: `brains --json` (146 KB) loaded on every screen for a search that was closed. */

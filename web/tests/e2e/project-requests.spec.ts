@@ -15,14 +15,16 @@ function recordCommands(page: Page) {
   });
   return sent;
 }
-const count = (sent: string[], command: RegExp | string) => sent.filter((c) => (typeof command === 'string' ? c === command : command.test(c))).length;
+const count = (sent: string[], command: RegExp | string) =>
+  sent.filter((c) => (typeof command === 'string' ? c === command : command.test(c))).length;
 
 /** The page hidden for two seconds, then shown again: what coming back to the tab does. */
 async function leaveAndReturn(page: Page) {
-  const set = (state: string) => page.evaluate((value) => {
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
-    document.dispatchEvent(new Event('visibilitychange'));
-  }, state);
+  const set = (state: string) =>
+    page.evaluate((value) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, state);
   await set('hidden');
   await page.waitForTimeout(1700);
   await set('visible');
@@ -95,7 +97,9 @@ test('asks for one routing while a reason is typed, and keeps the brains on scre
   const before = count(sent, /^task route /);
 
   let removals = 0;
-  await page.exposeFunction('gridRemoved', () => { removals++; });
+  await page.exposeFunction('gridRemoved', () => {
+    removals++;
+  });
   await page.evaluate(() => {
     let shown = !!document.querySelector('main .board-grid');
     new MutationObserver(() => {

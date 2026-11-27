@@ -21,8 +21,12 @@ function dropDemoAssets(): Plugin {
   return {
     name: 'openguildkit-drop-demo-assets',
     apply: 'build',
-    configResolved(config) { outDir = resolve(config.root, config.build.outDir); },
-    closeBundle() { for (const folder of DEMO_ASSETS) rmSync(resolve(outDir, folder), { recursive: true, force: true }); },
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      for (const folder of DEMO_ASSETS) rmSync(resolve(outDir, folder), { recursive: true, force: true });
+    },
   };
 }
 
@@ -36,13 +40,18 @@ export default defineConfig(({ command, mode }) => {
     server: {
       port: 5199,
       fs: { allow: ['..'] },
-      proxy: api ? {
-        '/api': {
-          target: api,
-          changeOrigin: true,
-          configure: (proxy) => proxy.on('proxyReq', (request) => { request.setHeader('origin', api.replace(/\/$/, '')); }),
-        },
-      } : undefined,
+      proxy: api
+        ? {
+            '/api': {
+              target: api,
+              changeOrigin: true,
+              configure: (proxy) =>
+                proxy.on('proxyReq', (request) => {
+                  request.setHeader('origin', api.replace(/\/$/, ''));
+                }),
+            },
+          }
+        : undefined,
     },
     preview: { port: 5198 },
     base: './',
@@ -61,6 +70,9 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     },
-    test: { include: ['tests/domain/**/*.test.ts', 'tests/project/**/*.test.{ts,tsx}', 'tests/scripts/**/*.test.mjs'], environment: 'node' },
+    test: {
+      include: ['tests/domain/**/*.test.ts', 'tests/project/**/*.test.{ts,tsx}', 'tests/scripts/**/*.test.mjs'],
+      environment: 'node',
+    },
   };
 });

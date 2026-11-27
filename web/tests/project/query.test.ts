@@ -13,7 +13,13 @@ describe('cache of the local API', () => {
   /** Issue #467: the answer to a question a person had already changed came back into the cache. */
   it('does not bring back an entry that was forgotten while its request was in flight', async () => {
     let finish!: (value: unknown) => void;
-    const pending = load('test:typed:b', () => new Promise((resolve) => { finish = resolve; }));
+    const pending = load(
+      'test:typed:b',
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
     expect(peek('test:typed:b')?.loading).toBe(true);
     forget('test:typed:b');
     finish('late answer');
@@ -23,7 +29,13 @@ describe('cache of the local API', () => {
 
   it('does not bring back a forgotten entry whose request failed either', async () => {
     let fail!: (reason: Error) => void;
-    const pending = load('test:typed:c', () => new Promise((_, reject) => { fail = reject; }));
+    const pending = load(
+      'test:typed:c',
+      () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+    );
     forget('test:typed:c');
     fail(new Error('server stopped'));
     await pending;
