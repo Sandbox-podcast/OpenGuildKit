@@ -5,7 +5,8 @@
 Each command runs as a real process, as an agent or a hook runs it, in projects
 built in a temporary folder: the request status example (guard off), the same
 project with 500 tasks of which 5 are approved (guard enforce), that project
-again inside a Git repository whose commit the approvals record, a web project
+again inside a Git repository whose commit the approvals record, a project of
+500 tasks closed and exported as the normal path leaves them, a web project
 whose node_modules holds FILES files (50 000 by default), a monorepo of 200
 packages, and a Git repository whose base revision holds 200 exported decision
 records, for guard --ci. Python caches the bytecode in that folder, as an installed package
@@ -39,7 +40,9 @@ SOURCE = ROOT / "src"
 sys.path.insert(0, str(SOURCE))
 
 from openguildkit.cli import main as openguildkit_main  # noqa: E402
-from openguildkit.storage import write_json  # noqa: E402
+from openguildkit.decisions import check_decision_seal, seal  # noqa: E402
+from openguildkit.storage import read_json, write_json  # noqa: E402
+from openguildkit.tasks import write_task  # noqa: E402
 
 EXAMPLE = ROOT / "examples" / "request-status"
 TASK = "request-status"
@@ -169,6 +172,36 @@ def merged_records(folder: Path) -> Path:
     return project
 
 
+def closed_tasks(folder: Path) -> Path:
+    """The example project with TASKS tasks closed and exported, the records the normal path leaves: one task taken
+    the whole way, its record copied under the other IDs with the seal of each ID, and each copy exported."""
+    folder.mkdir(parents=True)
+    profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
+    write_json(folder / "profile.json", {**profile, "checks": []})
+    in_process(folder, "init", "--answers", folder / "profile.json")
+    first = "closed-0000"
+    approve(folder, first)
+    in_process(folder, "task", "verify", first)
+    checks = [{"check": item["id"], "status": "not-applicable", "reason": "Out of scope.", "owner": "Camille"}
+              for item in json.loads(in_process(folder, "task", "checks", first, "--json")) if item["kind"] == "rule"]
+    criteria = [{"criterion": "Users only see their own requests.", "status": "met",
+                 "evidence": "tests/test_access.py"}]
+    write_json(folder / "result.json", {"pull_request": "https://github.com/example/portal/pull/7", "checks": checks,
+                                        "criteria": criteria})
+    in_process(folder, "task", "result", first, "--file", folder / "result.json")
+    in_process(folder, "task", "complete", first, "--by", "Camille", typed=first)
+    in_process(folder, "task", "export", first)
+    tasks = folder / ".openguildkit" / "tasks"
+    record = read_json(tasks / f"{first}.json")
+    payload = check_decision_seal(record)
+    for index in range(1, TASKS):
+        task_id = f"closed-{index:04d}"
+        write_task(tasks / f"{task_id}.json", {**record, "id": task_id, "decision": {
+            **record["decision"], "seal": seal({**payload, "task": task_id})}})
+        in_process(folder, "task", "export", task_id)
+    return folder
+
+
 def web_project(folder: Path, dependencies: int) -> Path:
     """The example project with a front end and a node_modules of that many files, as npm install leaves it."""
     project = example_project(folder)
@@ -211,6 +244,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
     """(name, run) pairs; each run returns the wall time of one command."""
     plain = example_project(base / "plain")
     big = many_tasks(base / "many-tasks")
+    closed = closed_tasks(base / "closed-tasks")
     in_git = many_tasks(base / "many-tasks-git", in_git=True)
     web = web_project(base / "web", dependencies)
     repo = monorepo(base / "monorepo")
@@ -247,6 +281,8 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         ("task consult, bug, with node_modules", consult_bug),
         (f"task list ({TASKS} tasks)", lambda: cli(big, "task", "list")),
         (f"check ({TASKS} tasks)", lambda: cli(big, "check")),
+        (f"task list ({TASKS} closed tasks)", lambda: cli(closed, "task", "list")),
+        (f"check ({TASKS} closed tasks)", lambda: cli(closed, "check")),
         ("references search", lambda: cli(plain, "references", "security")),
         (f"guard --hook pre-edit ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "pre-edit", stdin=edit_hook(big))),
         (f"guard --hook pre-edit (Git, {APPROVED} approvals)",

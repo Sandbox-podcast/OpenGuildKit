@@ -824,11 +824,13 @@ def _has_local_task(state: Path, task_id: str) -> bool:
         return False
 
 
-def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints) -> list[dict]:
+def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints,
+                       tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
     The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
-    and a note for a completed one, whose record is history.
+    and a note for a completed one, whose record is history. tasks holds the task records the caller already read,
+    by ID; a local task it lacks is read here.
     """
     rows = []
     policy = approval_policy(profile)
@@ -861,7 +863,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
             note = kind in ("earlier-record", "withdrawn") or (kind == "earlier-rules" and completed)
             row["problem"] = {"kind": kind, "severity": "note" if note else "error",
                               "message": message, "code": code}
-        elif row["local"] and (withdrawn := _withdrawn_here(state, record)):
+        elif row["local"] and (withdrawn := _withdrawn_here(state, record, tasks)):
             row["problem"] = {"kind": "withdrawn-here", "severity": "error", "message": (
                 f"{relative}: the approval of {record['task']} was withdrawn in this copy by {withdrawn['by']} on "
                 f"{withdrawn['at'][:10]}, and the record still says it is approved, so guard --ci keeps accepting it. "
@@ -871,12 +873,14 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
     return rows
 
 
-def _withdrawn_here(state: Path, record: dict) -> dict | None:
+def _withdrawn_here(state: Path, record: dict, tasks: dict | None = None) -> dict | None:
     """The withdrawal the local task records for the approval an exported record carries, if any."""
-    try:
-        task = read_task(state, record["task"])
-    except Exception:  # An unreadable task record is reported by task list and check.
-        return None
+    task = (tasks or {}).get(record["task"])
+    if task is None:
+        try:
+            task = read_task(state, record["task"])
+        except Exception:  # An unreadable task record is reported by task list and check.
+            return None
     return withdrawal_of(task, record)
 
 

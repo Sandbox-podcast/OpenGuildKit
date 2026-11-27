@@ -1260,18 +1260,19 @@ def _host_scan(args, root: Path, state: Path) -> int:
     return scan_exit_code(result, args.strict)
 
 
-def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dict | None = None) -> int:
     """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output.
 
     The command stops where it stopped: a problem that ends it (instructions, host settings, catalog lock, approvals
     that no longer hold) ends it in SARIF too, with the findings gathered up to there and the same exit code. A failure
-    that is not a problem of the project, such as a profile that cannot be read, prints no file."""
+    that is not a problem of the project, such as a profile that cannot be read, prints no file. read holds the task
+    records a caller already read, by ID (projects), which are not read again."""
     from .check_findings import Report
 
     report = Report(args.format == "sarif")
     code = 0
     try:
-        _check_project(args, root, state, profile, catalog, report)
+        _check_project(args, root, state, profile, catalog, report, {} if read is None else read)
     except RuleError as problem:
         if not report.active:
             raise
@@ -1283,15 +1284,14 @@ def _check(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     return code
 
 
-def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report) -> None:
+def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report, read: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate. Each problem and warning goes to the
-    report too, when it gathers them."""
+    report too, when it gathers them. read receives the task records, by ID, and each is read once."""
     load_tools(state / "catalog" / "tools")
     _warn_unsigned(profile, report)
     # An approval that no longer holds is an error until the task is consulted again; a completed task
     # whose rules changed afterwards is history and stays quiet here (task list shows it).
-    read = {}
     rows = list_tasks(state, profile=profile, catalog=catalog, root=root, read=read)
     failing = [f"{row['id']}: {row['next']}" for row in rows
                if row["status"] == "unreadable" or row.get("severity") == "error"]
@@ -1300,7 +1300,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     for row in rows:
         if row.get("note"):
             print(f"OpenGuildKit: {row['id']}: {row['note']}", file=sys.stderr)
-    records = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
+    records = exported_decisions(root, state, profile, Fingerprints(profile, catalog), read)
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]
     report.records(records)
@@ -1442,7 +1442,7 @@ def _project_command(args, root: Path, state: Path, catalog: dict) -> int | None
     if args.command == "host":
         return _host(args, root, profile)
     if args.command == "check":
-        return _check(args, root, state, profile, catalog)
+        return check(args, root, state, profile, catalog)
     if args.command == "ci-check":
         result = check_export(profile, catalog, args.target_repo, args.commit)
         print_json(result)

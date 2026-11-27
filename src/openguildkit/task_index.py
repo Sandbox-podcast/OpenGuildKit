@@ -1,11 +1,12 @@
 """Know each task's status without parsing every record, so the edit hook reads only the tasks that can cover it.
 
 The index lives with the task records (ignored by git, refused to agent edits) and maps each record file to its
-status and to the size, times and inode the file had when that status was read. An entry is used only while the
-file still matches it; otherwise the record is read again and the entry replaced. The index only says which records
-can be skipped: the guard still reads and checks every record it does not skip, so a missing, stale or corrupt index
-costs time and never changes a decision. It is written whole and atomically, without the project lock, so the hook
-never waits and concurrent commands each leave a complete index.
+status and to the size, times and inode the file had when that status was read; task list adds that it read the
+record whole and, for a closed task, the line it printed (tasks.list_tasks). An entry is used only while the file
+still matches it; otherwise the record is read again and the entry replaced. The index only says which records can be
+skipped: the guard still reads every record it does not skip, check reads them all, so a missing, stale or corrupt
+index costs time and never changes a decision. It is written whole and atomically, without the project lock, so the
+hook never waits and concurrent commands each leave a complete index.
 """
 
 import json
@@ -46,7 +47,8 @@ def _record_status(path: Path) -> str | None:
 
 def _write_index(directory: Path, entries: dict) -> None:
     """Replace the index in one step; a failure leaves the previous one, which only costs time."""
-    content = json.dumps({"schema_version": SCHEMA_VERSION, "tasks": entries}, sort_keys=True, separators=(",", ":"))
+    # Not sorted: the entries come in file name order, and a line keeps the order of the fields task list prints.
+    content = json.dumps({"schema_version": SCHEMA_VERSION, "tasks": entries}, separators=(",", ":"))
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(dir=directory, prefix=f"{INDEX_FILE}.", suffix=".tmp", delete=False) as handle:
@@ -68,31 +70,41 @@ def tasks_with_status(state: Path, skipped: set[str]) -> list[str]:
 
     A record whose status cannot be read is returned, so the caller handles it as it would without the index.
     """
+    return [name[:-5] for name, entry in entries(state).items() if entry["status"] not in skipped]
+
+
+def entries(state: Path) -> dict[str, dict]:
+    """Each task record file's entry, by file name in name order: the status it declares ("status", None when it
+    cannot be read) and the signature of the file it was read from ("stamp"), with what task list added to it
+    (tasks.list_tasks). An entry that no longer matches its file is read again and replaced, which drops the rest."""
     directory = state / "tasks"
     try:
         files = sorted((item for item in os.scandir(directory) if item.name.endswith(".json")), key=lambda item: item.name)
     except OSError:
-        return []
+        return {}
     known, written = _read_index(directory)
-    entries, changed, candidates = {}, False, []
+    current, changed = {}, False
     for entry in files:
         try:
             if not entry.is_file():
                 continue
             stamp = list(file_signature(Path(entry.path), entry.stat()))
         except OSError:
-            candidates.append(entry.name[:-5])
+            current[entry.name] = {"status": None}  # Kept out of the index: the next run looks again.
             continue
         previous = known.get(entry.name)
-        if isinstance(previous, dict) and previous.get("stamp") == stamp and stamp[1] + RACY_NANOSECONDS < written:
-            status = previous.get("status")
+        if isinstance(previous, dict) and isinstance(previous.get("status"), str | None) and \
+                previous.get("stamp") == stamp and stamp[1] + RACY_NANOSECONDS < written:
+            current[entry.name] = previous
         else:
             # The stamp is taken before the read: if the file changes in between, the next run sees a new stamp.
-            status = _record_status(Path(entry.path))
+            current[entry.name] = {"status": _record_status(Path(entry.path)), "stamp": stamp}
             changed = True
-        entries[entry.name] = {"status": status, "stamp": stamp}
-        if status not in skipped:
-            candidates.append(entry.name[:-5])
-    if changed or entries.keys() != known.keys():
-        _write_index(directory, entries)
-    return candidates
+    if changed or {name for name, entry in current.items() if "stamp" in entry} != known.keys():
+        save(state, current)
+    return current
+
+
+def save(state: Path, entries: dict[str, dict]) -> None:
+    """Write these entries as the whole index, those of files that could not be read left out."""
+    _write_index(state / "tasks", {name: entry for name, entry in entries.items() if "stamp" in entry})

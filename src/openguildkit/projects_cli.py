@@ -8,6 +8,7 @@ the others are listed.
 
 import contextlib
 import io
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from .alerts import LEGACY_STATUSES, load_register
 from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog
-from .project import STATE_DIR, load_profile
+from .project import STATE_DIR, load_profile, state_path
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers
@@ -93,7 +94,7 @@ def _project(args, folder: Path) -> dict:
         open_points=sum(_open_points(task) for task in read.values()),
         critical_alerts=sum(1 for alert in register["alerts"] if alert.get("severity") == "critical"
                             and LEGACY_STATUSES.get(alert.get("status"), alert.get("status")) == "confirmed"),
-        check=_check(root),
+        check=_check(root, read),
     )
     return row
 
@@ -108,14 +109,22 @@ def _open_points(task: dict) -> int:
     return 0
 
 
-def _check(root: Path) -> dict:
+def _check(root: Path, read: dict) -> dict:
     """openguildkit check on the project, in this process, its output kept: whether it passes and, when it fails,
-    the last line it printed."""
-    from .cli import main  # The CLI imports this module: its entry point is reached when the command runs.
+    the last line it printed. It is given the task records the project's line read, so that it reads none again;
+    the rest runs as cli.main runs the command: its own options, catalog and profile, the same error line."""
+    from . import cli  # The CLI imports this module: its entry point is reached when the command runs.
 
     out, err = io.StringIO(), io.StringIO()
+    args = cli.command_parser().parse_args(["--project", str(root), "check"])
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = main(["--project", str(root), "check"])
+        try:
+            state = state_path(root)
+            catalog = project_catalog(args, state)
+            code = cli.check(args, root, state, load_profile(state, catalog), catalog, read)
+        except (OSError, ValueError, EOFError) as error:
+            print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
+            code = 1
     lines = [line.removeprefix("OpenGuildKit: ") for line in err.getvalue().splitlines() if line.strip()]
     return {"passes": code == 0, "code": code, "message": lines[-1] if code and lines else None}
 
