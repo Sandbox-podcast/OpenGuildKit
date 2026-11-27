@@ -4,17 +4,17 @@
     "assignment": 43,
     "attr-defined": 16,
     "call-arg": 1,
-    "call-overload": 9,
+    "call-overload": 7,
     "dict-item": 5,
     "func-returns-value": 5,
-    "index": 15,
+    "index": 14,
     "misc": 6,
     "operator": 4,
     "return": 21,
     "return-value": 9,
     "str-bytes-safe": 1,
-    "union-attr": 51,
-    "var-annotated": 71
+    "union-attr": 48,
+    "var-annotated": 70
   },
   "ruff": {
     "ARG001": 70,

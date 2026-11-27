@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     parser.add_argument("--base", default="origin/main")
     parser.add_argument("--bugs", help="comma-separated issue numbers to treat as the bugs, without asking GitHub")
     args = parser.parse_args(argv)
-    mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True)
+    mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True, check=False)
     since = mine.stdout.strip() if mine.returncode == 0 and mine.stdout.strip() else args.base
     body = re.sub(r"<!--.*?-->", "", os.environ.get("PR_BODY", ""), flags=re.DOTALL)
     messages = _git(root, "log", "--format=%B", f"{since}..HEAD") + "\n" + body

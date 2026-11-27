@@ -15,7 +15,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -68,7 +68,7 @@ def bom(lock: dict, wheel: Path) -> dict:
     name, version = wheel.name.split("-")[:2]
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    moment = datetime.fromtimestamp(int(epoch), timezone.utc) if epoch else datetime.now(timezone.utc)
+    moment = datetime.fromtimestamp(int(epoch), UTC) if epoch else datetime.now(UTC)
     components = runtime_components(lock)
     serial = uuid.uuid5(uuid.NAMESPACE_URL, json.dumps([digest, [item["bom-ref"] for item in components]]))
     return {

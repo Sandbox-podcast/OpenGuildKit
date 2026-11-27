@@ -19,7 +19,7 @@ its result, parallel calls included.
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # USD per million tokens: input, output, cache read, cache creation. The rate of a model is the one of the
@@ -51,7 +51,7 @@ def _time(item: dict) -> datetime | None:
         when = datetime.fromisoformat(item["timestamp"])
     except (KeyError, TypeError, ValueError):
         return None
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
 def _number(value) -> int:

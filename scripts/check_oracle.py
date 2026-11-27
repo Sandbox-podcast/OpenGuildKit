@@ -36,7 +36,7 @@ def _squash(text: str) -> str:
 
 def assertions_removed(root: Path, base: str) -> tuple[bool, list[tuple[str, str]]]:
     """Whether src/ changed since base, and the (path, line) of each assertion removed from the tests."""
-    mine = subprocess.run(["git", "-C", str(root), "merge-base", base, "HEAD"], capture_output=True, text=True)
+    mine = subprocess.run(["git", "-C", str(root), "merge-base", base, "HEAD"], capture_output=True, text=True, check=False)
     since = mine.stdout.strip() if mine.returncode == 0 and mine.stdout.strip() else base
     touches_src = bool(_git(root, "ls-files", "--others", "--exclude-standard", "src").split())
     removed, added = [], Counter()

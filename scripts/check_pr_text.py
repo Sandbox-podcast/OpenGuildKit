@@ -48,9 +48,9 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     args = parser.parse_args(argv)
     subjects = []
     if args.base:
-        mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True)
+        mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True, check=False)
         since = mine.stdout.strip() if mine.returncode == 0 and mine.stdout.strip() else args.base
-        log = subprocess.run(["git", "-C", str(root), "log", "--format=%s", f"{since}..HEAD"], capture_output=True, text=True)
+        log = subprocess.run(["git", "-C", str(root), "log", "--format=%s", f"{since}..HEAD"], capture_output=True, text=True, check=False)
         subjects = log.stdout.splitlines()
     found = problems(os.environ.get("PR_TITLE", ""), os.environ.get("PR_BODY", ""), subjects)
     for line in found:

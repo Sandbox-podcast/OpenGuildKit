@@ -273,10 +273,11 @@ class CiLogTest(unittest.TestCase):
                         'echo "catalog problem" >&2 && exit 3\nexit 0\n', encoding="utf-8")
         fake.chmod(0o755)
         environment = {**os.environ, "PATH": f"{directory}{os.pathsep}{os.environ['PATH']}"}
-        passed = subprocess.run([bash, "-e", "-c", step["run"]], env=environment, capture_output=True, text=True)
+        passed = subprocess.run([bash, "-e", "-c", step["run"]], env=environment, capture_output=True, text=True,
+                                check=False)
         self.assertEqual((passed.returncode, passed.stdout), (0, ""))
         failed = subprocess.run([bash, "-e", "-c", step["run"]], env={**environment, "FAKE_FAILS": "1"},
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, check=False)
         self.assertEqual((failed.returncode, failed.stdout), (3, ""))
         self.assertIn("catalog problem", failed.stderr, "the reason of a failure stays in the log")
 
