@@ -95,6 +95,21 @@ async function audit(page: Page) {
   });
 }
 
+/**
+ * The violations of the page's security policy, as the browser reports them: a style it refuses (the policy has no
+ * 'unsafe-inline'), a script, an image. A page that sets a style attribute or adds a style element fails here.
+ */
+async function watchPolicy(page: Page) {
+  const violations: string[] = [];
+  await page.exposeFunction('reportPolicyViolation', (violation: string) => violations.push(violation));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      (window as unknown as { reportPolicyViolation: (v: string) => void }).reportPolicyViolation(`${e.effectiveDirective} ${e.blockedURI || 'inline'} (${e.sourceFile}:${e.lineNumber})`);
+    });
+  });
+  return violations;
+}
+
 /** Waits until the place is drawn and no request is in flight for a moment: the audit then sees the full screen. */
 async function settle(page: Page, inflight: () => number) {
   await expect(page.locator('main h1')).toBeVisible();
@@ -125,6 +140,7 @@ for (const [label, viewport, mode] of VARIANTS) {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    const violations = await watchPolicy(page);
     let inflight = 0;
     page.on('request', () => { inflight++; });
     page.on('requestfinished', () => { inflight--; });
@@ -162,6 +178,7 @@ for (const [label, viewport, mode] of VARIANTS) {
       for (const violation of await axe(page)) problems.push(`${route}: axe ${violation}`);
     }
     expect(problems, problems.join('\n')).toEqual([]);
+    expect(violations, violations.join('\n')).toEqual([]);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }

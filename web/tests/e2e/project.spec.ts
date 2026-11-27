@@ -21,14 +21,24 @@ const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
 const PERSON = 'Toi';
 
-function watch(page: Page) {
+const watched = new WeakSet<Page>();
+async function watch(page: Page) {
+  if (watched.has(page)) return;
+  watched.add(page);
+  // Dialogs, notices and the setup open here, which the sweep does not: a style the policy refuses fails the run.
+  await page.exposeFunction('reportPolicyViolation', (violation: string) => errors.push(`security policy: ${violation}`));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      (window as unknown as { reportPolicyViolation: (v: string) => void }).reportPolicyViolation(`${e.effectiveDirective} ${e.blockedURI || 'inline'} (${e.sourceFile}:${e.lineNumber})`);
+    });
+  });
   page.on('pageerror', (e) => errors.push(e.message));
   // Refusals answer 403 on purpose; the browser logs them as failed resources.
   page.on('console', (m) => { if (m.type() === 'error' && !/status of 403/.test(m.text())) errors.push(m.text()); });
 }
 
 async function open(page: Page, hash: string) {
-  watch(page);
+  await watch(page);
   await page.goto(`/#${hash}`);
   await expect(page.locator('.project-chip')).toContainText('Portail support');
 }
@@ -345,7 +355,7 @@ test('runs the checks, records the results and completes a task in the forge', a
 });
 
 test('records the GDPR named evidence with who provided it and completes a task on personal data', async ({ page }) => {
-  watch(page);
+  await watch(page);
   await page.goto(`${GDPR}/#/forge/data-export`);
   await expect(page.locator('.project-chip')).toContainText('Portail RGPD');
   const expected = page.getByRole('region', { name: 'Tableau des vérifications' });
@@ -803,7 +813,7 @@ test('keeps the Pro style across places', async ({ page }) => {
 /* ------------------------------------------------------------------ setup */
 
 const settingUp = async (page: Page, origin: string, folder: string) => {
-  watch(page);
+  await watch(page);
   await page.goto(`${origin}/`);
   await expect(page).toHaveURL(/#\/installation/);
   await expect(page.getByRole('heading', { name: new RegExp(`Installer la guilde dans ${folder}`) })).toBeVisible();

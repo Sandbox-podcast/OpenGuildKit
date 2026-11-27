@@ -95,6 +95,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Web interface: the header serves a 216 x 72 logo of 11 KB instead of 46 KB, and the twelve header scenes are exported in quality 82 (415 KB to 292 KB, `node scripts/export-rooms.mjs`), so the build weighs 1,148 KB instead of 1,252 KB and the budget of `npm run bundle` falls from 1,298 KB to 1,263 KB (#513).
 - Web interface: ESLint and Prettier (`npm run lint`, `npm run format:check`, run in CI) with a ratchet frozen in `web/style-baseline.json`: per file, 65 lint problems, 140 files not formatted, 2,482 lines over 140 characters and 398 `noUncheckedIndexedAccess` errors may fall and never rise; `engines` and `.nvmrc` name Node 22.12 or 24, so `npm ci` warns on another version (#515).
 - Web interface: `npm test` now mounts nine components of the real mode (action forms, routing step, decision of a reviewed task, installation, search, check notices, step rail, terminal hand-off) in happy-dom with a fake API, in 1 s more and with no browser or server, among them the 40-keystroke routing test of #467 (#465).
+- Web interface: the sweep and the journeys of `npm run e2e:project` fail on any `securitypolicyviolation` of the page, and a Vitest test keeps the product free of style elements and style attributes, so the server can serve `style-src 'self'` without `'unsafe-inline' (#514).
 
 ## 0.17.0
 
