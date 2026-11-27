@@ -15,7 +15,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import clock
@@ -120,6 +120,23 @@ def signing_time(value: str | None, *, now_ok: bool = False) -> str | None:
     if datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=current.tzinfo) > current + CLOCK_SKEW:
         raise ValueError(f"--signed-at {value} is in the future: the signature cannot have been made yet.")
     return value
+
+
+def signing_time_of(timestamp: str | None) -> str | None:
+    """The date of a decision, as clock.real_timestamp writes it, written as signed_at; None when it cannot be read."""
+    try:
+        moment = datetime.fromisoformat(timestamp)
+    except (TypeError, ValueError):
+        return None
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if moment.tzinfo else None
+
+
+def date_moved(decision: dict, payload: dict) -> bool:
+    """Whether a local approval shows a decision date other than the one its seal covers. With the audit log on, a local
+    approval carries signed_at, the time of its decision (#454): `at` is then that time to the second. A signed approval
+    carries the time its signer gave, which `at` may follow by days."""
+    return bool(payload.get("signed_at")) and "signature" not in decision \
+        and signing_time_of(decision.get("at")) != payload["signed_at"]
 
 
 def verify_time(payload: dict) -> str | None:
@@ -403,6 +420,9 @@ def check_decision_seal(task: dict) -> dict:
                                    separate=decision.get("separate_requester") is True,
                                    signed_at=decision.get("signed_at"))
         if seal(payload) == decision["seal"]:
+            if date_moved(decision, payload):
+                raise ValueError(f"The date of the approval of {task['id']} was changed after it was sealed. "
+                                 f"{reconsult_hint(task['id'])}")
             return payload
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 

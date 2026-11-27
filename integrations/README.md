@@ -68,6 +68,27 @@ Gemini CLI (`"host": "gemini-cli"`) is the third host with hooks, and the only r
 
 The hooks call `openguildkit` by name. When that command is not on the PATH of the workstation running `host check` (a virtual environment that is not activated, for example), the board control reads `missing`. In `enforce`, `host apply` writes `"onFailure": "block"` on the Claude Code pre-edit hook, so a hook that cannot start refuses the edit instead of letting it through; this needs Claude Code 2.1.295 or later, and `host check` reports the hook as `missing` without it. In `observe` the key is not written. In `enforce`, `host apply` also writes `"disableAllHooks": false` in `.claude/settings.json`: Claude Code honours `"disableAllHooks": true` from a user's own settings unless the project says `false`, and `host check` reports the board as `missing` without it. Codex and Gemini CLI have no such setting: install OpenGuildKit on the PATH (with `pipx`, for example) or start the agent from the activated environment.
 
+### Paths the team closes to the agent
+
+A team can say that a folder (customer exports, secrets, scoring models) is closed to the agent. A person writes it in `.openguildkit/project.json`; no `profile set` command writes it yet:
+
+```json
+"restricted_paths": [{"paths": ["data/customers/**", "secrets/**"], "class": "restricted", "boards": ["security", "legal"]}]
+```
+
+`paths` are project paths, without a leading `/` or `..` and without parentheses. `class` and `boards` are kept for the decision a later change will make and nothing reads them yet. The setting is read when the host acts, so it leaves standing approvals standing, as the guard and the host do.
+
+| Host | What `host apply` and `host check` do |
+|---|---|
+| Claude Code | `host apply` adds `Read(/PATH)` and `Edit(/PATH)` to `permissions.deny` of `.claude/settings.json` for each path, and keeps the rules of the team; `host check` reports `restricted-paths` as `enforced` or `missing`. Those rules apply to its file tools: a shell command (`cat`, `sed`, a script) is not covered by them (à vérifier: the permissions page was not read again for this). |
+| Codex | Nothing: no setting of Codex that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
+| Gemini CLI | Nothing: no setting of Gemini CLI that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
+| Other hosts | Nothing. |
+
+Not done yet, though issue #519 asks for it: `profile set restricted-paths` with its history and its confirmation at a terminal, the `pre-edit` hook that refuses an edit on a restricted path even under an approved task, and the removal of the rules `host apply` wrote when a path leaves the setting.
+A rule it wrote cannot be told from the same rule the team wrote, so `host apply` removes none: delete the stale rule by hand. How `host apply` should recognise its own rules is an open question of that issue.
+OpenGuildKit does not write the paths into `AGENTS.md` either, so an agent of Codex or Gemini CLI is not told about them.
+
 ### What the host documentation says
 
 Read on 2026-11-21 in the [Claude Code permissions](https://code.claude.com/docs/en/permissions) and [hooks](https://code.claude.com/docs/en/hooks) pages and the Codex [rules](https://learn.chatgpt.com/docs/agent-configuration/rules) and [hooks](https://learn.chatgpt.com/docs/hooks) pages:
@@ -221,6 +242,18 @@ printf '%s' '{"hook_event_name":"BeforeTool","tool_name":"replace","tool_input":
 ```
 
 Without an approved task, the first prints the reminder as `additionalContext` under `BeforeAgent` and exits with 0; each edit exits with 2 and prints `Edit refused for: app.py` on standard error in `enforce`, and in `observe` prints `Edit flagged, not blocked` as a `systemMessage` and exits with 0.
+
+## Managed settings: one deployment for every project
+
+`openguildkit host apply` writes the settings of one project. Each of the three hosts also reads a layer that the company manages and that wins over the others, which an MDM deploys. `openguildkit host managed --host claude-code|codex|gemini-cli --os macos|linux|windows` prints the file for that layer, or writes it in a folder you give it, and installs nothing;
+[the page](../docs/managed-settings.md) says what each file holds, where each system expects it and what is left to verify.
+
+The pages behind it were read on 2026-11-26 by the audit of issue #453 and not read again when the command was written:
+
+- Claude Code, [Managed settings](https://code.claude.com/docs/en/managed-settings.md): the files `managed-settings.json` and the folder `managed-settings.d/`, the macOS profile `com.anthropic.claudecode`, the registry key `HKLM\SOFTWARE\Policies\ClaudeCode`; and [Settings reference](https://code.claude.com/docs/en/settings-reference.md):
+  `allowManagedHooksOnly`, "Run only the hooks your organization deploys". With it, the hooks of a project do not run, and `host check` says so.
+- Codex, [Managed configuration](https://learn.chatgpt.com/docs/enterprise/managed-configuration.md): `requirements.toml` at `/etc/codex/` and `%ProgramData%\OpenAI\Codex\`, the MDM key `com.openai.codex:requirements_toml_base64`, and the pin of `[features].hooks = true` that keeps the hooks on. The key names of managed hooks and rules were not read: à vérifier.
+- Gemini CLI, [Configuration](https://geminicli.com/docs/reference/configuration/): the system settings file at `/etc/gemini-cli/settings.json`, `/Library/Application Support/GeminiCli/settings.json` and `C:\ProgramData\gemini-cli\settings.json`, which overrides the other files.
 
 ## Hooks of other tools: what was read and why none was added
 

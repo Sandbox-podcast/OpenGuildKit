@@ -9,7 +9,7 @@ from importlib import import_module
 from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
-from . import org_catalog_cli, projects_cli, trace_cli
+from . import audit_cli, managed, org_catalog_cli, projects_cli, trace_cli
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
@@ -175,7 +175,7 @@ def command_parser() -> argparse.ArgumentParser:
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
-                   org_catalog_cli):
+                   org_catalog_cli, audit_cli):
         module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
@@ -183,12 +183,14 @@ def command_parser() -> argparse.ArgumentParser:
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
     host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
-    host.add_argument("mode", choices=("check", "apply", "scan"),
+    host.add_argument("mode", choices=("check", "apply", "scan", "managed"),
                       help="check reports each rule; apply writes the host settings; scan reads the instruction files "
-                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands.")
+                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands; "
+                           "managed prints the settings file an administrator deploys by MDM for one host.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
     host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
     _format_option(host, "With scan, print the findings")
+    managed.add_options(host)
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -1252,7 +1254,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     """Read the instruction files and settings of the project, list its agent tools and MCP servers, and report what
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
-    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"))
+    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
         print(scan_sarif(result, root), end="")
     elif args.json:
@@ -1353,14 +1355,16 @@ def _run(args) -> int | None:
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
-    if args.command == "host" and args.strict and args.mode != "scan":
-        raise ValueError("--strict is an option of openguildkit host scan.")
+    if args.command == "host" and (args.strict or args.allow) and args.mode != "scan":
+        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     if args.command == "mcp" and args.project is None:
         raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)
     state = state_path(root)
     if args.command in ("trace", "projects"):
         return trace_cli.run(args, root, state) if args.command == "trace" else projects_cli.run(args)
+    if args.command == "audit":
+        return audit_cli.run(args, root, state)
     if args.command == "org-catalog":  # Before the catalog in force, which an unreadable organization copy stops.
         return org_catalog_cli.run(args, root, state)
     if args.command == "mcp":
@@ -1375,8 +1379,8 @@ def _run(args) -> int | None:
         from . import webui  # Only this command serves pages; every other one starts without the web server.
 
         return webui.serve(root, args.port, args.static, not args.no_browser)
-    if args.command == "host" and args.mode == "scan":
-        return _host_scan(args, root, state)
+    if args.command == "host" and args.mode in ("scan", "managed"):  # managed needs no project: an administrator's machine
+        return managed.run(args) if args.mode == "managed" else _host_scan(args, root, state)
     catalog = project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)

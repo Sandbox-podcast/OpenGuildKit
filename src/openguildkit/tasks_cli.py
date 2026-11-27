@@ -10,7 +10,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, delivered_review, light_lane, requester, roles
+from . import alerts_cli, audit_log, delivered_review, light_lane, requester, roles
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
@@ -525,6 +525,7 @@ def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
+    audit_log.record(root, "task.revoked", task=args.id, by=args.by)
     print(result["status"])
     print(f"The guard no longer counts {args.id}. Next: {reconsult_command(args.id)}, or close the work in a linked "
           f'task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
@@ -586,7 +587,7 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals,
-                             separate=args.approve and separate, signed_at=signed_at)
+                             separate=args.approve and separate, signed_at=signed_at, dated=audit_log.is_on(root))
     if args.approve:
         if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
@@ -613,6 +614,8 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             require_current_scope(task, profile, catalog)
             require_instructions(args, root, state, profile, catalog)
         write_task(task_path(state, args.id), result)
+    if args.approve:
+        audit_log.record(root, "task.approved", task=args.id, by=args.by, signer=args.signer, seal=result["decision"]["seal"])
     print(result["status"])
 
 

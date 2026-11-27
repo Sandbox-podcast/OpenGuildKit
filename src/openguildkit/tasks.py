@@ -16,7 +16,7 @@ from . import clock, delivered_review, incident, light_lane, requester, roles, t
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload,
     history_message, reconsult_command, revisions_outside_history, seal, signature_or_history_problem,
-    stale_approval_message, verify_signature,
+    signing_time_of, stale_approval_message, verify_signature,
 )
 from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .relevance import sensitive_area
@@ -1595,10 +1595,13 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
     confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
+    dated: bool = False,
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
     says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
-    when the approver signed a payload that carries it, is recorded and sealed with the approval."""
+    when the approver signed a payload that carries it, is recorded and sealed with the approval. dated has a local
+    approval carry the time of its decision as signed_at, under its seal (the audit log, #454); a signed approval
+    keeps the time its signer gave, or none: the signer signs before the decision is dated."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1622,6 +1625,8 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
+        if dated and signature is None and not signed_at:
+            signed_at = signing_time_of(decision["at"])
         payload = decision_payload(task, by, reason, base_revision, separate=separate, signed_at=signed_at)
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:
