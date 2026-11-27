@@ -10,7 +10,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, delivered_review, light_lane, requester
+from . import alerts_cli, delivered_review, light_lane, requester, roles
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
@@ -574,6 +574,9 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             hint = " If the payload you signed has a signed_at line, pass --signed-at VALUE." if not signed_at else ""
             raise SignerNotCurrent(f"{error}{hint}") from None
         signature = {"signer": args.signer, "text": text}
+    # The roles of the boards that blocked (roles.py): the verified signer, or the name typed.
+    if args.approve and (outside := roles.approval_problem(task, profile, args.by, args.signer)):
+        raise ValueError(outside)
     register = load_register(state)
     blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:

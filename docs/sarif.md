@@ -170,6 +170,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`, `guard --ci` only, on the exported decision. A decision the base revision does not carry says in its signed payload (`signed_at`) that it was signed after the commit of the change that first brings its record, by more than five minutes. Sign it again at your terminal and export it again ([signed approvals](workflow.md#signed-approvals)).
 
+#### `decision-role-outside`
+
+`error`, `guard --ci` only, on the exported decision. The base revision gives a board a role (`approval.roles`), and a blocker that board raised was cleared or waived by someone outside it, or the approval of a task that board blocked is by someone outside the roles of the boards that blocked: the signer of a signed record, else the name typed with `--by` ([roles by committee](workflow.md#roles-by-committee)).
+
 #### `decision-requester-approved`
 
 `error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver (`separate-requester on`), and the record was approved by its requester, under the name given or as the signer ([requester and approver](workflow.md#requester-and-approver)). Have another person approve the task, then export it again.

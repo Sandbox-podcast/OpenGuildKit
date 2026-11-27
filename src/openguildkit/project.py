@@ -563,6 +563,19 @@ def rules_in_force(pack: dict, profile: dict) -> dict:
     return {**pack, "rules": [rule for rule in pack["rules"] if rule["id"] not in declined]}
 
 
+def _approval_roles(value, catalog: dict) -> dict[str, list[str]]:
+    """approval.roles: each board, by ID, with the people of its role (roles.py)."""
+    if not isinstance(value, dict) or not value:
+        raise ValueError("approval.roles must map a board to the people of its role")
+    unknown = sorted(set(value) - catalog["boards"].keys())
+    if unknown:
+        raise ValueError(f"Unknown board in approval.roles: {', '.join(unknown)}. Run openguildkit catalog.")
+    roles = {board: _texts(names, f"approval.roles.{board}") for board, names in sorted(value.items())}
+    if not all(roles.values()):
+        raise ValueError("Each role of approval.roles needs at least one person")
+    return roles
+
+
 def _changes(value) -> list[dict]:
     """The history of profile commands: who changed what, on which day and why."""
     if not isinstance(value, list):
@@ -773,8 +786,8 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if approval is not None:
         if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
             raise ValueError("approval.mode must be local or signed")
-        # max_age_days (incident.py) is an option that goes with either mode.
-        setting = {key: value for key, value in approval.items() if key != "max_age_days"}
+        # max_age_days (incident.py) and roles (roles.py) are options that go with either mode.
+        setting = {key: value for key, value in approval.items() if key not in ("max_age_days", "roles")}
         if setting["mode"] == "signed":
             if set(setting) != {"mode", "allowed_signers", "approvers"}:
                 raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
@@ -790,6 +803,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
             if type(days) is not int or not 1 <= days <= 366:
                 raise ValueError("approval.max_age_days must be a whole number of days between 1 and 366")
             profile["approval"] = {**profile.get("approval", {"mode": "local"}), "max_age_days": days}
+        if "roles" in approval:
+            profile["approval"] = {**profile.get("approval", {"mode": "local"}),
+                                   "roles": _approval_roles(approval["roles"], catalog)}
     waivers = answers.get("waivers")
     if waivers is not None:
         if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:

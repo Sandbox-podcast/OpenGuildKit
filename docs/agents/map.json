@@ -944,6 +944,21 @@
       "doc": "docs/workflow.md"
     },
     {
+      "module": "src/openguildkit/roles.py",
+      "role": "Roles by committee, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`.",
+      "entry": [
+        "members",
+        "clearance_problem",
+        "blocking_boards",
+        "approval_problem",
+        "record_problems"
+      ],
+      "tests": [
+        "tests/test_roles.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/routing.py",
       "role": "Routes a task to boards from its brief and answers, then applies required boards and the requester's changes.",
       "entry": [

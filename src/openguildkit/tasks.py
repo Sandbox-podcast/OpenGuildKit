@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import clock, delivered_review, incident, light_lane, requester
+from . import clock, delivered_review, incident, light_lane, requester, roles
 from .decisions import (
     EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
     reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
@@ -1192,6 +1192,9 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
             _check_clearance_signature(task, blocker_id, entry, policy, root)
+        # The role of the board that raised the blocker (roles.py): the verified signer, or the name typed.
+        if problem := roles.clearance_problem(profile, blocker, by, entry.get("signer")):
+            raise ValueError(problem)
     else:
         policy = waiver_policy(profile)
         if not policy:
@@ -1204,6 +1207,8 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                              f"openguildkit task decide {task['id']} --request-changes --by NAME --reason TEXT.")
         if by not in policy["allowed_by"]:
             raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
+        if problem := roles.clearance_problem(profile, blocker, by, waiver=True):
+            raise ValueError(problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")

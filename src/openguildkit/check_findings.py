@@ -57,6 +57,9 @@ _RULES = {
                               "A short-lane decision covers files outside its paths, or the base revision has no lane."),
     "decision-signed-late": ("Signature later than its commit",
                              "A new decision says it was signed after the commit that brings its record."),
+    "decision-role-outside": ("Decision outside the role of a board",
+                              "A blocker or an approval is by someone outside the role the base revision gives the "
+                              "board."),
     "decision-requester-approved": ("Requester approved their own task",
                                     "The base revision separates the requester from the approver, and a decision "
                                     "was approved by its requester."),

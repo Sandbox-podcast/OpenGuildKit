@@ -16,7 +16,7 @@ import tempfile
 import time
 from pathlib import Path, PurePosixPath
 
-from . import incident, light_lane, requester
+from . import incident, light_lane, requester, roles
 from .catalog import load_catalog
 from .delivered_review import exported_review
 from .decisions import (
@@ -1159,7 +1159,11 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             late = None if fault or record["task"] in earlier else _signed_late(root, base, record, relative)
             if late:
                 problems.append(flag("decision-signed-late", late, relative))
-            if not fault and not journal and not outside and not same and not late:
+            # The roles of the base revision judge a record it does not carry: who cleared, who approved (roles.py).
+            outside_role = [] if fault or record["task"] in earlier else roles.record_problems(record, profile)
+            for message in outside_role:
+                problems.append(flag("decision-role-outside", f"{relative}: {message}", relative))
+            if not fault and not journal and not outside and not same and not late and not outside_role:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")

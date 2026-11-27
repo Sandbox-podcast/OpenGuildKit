@@ -40,9 +40,10 @@ SET_FIELDS = {
     "separate-requester": ("on", "off"),
     "freeze": ("on", "off"),
     "max-approval-age": None,  # A number of days, or none: set apart in _set.
+    "approver-roles": None,  # A board and the people of its role, or none: set apart in _set.
 }
 # Settings whose value is not one of a short list.
-FREE_VALUES = ("light-paths", "max-approval-age")
+FREE_VALUES = ("light-paths", "max-approval-age", "approver-roles")
 # The options of profile set, each with the setting and value it belongs to.
 SET_OPTIONS = {"signers": ("approval", "signed"), "approver": ("approval", "signed"),
                "allowed_by": ("waivers", "allowed"), "max_days": ("waivers", "allowed")}
@@ -105,10 +106,12 @@ def add_parser(commands) -> None:
     setter = actions.add_parser(
         "set", help="Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule "
                     "is asked, the paths of the short lane, whether the requester of a task may approve it, the "
-                    "freeze of the project, the longest age of an approval, or a setup answer.")
+                    "freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), "
+                    "or a setup answer.")
     setter.add_argument("field", choices=sorted(SET_FIELDS), help="The setting to change.")
     setter.add_argument("value", help="Its new value (light-paths: a folder or file glob such as 'docs/**', or none).")
-    setter.add_argument("more", nargs="*", metavar="PATH", help="light-paths: more paths.")
+    setter.add_argument("more", nargs="*", metavar="PATH",
+                        help="light-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.")
     setter.add_argument("--signers", metavar="PATH",
                         help="approval signed: the allowed signers file, a path inside the project.")
     setter.add_argument("--approver", action="append", metavar="NAME",
@@ -135,11 +138,11 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     approvals turned off or on, an approver added or the signers file moved, waivers allowed or widened, a
     required rule, required board or check command removed, every rule no longer asked, a path added to the short
     lane, the separation of the requester and the approver turned on or off, a freeze lifted, the limit on the age of an
-    approval raised or removed. The profile commands and the web page ask this."""
+    approval raised or removed, a role of a board removed or widened. The profile commands and the web page ask this."""
     person = ["--by", "NAME", "--reason", "WHY"]
     changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person),
                *_light_changes(before, after, person), *_requester_changes(before, after, person),
-               *_incident_changes(before, after, person)]
+               *_incident_changes(before, after, person), *_role_changes(before, after, person)]
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
     if GUARD_LEVEL.get(new_guard, 0) < GUARD_LEVEL.get(old_guard, 0):
         changes.append((f"guard {old_guard} -> {new_guard}", ["profile", "set", "guard", str(new_guard), *person]))
@@ -280,6 +283,23 @@ def _incident_changes(before: dict, after: dict, person: list[str]) -> list[tupl
     return changes
 
 
+def _role_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+    """A role of a board (roles.py) removed, or given more people: anyone may then clear that board's blockers, or more
+    people may. A new role, or fewer people in one, only restricts and asks nothing."""
+    old = (before.get("approval") or {}).get("roles") or {}
+    new = (after.get("approval") or {}).get("roles") or {}
+    changes = []
+    for board, names in old.items():
+        added = [name for name in new.get(board, names) if name not in names]
+        if board not in new:
+            changes.append((f"role {board} removed: any approver may clear its blockers and approve",
+                            ["profile", "set", "approver-roles", board, "none", *person]))
+        elif added:
+            changes.append((f"role {board} widened: {', '.join(added)} added",
+                            ["profile", "set", "approver-roles", board, *new[board], *person]))
+    return changes
+
+
 def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
     if pattern_id not in catalog["patterns"]:
         raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
@@ -389,7 +409,8 @@ def _change_list(profile: dict, field: str, values: list[str], add: bool, catalo
 def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
     """The profile key a set command writes and its new value; None removes the key."""
     if field == "approval":
-        kept = {key: item for key, item in options["approval"].items() if key == "max_age_days"}  # Set by its own command.
+        # The limit on the age of an approval and the roles are set by their own commands.
+        kept = {key: item for key, item in options["approval"].items() if key in ("max_age_days", "roles")}
         if value == "local":
             return "approval", {"mode": "local", **kept} if kept else None
         if not options["signers"] or not options["approver"]:
@@ -399,6 +420,22 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
     if field == "freeze":
         return "frozen", {"by": options["by"], "on": today().isoformat(), "reason": options["reason"]} \
             if value == "on" else None
+    if field == "approver-roles":
+        approval, board, names = options["approval"], value, options["paths"][1:]
+        roles = dict(approval.get("roles") or {})
+        if not names:
+            raise ValueError("profile set approver-roles BOARD needs the people of the role, or none. Nothing was "
+                             "written.")
+        if names == ["none"]:
+            if board not in roles:
+                raise ValueError(f"The {board} board has no role. Nothing was written.")
+            del roles[board]
+        elif roles.get(board) == names:
+            raise ValueError(f"The role of the {board} board already holds {', '.join(names)}. Nothing was written.")
+        else:
+            roles[board] = names
+        rest = {key: item for key, item in approval.items() if key != "roles"}
+        return "approval", {**rest, "roles": roles} if roles else (rest if len(rest) > 1 else None)
     if field == "max-approval-age":
         approval = options["approval"]
         if value == "none":
@@ -461,6 +498,8 @@ def _set_change(args) -> str:
         return f"{change} (by {', '.join(args.allowed_by or [])}; up to {args.max_days} days)"
     if args.field == "light-paths" and args.value != "none":
         return f"set light-paths {', '.join(light_lane.normalize_entries([args.value, *args.more], 'light-paths'))}"
+    if args.field == "approver-roles":
+        return f"set approver-roles {args.value} {' '.join(args.more)}"
     return change
 
 
@@ -662,6 +701,9 @@ def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
     if _waiver_policy(profile):
         steps.append("Waivers are not carried: the person runs openguildkit profile set waivers allowed --allowed-by "
                      f"NAME --max-days DAYS {PERSON} at a terminal there.")
+    if (profile.get("approval") or {}).get("roles"):
+        steps.append("The roles of the boards are not carried: the person runs openguildkit profile set approver-roles "
+                     f"BOARD NAME... {PERSON} at a terminal there.")
     if incident.max_age_days(profile):
         steps.append("The limit on the age of an approval is not carried: the person runs openguildkit profile set "
                      f"max-approval-age DAYS {PERSON} at a terminal there.")

@@ -165,6 +165,13 @@ class MaxAgeTests(EarlierProject):
         self.assertIn("decision-expired", {item["ruleId"] for item in sarif["runs"][0]["results"]})
         self.assertIn("Edit refused", self.hook(self.root / "app.py", 2).stderr)
 
+    def test_issue_481_profile_export_names_the_command_for_the_limit(self):
+        """Issue #481: another repository does not inherit a limit without a person typing it."""
+        self.limit("30")
+        exported = self.cli("profile", "export")
+        self.assertNotIn("approval", json.loads(exported.stdout))
+        self.assertIn("profile set max-approval-age DAYS", exported.stderr)
+
     def test_issue_481_a_completed_task_is_history_and_the_limit_does_not_reach_it(self):
         """Issue #481: only an approval that still covers work expires."""
         self.limit("1")
