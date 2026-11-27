@@ -114,11 +114,11 @@ table.data a.mono { white-space: nowrap; }
 .field .hint { font-size: var(--fs-tiny); color: var(--text-2); }
 .field .error { font-size: var(--fs-small); color: var(--danger); display: flex; gap: 6px; align-items: center; }
 .field input, .field select, .field textarea {
-  --edge: var(--border); background: var(--bg-deep); color: var(--text); border: 0; padding: 8px 10px; margin: var(--px); font: inherit; min-height: 38px; width: calc(100% - 2 * var(--px));
+  --edge: var(--border-strong); background: var(--bg-deep); color: var(--text); border: 0; padding: 8px 10px; margin: var(--px); font: inherit; min-height: 38px; width: calc(100% - 2 * var(--px));
 }
 .field textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
 .field textarea.code { font-family: var(--font-mono); font-size: 0.85rem; min-height: 240px; white-space: pre; }
-.field input:hover, .field select:hover, .field textarea:hover { --edge: var(--border-strong); }
+.field input:hover, .field select:hover, .field textarea:hover { --edge: var(--text-3); }
 .field input:focus, .field select:focus, .field textarea:focus { --edge: var(--data); outline: none; }
 .field[data-invalid='true'] input, .field[data-invalid='true'] select, .field[data-invalid='true'] textarea { --edge: var(--danger); }
 .field input:disabled, .field select:disabled, .field textarea:disabled { color: var(--muted); background: #151827; cursor: not-allowed; }
