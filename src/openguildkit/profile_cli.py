@@ -13,6 +13,7 @@ from argparse import Namespace
 from pathlib import Path
 
 from . import light_lane, requester
+from .cli_surface import add_by
 from .clock import today
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
@@ -114,7 +115,7 @@ def add_parser(commands) -> None:
     setter.add_argument("--max-days", type=int, metavar="DAYS",
                         help="waivers allowed: how long a waiver may last, 1 to 366 days.")
     for name, command in actions.choices.items():
-        command.add_argument("--by", required=True, help="The person who decides the change.")
+        add_by(command, required=True)
         # Only an adopted or declined pattern shows its reason in AGENTS.md and preview (profile_decision_lines).
         shown = " and shown in AGENTS.md and preview" if name in ("adopt", "decline") else ""
         command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "

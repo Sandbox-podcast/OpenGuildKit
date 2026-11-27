@@ -14,6 +14,7 @@ from . import alerts_cli, delivered_review, light_lane, requester
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
+from .cli_surface import add_by
 from .clock import today
 from .consultation import board_brief, pack_rules
 from .decisions import (
@@ -221,7 +222,7 @@ def _file_option(text: str):
 
 def _blocker_options(command) -> None:
     command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
-    command.add_argument("--by", required=True, help="Person who resolves the blocker.")
+    add_by(command, required=True)
 
 
 def _clear_options(command) -> None:
@@ -255,8 +256,7 @@ def _result_source_options(command) -> None:
 
 
 def _complete_options(command) -> None:
-    command.add_argument("--by", help="Person who closes the task over skipped sensitive rules or deferred evidence "
-                                      "(needs a terminal).")
+    add_by(command)
     command.add_argument("--defer", action="append", default=[], metavar="EVIDENCE=TASK",
                          help="Hand an awaited named evidence to a follow-up task (with --by).")
 
@@ -271,7 +271,7 @@ def _verify_options(command) -> None:
     command.add_argument("--withdraw", metavar="COMMAND_CHECK",
                          help="Withdraw a declaration that a command cannot run (with --by, at a terminal): the "
                               "command runs and its outcome is recorded.")
-    command.add_argument("--by", help="Person who records or withdraws that the command cannot run.")
+    add_by(command)
     command.add_argument("--reason", help="Why the command cannot run here.")
 
 
@@ -281,7 +281,7 @@ def _alerts_options(command) -> None:
     command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
     command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
     command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
-    command.add_argument("--by", help="Reviewer's name for --set.")
+    add_by(command)
     command.add_argument("--reason", default="", help="Reason, required to dismiss.")
     command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
 
@@ -297,7 +297,7 @@ def _authorize_options(command) -> None:
 
 
 def _decision_reason_options(command) -> None:
-    command.add_argument("--by", required=True, help="Decision owner's name.")
+    add_by(command, required=True)
     command.add_argument("--reason", required=True, help="Reason for the decision.")
 
 
@@ -311,7 +311,7 @@ def _decide_options(command) -> None:
 
 
 def _revoke_options(command) -> None:
-    command.add_argument("--by", required=True, help="Person who withdraws the approval.")
+    add_by(command, required=True)
     command.add_argument("--reason", required=True, help="Why the approval is withdrawn.")
 
 

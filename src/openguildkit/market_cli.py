@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from .cli_surface import add_by
 from .market import (
     KINDS, MARKET_DIR, add_competitor, add_observation, describe, dossier_gaps, dossier_path, due_issue, due_sources,
     load_dossier, mark_checked, mark_provided, new_dossier, record_change, save_dossier, set_paused, set_unknown, watch_source,
@@ -54,7 +55,7 @@ def add_parser(commands) -> None:
                                        "checked, provided: today by default.")
     market.add_argument("--what", help="change: what changed.")
     market.add_argument("--verified-by", help="change: the person who verified it.")
-    market.add_argument("--by", help="provided: the person who reviewed the page and provided it.")
+    add_by(market)
     market.add_argument("--text", help="unknown: what is still unknown.")
     market.add_argument("--remove", action="store_true", help="unknown: remove the text instead of adding it.")
     market.add_argument("--every-days", type=int, help="watch: review interval in days (30 by default).")

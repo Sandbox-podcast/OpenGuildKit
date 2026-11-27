@@ -6,6 +6,7 @@ Tests: tests/test_cli_surface.py
 """
 
 import argparse
+import sys
 
 # The root page lists the commands under these headings, in this order; a command named nowhere fails
 # tests/test_cli_surface.py, so that none is left under the wrong heading.
@@ -92,9 +93,16 @@ def polish(parser: argparse.ArgumentParser, depth: int = 0) -> None:
         parser.formatter_class = RootHelp
 
 
+def _initials(value: str) -> str:
+    """The value of --by, which is committed: a space or an address is let through with a line that gives the rule."""
+    if "@" in value or " " in value.strip():
+        print(f"OpenGuildKit: {BY_RULE}", file=sys.stderr)
+    return value
+
+
 def add_by(parser: argparse.ArgumentParser, required: bool = False) -> None:
-    """The --by option of every command that records a person: one text, one placeholder."""
-    parser.add_argument("--by", required=required, metavar="INITIALS", help=BY_HELP)
+    """The --by option of every command that records a person: one text, one placeholder, one warning."""
+    parser.add_argument("--by", required=required, metavar="INITIALS", help=BY_HELP, type=_initials)
 
 
 def hoist_global_options(argv: list[str]) -> list[str]:

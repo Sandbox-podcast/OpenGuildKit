@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from . import profile_cli
+from .cli_surface import add_by
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
@@ -25,7 +26,7 @@ def add_parser(commands) -> None:
                        ("disable", "Turn options off: each tool leaves the profile's tools.")):
         command = actions.add_parser(name, help=text)
         command.add_argument("names", nargs="+", metavar="NAME", help="A feature ID (its lead tool) or a tool of it.")
-        command.add_argument("--by", required=True, help="The person who decides the change.")
+        add_by(command, required=True)
         command.add_argument("--reason", required=True, help="Why, in one line; recorded in the profile history "
                                                                  "(.openguildkit/project.json).")
 

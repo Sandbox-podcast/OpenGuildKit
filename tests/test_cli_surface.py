@@ -131,5 +131,32 @@ class ProjectOptionTests(unittest.TestCase):
         self.assertEqual(hoist_global_options([]), [])
 
 
+class ByOptionTests(unittest.TestCase):
+    def by_options(self):
+        return [(" ".join(path), action) for path, parser in walk(command_parser())
+                for action in options(parser) if "--by" in action.option_strings]
+
+    def test_by_reads_the_same_on_every_command(self):
+        """Issue #493: --by had 14 help texts, asked for a name, and showed BY as its placeholder."""
+        found = self.by_options()
+        self.assertGreaterEqual(len(found), 24)
+        self.assertEqual({(action.help, action.metavar) for _, action in found},
+                         {("Your initials or team handle, not your full name: it is committed.", "INITIALS")})
+
+    def test_a_name_with_an_address_is_accepted_with_a_warning_that_cites_the_rule(self):
+        """Issue #493: a full name and an address went into the committed profile without a word."""
+        with tempfile.TemporaryDirectory(prefix="ogk-by-") as folder:
+            root = Path(folder)
+            run_cli(root, "init", "--answers", PROFILE)
+            for value in ("Camille Martin <camille.martin@example.com>", "camille@example.com", "Camille Martin"):
+                with self.subTest(value=value):
+                    done = run_cli(root, "profile", "add", "convention", f"Use British spelling ({value})", "--by", value,
+                                   "--reason", "Team style")
+                    self.assertIn("initials", done.stderr)
+                    self.assertIn("docs/personal-data.md", done.stderr)
+            quiet = run_cli(root, "profile", "add", "convention", "Use Oxford commas", "--by", "CM", "--reason", "Team style")
+            self.assertEqual(quiet.stderr, "")
+
+
 if __name__ == "__main__":
     unittest.main()

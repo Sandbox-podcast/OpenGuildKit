@@ -9,6 +9,7 @@ from .alerts import (
     load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
     task_brief, unhandled_alerts,
 )
+from .cli_surface import add_by
 from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
@@ -35,17 +36,17 @@ def add_parser(commands) -> None:
     review = actions.add_parser("set", help="Mark an alert open, confirmed, or dismissed with a reason.")
     review.add_argument("alert", help="Alert ID, or ecosystem:package:ADVISORY for any of its advisory IDs.")
     review.add_argument("--status", required=True, choices=STATUS_CHOICES, help="Review status.")
-    review.add_argument("--by", required=True, help="Person who reviewed the alert.")
+    add_by(review, required=True)
     review.add_argument("--reason", default="", help="Why; required to dismiss.")
     accept = actions.add_parser("accept", help="Record, at a terminal, why a person accepts a confirmed alert.")
     accept.add_argument("alert", help="Alert ID.")
-    accept.add_argument("--by", required=True, help="Person who accepts the risk.")
+    add_by(accept, required=True)
     accept.add_argument("--reason", required=True, help="Why the risk is accepted.")
     severity = actions.add_parser(
         "severity", help="Set, at a terminal, the severity of an alert, such as one pip-audit reports without any.")
     severity.add_argument("alert", help="Alert ID.")
     severity.add_argument("--level", required=True, choices=SEVERITIES, help="The severity to record.")
-    severity.add_argument("--by", required=True, help="Person who sets it.")
+    add_by(severity, required=True)
     severity.add_argument("--reason", required=True, help="Why, such as the advisory's CVSS score.")
     link = actions.add_parser("link", help="Link an alert to the task that handles it.")
     link.add_argument("alert", help="Alert ID.")
