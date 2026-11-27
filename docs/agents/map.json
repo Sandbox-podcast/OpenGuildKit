@@ -382,6 +382,17 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/doc_links.py",
+      "role": "The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout).",
+      "entry": [
+        "doc_link"
+      ],
+      "tests": [
+        "tests/test_doc_links.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/features.py",
       "role": "The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on.",
       "entry": [

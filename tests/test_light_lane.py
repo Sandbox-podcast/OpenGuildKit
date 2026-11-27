@@ -1000,6 +1000,10 @@ class BeforeTheShortLaneTests(unittest.TestCase):
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)
+        # The messages give the address of a page at the tag of the installed version: the fixture reads it on main.
+        revision = patch("openguildkit.doc_links._revision", return_value="main")
+        revision.start()
+        self.addCleanup(revision.stop)
 
     def test_every_command_prints_what_it_printed_before_the_lane(self):
         for name, expected in BEFORE["expected"].items():

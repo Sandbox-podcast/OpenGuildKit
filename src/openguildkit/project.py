@@ -9,6 +9,7 @@ from . import light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
+from .doc_links import doc_link
 from .patterns import (
     check_pattern_choices,
     condition_reasons,
@@ -207,7 +208,8 @@ def _checks_question(proposed: list[dict]) -> dict:
         "prompt": (
             "Which project checks should the agent or CI run? task verify runs each one in the project root, and the "
             "task cannot be done while one fails: keep commands that pass once the project's dependencies are "
-            "installed, and leave to CI a check that needs the network or a service (docs/workflow.md#project-checks)."
+            "installed, and leave to CI a check that needs the network or a service "
+            f"({doc_link('docs/workflow.md', 'project-checks')})."
         ),
         "default": [],
     }

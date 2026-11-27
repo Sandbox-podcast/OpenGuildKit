@@ -16,6 +16,7 @@ from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
 from .clock import today
 from .consultation import board_brief, pack_rules
+from .doc_links import doc_link
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
     ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
@@ -452,7 +453,7 @@ def _id_clashes(root: Path, state: Path) -> dict[str, str]:
 def _clash_message(task_id: str, path: str) -> str:
     return (f"task {task_id} of this copy and the exported decision {path} are different tasks with the same ID. "
             "Leave the record as it is and open your work under another ID with openguildkit task new \"BRIEF\" --id "
-            "NEW-ID (see docs/workflow.md, \"When two copies use the same task ID\").")
+            f"NEW-ID (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
 def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
@@ -817,11 +818,10 @@ def _withdraw(args, root: Path, state: Path, task: dict, profile: dict, relevanc
     return ran[0]
 
 
-NO_CHECK_COMMAND = (
-    "No project check command is configured: task verify ran no test. To have it run one: openguildkit profile add "
-    "check \"COMMAND\" --by NAME --reason WHY (docs/workflow.md#project-checks); the change applies to tasks "
-    "consulted after it."
-)
+def _no_check_command() -> str:
+    return ("No project check command is configured: task verify ran no test. To have it run one: openguildkit "
+            f"profile add check \"COMMAND\" --by NAME --reason WHY ({doc_link('docs/workflow.md', 'project-checks')}); "
+            "the change applies to tasks consulted after it.")
 
 
 def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Path, state: Path,
@@ -832,7 +832,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     job can tell; points that only need answers keep it at 0.
     """
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
-        print(NO_CHECK_COMMAND)
+        print(_no_check_command())
     problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root)
                 + _lane_problems(root, task, profile))

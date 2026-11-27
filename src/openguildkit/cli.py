@@ -14,6 +14,7 @@ from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_br
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
 from .detect import components_for_profile, detect_stack, detected_project_name
+from .doc_links import doc_link
 from .guard import (
     NO_TASK, approval_text, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command, scope_note,
 )
@@ -535,7 +536,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
           "(lowering it is typed by the person at a terminal).")
     if mode != "off" and (profile.get("approval") or {}).get("mode") != "signed":
         print("  Approvals are sealed locally: a seal catches an accidental edit, not an agent that writes files. "
-              "To require signed ones: openguildkit profile set approval signed (docs/workflow.md#signed-approvals).")
+              f"To require signed ones: openguildkit profile set approval signed ({doc_link('docs/workflow.md', 'signed-approvals')}).")
     if left_aside:
         names = "; ".join(f"{item['id']} ({item.get('path', '.')}): {', '.join(item['stack'])}" for item in left_aside)
         print(f"OpenGuildKit: the answers give no components, so these detected ones are left aside: {names}. "
@@ -564,9 +565,9 @@ def _print_check_notes(profile: dict, proposed: list[dict]) -> None:
     left = [item["command"] for item in proposed if item["command"] not in profile["checks"]]
     if left:
         print(f"Test commands found but not kept as project checks: {'; '.join(left)}. "
-              "task verify runs only the project's checks (docs/workflow.md#project-checks).")
+              f"task verify runs only the project's checks ({doc_link('docs/workflow.md', 'project-checks')}).")
     elif not profile["checks"]:
-        print("No project check: task verify runs no test command (docs/workflow.md#project-checks).")
+        print(f"No project check: task verify runs no test command ({doc_link('docs/workflow.md', 'project-checks')}).")
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
@@ -1334,7 +1335,8 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     if undated:
         message = (f"date the sources of {len(undated)} project "
                    f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
-                   'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).')
+                   'add "checked": "YYYY-MM-DD" after its url with that day\'s date '
+                   f"(see {doc_link('docs/catalog-format.md')}).")
         print(f"OpenGuildKit: {message}", file=sys.stderr)
         report.add("source-undated", "warning", message)
     issues = sharing_issues(root, state, records, read)
