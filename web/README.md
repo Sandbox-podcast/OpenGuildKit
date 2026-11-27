@@ -21,7 +21,7 @@ Les créations, modifications, transitions, versions, imports, exports et relati
 
 ## Lancer
 
-Utilise Node 22.12 ou Node 24, la version de la CI (`engines` dans `package.json`, `.nvmrc` : 24) : `npm ci` avertit (`EBADENGINE`) sur une autre version. Node 26 fait passer `typecheck`, `test` et `build` ; il ajoute deux avertissements `ExperimentalWarning: localStorage is not available` aux tests, et `@types/node` est déjà en 26 (à aligner sur 24 : voir #515).
+Utilise Node 22.12 ou Node 24, la version de la CI (`engines` dans `package.json`, `.nvmrc` : 24) : `npm ci` avertit (`EBADENGINE`) sur une autre version. Node 26 fait passer `typecheck`, `test` et `build` ; il ajoute deux avertissements `ExperimentalWarning: localStorage is not available` aux tests. `@types/node` est en 24, comme la CI.
 
 ```bash
 cd web
