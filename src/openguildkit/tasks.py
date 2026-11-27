@@ -1476,10 +1476,11 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
-    confirmed_removals: list[str] | None = None, separate: bool = False,
+    confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
-    says that the profile separated the requester from the approver: the approval and its seal record it."""
+    says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
+    when the approver signed a payload that carries it, is recorded and sealed with the approval."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1503,10 +1504,12 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
-        payload = decision_payload(task, by, reason, base_revision, separate=separate)
+        payload = decision_payload(task, by, reason, base_revision, separate=separate, signed_at=signed_at)
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:
             decision["separate_requester"] = True
+        if signed_at:
+            decision["signed_at"] = signed_at
         if signature is not None:
             decision.update(signer=signature["signer"], signature=signature["text"])
         if pending_removals(task):

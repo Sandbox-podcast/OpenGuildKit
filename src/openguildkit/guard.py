@@ -5,6 +5,7 @@ hooks run it when a request arrives and before a file edit. In CI, it checks tha
 pull request carries an exported decision that matches the rules of its base revision.
 """
 
+import calendar
 import hashlib
 import json
 import os
@@ -12,13 +13,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path, PurePosixPath
 
 from . import light_lane, requester
 from .catalog import load_catalog
 from .delivered_review import exported_review
 from .decisions import (
-    DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
+    CLOCK_SKEW, DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
     revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
@@ -731,7 +733,8 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
                 verify_recorded_signature(base_root, policy, payload, decision["signature"], decision["signer"],
                                           committed=not extracted, history=history)
             else:
-                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False)
+                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False,
+                                 at_signing=True)
         except ValueError as error:
             return "decision-signature-invalid", f"{relative}: {error}"
     return None
@@ -972,6 +975,23 @@ def _lane_fault(record: dict, files: list[str] | None, light: list[str], base: s
     return light_lane.outside_message(record["task"], record["paths"], light, outside, where) if outside else None
 
 
+def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | None:
+    """Why a new record cannot be true: its approval says it was signed (signed_at) after the commit of the change that
+    first carries the record, the clocks of two machines allowed to differ by CLOCK_SKEW."""
+    moment = (record["decision"].get("payload") or {}).get("signed_at")
+    brought = _git(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative)
+    first = brought.stdout.split()[:1]
+    try:
+        signed = calendar.timegm(time.strptime(moment, "%Y-%m-%dT%H:%M:%SZ"))
+    except (TypeError, ValueError):  # None, or malformed: the signature check says so.
+        return None
+    if brought.returncode or not first or signed <= int(first[0]) + CLOCK_SKEW.total_seconds():
+        return None
+    return (f"{relative}: the approval says it was signed at {moment}, after the commit that brings this record "
+            f"({time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(int(first[0])))}): a signature cannot be later than the "
+            "change that carries it. Sign and export the decision again.")
+
+
 def changes_since_approval(root: Path, task: dict) -> list[str] | None:
     """The files Git tracks that changed since the task's approval, committed or not, and the new files it does not
     track yet (the decision records left out); None when the approval named no Git revision."""
@@ -1124,7 +1144,10 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                 record, record["task"] not in earlier)
             if same:
                 problems.append(flag(same[0], f"{relative}: {same[1]}", relative))
-            if not fault and not journal and not outside and not same:
+            late = None if fault or record["task"] in earlier else _signed_late(root, base, record, relative)
+            if late:
+                problems.append(flag("decision-signed-late", late, relative))
+            if not fault and not journal and not outside and not same and not late:
                 valid.append(record["task"])
                 where[record["task"]] = relative
                 covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")

@@ -262,6 +262,24 @@ What signed mode is worth depends on where the check runs:
 - **In CI** (`guard --ci`), the approvers and the signers file come from the base revision, which the pull request cannot change: a key the change adds signs nothing there, and a record the base revision does not carry is verified against today's approvers only. This is the check that holds against an agent that can write files and commit.
 - **In a local copy** (`task list`, `check`, the edit hook, `handoff`), a signature is verified against the signers file committed at `HEAD`. An agent that commits its own key to that file and to `approvers` can sign an approval that holds locally while the key is there; the pull request then shows the change to the signers file, and CI refuses the approval. When the key is gone from `HEAD` again, the approval holds only through the revision it was signed at, and that revision counts only when the merged branch contains it: `origin/HEAD` (the remote's default branch, which `git clone` sets; `git remote set-head origin --auto` sets it otherwise), or else the branch's upstream. A key committed and reverted on a local branch therefore approves nothing, and `task list` names the signer and the revision of every approval that holds this way. Local Git references can still be rewritten by whoever has a shell in the repository: locally, signed mode stops an edited file and a key that was never reviewed, and CI on the base revision is what decides.
 
+### Certificates of an authority
+
+Instead of one key per approver, the allowed signers file can trust an SSH authority, the one the company runs behind its single sign-on: one line, `PRINCIPAL cert-authority ssh-ed25519 AAAA...` (the authority's public key). The approver signs in to the directory, the authority gives them a short certificate for their principal, and they sign with it: `ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json`. `task decide` and every reader verify it with `ssh-keygen -Y verify`, which checks the authority's signature, the principal, the namespace and the validity of the certificate. An approver who leaves loses the right to sign when the authority stops issuing: no commit in each repository. A test signs and verifies with a certificate (`tests/test_decisions.py`).
+
+What it proves: the signature was made with a key that the committed signers file's authority certified for that principal, and the certificate was valid when it was checked. What it does not prove: what the authority checked before issuing it, that a person and not a program held the key (a passphrase or a hardware token still decides that), or when the person signed.
+
+Verified now, a certificate that expires voids every approval already recorded. An approver who wants to avoid that adds the time they sign at to the payload:
+
+```bash
+openguildkit task decision-payload request-status --by CM --reason "Agreed" --signed-at --output decision.json
+ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json
+openguildkit task decide request-status --approve --by CM --reason "Agreed" --signature decision.json.sig --signer CM --signed-at 2026-11-27T10:15:30Z
+```
+
+`--signed-at` alone writes the current UTC time in the payload; `task decide` takes the same value, in `YYYY-MM-DDTHH:MM:SSZ`, and verifies it because the approver signed it: a changed `signed_at` breaks both the signature and the seal. Without `--signed-at`, nothing changes. `task decide` always verifies at the current time, so a key or a certificate that has expired signs no new approval, and refuses a `signed_at` in the future. An approval already recorded (`task list`, `handoff`, `guard --ci`) is verified at its `signed_at`: it keeps holding after the certificate expires, while the approvers and the signers file it is checked against are unchanged. `guard --ci` also refuses a new record whose `signed_at` is more than five minutes after the commit that first brings the record (`decision-signed-late`).
+
+`signed_at` is what the signer states. Someone who still holds an expired certificate and its key can sign a payload that claims an earlier time, and the check accepts it if the time falls in the certificate's validity and is not later than its commit: no clock proves otherwise. Keep the certificates short, ask for a passphrase or a token, and review who merges.
+
 ## 5. Hand off
 
 ```bash
