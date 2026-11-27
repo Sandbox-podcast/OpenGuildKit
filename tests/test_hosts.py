@@ -319,5 +319,104 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("not signed", self.run_cli("host", "check")[1])
 
 
+class RestrictedPathTests(CapturedCli, unittest.TestCase):
+    """Issue #519: a team could not say that a folder is closed to the agent, and host apply wrote no Read rule."""
+
+    RESTRICTED = [{"paths": ["data/customers/**", "secrets/**"], "class": "restricted", "boards": ["security", "legal"]}]
+    RULES = ["Read(/data/customers/**)", "Edit(/data/customers/**)", "Read(/secrets/**)", "Edit(/secrets/**)"]
+
+    def setUp(self):
+        on_path = patch("openguildkit.hosts.shutil.which", return_value="/opt/tools/openguildkit")
+        on_path.start()
+        self.addCleanup(on_path.stop)
+        self.fresh()
+
+    def fresh(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.profile = self.root / ".openguildkit" / "project.json"
+
+    def init(self, host: str, restricted=RESTRICTED, **extra):
+        write_json(self.root / "answers.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "guard": "off",
+                                                "host": host, **extra})
+        self.run_cli("init", "--answers", self.root / "answers.json")
+        self.restrict(restricted)
+
+    def restrict(self, restricted) -> None:
+        """The person writes the setting by hand in project.json, as no profile command sets it yet."""
+        profile = json.loads(self.profile.read_text(encoding="utf-8"))
+        if restricted is None:
+            profile.pop("restricted_paths", None)
+        else:
+            profile["restricted_paths"] = restricted
+        self.profile.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
+
+    def control(self, code=None) -> dict | None:
+        controls = json.loads(self.run_cli("host", "check", "--json", code=code)[0])
+        return next((item for item in controls if item["id"] == "restricted-paths"), None)
+
+    def test_host_apply_writes_the_read_and_edit_rules_of_each_path_and_keeps_the_rules_of_the_team(self):
+        settings = self.root / ".claude" / "settings.json"
+        settings.parent.mkdir()
+        settings.write_text(json.dumps({"permissions": {"deny": ["Read(./.env)", "Bash(rm:*)"]}}), encoding="utf-8")
+        self.init("claude-code")
+        self.assertEqual(self.control(code=1)["status"], "missing")
+        self.run_cli("host", "apply")
+        deny = json.loads(settings.read_text(encoding="utf-8"))["permissions"]["deny"]
+        for rule in (*self.RULES, "Read(./.env)", "Bash(rm:*)"):
+            self.assertIn(rule, deny)
+        self.assertEqual(self.control(code=0)["status"], "enforced")
+        self.run_cli("host", "apply")
+        self.assertEqual(json.loads(settings.read_text(encoding="utf-8"))["permissions"]["deny"], deny)
+
+    def test_what_each_host_cannot_do_is_said_and_is_not_a_missing_setting(self):
+        for host in ("codex", "gemini-cli", "other"):
+            with self.subTest(host=host):
+                self.fresh()
+                self.init(host)
+                control = self.control(code=0 if host == "other" else None)
+                self.assertEqual(control["status"], "instruction")
+                self.assertIn("no setting of this host that refuses a read was read", control["detail"])
+                self.assertIn("à vérifier", control["detail"])
+                self.assertIn("data/customers/**", control["detail"])
+
+    def test_claude_code_says_that_its_rules_do_not_reach_a_shell_command(self):
+        self.init("claude-code")
+        self.assertIn("shell command", self.control(code=1)["detail"])
+
+    def test_a_project_without_the_setting_has_the_controls_it_had(self):
+        self.init("claude-code", restricted=None)
+        self.assertIsNone(self.control(code=1))
+
+    def test_a_setting_that_is_not_a_list_of_paths_is_refused_with_the_file_named(self):
+        self.init("claude-code")
+        for bad in ("secrets/**", [{"paths": "secrets/**"}], [{"paths": []}], [{"paths": ["/etc/passwd"]}],
+                    [{"paths": ["../outside/**"]}], [{"paths": ["a/**"], "boards": "legal"}], [{"class": "restricted"}]):
+            with self.subTest(bad=bad):
+                self.restrict(bad)
+                _, error = self.run_cli("host", "check", code=1)
+                self.assertIn("restricted_paths", error)
+                self.assertIn("project.json", error)
+                self.assertEqual(len(error.strip().splitlines()), 1)
+
+    def test_the_setting_leaves_standing_approvals_standing(self):
+        """The paths are read when the host acts, like the guard and the host: they are not rules of a task."""
+        from tests.test_guard import EXAMPLE, TASK
+
+        self.init("claude-code", guard="enforce", restricted=None)
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"],
+                                               **json.loads((EXAMPLE / "review.json").read_text())})
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
+            self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
+        self.assertEqual(len(json.loads(self.run_cli("guard", "--json")[0])["covered_by"]), 1)
+        self.restrict(self.RESTRICTED)
+        self.assertEqual(len(json.loads(self.run_cli("guard", "--json")[0])["covered_by"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

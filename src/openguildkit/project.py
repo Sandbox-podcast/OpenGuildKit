@@ -689,7 +689,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
-        "light_paths", "declined_rules", "separate_requester",
+        "light_paths", "declined_rules", "separate_requester", "restricted_paths",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -799,6 +799,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if answers["separate_requester"] is not True:
             raise ValueError("separate_requester must be true, or absent when the option is off")
         profile["separate_requester"] = True
+    # Folders closed to the agent (hosts.py reads them when host apply and host check act, and refuses a bad shape).
+    if answers.get("restricted_paths"):
+        profile["restricted_paths"] = answers["restricted_paths"]
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
         raise ValueError("ask_every_rule must be true or false")
@@ -1246,7 +1249,7 @@ def check_component(command: str, components: list[dict]) -> str | None:
 # waiver, short lane and requester settings are read when they act (the signature, for one, is verified again by every reader of
 # an approval, and the lane's paths by the edit hook, task complete and guard --ci).
 APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers",
-                           "light_paths", "separate_requester")
+                           "light_paths", "separate_requester", "restricted_paths")
 
 
 def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
