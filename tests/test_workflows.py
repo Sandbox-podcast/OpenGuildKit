@@ -270,6 +270,25 @@ esac
         self.assertEqual([call.split(" --")[0] for call in calls], ["issue list"])
         self.assertIn("#15", out)
 
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_the_command_to_type_is_pasted_as_written_and_a_name_outside_it_stays_neutralized(self):
+        """Issue #524: the command of a check with an @ carries an invisible character, and fails once pasted."""
+        command = "openguildkit profile remove check 'npx @biomejs/biome check' --by NAME --reason WHY"
+        finding = {**self.RULE, "kind": "check", "label": "check @biomejs skipped", "command": command}
+        _, body, _ = self._issue_step([finding], [])
+        typed = next(line for line in body.splitlines() if "A person may type:" in line)
+        self.assertIn(f"`{command}`", typed)
+        self.assertTrue(typed.isascii(), ascii(typed))
+        label = next(line for line in body.splitlines() if line.startswith("- **check**"))
+        self.assertIn("@\u200bbiomejs", label, "a name in a label, outside a code span, still notifies nobody")
+
+    def test_no_shipped_github_template_holds_an_invisible_character_in_clear(self):
+        """Issue #524: the template had U+200B in its source, which `host scan` reports in an instructions file."""
+        invisible = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
+        for path in sorted((ROOT / "integrations" / "github").glob("*.yml")):
+            with self.subTest(path=path.name):
+                self.assertEqual(invisible.findall(path.read_text(encoding="utf-8")), [], "write it as \\u200b in jq")
+
     def test_the_workflow_guide_describes_the_template_next_to_task_retro(self):
         guide = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
         section = guide.split("## Retrospective", 1)[1].split("\n## ", 1)[0]

@@ -44,7 +44,8 @@ jobs:
         run: openguildkit task retro --all --json > retro.json
       - name: Open or update the retrospective issue
         # What people typed in a reason or a reservation is copied into the issue; an @ in it is broken so that
-        # the issue notifies nobody. At most 50 findings are listed, with the command that gives the rest.
+        # the issue notifies nobody, except in the command, which sits in a code span and is pasted as written.
+        # At most 50 findings are listed, with the command that gives the rest.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,13 +56,13 @@ jobs:
           fi
           title="OpenGuildKit retrospective $(date -u +%Y-%m)"
           jq -r '
-            def safe: gsub("@"; "@​");
+            def safe: gsub("@"; "@\u200b");
             "`openguildkit task retro --all` finds \(.recurrences | length) finding(s) that come back in at least \(.minimum) of the \(.tasks.read) closed tasks.",
             "",
             (.recurrences[:50][] |
               "- **\(.kind)** \(.label | safe): \(.count) tasks (\(.tasks | join(", ") | safe))"
               + (if .command then
-                  "\n  A person may type: `\(.command | safe)`"
+                  "\n  A person may type: `\(.command)`"
                   + (if .needs_terminal then ", at an interactive terminal: it lowers a protection" else "" end)
                   + (if (.also_drops | length) > 0 then "; it also drops \(.also_drops | join(", "))" else "" end)
                 else "" end)),
