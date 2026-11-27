@@ -13,7 +13,7 @@ from .catalog import (
     validate_entry,
 )
 from .ci import read_policy_pack
-from .org_catalog import organization_in, validate_pin
+from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
 from .project import RuleError, check_instructions, selected_packs
 from .storage import file_signature, read_json, write_json
@@ -82,6 +82,8 @@ def _validated_lock(path: Path) -> dict:
                 raise ValueError(f"{path}: {collection}/{record_id} has a different id.")
     if "organization" in lock:
         validate_pin(lock["organization"], str(path))
+    if "organization_history" in lock:
+        validate_history(lock["organization_history"], str(path))
     return lock
 
 
@@ -193,8 +195,9 @@ def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock:
         "generated_by": f"openguildkit {package_version()}",
         "records": locked_records(profile, catalog, bundled, lock),
     }
-    if lock and "organization" in lock:
-        built["organization"] = json_copy(lock["organization"])
+    for key in ("organization", "organization_history"):
+        if lock and key in lock:
+            built[key] = json_copy(lock[key])
     return built
 
 

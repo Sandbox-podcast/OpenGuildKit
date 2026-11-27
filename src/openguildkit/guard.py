@@ -23,7 +23,7 @@ from .decisions import (
     revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
 from .lock import LOCK_FILE, apply_lock, read_lock
-from .org_catalog import organization_in
+from .org_catalog import copies_read_from, organization_in, parse_copies
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
 from .storage import read_json, write_json
@@ -1036,14 +1036,16 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."
 
 
-def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None) -> dict:
+def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None,
+             org_catalog: list[str] | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
     cannot weaken the rules it is judged by. Each changed file must be listed by a valid record the change brings;
     a record of an approval already on base covers only the files its base version listed, so re-exporting an
-    old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory.
-    require_signed makes local approvals a problem.
+    old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory, inside
+    copies_read_from: the copy of an organization catalog is looked for from the real root, or at the NAME=PATH given
+    as org_catalog. require_signed makes local approvals a problem.
 
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
@@ -1074,7 +1076,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                     "ok": True}
         _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
         base_state = base_root / STATE_DIR
-        catalog = catalog_for(base_state)
+        with copies_read_from(root, parse_copies(org_catalog)):
+            catalog = catalog_for(base_state)
         profile = load_profile(base_state, catalog)
         policy = approval_policy(profile)
         if policy["mode"] == "signed":

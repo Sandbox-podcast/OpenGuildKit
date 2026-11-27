@@ -131,6 +131,8 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--require-signed", action="store_true",
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
+    guard.add_argument("--org-catalog", action="append", metavar="NAME=PATH",
+                       help="With --ci, the copy of the organization catalog that the lock calls NAME.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     _format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
@@ -819,7 +821,7 @@ def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
         found: list[dict] = []
         result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
-                          require_signed=args.require_signed, findings=found)
+                          require_signed=args.require_signed, findings=found, org_catalog=args.org_catalog)
         if args.format == "sarif":
             _print_guard_sarif(root, found, result["mode"])
         elif args.json:
