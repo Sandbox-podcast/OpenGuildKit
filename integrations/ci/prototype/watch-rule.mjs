@@ -1,8 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { evaluate } from './demo/check.mjs';
+import { gh, ghWithInput } from '../lib/github.mjs';
+import { evaluate } from '../lib/rule.mjs';
 
 const [configPath, statePath] = process.argv.slice(2);
 if (!configPath || !statePath) {
@@ -38,12 +38,8 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-function gh(args, input) {
-  return execFileSync('gh', args, { encoding: 'utf8', input, timeout: 30_000 }).trim();
-}
-
 function readGithubJson(path) {
-  return JSON.parse(gh(['api', path]));
+  return JSON.parse(gh('api', path));
 }
 
 function readFileAt(repo, commit, path) {
@@ -52,10 +48,10 @@ function readFileAt(repo, commit, path) {
 }
 
 const policyPath = 'policy/export-link.json';
-const policyCommit = gh([
+const policyCommit = gh(
   'api', '--method', 'GET', `repos/${policyRepo}/commits`,
   '-f', `sha=${policyRef}`, '-f', `path=${policyPath}`, '-F', 'per_page=1', '--jq', '.[0].sha',
-]);
+);
 const previous = existsSync(statePath) ? readJson(statePath) : {};
 const previousPullRequests = previous.pullRequests == null ? null : Object.fromEntries(
   Object.entries(previous.pullRequests)
@@ -75,7 +71,7 @@ function targetKey({ repo, number }) {
 
 function currentTargets() {
   return repositories.flatMap(repo => {
-    const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `repos/${repo}/pulls?state=open&per_page=100`]));
+    const pages = JSON.parse(gh('api', '--paginate', '--slurp', `repos/${repo}/pulls?state=open&per_page=100`));
     return pages.flat().filter(pr => watchesPullRequest(repo, pr.number)).map(pr => {
       if (pr.head.repo?.full_name !== repo) {
         throw new Error(`The prototype supports only PRs from the repository itself: ${repo}#${pr.number}`);
@@ -114,8 +110,9 @@ for (const target of batch.targets) {
   const result = evaluate(rule, policyCommit, commit, readFileAt(repo, commit, 'export.json'));
   target.result = result;
   if (!target.githubRun) {
-    const url = gh(['workflow', 'run', 'openguildkit.yml', '--repo', repo, '--ref', 'main', '--json'],
-      JSON.stringify({ target_commit: commit, policy_commit: policyCommit, policy_json: JSON.stringify(rule) }));
+    const url = ghWithInput(
+      JSON.stringify({ target_commit: commit, policy_commit: policyCommit, policy_json: JSON.stringify(rule) }),
+      'workflow', 'run', 'openguildkit.yml', '--repo', repo, '--ref', 'main', '--json');
     const runId = /\/actions\/runs\/(\d+)$/.exec(url)?.[1];
     if (!runId) {
       throw new Error(`GitHub did not return the run ID for ${repo}#${number}.`);
@@ -125,8 +122,8 @@ for (const target of batch.targets) {
   }
   if (!target.jenkinsPublished) {
     const description = `v${result.version} | rule ${policyCommit}`;
-    gh(['api', `repos/${repo}/statuses/${commit}`, '-f', 'context=openguildkit/jenkins',
-      '-f', `state=${result.state}`, '-f', `description=${description}`]);
+    gh('api', `repos/${repo}/statuses/${commit}`, '-f', 'context=openguildkit/jenkins',
+      '-f', `state=${result.state}`, '-f', `description=${description}`);
     target.jenkinsPublished = true;
     saveBatch();
   }
@@ -136,7 +133,7 @@ for (const target of batch.targets) {
   const { repo, commit, result, githubRun } = target;
   const deadline = Date.now() + 180_000;
   do {
-    const run = JSON.parse(gh(['run', 'view', githubRun.id, '--repo', repo, '--json', 'status,conclusion']));
+    const run = JSON.parse(gh('run', 'view', githubRun.id, '--repo', repo, '--json', 'status,conclusion'));
     if (run.status === 'completed') {
       const statuses = readGithubJson(`repos/${repo}/commits/${commit}/statuses?per_page=100`);
       const status = statuses.find(item => item.context === 'openguildkit/export-link-expiry' &&

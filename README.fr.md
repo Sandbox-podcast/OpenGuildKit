@@ -24,7 +24,7 @@ python examples/request-status/replay.py
 Pour une équipe, installe plutôt sur chaque poste la dernière [release GitHub](https://github.com/Sandbox-podcast/OpenGuildKit/releases). Cette ligne télécharge sa roue, vérifie son empreinte SHA-256 dans le `SHA256SUMS.txt` de la release, puis seulement l'installe avec pipx, ou uv si pipx manque ; pour une autre version, remplace le `sh` final par `sh -s -- --version X.Y.Z` :
 
 ```sh
-curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh
 ```
 
 OpenGuildKit n'est pas sur PyPI. À la main, la même roue s'installe avec pipx (`pipx install ./openguildkit-X.Y.Z-py3-none-any.whl`) ou uv (`uv tool install ./openguildkit-X.Y.Z-py3-none-any.whl`). [Installer une release GitHub](docs/install.md) donne la ligne pour Windows, le téléchargement et la vérification des empreintes à la main, et les fichiers de l'agent.

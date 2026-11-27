@@ -1,7 +1,8 @@
 name: Release check
 
 # Checks a published release the way a team installs it (docs/install.md): downloads the wheel, the Node
-# archive and SHA256SUMS.txt of the release, checks the hashes, installs each file and runs it on Linux,
+# archive, SBOM and SHA256SUMS.txt of the release, checks the hashes and the build provenance of every file,
+# installs each file (the wheel also without any index) and runs it on Linux,
 # macOS and Windows, then upgrades a project set up with v0.16.1 to the release (CHANGELOG.md, "Upgrading
 # from 0.16.1"). It builds nothing: the files come from the release. Runs when a release is published, or
 # by hand with the tag (step 7 of GOVERNANCE.md#releases).
@@ -14,6 +15,10 @@ on:
         description: "Tag of the published release to check, for example v0.17.0"
         required: true
         type: string
+      attestations:
+        description: "Verify the build provenance of the files. Untick it for a release that predates the attestations (up to v0.17.0)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -29,6 +34,9 @@ jobs:
     name: Install the release on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    permissions:
+      contents: read
+      attestations: read
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +73,8 @@ jobs:
           mkdir "$RUNNER_TEMP/release"
           cd "$RUNNER_TEMP/release"
           gh release download "$TAG" --pattern "openguildkit-$VERSION-py3-none-any.whl" \
-            --pattern "openguildkit-$VERSION.tgz" --pattern install.sh --pattern install.ps1 --pattern SHA256SUMS.txt
+            --pattern "openguildkit-$VERSION.tgz" --pattern "openguildkit-$VERSION.cdx.json" --pattern install.sh \
+            --pattern install.ps1 --pattern SHA256SUMS.txt
           ls -l
           cat SHA256SUMS.txt
 
@@ -101,6 +110,28 @@ jobs:
         run: |
           python -m zipfile -l "$RUNNER_TEMP/release/openguildkit-$VERSION-py3-none-any.whl" \
             | grep -F openguildkit/registry/catalog.bundle.json
+
+      # What docs/install.md gives to prove where a file comes from: the signature names the repository, the
+      # workflow of the tag and the tag. The attestation covers every file of the release, SHA256SUMS.txt included.
+      - name: Verify the build provenance of every file
+        if: github.event_name != 'workflow_dispatch' || inputs.attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/release"
+          for file in *; do
+            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "refs/tags/$TAG"
+          done
+
+      # The "Offline and internal mirror" section of docs/install.md: pip may use nothing but this file.
+      - name: Install the wheel without any index
+        run: |
+          python -m venv "$RUNNER_TEMP/offline"
+          if [ "$RUNNER_OS" = Windows ]; then bin="$RUNNER_TEMP/offline/Scripts"; else bin="$RUNNER_TEMP/offline/bin"; fi
+          "$bin/python" -m pip install --no-index "$RUNNER_TEMP/release/openguildkit-$VERSION-py3-none-any.whl"
+          version=$("$bin/openguildkit" --version | tr -d '\r')
+          test "$version" = "openguildkit $VERSION"
 
       - name: Install the wheel in a fresh virtual environment
         run: |

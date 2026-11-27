@@ -48,7 +48,7 @@ test('run-kit keeps the check exit codes: 0 conforming, 1 rule failed, 2 not eva
     const root = mkdtempSync(join(tmpdir(), 'openguildkit-run-kit-'));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const staging = join(root, 'staging', 'package');
-    for (const entry of ['bin', 'lib', 'prototype/demo', 'package.json']) {
+    for (const entry of ['bin', 'lib', 'package.json']) {
       cpSync(join(packageRoot, entry), join(staging, entry), { recursive: true });
     }
     const manifestPath = join(staging, 'package.json');
