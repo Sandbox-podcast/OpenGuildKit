@@ -1,5 +1,7 @@
 # Your first contribution
 
+For: a developer who makes a first contribution: a lens, a reference or a pattern.
+
 This walk-through adds one specialist lens to a brain, then shows the same steps for a reference entry and a pattern. You need a GitHub account, Git and Python 3.11 or later; no other tool.
 
 ## 1. Agree on the scope

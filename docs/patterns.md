@@ -1,5 +1,7 @@
 # Work and stack patterns
 
+For: an administrator or a project lead who sets a project's stack, norms and work methods.
+
 A pattern links a recurring project context or team method to versioned rule packs. A Python API with FastAPI and PostgreSQL can reuse instructions for interface compatibility, data access and migrations. A project manager can select Scrum, Kanban or both, as a team that runs Scrumban does.
 
 ## Browse and preview

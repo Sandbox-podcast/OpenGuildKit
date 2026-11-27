@@ -23,6 +23,7 @@ from .decisions import (
     exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
     revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
 )
+from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
@@ -763,7 +764,6 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
 _CONFLICT_START = re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
 _CONFLICT_END = re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
 _APPROVER = re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
-CONFLICT_SECTION = 'docs/workflow.md, "When two copies use the same task ID"'
 
 
 def conflict_message(path: Path, relative: str) -> str | None:
@@ -784,7 +784,7 @@ def conflict_message(path: Path, relative: str) -> str | None:
         sides.append(f"{name} approved by {json.loads(chr(34) + approver.group(1) + chr(34))}" if approver else name)
     return (f"{relative} holds a git merge conflict: two copies exported a decision for task {path.stem} ("
             f"{'; '.join(sides)}). Two tasks used the same ID: keep the teammate's record, open your work under "
-            f"another ID, and export it again (see {CONFLICT_SECTION}).")
+            f"another ID, and export it again (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
 def _same_approval(earlier: object, record: dict) -> bool:
@@ -959,10 +959,11 @@ def _no_base_profile(root: Path) -> str:
             f'requests are checked with the mode it sets ("guard": "{mode}" in this change).')
 
 
-LOCAL_RECORDS = (
-    "Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record can "
-    "recompute it too, so nothing here proves who approved. Require signed approvals (docs/workflow.md#signed-approvals)"
-)
+def _local_records() -> str:
+    return ("Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record "
+            "can recompute it too, so nothing here proves who approved. Require signed approvals "
+            f"({doc_link('docs/workflow.md', 'signed-approvals')})")
+
 WORKFLOW_DIR = ".github/workflows/"
 GUARD_STEP = "openguildkit guard --ci"
 
@@ -1032,7 +1033,7 @@ def _workflow_note(paths: list[str]) -> str:
     return (f"This change edits {', '.join(paths)}, which runs this check: on pull_request, GitHub runs the pull "
             "request's own copy of a workflow, so this result may come from the edited file. Have a person review the "
             "change, and keep pull requests from editing the check (CODEOWNERS on .github/workflows/, a ruleset that "
-            "requires the workflow; see integrations/README.md#protect-the-check).")
+            f"requires the workflow; see {doc_link('integrations/README.md', 'protect-the-check')}).")
 
 
 def _journal_mismatch(root: Path, record: dict) -> str | None:
@@ -1085,6 +1086,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         report.append({"code": code, "level": level, "message": message, "path": path, "line": None})
         return message
 
+    if _git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}").returncode:
+        raise ValueError(f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
@@ -1165,9 +1168,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         problems.append(flag("decision-files-uncovered", uncovered))
     if policy["mode"] != "signed" and guard_mode(profile) != "off":
         if require_signed:
-            problems.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}: --require-signed fails this check until they are."))
+            problems.append(flag("approvals-not-signed", f"{_local_records()}: --require-signed fails this check until they are."))
         else:
-            notes.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until "
+            notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
     return {"mode": guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,

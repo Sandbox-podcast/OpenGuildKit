@@ -1,5 +1,7 @@
 # Project documentation and sharing
 
+For: the owner of a project's documentation, and an administrator who shares pages with a client.
+
 Completed tasks already hold what a reader needs: the brief, the expected behaviour, the acceptance criteria that were met, the delivery and the project version. The project profile says what the project is and which rules apply. `openguildkit docs export` turns the profile and the tasks you select into Markdown pages that [Documentalist](https://github.com/azerothl/documentalist) imports from a Git repository.
 
 See [versions verified and reuse](#versions-verified-and-reuse) for the two local Documentalist runs on 2026-11-22.

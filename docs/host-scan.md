@@ -1,5 +1,7 @@
 # Scan what an agent reads, and list what could act
 
+For: a security reviewer or an administrator who checks what an agent reads and which tools it can act through.
+
 An agent reads `AGENTS.md`, the agents, Skills and commands of `.claude/`, the rules of Cursor and the instructions of Copilot as orders, without questioning them. A character nobody sees, or a sentence that tells it to drop its rules, passes a human review. `openguildkit check` verifies that the instructions match the profile and `sensitive.py` looks for credentials; neither reads the rest of these files. And a repository can hold the files of agent tools that the guard does not cover, MCP servers that fetch the latest version of a package at every start, and settings that take every permission prompt away, without anyone seeing them. `openguildkit host scan` does both: it reads the files, and it lists these tools, servers and settings.
 
 ```bash

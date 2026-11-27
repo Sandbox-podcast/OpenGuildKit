@@ -386,6 +386,29 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/doc_links.py",
+      "role": "The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout).",
+      "entry": [
+        "doc_link"
+      ],
+      "tests": [
+        "tests/test_doc_links.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/errors.py",
+      "role": "The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them.",
+      "entry": [
+        "os_error_message",
+        "unknown"
+      ],
+      "tests": [
+        "tests/test_error_forms.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/features.py",
       "role": "The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on.",
       "entry": [
@@ -426,20 +449,21 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_before_delivered_review.py",
         "tests/test_clock.py",
+        "tests/test_delivered_review.py",
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_guard.py",
         "tests/test_light_lane.py",
+        "tests/test_org_catalog.py",
+        "tests/test_performance.py",
         "tests/test_record_lifecycle.py",
+        "tests/test_requester.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
-        "tests/test_task_index.py",
-        "tests/test_delivered_review.py",
-        "tests/test_before_delivered_review.py",
-        "tests/test_evidence_fingerprints.py",
-        "tests/test_org_catalog.py",
-        "tests/test_requester.py",
-        "tests/test_performance.py"
+        "tests/test_task_index.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -455,6 +479,7 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_doc_pages.py",
         "tests/test_gemini_host.py",
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
@@ -729,20 +754,21 @@
         "tests/test_pass_relevance.py",
         "tests/test_patterns.py",
         "tests/test_personal_data_doc.py",
+        "tests/test_profile_reference.py",
         "tests/test_proportionate_setup.py",
         "tests/test_references.py",
         "tests/test_regulatory_packs.py",
         "tests/test_relevance.py",
+        "tests/test_requester.py",
         "tests/test_routing.py",
         "tests/test_rule_checks.py",
+        "tests/test_rule_decline.py",
         "tests/test_rule_plan.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_source_dates.py",
         "tests/test_stack_patterns.py",
-        "tests/test_upgrades.py",
-        "tests/test_rule_decline.py",
-        "tests/test_requester.py"
+        "tests/test_upgrades.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1288,6 +1314,7 @@
       ],
       "tests": [
         "tests/test_architecture.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_next_steps.py",
         "tests/test_tools.py"

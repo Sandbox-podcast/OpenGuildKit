@@ -12,6 +12,8 @@ matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole s
 
 import re
 
+from .doc_links import doc_link
+
 LANE = "light"
 MAX_PATHS = 50
 DOCS_BOARD, TESTS_BOARD, DEFAULT_BOARD = "developer-relations-and-docs", "qa", "engineering"
@@ -133,8 +135,8 @@ def normalize_entries(values: object, label: str) -> list[str]:
     for entry in entries:
         reason = declared_excluded(entry)
         if reason:
-            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} (docs/workflow.md, "
-                               '"Short lane").')
+            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
+                               f"({doc_link('docs/workflow.md', 'short-lane')}).")
     return entries
 
 
@@ -392,5 +394,5 @@ def scope_line(lane: dict) -> str:
 def next_line(task_id: str, paths: list[str]) -> str:
     return (f"Short lane for {', '.join(paths)}: no questions. Next: openguildkit task consult {task_id} convenes the one "
             f"board its paths call for; run its pass (task pass {task_id} BOARD), submit the entry, record the review "
-            f"(task review {task_id} --summary TEXT), and the person decides, as on the full path (docs/workflow.md, "
-            '"Short lane").')
+            f"(task review {task_id} --summary TEXT), and the person decides, as on the full path "
+            f"({doc_link('docs/workflow.md', 'short-lane')}).")

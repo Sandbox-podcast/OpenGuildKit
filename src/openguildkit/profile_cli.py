@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import light_lane, requester
 from .clock import today
+from .doc_links import doc_link
 from .hosts import HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
@@ -679,10 +680,10 @@ def run(args, root: Path, state: Path) -> int:
               f"Rule {name} is asked again of the tasks it concerns, from their next consultation.")
     if updated.get("light_paths") and args.profile_action == "set" and args.field == "light-paths":
         print(f'Short lane: openguildkit task new "BRIEF" --id ID --lane light --paths '
-              f'{shell_word(updated["light_paths"][0])} (docs/workflow.md, "Short lane").')
+              f'{shell_word(updated["light_paths"][0])} ({doc_link("docs/workflow.md", "short-lane")}).')
     if requester.active(updated) and args.profile_action == "set" and args.field == "separate-requester":
         print(f'Requester and approver: openguildkit task new "BRIEF" --requested-by NAME; another person approves the '
-              f"task ({requester.SECTION}).")
+              f"task ({requester.section()}).")
     return 0
 
 

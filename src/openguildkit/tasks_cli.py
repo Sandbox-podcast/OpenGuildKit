@@ -16,6 +16,7 @@ from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
 from .clock import today
 from .consultation import board_brief, pack_rules
+from .doc_links import doc_link
 from .decisions import (
     DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
     ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
@@ -47,7 +48,7 @@ from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json
 from .tasks import (
-    ACTIONS, SENSITIVE_GROUP, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
+    ACTIONS, SENSITIVE_GROUP, STATUSES, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
     create_task, decided_message, decision_text, defer_evidence, earlier_sequential_pass, expired_on, last_approval,
     list_tasks,
     next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
@@ -118,7 +119,7 @@ def add_parser(commands) -> None:
                      help="With --lane light: the folders or files the task may change, inside the profile's "
                           "light_paths. Write the brief first.")
     listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
-    listing.add_argument("--status", help="Only tasks in this status.")
+    listing.add_argument("--status", choices=list(STATUSES), help="Only tasks in this status.")
     listing.add_argument("--owner", help="Only tasks whose current decision this person took: the approval, the "
                                          "change request or the withdrawal of an approval.")
     listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
@@ -455,7 +456,7 @@ def _id_clashes(root: Path, state: Path, tasks: dict | None = None) -> dict[str,
 def _clash_message(task_id: str, path: str) -> str:
     return (f"task {task_id} of this copy and the exported decision {path} are different tasks with the same ID. "
             "Leave the record as it is and open your work under another ID with openguildkit task new \"BRIEF\" --id "
-            "NEW-ID (see docs/workflow.md, \"When two copies use the same task ID\").")
+            f"NEW-ID (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
 def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
@@ -596,6 +597,8 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             require_instructions(args, root, state, profile, catalog)
         write_task(task_path(state, args.id), result)
     print(result["status"])
+    print(f"Next: openguildkit task handoff {args.id} gives the agent the implementation brief." if args.approve
+          else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 
 
 def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]:
@@ -820,11 +823,10 @@ def _withdraw(args, root: Path, state: Path, task: dict, profile: dict, relevanc
     return ran[0]
 
 
-NO_CHECK_COMMAND = (
-    "No project check command is configured: task verify ran no test. To have it run one: openguildkit profile add "
-    "check \"COMMAND\" --by NAME --reason WHY (docs/workflow.md#project-checks); the change applies to tasks "
-    "consulted after it."
-)
+def _no_check_command() -> str:
+    return ("No project check command is configured: task verify ran no test. To have it run one: openguildkit "
+            f"profile add check \"COMMAND\" --by NAME --reason WHY ({doc_link('docs/workflow.md', 'project-checks')}); "
+            "the change applies to tasks consulted after it.")
 
 
 def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Path, state: Path,
@@ -835,7 +837,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     job can tell; points that only need answers keep it at 0.
     """
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
-        print(NO_CHECK_COMMAND)
+        print(_no_check_command())
     problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root)
                 + _lane_problems(root, task, profile))
@@ -1109,7 +1111,7 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     if criteria_summary(result["result"]):
         print(criteria_summary(result["result"]))
     for warning in result["result"].get("warnings", []):
-        print(f"Warning: {warning}")
+        print(f"Warning: {warning}", file=sys.stderr)
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 
@@ -1152,6 +1154,7 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. It lists the files Git "
               "tracks that changed since the approval, which guard --ci compares with the pull request: export it "
               "again once the work is committed, and after task complete, and commit it.", file=sys.stderr)
+    print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
 def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1335,6 +1338,9 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     if review is not None:
         for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
             print(f"Warning: {warning}", file=sys.stderr)
+    print(f"Next: openguildkit task deliberate {args.id} lists the objections between boards (skip it and task respond "
+          f"when no board objects), then openguildkit task challenge {args.id} prints the decision brief to show the "
+          "person.", file=sys.stderr)
 
 
 def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:

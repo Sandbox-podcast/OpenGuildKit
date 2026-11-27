@@ -1,5 +1,7 @@
 # Personal data the tool records
 
+For: a data protection officer or an administrator who asks what the tool records about people.
+
 OpenGuildKit records who decided what: who approved a task, cleared or waived a blocker, set a rule aside, closed the task, reviewed a dependency alert, changed the profile or shared a deliverable. This page lists each field that holds a person's name or address, the file it is in, whether Git tracks that file, why it is kept, how long, and how to remove or replace it. A team that keeps a record of processing activities can describe the tool's own processing from it.
 
 Read in the code of version 0.17.0 and tried on test projects on 22 November 2026 ([what was tried](#what-was-tried)).

@@ -219,8 +219,8 @@ class GeminiApplyTests(GeminiCase):
 
     def test_host_apply_declares_the_hooks_the_documentation_describes(self):
         self.init("enforce")
-        _, error = self.run_cli("host", "apply")
-        self.assertIn("Wrote .gemini/settings.json", error)
+        output, _ = self.run_cli("host", "apply")
+        self.assertIn("Wrote .gemini/settings.json", output)
         hooks = self.settings()["hooks"]
         self.assertEqual(sorted(hooks), ["BeforeAgent", "BeforeTool"])
         # https://geminicli.com/docs/hooks/ (last updated Apr 13, 2026, read on 2026-11-25): an event holds groups with

@@ -1,5 +1,7 @@
 # Professional brains
 
+For: a project lead who chooses which disciplines review a change, and a contributor who writes a brain.
+
 Each brain is a board with several specialist lenses. Product brings discovery, prioritization, adoption and measurement. Security brings application security, privacy, release integrity and control ownership. The same task can receive a different verdict from each board.
 
 ```text

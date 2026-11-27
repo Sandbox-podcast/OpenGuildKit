@@ -1,5 +1,7 @@
 # Partager un livrable avec des droits limités dans Documentalist
 
+Pour : le mainteneur et l'équipe produit qui décident du partage limité d'un livrable.
+
 Proposition de cadrage pour l'issue [#266](https://github.com/Sandbox-podcast/OpenGuildKit/issues/266), à valider par les mainteneurs d'OpenGuildKit et de Documentalist. Elle est écrite en français, comme l'issue, pour la discussion. Le guide de référence reste [Share a deliverable](documentation.md#share-a-deliverable).
 
 Code lu : [azerothl/documentalist](https://github.com/azerothl/documentalist) à `947429b` (branche `main` au 24 novembre 2026), et la PR [azerothl/documentalist#25](https://github.com/azerothl/documentalist/pull/25) à `8e36a7c`, non fusionnée. Les chemins ci-dessous sont ceux de ce dépôt. Rien ici n'a été rejoué sur une instance, sauf ce que cite le [rapport du 23 novembre](../examples/documentalist/reports/2026-11-23-space-isolation.md).
