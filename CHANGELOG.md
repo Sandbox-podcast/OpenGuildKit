@@ -97,6 +97,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Web interface: `npm test` now mounts nine components of the real mode (action forms, routing step, decision of a reviewed task, installation, search, check notices, step rail, terminal hand-off) in happy-dom with a fake API, in 1 s more and with no browser or server, among them the 40-keystroke routing test of #467 (#465).
 - Web interface: the sweep and the journeys of `npm run e2e:project` fail on any `securitypolicyviolation` of the page, and a Vitest test keeps the product free of style elements and style attributes, so the server can serve `style-src 'self'` without `'unsafe-inline' (#514).
 - Web interface: the task sheet of the Forge no longer asks for the consultation, which it does not read, so its `task show` weighs 1.4 KB instead of 68.8 KB for a task to build (6.2 KB instead of 74 KB for a closed one, with the server no longer sending `board_briefs` and `domains`); the measures of `web/docs/interface-projet.md` are redone (#466).
+- Web interface: `web/README.md` and `web/docs/interface-projet.md` say that the page keeps its preferences per origin, that the host name changes at each launch, and what `openguildkit ui --stable-address` gives (a name drawn from the project's path) and costs (same origin only at the same port; a local process that knows the path can compute the name) (#463).
 
 ## 0.17.0
 

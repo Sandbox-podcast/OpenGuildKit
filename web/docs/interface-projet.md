@@ -25,6 +25,11 @@ openguildkit ui --port 0 --no-browser
 
 Le serveur écoute seulement sur 127.0.0.1, sous un nom d'hôte propre à chaque lancement (`ogk-….localhost`), que les navigateurs envoient à la boucle locale. Si le port 7311 est pris, il en choisit un libre et l'affiche. Ctrl+C l'arrête.
 
+Les préférences de la page (style RPG ou Pro, mouvement réduit, raccourcis à une touche, nom de la personne qui décide) sont gardées par le navigateur, pour une origine : le nom d'hôte et le port. Comme le nom change à chaque lancement, chaque lancement les retrouve à leur valeur par défaut. `openguildkit ui --stable-address` donne au projet un nom fixe, `ogk-<empreinte du chemin du projet>.localhost` : le navigateur retrouve ses préférences d'un lancement à l'autre. Cette option est désactivée par défaut, avec deux limites :
+
+- l'origine ne reste la même qu'au même port : si 7311 est pris, le serveur en prend un autre, et les préférences repartent de zéro ;
+- le nom vient du chemin du projet, et non de la clé du lancement : un processus local qui connaît le chemin peut le calculer. La clé reste secrète (elle ne vit que dans l'adresse imprimée et le cookie), et le serveur répond sous ce seul nom ; mais un nom que personne d'autre ne peut deviner n'existe plus.
+
 Dans un projet sans `.openguildkit/project.json`, la page ouvre l'installation : le questionnaire de `init`, le plan des packs de règles qui s'appliqueront, puis l'écriture du profil.
 
 ## Ce que fait chaque lieu
@@ -69,6 +74,7 @@ Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un aut
 
 - Écoute sur 127.0.0.1 uniquement. L'en-tête `Host` doit être le nom d'hôte du lancement avec le bon port, ce qui bloque le rebinding DNS. Sur `127.0.0.1`, `localhost` ou `[::1]`, la page affiche seulement l'invitation à ouvrir l'adresse imprimée, même avec la clé.
 - `openguildkit ui` imprime une adresse qui porte une clé tirée au lancement, `http://ogk-….localhost:7311/?key=…`, et l'ouvre dans le navigateur. Seul le terminal qui a lancé la commande la voit. Le nom d'hôte `ogk-….localhost` est tiré de la clé. En ouvrant cette adresse, le navigateur reçoit la clé dans un cookie `HttpOnly` et `SameSite=Strict` de ce seul nom d'hôte (`ogk-7311`), et la clé quitte la barre d'adresse. Un navigateur envoie un cookie à tous les ports de l'hôte qui l'a posé : posé sur `127.0.0.1`, il partirait vers tout autre serveur du poste, comme le serveur de développement du projet. Sous le nom du lancement, aucun autre serveur ne le reçoit. Sans ce cookie, `/api/session` répond 403 (`open-printed-link`) et la page affiche, à la place de l'interface, l'invitation à ouvrir l'adresse imprimée. La clé change à chaque lancement : après un redémarrage, ouvre la nouvelle adresse.
+- Avec `--stable-address`, le nom d'hôte est tiré du chemin du projet et non de la clé : il ne change plus d'un lancement à l'autre, et un processus local qui connaît le chemin peut le calculer. La clé, elle, reste celle du lancement, et un autre serveur local ne la reçoit pas davantage. L'option est désactivée par défaut.
 - La clé protège la session : le jeton que `/api/session` remet à la page et que chaque appel de l'API porte. Un programme qui ne connaît pas la clé ne lit ni le jeton, ni le profil, ni les fichiers, et ne lance aucune commande. Elle ne protège pas d'un programme qui tourne sous ton propre compte : celui-là peut déjà lire les fichiers du projet et lancer la CLI.
 - Chaque appel de l'API est un `POST` JSON qui porte l'origine de la page et le jeton. Une page d'un autre site ne peut ni lire le jeton ni appeler l'API.
 - Sous Windows, le serveur réserve son port en exclusivité : un autre programme ne peut pas s'y lier pour recevoir les requêtes de la page.
