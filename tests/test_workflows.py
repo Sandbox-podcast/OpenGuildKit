@@ -22,7 +22,9 @@ WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
 TEMPLATES = sorted([*(ROOT / "integrations" / "github").glob("*.yml"), *(ROOT / "integrations" / "ci").rglob("*.yml")])
 USES = re.compile(r"^\s*(?:- )?uses:\s*(\S+)(.*)$")
 PINNED = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
-TAG_COMMENT = re.compile(r"^ # v\d+\.\d+\.\d+$")
+# The comment ends with the tag, which is how Dependabot finds it to rewrite it; the day of the release comes before.
+TAG_COMMENT = re.compile(r"^ # (?:\d{4}-\d{2}-\d{2} )?v\d+\.\d+\.\d+$")
+DATED_COMMENT = re.compile(r"^ # \d{4}-\d{2}-\d{2} v\d+\.\d+\.\d+$")
 KEY = re.compile(r"""^(?:"[^"]+"|'[^']+'|[\w.-]+):(?: (.*))?$""")
 
 
@@ -155,6 +157,27 @@ class PinnedActionsTest(unittest.TestCase):
                 if not PINNED.match(match.group(1)) or not TAG_COMMENT.match(match.group(2)):
                     unpinned.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {line.strip()}")
         self.assertEqual(unpinned, [], "pin each action to a commit SHA with '# vX.Y.Z' after it")
+
+    def test_the_pins_of_the_workflows_and_the_github_templates_say_the_day_of_their_release(self):
+        """Issue #473: a pin that says only its tag does not say how late it is."""
+        undated = []
+        for path in [*WORKFLOWS, *sorted((ROOT / "integrations" / "github").glob("*.yml"))]:
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                match = USES.match(line)
+                if match and not DATED_COMMENT.match(match.group(2)):
+                    undated.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {line.strip()}")
+        self.assertEqual(undated, [], "write '# YYYY-MM-DD vX.Y.Z' after the commit: the release day, then the tag")
+
+    def test_workflows_and_shipped_templates_cite_one_commit_of_each_action(self):
+        """Issue #473: the workflows were on actions/checkout v5.1.0 and the pilot templates on v7.0.1."""
+        pins: dict[str, dict[str, list[str]]] = {}
+        for path in [*WORKFLOWS, *TEMPLATES]:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                match = USES.match(line)
+                if match and "@" in match.group(1) and not match.group(1).startswith("./"):
+                    action, ref = match.group(1).split("@")
+                    pins.setdefault(action, {}).setdefault(ref, []).append(path.name)
+        self.assertEqual({action: refs for action, refs in pins.items() if len(refs) > 1}, {})
 
     def test_the_check_catches_a_tag_reference(self):
         self.assertFalse(PINNED.match("actions/checkout@v5"))
@@ -450,6 +473,42 @@ class MacosRunnersTest(unittest.TestCase):
         job = {"strategy": {"matrix": {"os": ["a", "b"], "python": ["1", "2"], "exclude": [{"os": "b", "python": "1"}]}}}
         self.assertEqual(matrix_jobs(job), [{"os": "a", "python": "1"}, {"os": "a", "python": "2"},
                                             {"os": "b", "python": "2"}])
+
+
+class DependabotConfigTest(unittest.TestCase):
+    """Issue #473: nothing proposed the update of the pinned actions or of the npm packages of web/."""
+
+    def setUp(self):
+        config = parse(ROOT / ".github" / "dependabot.yml")
+        self.assertEqual(config["version"], "2")
+        self.updates = {update["package-ecosystem"]: update for update in config["updates"]}
+
+    @staticmethod
+    def directories(update: dict) -> list[str]:
+        return update.get("directories") or [update["directory"]]
+
+    def test_actions_npm_and_pip_get_one_grouped_weekly_pull_request_each(self):
+        self.assertEqual(set(self.updates), {"github-actions", "npm", "pip"})
+        for ecosystem, update in self.updates.items():
+            with self.subTest(ecosystem=ecosystem):
+                self.assertEqual(update["schedule"]["interval"], "weekly")
+                self.assertTrue(update["groups"], "one pull request per ecosystem, not one per package")
+
+    def test_each_directory_holds_what_dependabot_reads_there(self):
+        """For github-actions, dependabot reads .github/workflows from /, and the *.yml files of any other directory."""
+        for ecosystem, manifest in (("npm", "package.json"), ("pip", "pyproject.toml")):
+            for directory in self.directories(self.updates[ecosystem]):
+                self.assertTrue((ROOT / directory.lstrip("/") / manifest).is_file(), f"{ecosystem}: {directory}")
+        actions = self.directories(self.updates["github-actions"])
+        self.assertEqual(set(actions), {"/", "/integrations/github", "/integrations/ci/pilot"})
+        for directory in actions:
+            folder = ROOT / directory.lstrip("/")
+            self.assertTrue(list((folder / ".github" / "workflows" if directory == "/" else folder).glob("*.yml")), directory)
+
+    def test_npm_follows_the_web_interface_and_groups_minor_and_patch_updates(self):
+        npm = self.updates["npm"]
+        self.assertEqual(self.directories(npm), ["/web"])
+        self.assertEqual(sorted(next(iter(npm["groups"].values()))["update-types"]), ["minor", "patch"])
 
 
 class ToolVersionFilesTest(unittest.TestCase):

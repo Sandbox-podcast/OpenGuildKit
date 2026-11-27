@@ -91,6 +91,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Retrospective issue template (`integrations/github/openguildkit-retro.yml`): the command to type is no longer given an invisible zero-width space after each `@`, so a command that holds one (`npx @scope/package`) can be pasted as written; a name outside the command is still neutralized (#524)
 - Web journeys (`npm run e2e:project`): each sample server and the `package.spec.ts` server remove their temporary folder (`ogk-e2e-*`, `ogk-package-*`) when they stop, and Playwright now ends the sample servers with SIGTERM instead of SIGKILL so that they can. The default ports are unchanged, so two copies of the repository still need `PW_PROJECT_PORT` to run together (#518)
 - `python -m openguildkit` and the installed command: with a Python older than 3.11 (the python3 of macOS is 3.9) they print one line that names Python 3.11 and exit with 1, instead of a `TypeError`. `.python-version` (3.15) and `.nvmrc` (24) hold the versions the maintainers work with, and `ci.yml` reads them instead of typing them in each job (#520)
+- CI: `.github/dependabot.yml` proposes one grouped weekly pull request each for the pinned actions (workflows, `integrations/github`, `integrations/ci/pilot`), the npm packages of `web/` (minor and patch) and pip. `actions/checkout`, `setup-python` and `setup-node` move to v7.0.1, v7.1.0 and v7.1.0, and each pin names the day of its release before its tag (#473)
 
 ## 0.17.0
 

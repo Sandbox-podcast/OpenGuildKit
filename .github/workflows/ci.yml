@@ -25,12 +25,12 @@ jobs:
         # 3.11 is the floor of requires-python; 3.15 is the version the maintainers work with (.python-version).
         python: ["3.11", "3.15"]
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version: ${{ matrix.python }}
 
@@ -67,10 +67,10 @@ jobs:
       OPENGUILDKIT_PERF: "1"
       PYTHONPATH: src
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version-file: .python-version
       - run: python -m unittest tests.test_performance.PerformanceTests -v
@@ -92,15 +92,15 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version: ${{ matrix.python }}
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -176,10 +176,10 @@ jobs:
       run:
         working-directory: integrations/ci
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
           # The floor of integrations/ci/package.json; the other jobs read the version of .nvmrc.
           node-version: "22"
@@ -194,10 +194,10 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -221,13 +221,13 @@ jobs:
       PW_CHANNEL: chrome
       OGK_PYTHON: python
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version-file: .python-version
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -238,7 +238,7 @@ jobs:
         run: npm run e2e
       - name: Project interface journeys
         run: npm run e2e:project
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
         if: failure()
         with:
           name: playwright-results
