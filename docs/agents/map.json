@@ -241,6 +241,19 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/cli_surface.py",
+      "role": "What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed.",
+      "entry": [
+        "polish",
+        "add_by",
+        "hoist_global_options"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/clock.py",
       "role": "The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with.",
       "entry": [

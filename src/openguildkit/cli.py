@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
 from . import org_catalog_cli, projects_cli, trace_cli
+from .cli_surface import VersionAction, format_option, hoist_global_options, polish
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
@@ -64,25 +65,6 @@ english_title, find_references, load_references, with_pattern_references = (
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
 # same number (tests/test_performance.py compares the help with it).
 UI_PORT = 7311
-FORMATS = ("text", "sarif")
-
-
-def _format_option(parser, what: str) -> None:
-    """The --format option of the commands that can print SARIF: `what` says what is printed."""
-    parser.add_argument("--format", choices=FORMATS, default="text",
-                        help=f"{what} as SARIF 2.1.0 for code scanning instead of text.")
-
-
-class _Version(argparse.Action):
-    """Print the version and exit; reading the package metadata is slow, so only --version pays for it."""
-
-    def __init__(self, option_strings, dest=argparse.SUPPRESS, default=argparse.SUPPRESS, help=None):
-        super().__init__(option_strings, dest=dest, default=default, nargs=0,
-                         help=help or "show program's version number and exit")
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        print(f"openguildkit {package_version()}")
-        parser.exit()
 
 
 @cache
@@ -90,8 +72,9 @@ def command_parser() -> argparse.ArgumentParser:
     """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
     web server parses one command after another."""
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
-    parser.add_argument("--version", action=_Version)
-    parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
+    parser.add_argument("--version", action=VersionAction)
+    parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor). "
+                                                     "It may also follow the command.")
     parser.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
     parser.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -132,7 +115,7 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--require-signed", action="store_true",
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
-    _format_option(guard, "With --ci, print the problems")
+    format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
     deliverable_actions.add_parser("list", help="List the deliverable templates.")
@@ -186,12 +169,12 @@ def command_parser() -> argparse.ArgumentParser:
                            "and agent settings for hidden characters, phrases that cancel the rules and risky commands.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
     host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
-    _format_option(host, "With scan, print the findings")
+    format_option(host, "With scan, print the findings")
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     check = commands.add_parser("check", help="Check that the instructions match the project profile.")
-    _format_option(check, "Print the problems")
+    format_option(check, "Print the problems")
     commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
@@ -202,6 +185,7 @@ def command_parser() -> argparse.ArgumentParser:
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
 
     tasks_cli.add_parser(commands)
+    polish(parser)
     return parser
 
 
@@ -1474,6 +1458,10 @@ def main(argv: list[str] | None = None) -> int:
                 stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
+    argv = hoist_global_options(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        command_parser().print_help()
+        return 0
     args = command_parser().parse_args(argv)
     if getattr(args, "project", None) is not None and not args.project.is_dir():
         what = "is not a folder" if args.project.exists() else "does not exist"
