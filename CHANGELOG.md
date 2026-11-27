@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Options (#498): every option that takes a value shows a placeholder (`--reason WHY`, `--file FILE`), `storybook generate --output` replaces `--out`, which stays accepted, and `task show ID --summary` prints a screen instead of the record; `--json` names the record, which is still what `task show` prints without option, and the convention is written in CONTRIBUTING.md
 - `--by` of the 24 commands that record a person: one help text, "Your initials or team handle, not your full name: it is committed.", and the placeholder `INITIALS`. A value with a space or an `@` is accepted, with a line on the standard error that gives the rule; the commands the tool proposes say `--by INITIALS` (#493)
 - Help pages (#492): every command's help page opens with its sentence (102 of 104 had none), the groups name their choices once (COMMAND, ACTION), no page passes 80 columns, the root page lists the commands under four headings, and `openguildkit` alone prints it. `--project`, `--policy-repo` and `--policy-commit` may follow the command (#496)
 - Contributing with a coding agent (#455): `AGENTS.md` and `CLAUDE.md` at the root give the commands to run, check and deliver a change in under 4 KB, `docs/agents/conventions.md` lists 29 conventions with their check and issue, and the pull request template asks what was not verified.

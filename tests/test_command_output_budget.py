@@ -199,7 +199,8 @@ EXAMPLES = [
     Example("reviewed", "task decision-payload request-status --by CM --reason Agreed"),
     Example("reviewed", "task decide request-status --approve --by CM --reason Agreed", typed=TASK),
     Example("approved", "task handoff request-status"),
-    Example("approved", "task show request-status"),
+    Example("approved", "task show request-status"), Example("approved", "task show request-status --json"),
+    Example("approved", "task show request-status --summary"),
     Example("approved", "task checks request-status"), Example("approved", "task checks request-status --json"),
     Example("approved", "task verify request-status"),
     Example("approved", "task result request-status --template"),
@@ -268,6 +269,8 @@ EXCEPTIONS = {
                                               "verdict and evidence, and the objections between boards."),
     "task checks request-status --json": (13_000, "Every check of the task with its status and evidence, for a program "
                                                   "to read; `task checks` prints 5 KB."),
+    "task show request-status --json": (167_000, "The whole task record as JSON, which `task show` prints too; "
+                                                 "`task show --summary` prints a screen of it in 1 KB."),
     "task show request-status": (167_000, "The whole task record as JSON, consultation scope included; `task show "
                                           "--closing` prints the open points in 250 bytes, `task brief` the "
                                           "consultation in 5 KB."),

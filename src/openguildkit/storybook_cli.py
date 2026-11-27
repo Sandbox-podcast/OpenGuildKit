@@ -4,6 +4,7 @@ existing React application.
 The Storybook modules load when the command runs, so the other commands start without them.
 """
 
+import argparse
 from pathlib import Path
 
 from .stack_versions import STORYBOOK_VERSION
@@ -50,7 +51,8 @@ def add_parser(commands) -> None:
     sb_generate = storybook_actions.add_parser(
         "generate", help="Write tokens, stories and an index for the validated proposals; never overwrite edits.")
     sb_generate.add_argument("--proposals", type=Path, help="Proposals file (default .openguildkit/storybook/proposals.json).")
-    sb_generate.add_argument("--out", type=Path, help="Output folder (default src/design-system).")
+    sb_generate.add_argument("--output", dest="out", type=Path, help="Output folder (default src/design-system).")
+    sb_generate.add_argument("--out", dest="out", type=Path, help=argparse.SUPPRESS)  # The name before --output.
     sb_generate.add_argument("--framework", help="Storybook framework package for the types (default: the one in "
                                                   "package.json, else @storybook/nextjs-vite for Next.js, "
                                                   "else @storybook/react-vite).")

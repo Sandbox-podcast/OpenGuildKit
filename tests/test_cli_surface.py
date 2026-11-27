@@ -5,6 +5,7 @@ the outputs. Each test reads the parser or runs a command through the CLI.
 import argparse
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -166,6 +167,66 @@ class ByOptionTests(unittest.TestCase):
                     self.assertIn("docs/personal-data.md", done.stderr)
             quiet = run_cli(root, "profile", "add", "convention", "Use Oxford commas", "--by", "CM", "--reason", "Team style")
             self.assertEqual(quiet.stderr, "")
+
+
+# The names an output destination must not take: it is --output, whatever the command writes.
+OTHER_OUTPUT_NAMES = {"--out", "--outfile", "--dest", "--destination", "--to"}
+
+
+class OptionConventionTests(unittest.TestCase):
+    def test_every_option_that_takes_a_value_names_it(self):
+        """Issue #498: 152 options of 208 showed their own name in capitals as placeholder (--reason REASON)."""
+        bare = [f"{' '.join(path)} {action.option_strings[0]}" for path, parser in walk(command_parser())
+                for action in options(parser) if action.nargs != 0 and action.metavar is None and not action.choices]
+        self.assertEqual(bare, [])
+
+    def test_a_destination_of_output_is_always_called_output(self):
+        """Issue #498: `storybook generate` took --out when five commands took --output."""
+        names = {option for _, parser in walk(command_parser()) for action in options(parser)
+                 for option in action.option_strings}
+        self.assertEqual(sorted(names & OTHER_OUTPUT_NAMES), [])
+
+    def test_storybook_generate_takes_output_and_still_accepts_out(self):
+        """Issue #498: --out of storybook generate stays accepted, and only --output is documented."""
+        parse = command_parser().parse_args
+        self.assertEqual(parse(["storybook", "generate", "--output", "design"]).out, Path("design"))
+        self.assertEqual(parse(["storybook", "generate", "--out", "design"]).out, Path("design"))
+        page = _subcommands(_subcommands(command_parser())["storybook"])["generate"].format_help()
+        self.assertIn("--output", page)
+        self.assertNotIn("--out ", page)
+
+    def test_the_only_hidden_option_is_the_old_name_of_output(self):
+        hidden = [action.option_strings for _, parser in walk(command_parser()) for action in parser._actions
+                  if action.option_strings and action.help is argparse.SUPPRESS]
+        self.assertEqual(hidden, [["--out"]])
+
+
+class TaskShowTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.folder = tempfile.TemporaryDirectory(prefix="ogk-show-")
+        cls.addClassCleanup(cls.folder.cleanup)
+        cls.root = Path(cls.folder.name)
+        run_cli(cls.root, "init", "--answers", PROFILE)
+        run_cli(cls.root, "task", "new", "Show customers their request status", "--id", "status")
+
+    def test_summary_prints_a_screen_and_json_prints_the_record(self):
+        """Issue #498: `task show` printed the whole record, 3,763 lines of JSON in a task done."""
+        summary = run_cli(self.root, "task", "show", "status", "--summary").stdout
+        self.assertLess(len(summary.encode("utf-8")), 5_000)
+        self.assertIn("status [draft] Show customers their request status", summary)
+        self.assertIn("next: Answer the questionnaire and consult the boards.", summary)
+        record = json.loads(run_cli(self.root, "task", "show", "status", "--json").stdout)
+        self.assertEqual((record["id"], record["status"]), ("status", "draft"))
+
+    def test_the_default_of_show_is_still_the_record(self):
+        """The default of `task show` is a person's choice to change: scripts parse it today."""
+        shown = json.loads(run_cli(self.root, "task", "show", "status").stdout)
+        self.assertEqual(shown, json.loads(run_cli(self.root, "task", "show", "status", "--json").stdout))
+
+    def test_the_summary_and_the_closing_points_do_not_go_together(self):
+        refused = run_cli(self.root, "task", "show", "status", "--summary", "--closing", expect=2)
+        self.assertIn("not allowed with", refused.stderr)
 
 
 if __name__ == "__main__":

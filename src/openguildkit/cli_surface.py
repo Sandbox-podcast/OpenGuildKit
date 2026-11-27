@@ -7,6 +7,7 @@ Tests: tests/test_cli_surface.py
 
 import argparse
 import sys
+from pathlib import Path
 
 # The root page lists the commands under these headings, in this order; a command named nowhere fails
 # tests/test_cli_surface.py, so that none is left under the wrong heading.
@@ -21,6 +22,11 @@ COMMAND_ORDER = [name for _, names in GROUPS for name in names]
 # The options of the root that may also follow the command: `openguildkit check --project DIR`.
 FORMATS = ("text", "sarif")
 GLOBAL_OPTIONS = ("--project", "--policy-repo", "--policy-commit")
+
+# The placeholder of the options that come back in many commands; any other takes the name of its option.
+PLACEHOLDERS = {"--reason": "WHY", "--task": "TASK", "--id": "ID", "--board": "BOARD", "--url": "URL", "--until": "DATE",
+                "--since": "DATE", "--date": "DATE", "--commit": "SHA", "--policy-commit": "SHA", "--every-days": "DAYS",
+                "--file": "FILE", "--answers": "FILE"}
 
 BY_HELP = "Your initials or team handle, not your full name: it is committed."
 BY_RULE = ("`--by` is committed with the profile, the task or the decision: write your initials or a team handle, "
@@ -62,23 +68,27 @@ def _subparsers(parser: argparse.ArgumentParser) -> argparse._SubParsersAction |
     return next((action for action in parser._actions if isinstance(action, argparse._SubParsersAction)), None)
 
 
-def _name_long_choices(action: argparse.Action) -> None:
-    """A long list of choices written in the usage and under the option fills a line three times over: the option
-    gets a placeholder and its help lists the choices once."""
-    if not action.choices or isinstance(action, argparse._SubParsersAction) or action.metavar:
+def _name_values(action: argparse.Action) -> None:
+    """An option that takes a value shows what to type: a placeholder, and for a long list of choices (written three
+    times over in the usage and under the option) the choices once in its help."""
+    if isinstance(action, argparse._SubParsersAction) or action.metavar or not action.option_strings and not action.choices:
         return
-    names = [str(choice) for choice in action.choices]
-    if len(",".join(names)) > 30:
-        action.metavar = action.dest.upper().replace("-", "_")
-        if action.help is not argparse.SUPPRESS and names[-1] not in (action.help or ""):
-            action.help = f"{action.help or ''} One of: {', '.join(names)}.".strip()
+    if action.choices:
+        names = [str(choice) for choice in action.choices]
+        if len(",".join(names)) > 30:
+            action.metavar = action.dest.upper().replace("-", "_")
+            if action.help is not argparse.SUPPRESS and names[-1] not in (action.help or ""):
+                action.help = f"{action.help or ''} One of: {', '.join(names)}.".strip()
+    elif action.nargs != 0:
+        name = action.option_strings[0]
+        action.metavar = PLACEHOLDERS.get(name) or ("PATH" if action.type is Path else action.dest.upper())
 
 
 def polish(parser: argparse.ArgumentParser, depth: int = 0) -> None:
     """Finish a parser tree: each command's help becomes its description, the choices of a group are named once
     (COMMAND, ACTION) instead of listed twice, and the root lists its commands by heading."""
     for action in parser._actions:
-        _name_long_choices(action)
+        _name_values(action)
     group = _subparsers(parser)
     if group is None:
         return

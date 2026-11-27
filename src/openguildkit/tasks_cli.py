@@ -49,12 +49,12 @@ from .shell import shell_word
 from .storage import print_json, project_lock, read_json, write_json
 from .tasks import (
     ACTIONS, SENSITIVE_GROUP, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
-    create_task, decided_message, decision_text, defer_evidence, earlier_sequential_pass, expired_on, last_approval,
-    list_tasks,
-    next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
-    record_consultation, record_decision, record_deliberation, record_result, record_review, require_approval,
-    require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
-    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line,
+    create_task, decided_message, decision_text, decision_words, defer_evidence, earlier_sequential_pass, expired_on,
+    last_approval, list_tasks, next_command, next_step, pass_progress, passes_left, points_left_open,
+    previous_round_line, read_task, record_authorization, record_consultation, record_decision, record_deliberation,
+    record_result, record_review, require_approval, require_blocker_status, require_current_scope, resolve_blocker,
+    revoke_approval, start_pass, state_refusal, submit_pass, task_path, timestamp, verification_blocker_problems,
+    waiting_for, waits_line,
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
@@ -84,7 +84,7 @@ ACTION_HELP = {
     "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
     "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
     "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-    "show": "Print the task record as JSON.",
+    "show": "Print the task record as JSON, or a short summary with --summary.",
     "checks": "List the checks the approved task must report.",
     "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
     "result": "Record the delivered revision, criteria and check outcomes.",
@@ -164,9 +164,15 @@ def _follow_ups_option(command) -> None:
                          help="With --answers, print only follow_ups and open_points, not the questionnaire again.")
 
 
-def _closing_option(command) -> None:
-    command.add_argument("--closing", action="store_true",
-                         help="Print only the open points the closing left, with who closed the task.")
+def _show_options(command) -> None:
+    shown = command.add_mutually_exclusive_group()
+    shown.add_argument("--closing", action="store_true",
+                       help="Print only the open points the closing left, with who closed the task.")
+    shown.add_argument("--summary", action="store_true",
+                       help="Print a screen instead of the whole record: status, decision, boards, result, next step.")
+    command.add_argument("--json", action="store_true",
+                         help="Print the record as JSON, which is what show prints without --summary; write it in "
+                              "scripts, so that they keep working if the summary becomes the plain form.")
 
 
 def _reuse_answers_option(command) -> None:
@@ -325,7 +331,7 @@ ACTION_OPTIONS = {
     "questions": (_answers_option, _follow_ups_option),
     "route": (_answers_option, _board_change_options, _json_option("Print the selection as JSON.")),
     "consult": (_answers_option, _reuse_answers_option, _revised_brief_options, _board_change_options),
-    "show": (_closing_option,),
+    "show": (_show_options,),
     "review": (_review_source_options,),
     "pass": (_pass_options, _mode_option),
     "brief": (_brief_options,),
@@ -1605,9 +1611,31 @@ def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         print("\n".join(render_task(retro)))
 
 
+def _summary(task: dict, profile: dict) -> str:
+    """What task show --summary prints: a screen, whatever the size of the record."""
+    decided = decision_words(task)
+    lines = [f"{task['id']} [{task['status']}{', ' + decided if decided else ''}] {task['brief'].splitlines()[0][:100]}",
+             f"  created: {task['created_at'][:10]}"]
+    if task.get("consultation"):
+        lines.append(f"  boards: {', '.join(task['consultation']['boards'])}")
+    result = task.get("result")
+    if result:
+        met = sum(item["status"] == "met" for item in result.get("criteria", []))
+        passed = sum(item["status"] == "passed" for item in result.get("checks", []))
+        lines.append(f"  result: {met} of {len(result.get('criteria', []))} criteria met, "
+                     f"{passed} of {len(result.get('checks', []))} checks passed")
+    lines += [f"  next: {next_step(task, profile)}", f"  all of it: openguildkit task show {task['id']} --json"]
+    return "\n".join(lines)
+
+
 def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
-    """The task record as JSON, or only the open points its closing left."""
-    print_json(_closing_points(task, args.id) if args.closing else task)
+    """The task record as JSON, only the open points its closing left, or a summary."""
+    if args.summary and args.json:
+        raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
+    if args.summary:
+        print(_summary(task, profile))
+    else:
+        print_json(_closing_points(task, args.id) if args.closing else task)
 
 
 # What runs each action on an existing task. new, list and retro come before the task is read.
@@ -1645,6 +1673,9 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
+            if args.summary:
+                raise ValueError(f"Task {args.id} exists here only as the exported record, which has no summary: run "
+                                 f"openguildkit task show {args.id}.")
             _show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
         raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "
