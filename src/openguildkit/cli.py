@@ -15,6 +15,7 @@ from .catalog import replaced_boards, undated_sources
 from .ci import check_export
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
+from .errors import os_error_message, unknown
 from .guard import (
     NO_TASK, approval_text, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command, scope_note,
 )
@@ -645,7 +646,7 @@ def _print_patterns(args, patterns: dict) -> None:
         if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])
     ]
     if args.id and not matches:
-        raise ValueError(f"No pattern matched {args.id!r}.")
+        raise ValueError(unknown("pattern", args.id, "patterns"))
     if args.json:
         print_json(matches)
         return
@@ -891,7 +892,7 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
             print("Ready for review by " + ", ".join(templates[match.group(1)]["brains"]))
         return 1 if problems else 0
     if args.id not in templates:
-        raise ValueError(f"Unknown deliverable {args.id}. Run openguildkit deliverable list.")
+        raise ValueError(unknown("deliverable", args.id, "deliverable list"))
     template = templates[args.id]
     if action == "show":
         print(f"{template['title']} [{template['id']}]\n{template['description']}\nBefore starting the tool:")
@@ -990,6 +991,8 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     rows = share_status(state)
     if args.json:
         print_json(rows)
+    elif not rows:
+        print("No share recorded.")
     else:
         for row in rows:
             _print_share_row(row)
@@ -1223,7 +1226,7 @@ def _host(args, root: Path, profile: dict) -> int:
     if args.mode == "apply":
         written = apply_host_settings(root, profile)
         for path in written:
-            print(f"Wrote {path}", file=sys.stderr)
+            print(f"Wrote {path}")
         if not written and profile.get("host", "other") not in HOOK_HOSTS:
             print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
         controls = host_controls(root, profile)
@@ -1237,8 +1240,6 @@ def _host(args, root: Path, profile: dict) -> int:
         settings = [control for control in missing if control.get("cause") != "path"]
         if settings:
             print(f"{len(settings)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
-        if len(settings) < len(missing):
-            print(OFF_PATH)
         if not missing:
             print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
                   "instructions or to a person on purpose: no setting of this host can enforce it.")
@@ -1336,8 +1337,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     if undated:
         message = (f"date the sources of {len(undated)} project "
                    f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
-                   'add "checked": "YYYY-MM-DD" after its url with that day\'s date '
-                   f"(see {doc_link('docs/catalog-format.md')}).")
+                   f'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see {doc_link("docs/catalog-format.md")}).')
         print(f"OpenGuildKit: {message}", file=sys.stderr)
         report.add("source-undated", "warning", message)
     issues = sharing_issues(root, state, records, read)
@@ -1490,7 +1490,7 @@ def main(argv: list[str] | None = None) -> int:
     except BrokenPipeError:
         return _reader_closed()
     except (OSError, ValueError, EOFError) as error:
-        print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
+        print(f"OpenGuildKit: {os_error_message(error) if isinstance(error, OSError) else str(error) or 'Input ended before completion.'}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)

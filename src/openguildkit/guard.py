@@ -1057,6 +1057,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         report.append({"code": code, "level": level, "message": message, "path": path, "line": None})
         return message
 
+    if _git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}").returncode:
+        raise ValueError(f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]

@@ -397,10 +397,11 @@ class ResultTests(ResultCase):
         self.assertGreaterEqual(len(packs), 3)
         passed = [{"check": item["id"], "status": "passed", "evidence": "src/total.test.ts"} for item in rules]
         criteria = [{"criterion": "Users only see their own requests.", "status": "met", "evidence": "tests/x.py"}]
-        output, _ = self.report(*passed, criteria=criteria)
+        output, warned = self.report(*passed, criteria=criteria)
         warning = (f"The same evidence src/total.test.ts is cited for {len(rules)} passed rules of {len(packs)} packs "
                    f"({', '.join(sorted(packs))})")
-        self.assertIn(f"Warning: {warning}", output)
+        self.assertIn(f"Warning: {warning}", warned)
+        self.assertNotIn("Warning:", output)
         output, notes = self.run_cli("task", "complete", TASK)
         self.assertEqual(output.splitlines()[0], "done-with-reservations")
         self.assertIn("Warnings on the result:", output)
@@ -532,19 +533,19 @@ class ProportionateResultTests(ResultCase):
         self.gdpr_task()
         record, dpia = self.documents()
         (self.root / "Dockerfile").write_text("FROM python:3.12\n", encoding="utf-8")
-        output, _ = self.file(*self.answers(), {**record, "evidence": "Dockerfile"}, {**dpia, "evidence": "Dockerfile"},
+        output, warned = self.file(*self.answers(), {**record, "evidence": "Dockerfile"}, {**dpia, "evidence": "Dockerfile"},
                               criteria=[{"criterion": "403 for another user's request.", "status": "met",
                                          "evidence": "Read from code only, NOT executed."}])
-        self.assertIn("looks like configuration, code or an image", output)
-        self.assertIn("The same file is cited for 2 different named evidences", output)
-        self.assertIn("says it was not run", output)
+        self.assertIn("looks like configuration, code or an image", warned)
+        self.assertIn("The same file is cited for 2 different named evidences", warned)
+        self.assertIn("says it was not run", warned)
         self.assertIn("Criteria met: 0 tied to a check or a test, 1 declared only", output)
-        output, _ = self.file(*self.answers(), record, dpia, criteria=[
+        output, warned = self.file(*self.answers(), record, dpia, criteria=[
             {"criterion": "403 for another user's request.", "status": "met", "evidence": "Test run.",
              "verified_by": "command:1"},
             {"criterion": "The list loads.", "status": "met", "evidence": "Tried by hand."}])
         self.assertIn("Criteria met: 1 tied to a check or a test, 1 declared only (The list loads.)", output)
-        self.assertNotIn("Warning", output)
+        self.assertNotIn("Warning", output + warned)
         output, notes = self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)
         self.assertEqual(output.strip(), "done")
         self.assertIn("did not read the documents. Confirmed by: Dana (DPO)", notes)
@@ -576,10 +577,10 @@ class ProportionateResultTests(ResultCase):
     def test_one_answer_covers_a_pack_but_a_sensitive_pack_needs_the_person(self):
         self.gdpr_task()
         rules = [item for item in self.answers() if not item["check"].startswith("rule:gdpr/")]
-        output, _ = self.file(*rules, *self.documents(), packs=[
+        output, warned = self.file(*rules, *self.documents(), packs=[
             {"pack": "gdpr", "status": "not-applicable", "reason": "Not in scope.", "owner": "Camille"}])
         self.assertIn("Pack gdpr was declared not applicable as a whole by Camille, although the task's answers "
-                      "select it", output)
+                      "select it", warned)
         self.assertIn("Ready to close with the person at a terminal", output)
         # An owner written in the file is not a person's confirmation: closing needs them at a terminal.
         _, error = self.run_cli("task", "complete", TASK, code=1)
@@ -674,9 +675,9 @@ class ProportionateResultTests(ResultCase):
 
     def test_rules_the_answers_select_declared_not_applicable_with_a_shared_reason_are_flagged(self):
         self.gdpr_task()
-        output, _ = self.file(*self.answers(reason="Not relevant."), *self.documents())
-        self.assertIn("rule:gdpr/confirm-lawful-basis", output)
-        self.assertIn("with the same reason as", output)
+        output, warned = self.file(*self.answers(reason="Not relevant."), *self.documents())
+        self.assertIn("rule:gdpr/confirm-lawful-basis", warned)
+        self.assertIn("with the same reason as", warned)
 
     def test_closing_over_a_skipped_sensitive_rule_needs_the_person_and_lists_open_points_by_nature(self):
         self.gdpr_task()

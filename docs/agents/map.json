@@ -393,6 +393,18 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/errors.py",
+      "role": "The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them.",
+      "entry": [
+        "os_error_message",
+        "unknown"
+      ],
+      "tests": [
+        "tests/test_error_forms.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/features.py",
       "role": "The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on.",
       "entry": [
@@ -433,19 +445,20 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_before_delivered_review.py",
         "tests/test_clock.py",
+        "tests/test_delivered_review.py",
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_guard.py",
         "tests/test_light_lane.py",
+        "tests/test_org_catalog.py",
         "tests/test_record_lifecycle.py",
+        "tests/test_requester.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
-        "tests/test_task_index.py",
-        "tests/test_delivered_review.py",
-        "tests/test_before_delivered_review.py",
-        "tests/test_evidence_fingerprints.py",
-        "tests/test_org_catalog.py",
-        "tests/test_requester.py"
+        "tests/test_task_index.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1287,6 +1300,7 @@
       ],
       "tests": [
         "tests/test_architecture.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_next_steps.py",
         "tests/test_tools.py"

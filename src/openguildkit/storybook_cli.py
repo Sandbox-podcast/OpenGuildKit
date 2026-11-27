@@ -4,6 +4,7 @@ existing React application.
 The Storybook modules load when the command runs, so the other commands start without them.
 """
 
+import sys
 from pathlib import Path
 
 from .stack_versions import STORYBOOK_VERSION
@@ -94,7 +95,6 @@ def _print_import(report: dict) -> list[str]:
                          + (" (styling)" if row["styling"] else ""))
     lines.extend(f"- Theme source: {item.get('title') or item.get('path')}" for item in report.get("themes", []))
     lines.append(f"Recorded the known stories in {report['record']}.")
-    lines.extend(f"Warning: {warning}" for warning in report.get("warnings", []))
     return lines
 
 
@@ -141,11 +141,12 @@ def run(args, root: Path, state: Path) -> int | None:
         lines = lines or ["Nothing is validated yet."]
         if any(path.endswith(".stories.tsx") for path in result["written"]):
             lines.append(f"The stories use the Storybook framework {result['framework']}; --framework sets another.")
-        lines.extend(f"Warning: {warning}" for warning in result.get("warnings", []))
     else:
         raise ValueError(f"Unknown storybook action {args.action}.")
     if args.json:
         print_json(result)
     else:
         print("\n".join(lines))
+        for warning in result.get("warnings", []):
+            print(f"Warning: {warning}", file=sys.stderr)
     return None

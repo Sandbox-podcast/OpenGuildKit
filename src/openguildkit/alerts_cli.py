@@ -93,7 +93,7 @@ def _print_changes(changes: dict, as_json: bool) -> None:
         print(f"  Warning: the previous {changes['tool']} import was the file {changes['previous_file']}, and this report "
               "resolves what that one listed. Import one full report per scanner: a report of another lockfile "
               "resolves the alerts of the first. Declare the scope of each report with --scope NAME (for example "
-              "--scope front) so that a report resolves only the alerts of its own scope.")
+              "--scope front) so that a report resolves only the alerts of its own scope.", file=sys.stderr)
     if changes.get("other_scopes"):
         print(f"  Alerts of the scope(s) {', '.join(changes['other_scopes'])} are left as they are: this import has no "
               "scope, so it concerns only the alerts without one.")

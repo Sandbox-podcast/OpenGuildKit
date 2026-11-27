@@ -30,6 +30,10 @@ Code 1 covers two different things on most commands: the project does not confor
 | `task verify` | 1 | Failed: a mandatory check command failed. 0 when only answers remain to give. |
 | `docs share check` | 1 | Expired: a share not recorded as revoked is past its last day of access, or one deliverable shares a space with another. |
 
+## What each stream carries
+
+Standard output carries the result the command was asked for; a redirected result holds nothing else. Standard error carries the errors, the warnings (`Warning: ...`), the notes and the next step. `tests/test_error_forms.py` fails when a `Warning:` line is printed to standard output. A list that is empty says so on one line (`No share recorded.`), and an error about a file names it in words, never as the `[Errno 2]` text of Python.
+
 ## Open decision
 
 A job cannot tell a project that does not conform from a command that could not evaluate it on `check`, `guard --ci` and `host scan`: both give 1. Reserving a distinct code, such as 3, would change what every existing job reads. The maintainer decides; until then, read the message on stderr, or the `ci-check` convention above.

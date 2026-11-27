@@ -48,7 +48,7 @@ from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json, write_json
 from .tasks import (
-    ACTIONS, SENSITIVE_GROUP, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
+    ACTIONS, SENSITIVE_GROUP, STATUSES, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
     create_task, decided_message, decision_text, defer_evidence, earlier_sequential_pass, expired_on, last_approval,
     list_tasks,
     next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
@@ -119,7 +119,7 @@ def add_parser(commands) -> None:
                      help="With --lane light: the folders or files the task may change, inside the profile's "
                           "light_paths. Write the brief first.")
     listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
-    listing.add_argument("--status", help="Only tasks in this status.")
+    listing.add_argument("--status", choices=list(STATUSES), help="Only tasks in this status.")
     listing.add_argument("--owner", help="Only tasks whose current decision this person took: the approval, the "
                                          "change request or the withdrawal of an approval.")
     listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
@@ -1106,7 +1106,7 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     if criteria_summary(result["result"]):
         print(criteria_summary(result["result"]))
     for warning in result["result"].get("warnings", []):
-        print(f"Warning: {warning}")
+        print(f"Warning: {warning}", file=sys.stderr)
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 

@@ -15,7 +15,7 @@ from openguildkit.alerts import (
 )
 from openguildkit.storage import write_json
 
-from tests.support import CapturedCli
+from tests.support import CapturedCli, run_cli
 
 FIXTURES = Path(__file__).with_name("fixtures") / "alerts"
 REPO = Path(__file__).resolve().parents[1]
@@ -239,10 +239,12 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.init()
         self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json")
         self.assertNotIn("Warning", self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json"))
-        output = self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json")
-        self.assertIn("Warning: the previous npm audit import was the file npm-audit-critical.json", output)
-        self.assertIn("Declare the scope of each report with --scope NAME", output)
-        self.assertIn("resolved: " + CRITICAL, output)
+        result = run_cli(self.root, "alerts", "import", FIXTURES / "npm-audit-clean.json")
+        # The warning is a note, not the result: it goes to the error stream (issue #528).
+        self.assertIn("Warning: the previous npm audit import was the file npm-audit-critical.json", result.stderr)
+        self.assertIn("Declare the scope of each report with --scope NAME", result.stderr)
+        self.assertNotIn("Warning", result.stdout)
+        self.assertIn("resolved: " + CRITICAL, result.stdout)
         self.assertEqual(json.loads(self.cli("alerts", "import", FIXTURES / "npm-audit-clean.json", "--json"))["resolved"], [])
 
     def test_a_report_imported_with_a_scope_resolves_only_the_alerts_of_that_scope(self):

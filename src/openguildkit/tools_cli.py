@@ -131,7 +131,7 @@ def _print_plan(plan: list[dict], host: str, stream: TextIO | None = None) -> No
             emit(f"    From the {PROJECT_MARK} ({PROJECT_TOOLS}), not the registry OpenGuildKit ships: its facts and its "
                  "command are the team's own. Read the record before you connect it.")
         for warning in item["warnings"]:
-            emit(f"    Warning: {warning}")
+            print(f"    Warning: {warning}", file=sys.stderr)
         for step in item["steps"]:
             emit(f"    {GENERIC_SIGN_IN if host == GENERIC and step.startswith(SIGN_IN) else step}")
         _print_review(item.get("review"), emit)
