@@ -4,10 +4,12 @@ import http.client
 import http.cookiejar
 import io
 import json
+import mimetypes
 import os
 import shlex
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -20,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import webui
+from openguildkit import storage, tasks, webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
@@ -181,6 +183,77 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(len(received), 2)
         for headers in received:
             self.assertNotIn(self.app.key, headers)
+            self.assertNotIn("Cookie", headers)
+
+    def serve_stable(self, root: Path):
+        server, app = make_server(root, 0, self.app.front, stable_address=True)
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return app
+
+    def test_the_address_is_drawn_for_each_run_unless_the_person_asks_for_a_stable_one(self):
+        """Issue #463: the preferences of the page are kept per origin, and the name of the host changed at each run."""
+        other, other_app = make_server(self.root, 0, self.app.front)
+        self.addCleanup(other.server_close)
+        self.assertNotEqual(self.app.host.rpartition(":")[0], other_app.host.rpartition(":")[0])
+
+    def test_a_stable_address_names_the_project_not_the_run_and_the_server_answers_under_that_name_only(self):
+        """Issue #463: with the option, the host name is the same at each run, and the protection of #281 holds."""
+        name = webui.stable_name(self.root)
+        self.assertRegex(name, r"^ogk-[0-9a-f]{24}\.localhost$")
+        self.assertEqual(webui.stable_name(self.root), name)
+        self.assertEqual(webui.stable_name(Path(str(self.root) + "/")), name)
+        self.assertNotEqual(webui.stable_name(self.root / "other"), name)
+        first, second = self.serve_stable(self.root), self.serve_stable(self.root)
+        self.assertNotEqual(first.key, second.key)
+        for app in (first, second):
+            self.assertEqual(app.host, f"{name}:{app.port}")
+            self.assertEqual(app.url, f"http://{name}:{app.port}/?key={app.key}")
+        port = first.port
+        status, headers, _ = fetch(port, f"/?key={first.key}", None, name)
+        self.assertEqual((status, headers["Location"]), (303, "/"))
+        cookie = headers["Set-Cookie"].split(";")[0]
+        self.assertEqual(fetch(port, "/api/session", cookie, name)[0], 200)
+        # Under any other name the server does not answer: the loopback names give the gate, the others a refusal.
+        for host in ("127.0.0.1", "localhost", "[::1]"):
+            status, headers, page = fetch(port, f"/?key={first.key}", None, host)
+            self.assertEqual((status, "Set-Cookie" in headers, b"openguildkit ui" in page), (403, False, True))
+        for host in (webui.stable_name(self.root / "other"), webui.session_name(first.key), "example.com"):
+            status, _, body = fetch(port, "/api/session", cookie, host)
+            self.assertEqual((status, json.loads(body)["reason"]), (421, "foreign-page"), host)
+        # The key of a run opens no other run: the cookie of another port is not the key of this one.
+        self.assertEqual(fetch(port, "/api/session", f"ogk-{second.port}={second.key}", name)[0], 403)
+
+    def test_another_local_server_does_not_receive_the_key_under_a_stable_address_either(self):
+        """Issue #463: the stable name must not give back what #281 closed: the key reaching another local server."""
+        received = []
+
+        class Recorder(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802 - http.server naming
+                received.append(str(self.headers))
+                self.send_response(200)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+                pass
+
+        other = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
+        threading.Thread(target=other.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(other.server_close)
+        self.addCleanup(other.shutdown)
+        app = self.serve_stable(self.root)
+        browser = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()),
+                                              LoopbackHandler())
+        with browser.open(app.url, timeout=30) as response:
+            self.assertEqual(response.status, 200)
+        for host in ("127.0.0.1", "localhost"):
+            with browser.open(f"http://{host}:{other.server_address[1]}/", timeout=30) as response:
+                self.assertEqual(response.status, 200)
+        self.assertEqual(len(received), 2)
+        for headers in received:
+            self.assertNotIn(app.key, headers)
             self.assertNotIn("Cookie", headers)
 
     def test_a_key_set_for_a_scripted_run_is_used_only_when_it_is_long_enough(self):
@@ -641,6 +714,90 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(record["brief"], "Show the four agreed status labels on each support request.")
         self.assertEqual(record["rounds"][0]["brief"], (EXAMPLE / "brief.md").read_text(encoding="utf-8").strip())
 
+    def test_a_task_record_goes_to_the_page_without_what_no_screen_reads_and_stays_whole_for_the_cli(self):
+        """Issue #466: board_briefs and domains made up 66 to 98 % of the JSON of a task sheet, read by no screen."""
+        self.reviewed_task()
+        self.run_in_page("task", "decide", "request-status", "--request-changes", "--by", "Camille", "--reason", "Again")
+        self.run_in_page("task", "consult", "request-status", "--answers", "@upload:answers.json",
+                         uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8")})
+        printed = run_cli(self.root, "task", "show", "request-status").stdout
+        record = json.loads(printed)
+        self.assertTrue(record["consultation"]["board_briefs"])
+        self.assertTrue(record["consultation"]["domains"])
+        self.assertTrue(record["rounds"][0]["consultation"]["board_briefs"])
+        status, result = self.run_in_page("task", "show", "request-status")
+        self.assertEqual((status, result["code"]), (200, 0))
+        shown = result["json"]
+        for consultation in (shown["consultation"], shown["rounds"][0]["consultation"]):
+            self.assertNotIn("board_briefs", consultation)
+            self.assertNotIn("domains", consultation)
+            self.assertIn("boards", consultation)
+        self.assertEqual(shown["consultation"]["boards"], record["consultation"]["boards"])
+        self.assertLess(len(json.dumps(shown)), len(printed) / 2)
+        # The text the CLI printed is still there for a page that asks to copy it, and the CLI itself is unchanged.
+        status, _, raw = self.request("/api/run", {"argv": ["task", "show", "request-status"], "raw": True})
+        self.assertEqual(json.loads(json.loads(raw)["stdout"]), record)
+        self.assertEqual(json.loads(run_cli(self.root, "task", "show", "request-status").stdout), record)
+        # Only a consultation loses them: another key of that name keeps its content.
+        self.assertEqual(webui._without_unread({"domains": [1], "board_briefs": {}, "consultation": {"domains": [1]}}),
+                         {"domains": [1], "board_briefs": {}, "consultation": {}})
+
+    def parsed_task_records(self, batch: dict) -> tuple[dict, list[str]]:
+        """What the page's batch answers, and the task records parsed to answer it."""
+        parsed, original = [], storage.parse_json
+
+        def counting(content, label):
+            parsed.append(label.replace("\\", "/"))
+            return original(content, label)
+
+        with patch("openguildkit.storage.parse_json", counting):
+            status, _, raw = self.request("/api/run", {"batch": batch})
+        self.assertEqual(status, 200)
+        return json.loads(raw)["results"], [label for label in parsed if "/tasks/" in label]
+
+    def test_an_opening_batch_that_follows_another_parses_no_task_record_unless_a_file_changed(self):
+        """Issue #537: each batch read and validated every task record five times, though none had changed."""
+        for name in ("alpha", "beta", "gamma"):
+            self.run_in_page("task", "new", f"Show the {name} requests", "--id", name)
+        opening = {"tasks": ["task", "list", "--json"], "check": ["check"], "alpha": ["task", "show", "alpha"]}
+        first, parsed = self.parsed_task_records(opening)
+        self.assertEqual(sorted(name.rpartition("/")[2] for name in parsed), ["alpha.json", "beta.json", "gamma.json"])
+        second, parsed = self.parsed_task_records(opening)
+        self.assertEqual((second, parsed), (first, []))
+        # A task written by a command is read again, the others are not.
+        self.run_in_page("task", "new", "Show the delta requests", "--id", "delta")
+        third, parsed = self.parsed_task_records(opening)
+        self.assertEqual([name.rpartition("/")[2] for name in parsed], ["delta.json"])
+        self.assertEqual([row["id"] for row in third["tasks"]["json"]], ["alpha", "beta", "delta", "gamma"])
+        # A record rewritten in place with the same size and its modification time is read again too.
+        path = self.root / ".openguildkit" / "tasks" / "alpha.json"
+        info, content = path.stat(), path.read_bytes()
+        with open(path, "r+b") as handle:
+            handle.write(content.replace(b"Show the alpha", b"Show THE alpha"))
+        os.utime(path, ns=(info.st_atime_ns, info.st_mtime_ns))
+        self.assertEqual((path.stat().st_size, path.stat().st_mtime_ns), (info.st_size, info.st_mtime_ns))
+        fourth, parsed = self.parsed_task_records(opening)
+        self.assertEqual(fourth["alpha"]["json"]["brief"], "Show THE alpha requests")
+        self.assertIn(path.name, {name.rpartition("/")[2] for name in parsed})
+
+    def test_a_kept_task_record_is_handed_out_as_a_copy_and_the_memory_it_takes_is_limited(self):
+        """Issue #537: a command changes the record it reads; the next one must not see the change."""
+        self.run_in_page("task", "new", "Show the alpha requests", "--id", "alpha")
+        state = self.root / ".openguildkit"
+        kept = tasks.KeptRecords()
+        with tasks.keeping_records(kept):
+            first = tasks.read_task(state, "alpha")
+            first["brief"] = "changed by a command"
+            first["answers"] = {"changed": True}
+            second = tasks.read_task(state, "alpha")
+            self.assertEqual(len(kept.entries), 1)
+        self.assertEqual(second, json.loads((state / "tasks" / "alpha.json").read_text(encoding="utf-8")))
+        self.assertIsNone(tasks._KEPT)
+        small = tasks.KeptRecords(limit=1)
+        with tasks.keeping_records(small):
+            self.assertEqual(tasks.read_task(state, "alpha"), second)
+        self.assertEqual((small.entries, small.size), ({}, 0))
+
     def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):
         project = self.root / ".openguildkit" / "project.json"
         saved = json.loads(project.read_text(encoding="utf-8"))
@@ -986,6 +1143,33 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertEqual(self.request("/api/files/read", {"path": ".env"})[0], 403)
         self.assertEqual(terminal.getvalue(), "")
 
+    def test_a_client_that_closes_the_connection_before_the_answer_leaves_nothing_in_the_terminal(self):
+        """Issue #516: closing the tab during a request printed 21 lines of trace for a failure that was nobody's."""
+        started, release = threading.Event(), threading.Event()
+
+        def handle(path, body):
+            started.set()
+            release.wait(30)
+            return {"code": 0, "stdout": "", "stderr": "", "json": {"padding": "x" * 100_000}}
+
+        body = json.dumps({"argv": ["check"]}).encode("utf-8")
+        head = (f"POST /api/run HTTP/1.1\r\nHost: {self.app.host}\r\nOrigin: {self.app.origin}\r\n"
+                f"X-OGK-Token: {self.app.token}\r\nContent-Type: application/json\r\n"
+                f"Content-Length: {len(body)}\r\n\r\n").encode("ascii")
+        terminal = io.StringIO()
+        with patch.object(self.app, "handle", side_effect=handle), contextlib.redirect_stderr(terminal):
+            client = socket.create_connection(("127.0.0.1", self.app.port), timeout=30)
+            client.sendall(head + body)
+            self.assertTrue(started.wait(30))
+            # A reset, as a browser that closes the tab sends it, so that the next write of the server fails.
+            client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+            client.close()
+            release.set()
+            for thread in threading.enumerate():
+                if "process_request_thread" in thread.name:
+                    thread.join(30)
+        self.assertEqual(terminal.getvalue(), "")
+
     def test_the_front_end_is_served_with_a_content_security_policy(self):
         status, headers, body = self.request("/")
         self.assertEqual(status, 200)
@@ -997,6 +1181,92 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/../profile.json")[0], 404)
         self.assertEqual(self.request("/%2e%2e/profile.json")[0], 404)
         self.assertEqual(self.request("/", method="HEAD")[0], 200)
+
+
+    def test_a_file_is_served_with_the_type_of_its_extension_whatever_the_workstation_says(self):
+        """Issue #468: a .js that the workstation's registry declares text/plain gives a blank page under nosniff."""
+        served = {
+            "index.html": "text/html; charset=utf-8", "assets/a-0123456789.js": "text/javascript; charset=utf-8",
+            "assets/a-0123456789.css": "text/css; charset=utf-8", "assets/a.json": "application/json; charset=utf-8",
+            "assets/a.svg": "image/svg+xml; charset=utf-8", "assets/a.webp": "image/webp", "assets/a.png": "image/png",
+            "assets/a.woff2": "font/woff2", "assets/a.bin": "application/octet-stream",
+            "assets/a": "application/octet-stream",
+        }
+        for name in served:
+            (self.app.front / name).write_bytes(b"x")
+        with patch.dict(mimetypes.types_map):
+            for extension, kind in ((".js", "text/plain"), (".css", "text/plain"), (".woff2", "text/plain"),
+                                    (".webp", "application/x-wrong")):
+                mimetypes.add_type(kind, extension)
+            for name, expected in served.items():
+                with self.subTest(name=name):
+                    status, headers, _ = self.request(f"/{name}")
+                    self.assertEqual((status, headers["Content-Type"]), (200, expected))
+
+
+    def test_a_file_answers_304_to_its_own_etag_and_a_modified_file_changes_it(self):
+        """Issue #470: files without a hashed name left no way to revalidate, and the whole body came back each time."""
+        rooms = self.app.front / "assets" / "rooms"
+        rooms.mkdir()
+        (rooms / "forge.webp").write_bytes(b"RIFF" + bytes(4096))
+        for name, cache in (("index.html", "no-cache"), ("assets/rooms/forge.webp", "no-cache"),
+                            ("assets/app-0123456789.js", "public, max-age=31536000, immutable")):
+            with self.subTest(name=name):
+                status, headers, body = self.request(f"/{name}")
+                etag = headers["ETag"]
+                self.assertEqual((status, headers["Cache-Control"]), (200, cache))
+                self.assertRegex(etag, r'^"[0-9a-f]+-[0-9a-f]+"$')
+                self.assertTrue(body)
+                for given in (etag, f"W/{etag}", f'"other", {etag}', "*"):
+                    status, headers, body = self.request(f"/{name}", headers={"If-None-Match": given})
+                    self.assertEqual((status, body, headers["ETag"], headers["Cache-Control"]), (304, b"", etag, cache))
+                    self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+                for given in ('"other"', etag[:-1] + 'x"', ""):
+                    self.assertEqual(self.request(f"/{name}", headers={"If-None-Match": given})[0], 200)
+        etag = self.request("/assets/rooms/forge.webp")[1]["ETag"]
+        self.assertEqual(self.request("/assets/rooms/forge.webp", method="HEAD")[1]["ETag"], etag)
+        (rooms / "forge.webp").write_bytes(b"RIFF" + bytes(4097))
+        status, headers, body = self.request("/assets/rooms/forge.webp", headers={"If-None-Match": etag})
+        self.assertEqual((status, len(body)), (200, 4101))
+        self.assertNotEqual(headers["ETag"], etag)
+
+    def test_a_text_file_is_compressed_once_and_its_gzip_form_has_its_own_etag(self):
+        """Issue #470: each request compressed the same script again, and no answer could be revalidated."""
+        script = self.app.front / "assets" / "big-0123456789.js"
+        script.write_text("console.log('page');\n" * 500, encoding="utf-8")
+        gzip_only = {"Accept-Encoding": "gzip"}
+        with patch.object(gzip, "compress", wraps=gzip.compress) as compress:
+            first = self.request("/assets/big-0123456789.js", headers=gzip_only)
+            second = self.request("/assets/big-0123456789.js", headers=gzip_only)
+        self.assertEqual(compress.call_count, 1)
+        self.assertEqual(compress.call_args.kwargs["compresslevel"], 6)
+        for status, headers, body in (first, second):
+            self.assertEqual((status, headers["Content-Encoding"], headers["Vary"]), (200, "gzip", "Accept-Encoding"))
+            self.assertEqual(gzip.decompress(body).decode("utf-8"), script.read_text(encoding="utf-8"))
+        self.assertEqual(first[2], second[2])
+        plain = self.request("/assets/big-0123456789.js")
+        self.assertIsNone(plain[1]["Content-Encoding"])
+        self.assertNotEqual(plain[1]["ETag"], first[1]["ETag"])
+        for etag, headers in ((first[1]["ETag"], gzip_only), (plain[1]["ETag"], {})):
+            status, _, body = self.request("/assets/big-0123456789.js", headers={**headers, "If-None-Match": etag})
+            self.assertEqual((status, body), (304, b""))
+        # What a browser that revalidated the plain form must not receive: a 304 for the form it did not hold.
+        self.assertEqual(self.request("/assets/big-0123456789.js",
+                                      headers={**gzip_only, "If-None-Match": plain[1]["ETag"]})[0], 200)
+
+
+    def test_no_page_of_the_server_allows_inline_styles(self):
+        """Issue #514: style-src 'unsafe-inline' let an injected style tag or attribute redraw a command."""
+        policies = [self.request("/")[1], self.request("/assets/app-0123456789.js")[1],
+                    fetch(self.app.port, "/", None, self.app.host.rpartition(":")[0])[1],  # the gate page
+                    fetch(self.app.port, "/", None)[1]]
+        self.app.front = None
+        policies.append(self.request("/")[1])  # the page that says the front end is not built
+        for headers in policies:
+            directives = dict(part.strip().partition(" ")[::2] for part in headers["Content-Security-Policy"].split(";"))
+            self.assertEqual(directives["style-src"], "'self'")
+            self.assertNotIn("unsafe-inline", headers["Content-Security-Policy"])
+            self.assertNotIn("unsafe-eval", headers["Content-Security-Policy"])
 
 
 class UiCommandTests(unittest.TestCase):
@@ -1066,6 +1336,27 @@ class UiCommandTests(unittest.TestCase):
             server, app = make_server(self.root, 0, self.front)
         self.addCleanup(server.server_close)
         self.assertEqual((server.server_name, server.server_port), ("127.0.0.1", app.port))
+
+    def test_the_address_of_two_launches_has_the_same_origin_only_with_the_stable_option(self):
+        """Issue #463: the page lost its preferences at each launch, which opened an origin of its own."""
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        port = str(probe.getsockname()[1])
+        probe.close()
+        origins = {}
+        for option in ("--stable-address", None):
+            seen = []
+            for _ in range(2):
+                process, url = self.start("--port", port, "--static", str(self.front), *([option] if option else []))
+                seen.append(urllib.parse.urlsplit(url))
+                self.assertEqual(self.open_session(url)["port"], int(port))
+                self.stop(process)
+            origins[option] = [f"{address.scheme}://{address.netloc}" for address in seen]
+            self.assertNotEqual(seen[0].query, seen[1].query)
+        stable, drawn = origins["--stable-address"], origins[None]
+        self.assertEqual(stable[0], stable[1])
+        self.assertEqual(stable[0], f"http://{webui.stable_name(self.root)}:{port}")
+        self.assertNotEqual(drawn[0], drawn[1])
 
     def test_a_busy_port_gives_way_to_a_free_one(self):
         blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
