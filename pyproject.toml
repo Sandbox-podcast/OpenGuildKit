@@ -117,3 +117,12 @@ python_version = "3.11"
 files = ["src/openguildkit"]
 warn_unused_ignores = true
 warn_return_any = false
+
+# Code coverage of the package, measured by .github/workflows/coverage.yml (scripts/coverage.py measures the catalog).
+# One data file per process, in the ignored build/ folder; the processes the tests start are measured too.
+[tool.coverage.run]
+branch = true
+parallel = true
+source = ["src/openguildkit"]
+patch = ["subprocess"]
+data_file = "build/coverage/.coverage"

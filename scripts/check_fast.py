@@ -56,7 +56,7 @@ EXTRA = {
 }
 # Folders this repository checks outside the module map: a path takes the tests of the first folder it is under.
 EXTRA_FOLDERS = (
-    (".github/", ["tests/test_release.py", "tests/test_workflows.py"]),
+    (".github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_ci_jobs.py"]),
     ("integrations/github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_install_script.py"]),
     ("docs/", ["tests/test_doc_examples.py", "tests/test_product_docs.py"]),
     ("examples/field-tests/", ["tests/e2e/test_field_kit.py"]),

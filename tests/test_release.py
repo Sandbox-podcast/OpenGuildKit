@@ -185,21 +185,23 @@ BUILD_STEPS = ("Build the web interface into the package", "Build the wheel",
 
 
 def build_steps(job: dict) -> tuple[str, list[dict]]:
-    """The Node version and the steps that build the wheel, as the job runs them."""
-    node = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]["node-version"]
+    """The Node version (typed, or read from the .nvmrc a job names) and the steps that build the wheel."""
+    setup = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]
+    node = setup.get("node-version") or _read(setup["node-version-file"]).strip()
     return node, [{key: step.get(key) for key in ("name", "working-directory", "run")}
                   for step in steps(job) if step.get("name") in BUILD_STEPS]
 
 
 class WheelBuildTest(unittest.TestCase):
     def setUp(self):
-        self.package = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["package"]
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+        self.wheel, self.package = self.jobs["wheel"], self.jobs["package"]
         self.release = parse(ROOT / ".github" / "workflows" / "release.yml")["jobs"]["build"]
 
-    def test_the_release_builds_the_wheel_as_the_package_job_proves_it(self):
+    def test_the_release_builds_the_wheel_as_the_wheel_job_of_ci_does(self):
         node, release = build_steps(self.release)
         self.assertEqual([step["name"] for step in release], list(BUILD_STEPS))
-        self.assertEqual(build_steps(self.package), (node, release))
+        self.assertEqual(build_steps(self.wheel), (node, release))
 
     def test_the_interface_is_built_before_the_wheel_and_checked_inside_it(self):
         names = [step.get("name") for step in steps(self.release)]
@@ -225,9 +227,9 @@ class WheelBuildTest(unittest.TestCase):
         published = parse(ROOT / ".github" / "workflows" / "release-check.yml")["jobs"]["install"]
         self.assertIn("openguildkit/registry/catalog.bundle.json", run_text(published))
 
-    def test_the_package_job_installs_the_wheel_and_runs_it(self):
+    def test_the_wheel_job_checks_the_metadata_and_the_package_job_installs_the_wheel_and_runs_it(self):
+        self.assertIn("twine check --strict", run_text(self.wheel))
         script = run_text(self.package)
-        self.assertIn("twine check --strict", script)
         self.assertIn("pipx install", script)
         self.assertIn('"$RUNNER_OS" = Windows', script)
         self.assertIn(".github/scripts/check-installed-cli.py", script)
@@ -360,7 +362,7 @@ class CiWorkflowTest(unittest.TestCase):
         self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
 
     def test_every_job_stops_before_the_runner_default_of_six_hours(self):
-        expected = {"test": "30", "package": "20", "web-e2e": "20"}
+        expected = {"test": "30", "package": "20", "wheel": "20", "web-e2e": "20", "changes": "5"}
         for name, job in self.jobs.items():
             self.assertEqual(job.get("timeout-minutes"), expected.get(name, "15"), name)
 
@@ -380,8 +382,9 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertNotIn("once it has passed on main", _read(".github/workflows/ci.yml"))
 
     def test_contributing_names_every_job_contribution_checks_requires(self):
-        named = {"test": "test matrix", "performance": "performance tests", "package": "wheel build",
-                 "ci-coordinator": "CI coordinator", "web": "checks and journeys of the web interface",
+        named = {"changes": "list of the changed files", "test": "test matrix", "performance": "performance tests",
+                 "wheel": "wheel build", "package": "installation of the wheel", "ci-coordinator": "CI coordinator",
+                 "web": "checks and journeys of the web interface",
                  "web-e2e": "checks and journeys of the web interface", "lint": "lint ratchet"}
         self.assertEqual(set(named), set(self.jobs["contribution-checks"]["needs"]))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "`contribution-checks` status" in block)
