@@ -38,7 +38,9 @@ jobs:
         run: python -m pip install -e .
 
       - name: Validate the catalog
-        run: openguildkit catalog --json
+        # Its JSON is 12,000 lines: only a failure, through the exit code and standard error, is worth the log.
+        shell: bash
+        run: openguildkit catalog --json > /dev/null
 
       - name: Validate the reference library
         run: openguildkit references
@@ -50,7 +52,8 @@ jobs:
         run: openguildkit brains --check
 
       - name: Unit and end-to-end tests
-        run: python -m unittest discover -s tests -v
+        # --durations ends the log with the 25 slowest tests; unittest has it from Python 3.12.
+        run: python -m unittest discover -s tests -v ${{ matrix.python != '3.11' && '--durations 25' || '' }}
 
       - name: Replay the request status example
         run: python examples/request-status/replay.py

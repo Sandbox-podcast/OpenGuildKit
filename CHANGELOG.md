@@ -92,6 +92,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Web journeys (`npm run e2e:project`): each sample server and the `package.spec.ts` server remove their temporary folder (`ogk-e2e-*`, `ogk-package-*`) when they stop, and Playwright now ends the sample servers with SIGTERM instead of SIGKILL so that they can. The default ports are unchanged, so two copies of the repository still need `PW_PROJECT_PORT` to run together (#518)
 - `python -m openguildkit` and the installed command: with a Python older than 3.11 (the python3 of macOS is 3.9) they print one line that names Python 3.11 and exit with 1, instead of a `TypeError`. `.python-version` (3.15) and `.nvmrc` (24) hold the versions the maintainers work with, and `ci.yml` reads them instead of typing them in each job (#520)
 - CI: `.github/dependabot.yml` proposes one grouped weekly pull request each for the pinned actions (workflows, `integrations/github`, `integrations/ci/pilot`), the npm packages of `web/` (minor and patch) and pip. `actions/checkout`, `setup-python` and `setup-node` move to v7.0.1, v7.1.0 and v7.1.0, and each pin names the day of its release before its tag (#473)
+- CI: a test job no longer prints the 12,472 lines of `openguildkit catalog --json` that made 81 % of its log (the step still fails on a non-zero exit code, with the message on standard error), and the unittest log ends with the 25 slowest tests on Python 3.12 and later (#517)
 
 ## 0.17.0
 

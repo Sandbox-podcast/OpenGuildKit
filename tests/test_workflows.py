@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -509,6 +510,49 @@ class DependabotConfigTest(unittest.TestCase):
         npm = self.updates["npm"]
         self.assertEqual(self.directories(npm), ["/web"])
         self.assertEqual(sorted(next(iter(npm["groups"].values()))["update-types"]), ["minor", "patch"])
+
+
+class TestJobLogTest(unittest.TestCase):
+    """Issue #517: the log of a test job held 15,355 lines, 81 % of them the catalog JSON that a step printed."""
+
+    def setUp(self):
+        self.job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["test"]
+
+    def step(self, name: str) -> dict:
+        return next(step for step in steps(self.job) if step.get("name") == name)
+
+    def test_the_catalog_check_prints_nothing_and_still_fails_on_a_bad_catalog(self):
+        step = self.step("Validate the catalog")
+        self.assertEqual(step["shell"], "bash", "PowerShell, the default on Windows, has no /dev/null")
+        bash = shutil.which("bash")
+        if os.name == "nt" or not bash:
+            self.skipTest("The step is run with bash, as on the GitHub runner.")
+        directory = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, directory)
+        fake = directory / "openguildkit"
+        fake.write_text('#!/bin/sh\nyes \'{"id": "pack"}\' | head -n 12000\n[ "$FAKE_FAILS" = 1 ] && '
+                        'echo "catalog problem" >&2 && exit 3\nexit 0\n', encoding="utf-8")
+        fake.chmod(0o755)
+        environment = {**os.environ, "PATH": f"{directory}{os.pathsep}{os.environ['PATH']}"}
+        passed = subprocess.run([bash, "-e", "-c", step["run"]], env=environment, capture_output=True, text=True)
+        self.assertEqual((passed.returncode, passed.stdout), (0, ""))
+        failed = subprocess.run([bash, "-e", "-c", step["run"]], env={**environment, "FAKE_FAILS": "1"},
+                                capture_output=True, text=True)
+        self.assertEqual((failed.returncode, failed.stdout), (3, ""))
+        self.assertIn("catalog problem", failed.stderr, "the reason of a failure stays in the log")
+
+    def test_the_log_of_the_tests_ends_with_the_slowest_ones_where_unittest_can_list_them(self):
+        """unittest has --durations from Python 3.12; the floor of requires-python does not."""
+        run = self.step("Unit and end-to-end tests")["run"]
+        match = re.fullmatch(r"python -m unittest discover -s tests -v \$\{\{ matrix\.python != '([\d.]+)' && '(--durations 25)' \|\| '' \}\}", run)
+        self.assertIsNotNone(match, run)
+        floor = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["requires-python"]
+        floor = floor.removeprefix(">=")
+        self.assertEqual(match.group(1), floor, "the one Python that has no --durations")
+        self.assertLess(tuple(map(int, floor.split("."))), (3, 12), "from Python 3.12 on, drop the condition")
+        for version in self.job["strategy"]["matrix"]["python"]:
+            if version != floor:
+                self.assertGreaterEqual(tuple(map(int, version.split("."))), (3, 12), version)
 
 
 class ToolVersionFilesTest(unittest.TestCase):
