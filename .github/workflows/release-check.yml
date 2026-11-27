@@ -96,6 +96,12 @@ jobs:
             "${file}: OK"
           }
 
+      # Without it, the installed command reads and validates the record files of the catalog in every process.
+      - name: Check that the wheel holds the catalog bundle
+        run: |
+          python -m zipfile -l "$RUNNER_TEMP/release/openguildkit-$VERSION-py3-none-any.whl" \
+            | grep -F openguildkit/registry/catalog.bundle.json
+
       - name: Install the wheel in a fresh virtual environment
         run: |
           python -m venv "$RUNNER_TEMP/venv"

@@ -24,6 +24,9 @@ COLLECTION_FIELDS = {
     "patterns": {"roles", "packs"},
 }
 ENTRY_FIELDS = {"id", "title", "description", "sources"}
+# The bundled packs, boards, sectors and patterns in one file of registry/, validated when it was built:
+# scripts/build_catalog_bundle.py writes it before the wheel is built, and Git ignores it.
+BUNDLE_FILE = "catalog.bundle.json"
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
@@ -611,8 +614,19 @@ def _read_records(collection: str, directory, entries: dict, bundled: bool, over
             overlays.append(entry["id"])
 
 
-def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
-    """Read and validate the records that ship with OpenGuildKit, by collection."""
+def bundle_sources(builtin: Path) -> dict[str, int]:
+    """The size of each record file of the four collections, by collection/name: the files BUNDLE_FILE is built from,
+    which must still match for it to be read."""
+    sources = {}
+    for collection in COLLECTION_FIELDS:
+        with os.scandir(builtin / collection) as entries:
+            sources.update((f"{collection}/{entry.name}", entry.stat().st_size) for entry in entries
+                           if entry.name.endswith(".json"))
+    return dict(sorted(sources.items()))
+
+
+def read_record_files(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """Read and validate the record files that ship with OpenGuildKit, by collection."""
     bundled = {}
     for collection in COLLECTION_FIELDS:
         directory = builtin.joinpath(collection)
@@ -624,6 +638,27 @@ def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
             raise CatalogError(f"{directory} has no bundled records")
         bundled[collection] = entries
     return bundled
+
+
+def _read_bundle(builtin) -> dict[str, dict[str, dict[str, Any]]] | None:
+    """The records of BUNDLE_FILE, validated when it was built; None without it, or when a record file was added,
+    removed or resized since (a checkout where a record changed)."""
+    if not isinstance(builtin, Path):
+        return None  # A package inside an archive: its record files have no size to compare.
+    try:
+        bundle = json.loads((builtin / BUNDLE_FILE).read_bytes())
+        sources = bundle_sources(builtin)
+    except (OSError, ValueError):
+        return None
+    if isinstance(bundle, dict) and bundle.get("schema_version") == 1 and bundle.get("sources") == sources:
+        return bundle["records"]
+    return None
+
+
+def _read_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+    """The records that ship with OpenGuildKit, by collection: from BUNDLE_FILE while it matches the record files,
+    else from the record files, validated now."""
+    return _read_bundle(builtin) or read_record_files(builtin)
 
 
 # Bundled records already validated in this process, by registry folder. They ship with the code that is
@@ -643,6 +678,12 @@ def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
         _BUNDLED[key] = _read_bundled(builtin)
         _MERGED.clear()  # They were merged onto the records read before.
     return _BUNDLED[key]
+
+
+def bundled_ids() -> dict[str, set[str]]:
+    """The IDs of the records that ship with OpenGuildKit, by collection, without copying the records."""
+    bundled = _validated_bundled(_registry())
+    return {collection: set(bundled[collection]) for collection in COLLECTION_FIELDS}
 
 
 def _records_signature(project: Path | None) -> tuple:
@@ -707,8 +748,11 @@ def record_digest(record: dict) -> str:
 
 def _merged_records(builtin, project: Path | None, organization: dict | None = None) -> dict[str, dict[str, dict[str, Any]]]:
     """The bundled records with the organization's, if the project follows one, then the project's, each validated,
-    ordered by ID. A project record that replaces or completes an organization record is listed as replaced."""
-    bundled = json_copy(_validated_bundled(builtin))
+    ordered by ID. A project record that replaces or completes an organization record is listed as replaced.
+    Without project or organization records, nothing changes the bundled ones: load_catalog copies what it hands out."""
+    bundled = _validated_bundled(builtin)
+    if project is not None or organization is not None:
+        bundled = json_copy(bundled)
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
     overlays: list[str] = []
     provided: dict[str, list[str]] = {}

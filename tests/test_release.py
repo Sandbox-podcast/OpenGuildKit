@@ -181,7 +181,7 @@ class InstallGuideTest(unittest.TestCase):
 
 
 BUILD_STEPS = ("Build the web interface into the package", "Build the wheel",
-               "Check that the wheel holds the web interface")
+               "Check that the wheel holds the web interface and the catalog bundle")
 
 
 def build_steps(job: dict) -> tuple[str, list[dict]]:
@@ -213,6 +213,17 @@ class WheelBuildTest(unittest.TestCase):
         self.assertIn("openguildkit/web_dist/index.html", check["run"])
         later = run_text({"steps": steps(self.release)[names.index(BUILD_STEPS[-1]) + 1:]})
         self.assertIn("sha256sum", later)
+
+    def test_the_catalog_bundle_is_built_before_the_wheel_and_checked_inside_it(self):
+        """Issue #533: a wheel without registry/catalog.bundle.json reads the 289 record files in every process."""
+        _, wheel, check = (next(step for step in steps(self.release) if step.get("name") == name)
+                           for name in BUILD_STEPS)
+        commands = wheel["run"].splitlines()
+        self.assertLess(commands.index("python scripts/build_catalog_bundle.py"),
+                        commands.index("python -m build --wheel --outdir dist"))
+        self.assertIn("openguildkit/registry/catalog.bundle.json", check["run"])
+        published = parse(ROOT / ".github" / "workflows" / "release-check.yml")["jobs"]["install"]
+        self.assertIn("openguildkit/registry/catalog.bundle.json", run_text(published))
 
     def test_the_package_job_installs_the_wheel_and_runs_it(self):
         script = run_text(self.package)

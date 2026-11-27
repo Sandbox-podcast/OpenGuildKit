@@ -95,7 +95,10 @@
         "unique_fields",
         "validate_fields",
         "validate_text",
-        "validate_id"
+        "validate_id",
+        "bundle_sources",
+        "read_record_files",
+        "bundled_ids"
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
@@ -105,6 +108,7 @@
         "tests/test_brain_knowledge.py",
         "tests/test_brain_selection.py",
         "tests/test_brains.py",
+        "tests/test_catalog_bundle.py",
         "tests/test_catalog_format_doc.py",
         "tests/test_catalog_sources.py",
         "tests/test_chaosfolk.py",

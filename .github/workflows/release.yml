@@ -52,10 +52,13 @@ jobs:
       - name: Build the wheel
         run: |
           python -m pip install build
+          python scripts/build_catalog_bundle.py
           python -m build --wheel --outdir dist
 
-      - name: Check that the wheel holds the web interface
-        run: python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
+      - name: Check that the wheel holds the web interface and the catalog bundle
+        run: |
+          python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
+          python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/registry/catalog.bundle.json
 
       - name: Build the Node archive, add the installers, then write the hashes of the assets
         run: |
