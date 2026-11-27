@@ -19,6 +19,7 @@ import os
 import re
 import secrets
 import socket
+import socketserver
 import sys
 import tempfile
 import threading
@@ -818,7 +819,10 @@ class LocalServer(ThreadingHTTPServer):
         exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
         if exclusive is not None:
             self.socket.setsockopt(socket.SOL_SOCKET, exclusive, 1)
-        super().server_bind()
+        # HTTPServer.server_bind looks up the host's name with socket.getfqdn, a reverse lookup that nothing reads and
+        # that took 35 s on macOS runners (issue #450): bind as a TCP server and keep the address as the name.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def handle_error(self, request, client_address):
         # A browser that navigates away closes its connections: nothing to report.

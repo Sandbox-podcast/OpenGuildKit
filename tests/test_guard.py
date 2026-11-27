@@ -479,6 +479,32 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertIn("1 changed file(s) are in no decision record of this change: src/app.py", result["problems"][0])
         self.assertNotIn("Covered by", self.run_cli("guard", "--ci", "--base", "main", code=1)[0])
 
+    def merge_records(self, record, numbers):
+        """Records of other tasks merged on main under the change, as a repository with a long history holds them."""
+        self.git("checkout", "-q", "main")
+        for number in numbers:
+            write_json(self.root / ".openguildkit" / "decisions" / f"merged-{number}.json",
+                       {**record, "task": f"merged-{number}"})
+        self.git("add", "-f", ".openguildkit/decisions")
+        self.git("commit", "-q", "-m", "merged records")
+        self.git("checkout", "-q", "docs-typo")
+        self.git("rebase", "-q", "main")
+
+    def git_processes(self):
+        """How many git processes guard --ci starts, the change being valid."""
+        with patch("subprocess.run", wraps=subprocess.run) as run:
+            self.assertTrue(self.ci()["ok"])
+        return sum(1 for call in run.call_args_list if list(call.args[0][:1]) == ["git"])
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_starts_as_many_git_processes_with_3_or_30_records_on_the_base(self):
+        """Issue #532: guard --ci started one git show per record merged on the base, 23.5 s at 990 decisions."""
+        record = self.typo_decision()
+        self.merge_records(record, range(3))
+        three = self.git_processes()
+        self.merge_records(record, range(3, 30))
+        self.assertEqual(self.git_processes(), three)
+
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_says_local_approvals_cannot_be_verified_and_fails_on_request(self):
         self.typo_decision()
