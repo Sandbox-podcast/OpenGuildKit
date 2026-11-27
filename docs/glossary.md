@@ -1,5 +1,7 @@
 # Glossary · Glossaire
 
+For: anyone who meets a word of the commands and wants its definition, in English and French.
+
 The words OpenGuildKit uses in its commands, questions and output, in English and in French. Each entry gives the word as the CLI writes it, then its French gloss, then one sentence in each language. The entries follow the order of a task, from setup to closing.
 
 Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messages, en anglais et en français. Chaque entrée donne le mot tel que la CLI l'écrit, puis sa traduction, puis une phrase dans chaque langue. Les entrées suivent l'ordre d'une tâche, de la configuration à la clôture.

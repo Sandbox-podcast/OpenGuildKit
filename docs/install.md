@@ -1,5 +1,7 @@
 # Install OpenGuildKit from GitHub Releases
 
+For: an administrator who installs OpenGuildKit on workstations, and a developer who upgrades it.
+
 OpenGuildKit is not published on PyPI: install the wheel attached to a [GitHub release](https://github.com/Sandbox-podcast/OpenGuildKit/releases). The Python wheel provides the CLI, the catalog, the agent files and the web interface that `openguildkit ui` serves. The optional Node package coordinates checks across GitHub Actions and Jenkins.
 
 ## Install in one line

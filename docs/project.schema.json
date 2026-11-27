@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Sandbox-podcast/OpenGuildKit/blob/main/docs/project.schema.json",
+  "title": "OpenGuildKit project profile (.openguildkit/project.json)",
+  "description": "The shape of the profile that openguildkit init writes. docs/profile-reference.md describes each field; openguildkit check also reads the values against the catalog.",
+  "type": "object",
+  "required": ["schema_version", "name", "sector", "stack", "packs", "boards", "research", "conventions", "checks"],
+  "additionalProperties": false,
+  "$defs": {
+    "line": {"type": "string", "minLength": 1, "pattern": "^[^\\n\\r]+$"},
+    "lines": {"type": "array", "items": {"$ref": "#/$defs/line"}},
+    "ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "decision": {
+      "type": "object",
+      "required": ["by", "on", "reason"],
+      "properties": {
+        "by": {"$ref": "#/$defs/line"},
+        "on": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "reason": {"$ref": "#/$defs/line"}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"$ref": "#/$defs/line"},
+    "sector": {"type": "string", "minLength": 1},
+    "stack": {"$ref": "#/$defs/lines"},
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "stack"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "maxLength": 64, "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+          "path": {"type": "string", "minLength": 1},
+          "stack": {"$ref": "#/$defs/lines"}
+        }
+      }
+    },
+    "roles": {"$ref": "#/$defs/ids"},
+    "patterns": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string", "minLength": 1},
+          {
+            "type": "object",
+            "required": ["id", "components"],
+            "additionalProperties": false,
+            "properties": {"id": {"type": "string", "minLength": 1}, "components": {"$ref": "#/$defs/ids"}}
+          }
+        ]
+      }
+    },
+    "packs": {"$ref": "#/$defs/ids"},
+    "resolutions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["packs", "keep", "reason"],
+        "additionalProperties": false,
+        "properties": {"packs": {"$ref": "#/$defs/ids"}, "keep": {"$ref": "#/$defs/ids"}, "reason": {"$ref": "#/$defs/line"}}
+      }
+    },
+    "boards": {"$ref": "#/$defs/ids"},
+    "required_boards": {"$ref": "#/$defs/ids"},
+    "required_rules": {"$ref": "#/$defs/ids"},
+    "research": {"enum": ["local-only", "public-sources"]},
+    "host": {"enum": ["claude-code", "codex", "gemini-cli", "other"]},
+    "guard": {"enum": ["off", "observe", "enforce"]},
+    "waivers": {
+      "type": "object",
+      "required": ["allowed_by", "max_days"],
+      "additionalProperties": false,
+      "properties": {
+        "allowed_by": {"$ref": "#/$defs/lines"},
+        "max_days": {"type": "integer", "minimum": 1, "maximum": 366}
+      }
+    },
+    "approval": {
+      "oneOf": [
+        {"type": "object", "required": ["mode"], "additionalProperties": false, "properties": {"mode": {"const": "local"}}},
+        {
+          "type": "object",
+          "required": ["mode", "allowed_signers", "approvers"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": {"const": "signed"},
+            "allowed_signers": {"type": "string", "minLength": 1},
+            "approvers": {"$ref": "#/$defs/lines"}
+          }
+        }
+      ]
+    },
+    "tools": {"$ref": "#/$defs/lines"},
+    "conventions": {"$ref": "#/$defs/lines"},
+    "checks": {"$ref": "#/$defs/lines"},
+    "personal_data": {"type": "boolean"},
+    "people_decisions": {"type": "boolean"},
+    "declined": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type": "string", "minLength": 1},
+          {
+            "allOf": [{"$ref": "#/$defs/decision"}],
+            "required": ["id", "by", "on", "reason"],
+            "properties": {"id": {"type": "string", "minLength": 1}}
+          }
+        ]
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "allOf": [{"$ref": "#/$defs/decision"}],
+        "required": ["change", "by", "on", "reason"],
+        "properties": {"change": {"$ref": "#/$defs/line"}}
+      }
+    },
+    "ask_every_rule": {"const": true},
+    "light_paths": {"$ref": "#/$defs/lines"},
+    "declined_rules": {
+      "type": "array",
+      "items": {
+        "allOf": [{"$ref": "#/$defs/decision"}],
+        "required": ["id", "by", "on", "reason"],
+        "properties": {"id": {"type": "string", "pattern": "^[^/]+/[^/]+$"}}
+      }
+    },
+    "separate_requester": {"const": true}
+  }
+}

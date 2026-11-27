@@ -474,6 +474,7 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_doc_pages.py",
         "tests/test_gemini_host.py",
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
@@ -748,20 +749,21 @@
         "tests/test_pass_relevance.py",
         "tests/test_patterns.py",
         "tests/test_personal_data_doc.py",
+        "tests/test_profile_reference.py",
         "tests/test_proportionate_setup.py",
         "tests/test_references.py",
         "tests/test_regulatory_packs.py",
         "tests/test_relevance.py",
+        "tests/test_requester.py",
         "tests/test_routing.py",
         "tests/test_rule_checks.py",
+        "tests/test_rule_decline.py",
         "tests/test_rule_plan.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_source_dates.py",
         "tests/test_stack_patterns.py",
-        "tests/test_upgrades.py",
-        "tests/test_rule_decline.py",
-        "tests/test_requester.py"
+        "tests/test_upgrades.py"
       ],
       "doc": "docs/architecture.md"
     },

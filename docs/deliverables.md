@@ -1,5 +1,7 @@
 # Business deliverables
 
+For: a team that turns an approved task into a business deliverable, and its agent.
+
 An approved task often leads to work outside the code: a campaign brief, a landing page, a release announcement, a support article. A deliverable template gives that work a method, the inputs it needs, the tool actions that need the requester's approval and the checks a reviewer runs.
 
 ```bash

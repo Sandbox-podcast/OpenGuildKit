@@ -1,5 +1,7 @@
 # Tools and MCP servers
 
+For: an administrator who connects the company's tools to the agent, and the agent that uses them.
+
 A company already works with an issue tracker, a time tracker, an HR system, a security scanner, a design tool. An agent that can read them gives the boards real evidence: the ticket, the alert, the design frame. OpenGuildKit keeps a registry of these tools and of the [Model Context Protocol](https://modelcontextprotocol.io) (MCP) servers that connect an agent to them, proposes the ones that match a project, writes the host's configuration once the team accepts it, and can replace every server with a local mock for demos and tests.
 
 The CLI stays offline. It never contacts a tool, never installs a server and never reads a credential. The host agent (Claude Code, Codex) is the MCP client.

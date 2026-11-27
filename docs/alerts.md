@@ -1,5 +1,7 @@
 # Dependency alerts and vulnerability watch
 
+For: the maintainer who imports scanner reports, and the agent that triages the alerts.
+
 OpenGuildKit does not scan dependencies. It reads the JSON report of a scanner the project already uses (npm audit, pip-audit, OSV-Scanner, GitHub Dependabot alerts) and keeps the alerts in one register per project, `.openguildkit/alerts.json`. Commit that file: the team shares the reviews, and the scheduled job reads them.
 
 ## The register

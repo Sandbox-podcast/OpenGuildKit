@@ -1,5 +1,7 @@
 # SARIF output
 
+For: the developer who sends the findings of `check` and `guard --ci` to code scanning.
+
 `openguildkit check` and `openguildkit guard --ci` print their problems in text. With `--format sarif` they print the same problems as a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) document, the format that code scanning dashboards read, so that a problem of the project's governance (an approval that no longer holds, instructions that no longer match the profile) can appear next to the other alerts of a pull request.
 
 ```bash

@@ -32,7 +32,8 @@ Code 1 covers two different things on most commands: the project does not confor
 
 ## What each stream carries
 
-Standard output carries the result the command was asked for; a redirected result holds nothing else. Standard error carries the errors, the warnings (`Warning: ...`), the notes and the next step. `tests/test_error_forms.py` fails when a `Warning:` line is printed to standard output. A list that is empty says so on one line (`No share recorded.`), and an error about a file names it in words, never as the `[Errno 2]` text of Python.
+Standard output carries the result the command was asked for; a redirected result holds nothing else. Standard error carries the errors, the warnings (`Warning: ...`), the notes and the next step. `tests/test_error_forms.py` fails when a `Warning:` line is printed to standard output.
+A list that is empty says so on one line (`No share recorded.`), and an error about a file names it in words, never as the `[Errno 2]` text of Python.
 
 ## Open decision
 

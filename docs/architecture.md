@@ -1,5 +1,7 @@
 # Architecture
 
+For: a developer or a security architect who reads how the catalog, the CLI and the host agent fit together.
+
 OpenGuildKit has three parts: a **knowledge catalog** (JSON data), a **CLI** that turns the catalog and a project profile into instructions, consultation requests and handoffs for a host agent, and a **local web interface** over the same CLI. None of them does AI work itself.
 
 ## Components

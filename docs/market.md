@@ -1,5 +1,7 @@
 # Market dossiers and competitor watch
 
+For: a product or marketing owner who keeps a comparison with competitors.
+
 Product and Marketing judge a feature against what the market already offers. A market dossier keeps that comparison in the project, with dated sources, so each consultation reuses it instead of starting over.
 
 ## The dossier

@@ -1,5 +1,7 @@
 # Task workflow
 
+For: the person who decides on a change and the agent that follows the task path.
+
 Every change in an OpenGuildKit project goes through the same six steps, from the request to the closing. The host agent runs the commands; the person answers the questions, makes the decision and confirms what is theirs to confirm. A project can opt in to a [short lane](#short-lane) for a change a person declares trivial; it is off until a person turns it on.
 
 ```mermaid
