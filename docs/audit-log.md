@@ -60,7 +60,8 @@ Whoever can write the file can also rewrite the whole chain from the first chang
 openguildkit audit export --since 2026-11-01 > events.jsonl
 ```
 
-The file of the audit log is already one event per line, which a log agent collects as it grows. `audit export` serves another need: it rebuilds events for the days before the log was on, from what the repository holds, the approvals of `.openguildkit/decisions/*.json` and the changes of the profile in `.openguildkit/project.json`, oldest first, chained like the log, each marked `"reconstructed":true`.
+The file of the audit log is already one event per line, which a log agent collects as it grows.
+`audit export` serves another need: it rebuilds events for the days before the log was on, from what the repository holds, the approvals of `.openguildkit/decisions/*.json` and the changes of the profile in `.openguildkit/project.json`, oldest first, chained like the log, each marked `"reconstructed":true`.
 The history of the profile keeps a day and no time, so a `profile.changed` event of an export is dated 00:00:00 UTC of that day. Withdrawals, refusals and the other events are in the live log only.
 
 ## The date of an approval

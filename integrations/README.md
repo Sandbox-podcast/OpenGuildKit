@@ -85,7 +85,8 @@ A team can say that a folder (customer exports, secrets, scoring models) is clos
 | Gemini CLI | Nothing: no setting of Gemini CLI that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
 | Other hosts | Nothing. |
 
-Not done yet, though issue #519 asks for it: `profile set restricted-paths` with its history and its confirmation at a terminal, the `pre-edit` hook that refuses an edit on a restricted path even under an approved task, and the removal of the rules `host apply` wrote when a path leaves the setting. A rule it wrote cannot be told from the same rule the team wrote, so `host apply` removes none: delete the stale rule by hand. How `host apply` should recognise its own rules is an open question of that issue.
+Not done yet, though issue #519 asks for it: `profile set restricted-paths` with its history and its confirmation at a terminal, the `pre-edit` hook that refuses an edit on a restricted path even under an approved task, and the removal of the rules `host apply` wrote when a path leaves the setting.
+A rule it wrote cannot be told from the same rule the team wrote, so `host apply` removes none: delete the stale rule by hand. How `host apply` should recognise its own rules is an open question of that issue.
 OpenGuildKit does not write the paths into `AGENTS.md` either, so an agent of Codex or Gemini CLI is not told about them.
 
 ### What the host documentation says
@@ -244,11 +245,13 @@ Without an approved task, the first prints the reminder as `additionalContext` u
 
 ## Managed settings: one deployment for every project
 
-`openguildkit host apply` writes the settings of one project. Each of the three hosts also reads a layer that the company manages and that wins over the others, which an MDM deploys. `openguildkit host managed --host claude-code|codex|gemini-cli --os macos|linux|windows` prints the file for that layer, or writes it in a folder you give it, and installs nothing; [the page](../docs/managed-settings.md) says what each file holds, where each system expects it and what is left to verify.
+`openguildkit host apply` writes the settings of one project. Each of the three hosts also reads a layer that the company manages and that wins over the others, which an MDM deploys. `openguildkit host managed --host claude-code|codex|gemini-cli --os macos|linux|windows` prints the file for that layer, or writes it in a folder you give it, and installs nothing;
+[the page](../docs/managed-settings.md) says what each file holds, where each system expects it and what is left to verify.
 
 The pages behind it were read on 2026-11-26 by the audit of issue #453 and not read again when the command was written:
 
-- Claude Code, [Managed settings](https://code.claude.com/docs/en/managed-settings.md): the files `managed-settings.json` and the folder `managed-settings.d/`, the macOS profile `com.anthropic.claudecode`, the registry key `HKLM\SOFTWARE\Policies\ClaudeCode`; and [Settings reference](https://code.claude.com/docs/en/settings-reference.md): `allowManagedHooksOnly`, "Run only the hooks your organization deploys". With it, the hooks of a project do not run, and `host check` says so.
+- Claude Code, [Managed settings](https://code.claude.com/docs/en/managed-settings.md): the files `managed-settings.json` and the folder `managed-settings.d/`, the macOS profile `com.anthropic.claudecode`, the registry key `HKLM\SOFTWARE\Policies\ClaudeCode`; and [Settings reference](https://code.claude.com/docs/en/settings-reference.md):
+  `allowManagedHooksOnly`, "Run only the hooks your organization deploys". With it, the hooks of a project do not run, and `host check` says so.
 - Codex, [Managed configuration](https://learn.chatgpt.com/docs/enterprise/managed-configuration.md): `requirements.toml` at `/etc/codex/` and `%ProgramData%\OpenAI\Codex\`, the MDM key `com.openai.codex:requirements_toml_base64`, and the pin of `[features].hooks = true` that keeps the hooks on. The key names of managed hooks and rules were not read: à vérifier.
 - Gemini CLI, [Configuration](https://geminicli.com/docs/reference/configuration/): the system settings file at `/etc/gemini-cli/settings.json`, `/Library/Application Support/GeminiCli/settings.json` and `C:\ProgramData\gemini-cli\settings.json`, which overrides the other files.
 
