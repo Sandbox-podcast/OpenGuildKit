@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import lock
-from openguildkit.catalog import load_catalog
+from openguildkit.catalog import bundled_ids, load_catalog
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
 from openguildkit.project import validate_profile
 from openguildkit.storage import write_json
@@ -32,6 +32,14 @@ def release_without_playwright(extra_dir=None, **options):
     return catalog
 
 
+def ids_without_playwright():
+    """The IDs that the simulated release ships."""
+    shipped = bundled_ids()
+    for collection, record_id in DROPPED.items():
+        shipped[collection].discard(record_id)
+    return shipped
+
+
 class UpgradeTests(CapturedCli, unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -43,7 +51,8 @@ class UpgradeTests(CapturedCli, unittest.TestCase):
         self.profile_file = self.root / ".openguildkit" / "project.json"
 
     def upgraded(self, *arguments, code=0):
-        with patch.object(lock, "load_catalog", release_without_playwright):
+        with patch.object(lock, "load_catalog", release_without_playwright), \
+                patch.object(lock, "bundled_ids", ids_without_playwright):
             return self.run_cli(*arguments, code=code)
 
     def locked_ids(self):

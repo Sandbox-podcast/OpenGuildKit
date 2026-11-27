@@ -12,6 +12,9 @@ records, for guard --ci. Python caches the bytecode in that folder, as an instal
 does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
+The report says whether the commands read the bundled catalog from
+registry/catalog.bundle.json, as the wheel ships it: run
+python scripts/build_catalog_bundle.py first to time what a team installs.
 tests/test_performance.py runs the same measures with budgets, with a smaller
 node_modules: the walk never enters it, which a test checks on its own.
 """
@@ -274,10 +277,19 @@ def measure(repeat: int = 3, dependencies: int = DEPENDENCY_FILES) -> dict:
         shutil.rmtree(base, ignore_errors=True)
 
 
+def catalog_bundle() -> bool:
+    """Whether the commands read the bundled catalog from registry/catalog.bundle.json, as the wheel ships it, rather
+    than from its record files, as a checkout without the bundle does."""
+    from openguildkit import catalog
+
+    return catalog._read_bundle(catalog._registry()) is not None
+
+
 def report(results: dict) -> dict:
     return {
         "python": platform.python_version(),
         "platform": platform.platform(terse=True),
+        "catalog_bundle": catalog_bundle(),
         "results": {name: {"median_s": round(item["median"], 3), "x_start": round(item["x_start"], 1)}
                     for name, item in results.items()},
     }
@@ -287,6 +299,9 @@ def table(results: dict) -> str:
     width = max(map(len, results))
     lines = [f"{'command':<{width}}  median s  x start", f"{'-' * width}  --------  -------"]
     lines += [f"{name:<{width}}  {item['median']:8.3f}  {item['x_start']:7.1f}" for name, item in results.items()]
+    lines.append("Bundled catalog read from registry/catalog.bundle.json, as the wheel ships it." if catalog_bundle()
+                 else "Bundled catalog read from its record files: no up-to-date registry/catalog.bundle.json, which "
+                      "the wheel ships (python scripts/build_catalog_bundle.py).")
     return "\n".join(lines)
 
 

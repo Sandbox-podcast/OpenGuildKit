@@ -23,7 +23,7 @@ import time
 import tomllib
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from openguildkit import catalog, lock, tasks, webui
 from openguildkit.__main__ import hook_call
@@ -90,6 +90,18 @@ class PerformanceTests(unittest.TestCase):
                 self.assertLess(item["median"], CEILING_SECONDS)
                 self.assertLess(item["x_start"], budget, f"{name}: {item['median']:.3f} s, "
                                 f"{item['x_start']:.1f} times the start; budget {budget}")
+
+
+class BenchReportTests(unittest.TestCase):
+    def test_the_report_says_whether_the_commands_read_the_catalog_bundle(self):
+        """Issue #533: a benchmark of a checkout timed the catalog record files, not the bundle the wheel ships,
+        without saying so."""
+        results = {"start (--version)": {"median": 0.1, "x_start": 1.0}}
+        for bundle, read in ((None, False), ({}, True)):
+            with self.subTest(read=read), patch("openguildkit.catalog._read_bundle", return_value=bundle):
+                self.assertIs(bench.report(results)["catalog_bundle"], read)
+                last = bench.table(results).splitlines()[-1]
+                self.assertEqual(last.startswith("Bundled catalog read from registry/catalog.bundle.json"), read, last)
 
 
 class RoutingSpeedTests(unittest.TestCase):
@@ -167,6 +179,40 @@ class CatalogLoadTests(unittest.TestCase):
             self.bundled_reads("task", "consult", "status", "--answers", bench.EXAMPLE / "answers.json")
         project = [call for call in merged.call_args_list if call.args[1] is not None]
         self.assertEqual((len(project), locks.call_count), (1, 1))
+
+    def test_task_list_loads_the_catalog_once_and_reads_the_lock_once(self):
+        """Issue #533: task list loaded the catalog twice and read the lock twice, a deep copy each time."""
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        self.bundled_reads("task", "new", "A brief.", "--id", "one")
+        counters = {}
+        with contextlib.ExitStack() as stack:
+            for module, name in ((catalog, "load_catalog"), (lock, "read_lock")):
+                function = getattr(module, name)
+                counters[name] = MagicMock(wraps=function)
+                holders = [item for key, item in list(sys.modules.items())
+                           if key.startswith("openguildkit") and getattr(item, name, None) is function]
+                for holder in holders:
+                    stack.enter_context(patch.object(holder, name, counters[name]))
+            self.bundled_reads("task", "list")
+        self.assertEqual({name: counter.call_count for name, counter in counters.items()},
+                         {"load_catalog": 1, "read_lock": 1})
+
+    def test_task_list_copies_the_catalog_at_most_25_times(self):
+        """Issue #533: task list deep-copied each locked record once more, 46 copies for a lock of 41 records."""
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        original, depth, copies = catalog.json_copy, [0], [0]
+
+        def counted(value):
+            copies[0] += depth[0] == 0  # json_copy calls itself for each nested value: count the outer call only
+            depth[0] += 1
+            try:
+                return original(value)
+            finally:
+                depth[0] -= 1
+
+        with patch.object(catalog, "json_copy", counted), patch.object(lock, "json_copy", counted):
+            self.bundled_reads("task", "list")
+        self.assertLessEqual(copies[0], 25)
 
     def rewrite_in_place(self, path: Path, old: bytes, new: bytes) -> None:
         """Rewrite a file in place with the same size and give it back its modification time, as an editor that
