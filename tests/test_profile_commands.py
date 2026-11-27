@@ -494,5 +494,51 @@ class ProfileExportTests(unittest.TestCase):
         self.assertIn("openguildkit init", error)
 
 
+class ToolListTests(unittest.TestCase):
+    """The tools of the profile are changed by `features enable` and by `profile add tool`: one spelling for each."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "answers.json", {"name": "Ledger", "personal_data": "no", "stack": ["Python"]})
+        run_cli(self.root, "init", "--answers", self.root / "answers.json")
+
+    def tools(self) -> list[str]:
+        return json.loads((self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")).get("tools", [])
+
+    def change(self, *arguments, code=0):
+        return run_cli(self.root, *arguments, "--by", "CM", "--reason", "Tracker", expect=code, env=DAY)
+
+    def test_profile_remove_tool_takes_out_what_features_enable_wrote(self):
+        """Issue #526: `features enable jira` wrote "Jira" and `profile remove tool jira` refused it."""
+        self.change("features", "enable", "jira")
+        self.assertEqual(self.tools(), ["Jira"])
+        self.change("profile", "remove", "tool", "jira")
+        self.assertEqual(self.tools(), [])
+
+    def test_profile_add_tool_does_not_add_the_tool_a_feature_already_wrote(self):
+        """Issue #526: `profile add tool jira` after `features enable jira` gave two entries, "Jira" and "jira"."""
+        self.change("features", "enable", "jira")
+        refused = self.change("profile", "add", "tool", "jira", code=1)
+        self.assertIn("jira is already in the profile's tools", refused.stderr)
+        self.assertEqual(self.tools(), ["Jira"])
+
+    def test_the_other_order_writes_the_title_and_features_agree(self):
+        """Issue #526: `profile add tool jira` wrote "jira", which `features disable jira` then did not know as on."""
+        self.change("profile", "add", "tool", "jira")
+        self.assertEqual(self.tools(), ["Jira"])
+        self.assertIn("already on", self.change("features", "enable", "jira", code=1).stderr)
+        self.change("features", "disable", "jira")
+        self.assertEqual(self.tools(), [])
+
+    def test_a_tool_the_registry_does_not_know_is_written_as_typed(self):
+        self.change("profile", "add", "tool", "Our wiki")
+        self.assertEqual(self.tools(), ["Our wiki"])
+        self.assertIn("already in", self.change("profile", "add", "tool", "Our wiki", code=1).stderr)
+        self.change("profile", "remove", "tool", "Our wiki")
+        self.assertEqual(self.tools(), [])
+
+
 if __name__ == "__main__":
     unittest.main()

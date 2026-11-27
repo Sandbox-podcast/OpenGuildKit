@@ -27,6 +27,7 @@ from .shell import shell_word
 from .storage import print_json, project_lock, write_json
 from .tasks import tasks_touched
 from .terminal import interactive
+from .tools import load_tools, match_tools
 
 LIST_FIELDS = {
     "pack": ("packs", "packs"), "role": ("roles", None), "tool": ("tools", None), "check": ("checks", None),
@@ -349,8 +350,26 @@ def _rule_argument(args) -> str | None:
     return rule
 
 
+def _change_tools(current: list[str], values: list[str], add: bool) -> list[str]:
+    """The profile's tools after profile add or remove tool: a tool of the registry is found under any of its
+    spellings and written as its title, as features enable and disable do; any other name is kept as typed."""
+    tools = load_tools()
+    for value in values:
+        tool_id = (match_tools([value], tools)[0] or [None])[0]
+        names = [name for name in current if name == value or tool_id and match_tools([name], tools)[0] == [tool_id]]
+        if add and names or not add and not names:
+            raise ValueError(f"{value} is {'already in' if add else 'not in'} the profile's tools. Nothing was written.")
+        if add:
+            current = [*current, tools[tool_id]["title"] if tool_id else value]
+        else:
+            current = [name for name in current if name not in names]
+    return current
+
+
 def _change_list(profile: dict, field: str, values: list[str], add: bool, catalog: dict) -> dict:
     key, collection = LIST_FIELDS[field]
+    if field == "tool":
+        return {**profile, key: _change_tools(list(profile.get(key, [])), values, add)}
     known = catalog[collection] if collection else role_choices(catalog["patterns"]) if field == "role" else None
     current = list(profile.get(key, []))
     for value in values:

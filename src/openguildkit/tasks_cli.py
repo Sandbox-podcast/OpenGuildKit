@@ -90,7 +90,7 @@ ACTION_HELP = {
     "result": "Record the delivered revision, criteria and check outcomes.",
     "complete": "Close the task: done, or done-with-reservations when points stay open.",
     "runs": "Compare the last two ChaosFolk replays of the task.",
-    "alerts": "Import dependency alerts for the task into the project register and review them.",
+    "alerts": "Shortcut of the alerts commands for one task: import (--import), review (--set) or link (--link) alerts.",
     "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
     "authorize": "Record a person's decision on an external action outside the authorized scope.",
 }

@@ -69,6 +69,11 @@ class HelpPageTests(unittest.TestCase):
             result = run_cli(folder, "check", "--help")
         self.assertIn("Check that the instructions match the project profile.", result.stdout)
 
+    def test_task_alerts_says_it_is_a_shortcut_of_the_alerts_commands(self):
+        """Issue #526: task alerts and alerts import, set and link write the same register, and nothing said so."""
+        shortcut = _subcommands(_subcommands(command_parser())["task"])["alerts"].description
+        self.assertIn("Shortcut of the alerts commands", shortcut)
+
     def test_every_command_of_the_root_is_named_in_a_group_of_the_root_page(self):
         self.assertEqual(sorted(set(_subcommands(command_parser())) - set(COMMAND_ORDER)), [])
 
