@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from openguildkit.decisions import record_digest
-from openguildkit.guard import _earlier_records
+from openguildkit.guard import _base_files, _earlier_records
 from openguildkit.storage import write_json
 
 from tests.support import CapturedCli
@@ -101,7 +101,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         self.run_cli("task", "export", TASK, "--output", self.root / archived)
         self.git("add", "-f", archived)
         self.git("commit", "-q", "-m", "merged decision, archived")
-        self.assertIn(TASK, _earlier_records(self.root / ".openguildkit" / "decisions"))
+        self.assertIn(TASK, _earlier_records(_base_files(self.root, "main", [archived])))
 
         self.git("checkout", "-q", "-b", "payments")
         self.write("payments.py", "charge()\n")

@@ -6,8 +6,9 @@ Each command runs as a real process, as an agent or a hook runs it, in projects
 built in a temporary folder: the request status example (guard off), the same
 project with 500 tasks of which 5 are approved (guard enforce), that project
 again inside a Git repository whose commit the approvals record, a web project
-whose node_modules holds FILES files (50 000 by default), and a monorepo of 200
-packages. Python caches the bytecode in that folder, as an installed package
+whose node_modules holds FILES files (50 000 by default), a monorepo of 200
+packages, and a Git repository whose base revision holds 200 exported decision
+records, for guard --ci. Python caches the bytecode in that folder, as an installed package
 does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
@@ -42,6 +43,7 @@ TASK = "request-status"
 TASKS = 500
 APPROVED = 5
 PACKAGES = 200
+MERGED = 200
 DEPENDENCY_FILES = 50_000
 BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
              "is never called.")
@@ -136,6 +138,34 @@ def many_tasks(folder: Path, in_git: bool = False) -> Path:
     return project
 
 
+def merged_records(folder: Path) -> Path:
+    """A Git repository whose base revision, HEAD~2, holds MERGED exported decision records, then a change of one
+    file with its own record, as guard --ci checks a pull request on a repository with a long history. The merged
+    records are copies of one export under MERGED task IDs: guard --ci reads them without checking their seals."""
+    project = example_project(folder, guard="enforce")
+    git(project, "init", "-q")
+    (project / "src").mkdir()
+    app = project / "src" / "app.py"
+    app.write_text("print('app')\n", encoding="utf-8")
+    git(project, "add", "-A")
+    git(project, "commit", "-qm", "Start")
+    approve(project, "merged")
+    app.write_text("print('merged')\n", encoding="utf-8")
+    exported = project / in_process(project, "task", "export", "merged").strip()
+    record = json.loads(exported.read_text(encoding="utf-8"))
+    exported.unlink()
+    for index in range(MERGED):
+        write_json(exported.with_name(f"merged-{index:03d}.json"), {**record, "task": f"merged-{index:03d}"})
+    git(project, "add", "-A")
+    git(project, "commit", "-qm", "Merged records")
+    approve(project, TASK)
+    app.write_text("print('status')\n", encoding="utf-8")
+    git(project, "commit", "-qam", "Work")
+    git(project, "add", in_process(project, "task", "export", TASK).strip())
+    git(project, "commit", "-qm", "Record")
+    return project
+
+
 def web_project(folder: Path, dependencies: int) -> Path:
     """The example project with a front end and a node_modules of that many files, as npm install leaves it."""
     project = example_project(folder)
@@ -181,6 +211,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
     in_git = many_tasks(base / "many-tasks-git", in_git=True)
     web = web_project(base / "web", dependencies)
     repo = monorepo(base / "monorepo")
+    merged = merged_records(base / "merged-records")
     counter = iter(range(10 ** 6))
 
     def fresh_init():
@@ -221,6 +252,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         (f"guard --hook prompt ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "prompt", stdin="{}")),
         (f"detect (monorepo, {PACKAGES} packages)", lambda: cli(repo, "detect", "--json")),
         (f"init (monorepo, {PACKAGES} packages)", init_monorepo),
+        (f"guard --ci ({MERGED} records on the base)", lambda: cli(merged, "guard", "--ci", "--base", "HEAD~2")),
     ]
 
 
