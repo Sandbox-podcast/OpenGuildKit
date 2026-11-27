@@ -1072,6 +1072,20 @@ class WebInterfaceTests(unittest.TestCase):
                                       headers={**gzip_only, "If-None-Match": plain[1]["ETag"]})[0], 200)
 
 
+    def test_no_page_of_the_server_allows_inline_styles(self):
+        """Issue #514: style-src 'unsafe-inline' let an injected style tag or attribute redraw a command."""
+        policies = [self.request("/")[1], self.request("/assets/app-0123456789.js")[1],
+                    fetch(self.app.port, "/", None, self.app.host.rpartition(":")[0])[1],  # the gate page
+                    fetch(self.app.port, "/", None)[1]]
+        self.app.front = None
+        policies.append(self.request("/")[1])  # the page that says the front end is not built
+        for headers in policies:
+            directives = dict(part.strip().partition(" ")[::2] for part in headers["Content-Security-Policy"].split(";"))
+            self.assertEqual(directives["style-src"], "'self'")
+            self.assertNotIn("unsafe-inline", headers["Content-Security-Policy"])
+            self.assertNotIn("unsafe-eval", headers["Content-Security-Policy"])
+
+
 class UiCommandTests(unittest.TestCase):
     """The ui command itself, started in a subprocess as a person starts it, then stopped."""
 
