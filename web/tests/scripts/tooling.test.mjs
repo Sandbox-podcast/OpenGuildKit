@@ -41,9 +41,9 @@ describe('Node version', () => {
     expect(JSON.parse(read('package-lock.json')).packages[''].engines).toEqual(pkg.engines);
   });
 
-  it('runs the ratchet in CI, in the web job', () => {
+  it('runs the ratchet, the linter and the formatter check in CI, in the web job', () => {
     const workflow = read('../.github/workflows/ci.yml');
     const web = workflow.slice(workflow.indexOf('\n  web:'), workflow.indexOf('\n  web-e2e:'));
-    expect(web).toContain('npm run check:ratchet');
+    for (const script of ['check:ratchet', 'lint', 'format:check']) expect(web).toContain(`npm run ${script}`);
   });
 });

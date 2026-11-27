@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_LINE, compare, longLines, parseTsc } from '../../scripts/check-ratchet.mjs';
+import { MAX_LINE, compare, longLines, parseEslint, parseList, parseTsc } from '../../scripts/check-ratchet.mjs';
 
 const roots = [];
 function project(files) {
@@ -41,6 +41,23 @@ describe('npm run check:ratchet', () => {
       'Found 3 errors in 2 files.',
     ].join('\n');
     expect(parseTsc(output)).toEqual({ 'src/project/views/Council.tsx': 2, 'src/domain/commands/forge.ts': 1 });
+  });
+
+  /** Issue #515: no linter, so nothing said which files break which rule. */
+  it('counts the problems of ESLint per file, from its JSON, and skips the clean files', () => {
+    const root = '/web';
+    const json = JSON.stringify([
+      { filePath: '/web/src/project/data.ts', messages: [{ ruleId: 'eqeqeq' }, { ruleId: 'prefer-const' }] },
+      { filePath: '/web/src/project/query.ts', messages: [] },
+      { filePath: '/web/scripts/a.mjs', messages: [{ ruleId: null, fatal: true }] },
+    ]);
+    expect(parseEslint(json, root)).toEqual({ 'src/project/data.ts': 2, 'scripts/a.mjs': 1 });
+  });
+
+  /** Issue #515: no formatter, so nothing said which files are not formatted. */
+  it('counts one per file Prettier would change, from its list', () => {
+    expect(parseList('src/a.ts\nsrc/deep/b.tsx\n\n')).toEqual({ 'src/a.ts': 1, 'src/deep/b.tsx': 1 });
+    expect(parseList('')).toEqual({});
   });
 
   it('lets a file get better, and a file with no baseline stay at zero', () => {

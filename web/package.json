@@ -22,7 +22,10 @@
     "check": "npm run typecheck && npm run test && npm run build",
     "bundle": "node scripts/bundle.mjs",
     "check:exports": "node scripts/unused-exports.mjs",
-    "check:ratchet": "node scripts/check-ratchet.mjs",
+    "check:ratchet": "node scripts/check-ratchet.mjs longLines indexedAccess",
+    "lint": "node scripts/check-ratchet.mjs lint",
+    "format": "prettier --write",
+    "format:check": "node scripts/check-ratchet.mjs unformatted",
     "e2e:project": "playwright test -c playwright.project.config.ts",
     "sample": "python scripts/sample-project.py",
     "measure:project": "node scripts/measure-project.mjs"
