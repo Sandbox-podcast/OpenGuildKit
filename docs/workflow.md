@@ -708,5 +708,7 @@ The job asks for `contents: read` and `issues: write` and nothing else: it write
 |---|---|
 | 0 | Success, also when the reader of the output stops early, as `head` does in a pipe: the command ends without a message |
 | 1 | Validation or state error (message on stderr, prefixed `OpenGuildKit:`). A command refused in the task's status, such as `task pass` on a draft or `task decide` during the consultation, says what it refuses, the status, and the command that runs next in it |
-| 2 | Command-line usage error |
+| 2 | Command-line usage error. Three commands give 2 for another reason: `guard --hook` (an edit is refused), `tools apply` (some tools are connected, others not) and `ci-check` (the evaluation could not run) |
 | 130 | Cancelled with Ctrl+C |
+
+Code 1 also covers a project that does not conform and a command that could not evaluate it; the message tells them apart. [Exit codes](exit-codes.md) lists every command that departs from this table, with its case.

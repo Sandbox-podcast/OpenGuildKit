@@ -184,6 +184,7 @@ openguildkit patterns --id python-fastapi-postgresql
 ## Documentation
 
 - [Install a GitHub release](docs/install.md) and [changelog](CHANGELOG.md)
+- [Exit codes of the commands, for a CI job or a script](docs/exit-codes.md)
 
 - [Run an executable catalog rule in CI](examples/export-expiry/README.md)
 - [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)

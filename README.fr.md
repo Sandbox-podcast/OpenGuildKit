@@ -187,6 +187,7 @@ openguildkit brains --id product
 ## Documentation
 
 - [Installer une release GitHub](docs/install.md) et [journal des changements](CHANGELOG.md)
+- [Codes de sortie des commandes, pour un job de CI ou un script](docs/exit-codes.md)
 
 - [Vérifier une règle de catalogue en CI](examples/export-expiry/README.md)
 - [Coordonner les vérifications de PR avec GitHub Actions et Jenkins](integrations/ci/README.md)
