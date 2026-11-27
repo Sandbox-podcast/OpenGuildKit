@@ -91,6 +91,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit ui` serves each file of the page with the type of its extension from a fixed table (`.html`, `.js`, `.css`, `.json`, `.svg`, `.webp`, `.png`, `.woff2`), not from the registry of the workstation: a program that declares `.js` as `text/plain` no longer leaves the page blank under `nosniff` (#468)
 - `openguildkit ui` sends an `ETag` with every file of the page and answers `304` to `If-None-Match`, so a reload no longer downloads the logo, the decors and `index.html` again (464 KB on the built page); a text file is compressed once, at level 6, and kept (#470)
 - `openguildkit ui` serves the page with `style-src 'self'`: the policy no longer allows `'unsafe-inline'`, so an injected `<style>` tag or `style` attribute cannot hide or redraw a command the page shows. The 21 places of the page, in both styles, raise no violation in Chrome (#514)
+- `openguildkit ui` no longer prints a Python trace in its terminal when a tab is closed or reloaded during a request: the closed connection is dropped without a report or a second write, and a real failure of a command still prints its trace and answers `server-error` (#516)
 
 ## 0.17.0
 

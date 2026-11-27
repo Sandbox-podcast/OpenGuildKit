@@ -639,6 +639,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
         except Refused as refusal:
             self._refuse(refusal)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return  # The browser closed the connection, a tab closed or reloaded: no one is left to answer.
         except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
             self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,

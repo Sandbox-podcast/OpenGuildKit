@@ -9,6 +9,7 @@ import os
 import shlex
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -985,6 +986,33 @@ class WebInterfaceTests(unittest.TestCase):
         terminal = io.StringIO()
         with contextlib.redirect_stderr(terminal):
             self.assertEqual(self.request("/api/files/read", {"path": ".env"})[0], 403)
+        self.assertEqual(terminal.getvalue(), "")
+
+    def test_a_client_that_closes_the_connection_before_the_answer_leaves_nothing_in_the_terminal(self):
+        """Issue #516: closing the tab during a request printed 21 lines of trace for a failure that was nobody's."""
+        started, release = threading.Event(), threading.Event()
+
+        def handle(path, body):
+            started.set()
+            release.wait(30)
+            return {"code": 0, "stdout": "", "stderr": "", "json": {"padding": "x" * 100_000}}
+
+        body = json.dumps({"argv": ["check"]}).encode("utf-8")
+        head = (f"POST /api/run HTTP/1.1\r\nHost: {self.app.host}\r\nOrigin: {self.app.origin}\r\n"
+                f"X-OGK-Token: {self.app.token}\r\nContent-Type: application/json\r\n"
+                f"Content-Length: {len(body)}\r\n\r\n").encode("ascii")
+        terminal = io.StringIO()
+        with patch.object(self.app, "handle", side_effect=handle), contextlib.redirect_stderr(terminal):
+            client = socket.create_connection(("127.0.0.1", self.app.port), timeout=30)
+            client.sendall(head + body)
+            self.assertTrue(started.wait(30))
+            # A reset, as a browser that closes the tab sends it, so that the next write of the server fails.
+            client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+            client.close()
+            release.set()
+            for thread in threading.enumerate():
+                if "process_request_thread" in thread.name:
+                    thread.join(30)
         self.assertEqual(terminal.getvalue(), "")
 
     def test_the_front_end_is_served_with_a_content_security_policy(self):
