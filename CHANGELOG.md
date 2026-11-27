@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- init: the two long lists of the interactive questionnaire (patterns, packs) print only what Enter keeps and `list` shows the rest (167 lines instead of 416 when the defaults are kept); the first refusal for `norms` prints the object to paste and the README names `norms`; `task review`, `task decide` and `task export` print a `Next:` line on stderr (#529)
 - Errors: a file that cannot be opened is named in words (`Cannot open nope.json: it does not exist.`), never as `[Errno 2]`; an unknown identifier reads `Unknown KIND: VALUE. Run openguildkit ...`; `task list --status` refuses an unknown status; `docs share list` says `No share recorded.`; `Warning:` lines go to stderr; `host apply` prints what it wrote on stdout; `guard --ci` names `--base` (#528)
 - README: `guard --ci` and `check` are named as the pull request checks in CI and `ci-check` as the example of a central rule, in English and French; both READMEs list the same commands to browse the catalog (a test compares them); the root help groups `--policy-repo` and `--policy-commit` under "central policy" (#497)
 - Exit codes: `docs/exit-codes.md` lists the commands that give 1 or 2 for a reason of their own (`guard --hook`, `guard --ci`, `check`, `ci-check`, `tools apply`, `host scan --strict`, `task verify`, `docs share check`), each replayed by a test; the table of `docs/workflow.md` no longer calls every 2 a usage error (#495)

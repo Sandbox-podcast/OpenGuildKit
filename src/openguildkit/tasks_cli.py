@@ -594,6 +594,8 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             require_instructions(args, root, state, profile, catalog)
         write_json(task_path(state, args.id), result)
     print(result["status"])
+    print(f"Next: openguildkit task handoff {args.id} gives the agent the implementation brief." if args.approve
+          else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 
 
 def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]:
@@ -1149,6 +1151,7 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. It lists the files Git "
               "tracks that changed since the approval, which guard --ci compares with the pull request: export it "
               "again once the work is committed, and after task complete, and commit it.", file=sys.stderr)
+    print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
 def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1332,6 +1335,9 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     if review is not None:
         for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
             print(f"Warning: {warning}", file=sys.stderr)
+    print(f"Next: openguildkit task deliberate {args.id} lists the objections between boards (skip it and task respond "
+          f"when no board objects), then openguildkit task challenge {args.id} prints the decision brief to show the "
+          "person.", file=sys.stderr)
 
 
 def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:

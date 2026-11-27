@@ -901,7 +901,9 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
         listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
         raise ValueError(
             f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
-            'Write "yes", or {"answer": "no", "by": "NAME", "reason": "WHY"}. Nothing was written.'
+            'Add this line to the answers file, "yes" for a norm that applies, or {"answer": "no", "by": "NAME", '
+            f'"reason": "WHY"}} to decline it: "norms": {json.dumps({entry["id"]: "yes" for entry in missing})}. '
+            "Nothing was written."
         )
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):

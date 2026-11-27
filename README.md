@@ -43,7 +43,7 @@ For every change, OpenGuildKit convenes the brains it concerns. Each one reviews
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps, except the required question on personal data, which waits for an answer. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
+From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps, except the required question on personal data, which waits for an answer. The two long lists, patterns and packs, print only what Enter keeps: type `list` to see the others. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
 openguildkit detect
@@ -53,7 +53,7 @@ openguildkit host apply
 openguildkit check
 ```
 
-With Claude Code, Codex or Gemini CLI as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question.
+With Claude Code, Codex or Gemini CLI as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question. With `yes` or `unsure`, it must also answer `norms`, one entry for each norm the project meets, such as `"norms": {"gdpr-personal-data": "yes"}`: the first refusal prints the line to paste.
 
 To set up a second repository like the first, run `openguildkit profile export > answers.json` in the first and `openguildkit init --answers answers.json` in the second: the same patterns, packs, boards, guard and conventions. People's names, the history of changes, the signers file, component paths and check commands stay behind, and a setting that names a person or lowers a protection is typed again by the person at a terminal there; the export prints each one ([reuse the profile](docs/workflow.md#reuse-the-profile-in-another-repository)).
 
