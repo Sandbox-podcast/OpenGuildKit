@@ -274,7 +274,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `AgentCostTests` in `tests/test_agent_native.py`, to extend with a session folder holding one subagent file and two models.
 
-**Today.** One file, one price. Issue #485.
+**Today.** Done for the session folder, the message counted once and the price by model (a model without a rate is named, none but one has a rate yet); the total is not yet tied to a task. Issue #485.
 
 ## Stay fast
 
