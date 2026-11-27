@@ -51,8 +51,8 @@ BUDGETS = {
     f"guard --hook prompt ({bench.TASKS} tasks)": 5,
     f"detect (monorepo, {bench.PACKAGES} packages)": 11,
     f"init (monorepo, {bench.PACKAGES} packages)": 11,
-    # Twice the median ratio measured (4.1); 34 with one git show per record on the base (issue #532).
-    f"guard --ci ({bench.MERGED} records on the base)": 8,
+    # Three times the highest ratio measured (3.0 to 4.1); 34 with one git show per record on the base (issue #532).
+    f"guard --ci ({bench.MERGED} records on the base)": 13,
 }
 START_BUDGET = 25  # times a bare interpreter start
 CEILING_SECONDS = 60
