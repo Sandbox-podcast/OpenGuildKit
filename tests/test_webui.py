@@ -643,6 +643,34 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(record["brief"], "Show the four agreed status labels on each support request.")
         self.assertEqual(record["rounds"][0]["brief"], (EXAMPLE / "brief.md").read_text(encoding="utf-8").strip())
 
+    def test_a_task_record_goes_to_the_page_without_what_no_screen_reads_and_stays_whole_for_the_cli(self):
+        """Issue #466: board_briefs and domains made up 66 to 98 % of the JSON of a task sheet, read by no screen."""
+        self.reviewed_task()
+        self.run_in_page("task", "decide", "request-status", "--request-changes", "--by", "Camille", "--reason", "Again")
+        self.run_in_page("task", "consult", "request-status", "--answers", "@upload:answers.json",
+                         uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8")})
+        printed = run_cli(self.root, "task", "show", "request-status").stdout
+        record = json.loads(printed)
+        self.assertTrue(record["consultation"]["board_briefs"])
+        self.assertTrue(record["consultation"]["domains"])
+        self.assertTrue(record["rounds"][0]["consultation"]["board_briefs"])
+        status, result = self.run_in_page("task", "show", "request-status")
+        self.assertEqual((status, result["code"]), (200, 0))
+        shown = result["json"]
+        for consultation in (shown["consultation"], shown["rounds"][0]["consultation"]):
+            self.assertNotIn("board_briefs", consultation)
+            self.assertNotIn("domains", consultation)
+            self.assertIn("boards", consultation)
+        self.assertEqual(shown["consultation"]["boards"], record["consultation"]["boards"])
+        self.assertLess(len(json.dumps(shown)), len(printed) / 2)
+        # The text the CLI printed is still there for a page that asks to copy it, and the CLI itself is unchanged.
+        status, _, raw = self.request("/api/run", {"argv": ["task", "show", "request-status"], "raw": True})
+        self.assertEqual(json.loads(json.loads(raw)["stdout"]), record)
+        self.assertEqual(json.loads(run_cli(self.root, "task", "show", "request-status").stdout), record)
+        # Only a consultation loses them: another key of that name keeps its content.
+        self.assertEqual(webui._without_unread({"domains": [1], "board_briefs": {}, "consultation": {"domains": [1]}}),
+                         {"domains": [1], "board_briefs": {}, "consultation": {}})
+
     def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):
         project = self.root / ".openguildkit" / "project.json"
         saved = json.loads(project.read_text(encoding="utf-8"))

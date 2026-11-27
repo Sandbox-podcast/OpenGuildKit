@@ -92,6 +92,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `openguildkit ui` sends an `ETag` with every file of the page and answers `304` to `If-None-Match`, so a reload no longer downloads the logo, the decors and `index.html` again (464 KB on the built page); a text file is compressed once, at level 6, and kept (#470)
 - `openguildkit ui` serves the page with `style-src 'self'`: the policy no longer allows `'unsafe-inline'`, so an injected `<style>` tag or `style` attribute cannot hide or redraw a command the page shows. The 21 places of the page, in both styles, raise no violation in Chrome (#514)
 - `openguildkit ui` no longer prints a Python trace in its terminal when a tab is closed or reloaded during a request: the closed connection is dropped without a report or a second write, and a real failure of a command still prints its trace and answers `server-error` (#516)
+- `openguildkit ui` no longer sends the page the `board_briefs` and `domains` of a consultation, which no screen reads: a task sheet weighs 29 KB instead of 96 KB on the example project. `task show` in a terminal prints them as before, and a page that asks for the printed text (`raw`) still gets them (#466)
 
 ## 0.17.0
 

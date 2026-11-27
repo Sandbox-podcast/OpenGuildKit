@@ -286,6 +286,21 @@ def _without(data, keys: set[str]):
     return data
 
 
+# What a consultation holds that no screen of the page reads, and that makes up most of a task record: the brief of each
+# board and the domains they cover. The page never receives them; the CLI prints them, and `raw` keeps that text.
+UNREAD_CONSULTATION = {"board_briefs", "domains"}
+
+
+def _without_unread(data, inside: bool = False):
+    """The JSON of a command without the keys of a consultation that the page does not read, at any depth."""
+    if isinstance(data, dict):
+        return {key: _without_unread(value, key == "consultation") for key, value in data.items()
+                if not (inside and key in UNREAD_CONSULTATION)}
+    if isinstance(data, list):
+        return [_without_unread(value) for value in data]
+    return data
+
+
 def _options(body: dict) -> dict:
     omit = body.get("omit")
     if omit is not None and (not isinstance(omit, list) or len(omit) > 20 or not all(isinstance(k, str) for k in omit)):
@@ -349,6 +364,8 @@ class CliRunner:
         if data is not None:
             if omit:
                 data = _without(data, set(omit))
+            if '"consultation"' in stdout:
+                data = _without_unread(data)
             if not keep_text:
                 stdout = ""
         stderr = err.getvalue()
