@@ -1,16 +1,16 @@
 """The commands that set a project up: init, with its questions at a terminal, and sync.
 
-Entry: init, sync, setup_questions, warn_unsigned.
+Entry: init, sync, setup_questions.
 Tests: tests/test_setup_questionnaire.py, tests/test_first_run.py, tests/test_proportionate_setup.py.
 """
 
 import sys
 from pathlib import Path
 
-from .catalog_cli import pending_catalog_changes
+from .check_cli import pending_catalog_changes, warn_unsigned
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
-from .hosts import HOOK_HOSTS, approval_warning
+from .hosts import HOOK_HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, unshipped_records, write_lock
 from .patterns import patterns_to_review
 from .profile_cli import print_touched
@@ -306,15 +306,6 @@ def _confirm_rule_plan(plan: dict) -> None:
     print("> ", end="", file=sys.stderr, flush=True)
     if input().strip().casefold() not in ("", "y", "yes", "o", "oui"):
         raise ValueError("Setup cancelled. Nothing was written.")
-
-
-def warn_unsigned(profile: dict, report=None) -> None:
-    """Say once per setup or check command, not on every command, that local approvals can be forged."""
-    warning = approval_warning(profile)
-    if warning:
-        print(warning, file=sys.stderr)
-        if report is not None:
-            report.add("approvals-not-signed", "warning", warning.removeprefix("OpenGuildKit: "))
 
 
 def _require_answers(answers: dict, questions: list[dict]) -> None:

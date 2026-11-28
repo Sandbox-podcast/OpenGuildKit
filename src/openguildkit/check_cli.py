@@ -1,6 +1,7 @@
 """The commands that check a project against its profile: check, guard and host.
 
-Entry: check, guard, guard_hook, host, host_scan, require_sarif_options.
+Entry: check, guard, guard_hook, host, host_scan, require_sarif_options, warn_unsigned, pending_catalog_changes,
+undated_project_sources.
 Tests: tests/test_guard.py, tests/test_sarif_commands.py, tests/test_hosts.py, tests/test_host_scan.py.
 """
 
@@ -8,8 +9,8 @@ import sys
 from pathlib import Path
 
 from . import org_catalog_cli, org_policy_cli
-from .catalog import replaced_boards
-from .catalog_cli import pending_catalog_changes, undated_project_sources
+from .catalog import replaced_boards, undated_sources
+from .deliverables import load_deliverables
 from .doc_links import doc_link
 from .guard import (
     NO_TASK,
@@ -21,10 +22,20 @@ from .guard import (
     hook_command,
     scope_note,
 )
-from .hosts import HOOK_HOSTS, OFF_PATH, apply_host_settings, host_controls
-from .init_cli import warn_unsigned
-from .lock import LOCK_FILE, installed_catalog, lock_is_current, project_catalog, read_lock, require_instructions
+from .hosts import HOOK_HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
+from .lock import (
+    LOCK_FILE,
+    apply_lock,
+    catalog_changes,
+    installed_catalog,
+    lock_is_current,
+    project_catalog,
+    read_lock,
+    require_instructions,
+    update_target,
+)
 from .project import STATE_DIR, Fingerprints, RuleError, load_profile
+from .references import load_references
 from .storage import print_json
 from .surfaces import render_scan, scan_exit_code, scan_report, scan_sarif
 from .tasks import list_tasks
@@ -39,6 +50,40 @@ NO_HOST_SETTINGS = (
     "install the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
     "--by INITIALS --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
 )
+
+
+def pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
+    """Locked records whose rules the installed catalog changes; a source checked again changes no rule."""
+    if lock is None:
+        return []
+    changes = catalog_changes(lock, live, update_target(live, lock), profile, bundled)
+    return [
+        f"{change['collection']}/{change['id']}" for change in changes
+        if change["status"] != "changed" or set(change["fields"]) != {"sources"}
+        or change["sources"]["added"] or change["sources"]["removed"]
+    ]
+
+
+def undated_project_sources(state: Path, live: dict) -> list[str]:
+    """Project records that cite a source without a checked date; bundled sources always carry one. The project's
+    references are read with the catalog it uses, so a pack or a brain they name that does not exist stops check."""
+    project = state / "catalog"
+    in_use = apply_lock(live, read_lock(state))
+    references = {
+        "references": {record["id"]: record for family in load_references(project / "references", in_use).values()
+                       for record in family["references"]},
+        "deliverables": load_deliverables(live, project / "deliverables"),
+    }
+    return undated_sources({**live, **references})
+
+
+def warn_unsigned(profile: dict, report=None) -> None:
+    """Say once per setup or check command, not on every command, that local approvals can be forged."""
+    warning = approval_warning(profile)
+    if warning:
+        print(warning, file=sys.stderr)
+        if report is not None:
+            report.add("approvals-not-signed", "warning", warning.removeprefix("OpenGuildKit: "))
 
 
 def guard_hook(args) -> int:

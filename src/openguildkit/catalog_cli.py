@@ -1,15 +1,12 @@
 """The commands that read the catalog in force: catalog, references, patterns, brains, detect and update.
 
-Entry: print_catalog, print_references, print_patterns, print_brains, new_brain, print_detection, update_catalog,
-pending_catalog_changes, undated_project_sources.
+Entry: print_catalog, print_references, print_patterns, print_brains, new_brain, print_detection, update_catalog.
 Tests: tests/test_upgrades.py, tests/test_references.py, tests/test_brain_knowledge.py.
 """
 
 from pathlib import Path
 
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
-from .catalog import undated_sources
-from .deliverables import load_deliverables
 from .errors import unknown
 from .lock import (
     apply_lock,
@@ -30,31 +27,6 @@ from .storage import print_json, project_lock
 from .tasks import tasks_touched
 from .tools import load_tools
 from .wording import plural
-
-
-def pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
-    """Locked records whose rules the installed catalog changes; a source checked again changes no rule."""
-    if lock is None:
-        return []
-    changes = catalog_changes(lock, live, update_target(live, lock), profile, bundled)
-    return [
-        f"{change['collection']}/{change['id']}" for change in changes
-        if change["status"] != "changed" or set(change["fields"]) != {"sources"}
-        or change["sources"]["added"] or change["sources"]["removed"]
-    ]
-
-
-def undated_project_sources(state: Path, live: dict) -> list[str]:
-    """Project records that cite a source without a checked date; bundled sources always carry one. The project's
-    references are read with the catalog it uses, so a pack or a brain they name that does not exist stops check."""
-    project = state / "catalog"
-    in_use = apply_lock(live, read_lock(state))
-    references = {
-        "references": {record["id"]: record for family in load_references(project / "references", in_use).values()
-                       for record in family["references"]},
-        "deliverables": load_deliverables(live, project / "deliverables"),
-    }
-    return undated_sources({**live, **references})
 
 
 def update_catalog(args, root: Path, state: Path) -> None:
