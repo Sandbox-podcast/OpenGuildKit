@@ -72,6 +72,7 @@ class ExportCiTests(CliTestCase):
         return self.git(repo, "rev-parse", "HEAD")
 
     def test_ci_check_judges_the_cases_shared_with_the_node_coordinator(self):
+        # OGK-RULE-012
         fixture = json.loads(PARITY.read_text(encoding="utf-8"))
         policy = self.commit_bytes(self.policy, POLICY, json.dumps(fixture["pack"], indent=2).encode("utf-8"))
         target = self.project / "parity"

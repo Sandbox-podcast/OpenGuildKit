@@ -388,6 +388,7 @@ class RestrictedPathTests(CapturedCli, unittest.TestCase):
         self.assertIsNone(self.control(code=1))
 
     def test_a_setting_that_is_not_a_list_of_paths_is_refused_with_the_file_named(self):
+        # OGK-PROJECT-016
         self.init("claude-code")
         for bad in ("secrets/**", [{"paths": "secrets/**"}], [{"paths": []}], [{"paths": ["/etc/passwd"]}],
                     [{"paths": ["../outside/**"]}], [{"paths": ["a/**"], "boards": "legal"}], [{"class": "restricted"}]):

@@ -189,6 +189,7 @@ class NothingChangesWithoutADeclinedRuleTests(unittest.TestCase):
         self.assertEqual([entry["id"] for entry in plan["declined_rules"]], [RULE])
 
     def test_a_profile_refuses_a_rule_both_required_and_declined_or_written_without_its_pack(self):
+        # OGK-PROJECT-009, OGK-PROJECT-010, OGK-PROJECT-011
         entry = {"id": RULE, "by": "S", "on": "2026-11-21", "reason": "x"}
         with self.assertRaisesRegex(ValueError, "both required and declined"):
             validate_profile({**self.profile, "required_rules": ["python"], "declined_rules": [entry]}, self.catalog)

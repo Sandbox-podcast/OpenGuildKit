@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .approval_check import approval_problem
 from .catalog import COLLECTION_FIELDS, ID_PATTERN
+from .errors import OgkError
 from .lock import lock_path, package_version, project_catalog
 from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
 from .project import load_profile
@@ -88,7 +89,7 @@ TOOLS = [
 
 def _check_path(path: Path, state: Path) -> None:
     if path.resolve() != path or not path.is_relative_to(state):
-        raise ValueError("Project metadata must stay inside the project state directory.")
+        raise OgkError("OGK-PROJECT-033", "Project metadata must stay inside the project state directory.")
 
 
 def _project(state: Path) -> tuple[Profile, Catalog]:

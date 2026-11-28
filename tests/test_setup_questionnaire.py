@@ -70,6 +70,7 @@ class QuestionnaireTests(unittest.TestCase):
         self.assertEqual(self.questions()["packs"]["default"], [])
 
     def test_norm_answers_keep_or_decline_each_preselected_regulation(self):
+        # OGK-PROJECT-034, OGK-PROJECT-035, OGK-PROJECT-036, OGK-PROJECT-037
         no = {"answer": "no", "by": "Camille Martin", "reason": "Not a financial entity under DORA Art. 2"}
         answers = {"name": "Ledger", "sector": "financial-services", "personal_data": "yes",
                    "norms": {"dora-financial-entity": no, "gdpr-personal-data": "yes", "european-accessibility-act": "yes"}}
@@ -109,6 +110,7 @@ class AdditivePackTests(unittest.TestCase):
         self.assertTrue(any("next" in pattern for pattern in baseline["patterns"]))
 
     def test_the_answers_can_still_replace_the_default_packs(self):
+        # OGK-PROJECT-039
         profile = self.profile(stack=NEXTJS, packs=["gdpr"], replace_default_packs=True)
         self.assertEqual(profile["packs"], ["agent-workflow", "gdpr"])
         self.assertTrue(profile["patterns"])

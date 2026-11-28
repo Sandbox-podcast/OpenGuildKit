@@ -314,6 +314,7 @@ class ProfileCommandTests(unittest.TestCase):
         repo = Path(__file__).resolve().parents[1]
         pages = sorted([*(repo / "docs").glob("*.md"), *(repo / "web" / "docs").glob("*.md"), repo / "README.md",
                         repo / "README.fr.md", repo / "CONTRIBUTING.md"])
+        pages.remove(repo / "docs" / "errors.md")  # The register of error codes quotes each message as the code has it.
         edit = re.compile(r"\b(edit|add|adds|remove|set)\b[^.]*`?\.openguildkit/project\.json", re.I)
         # A setting written as JSON for the reader to put in the profile: "with `"required_boards": [...]` in its
         # profile", "set `"ask_every_rule": true`". A sentence that only says what the profile holds is fine.
@@ -361,6 +362,7 @@ class ProposalCheckTests(unittest.TestCase):
                          ["board security no longer advises"])
 
     def test_it_refuses_what_the_command_refuses(self):
+        # OGK-PROJECT-022
         for arguments, message in ((("remove", "check", "make"), "not in the profile's checks"),
                                    (("add", "required-rule", "python/no-such-rule"), "Unknown required rule"),
                                    (("decline", None, "no-such-pattern"), "Unknown pattern"),

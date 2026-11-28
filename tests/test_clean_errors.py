@@ -176,7 +176,7 @@ class CleanErrorTests(unittest.TestCase):
     def refusal(self, *arguments) -> str:
         """The one-line refusal of a command; a traceback fails the test."""
         error = self.run_cli(*arguments)
-        self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        self.assertRegex(error, r"^OpenGuildKit(?: \[OGK-[A-Z]+-\d{3}\])?: ")
         return error.strip()
 
     def test_task_answers_of_the_wrong_type_name_the_file_and_the_field(self):
@@ -386,6 +386,7 @@ class CleanErrorTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE((self.root / name).stat().st_mode), 0o644, name)
 
     def test_a_failed_command_leaves_no_state_folder(self):
+        # OGK-PROJECT-026
         self.assertIn("No OpenGuildKit project found", self.run_cli("sync"))
         self.assertFalse((self.root / ".openguildkit").exists())
 

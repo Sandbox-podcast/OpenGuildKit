@@ -10,6 +10,7 @@ from pathlib import Path
 from . import lazy_re
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
+from .errors import OgkError
 from .patterns import pattern_selection
 from .project import STATE_DIR, pattern_ids, rules_in_force, state_path
 from .project_rules import (
@@ -256,11 +257,11 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     if not matches:
         if open_fence is not None:
             # Appending would put the rules inside the code block, and each sync would add another copy.
-            raise ValueError(f"{label} ends inside an unclosed code block at line {open_fence}. Close it and retry.")
+            raise OgkError("OGK-PROJECT-029", f"{label} ends inside an unclosed code block at line {open_fence}. Close it and retry.")
         separator = newline if current.endswith(newline) else newline * 2
         return current + (separator if current else "") + block + newline
     if [kind for kind, _, _ in matches] != [BEGIN, END]:
-        raise ValueError(f"{label} has malformed OpenGuildKit markers. Repair the marked block and retry.")
+        raise OgkError("OGK-PROJECT-030", f"{label} has malformed OpenGuildKit markers. Repair the marked block and retry.")
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
@@ -284,13 +285,13 @@ def hand_edits(current: str, generated: str) -> list[str]:
 def _read_instructions(path: Path) -> tuple[str, bool]:
     """Read an instructions file and report whether it starts with a UTF-8 byte order mark."""
     if path.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project instructions: {path}")
+        raise OgkError("OGK-PROJECT-031", f"Refusing a symbolic link as project instructions: {path}")
     if not path.exists():
         return "", False
     try:
         text = path.read_bytes().decode("utf-8")
     except UnicodeDecodeError as error:
-        raise ValueError(f"{path.name} is not UTF-8 (byte {error.start + 1}): convert it to UTF-8 and retry.") from error
+        raise OgkError("OGK-PROJECT-032", f"{path.name} is not UTF-8 (byte {error.start + 1}): convert it to UTF-8 and retry.") from error
     return (text[1:], True) if text.startswith(BOM) else (text, False)
 
 

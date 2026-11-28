@@ -126,6 +126,7 @@ class RolesTests(RoleCase):
 
     def test_issue_475_roles_are_set_without_a_terminal_when_they_restrict_and_widened_by_a_person(self):
         """Issue #475: a new role or a shorter one restricts; a longer one, or none, weakens a protection."""
+        # OGK-PROJECT-012
         self.run_cli("profile", "set", "approver-roles", "security", "CM", "JD", "--by", "Sam", "--reason", "x",
                      code=1)
         self.assertEqual(self.roles(), {"security": ["CM"]})

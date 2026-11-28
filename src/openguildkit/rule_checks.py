@@ -18,6 +18,7 @@ import tomllib
 from itertools import islice
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import parse_json
 
 # The edit hook loads this module: wording is imported in the functions that use it (#539).
@@ -41,27 +42,27 @@ def _fields(check: dict, label: str, required: set[str], optional: set[str]) -> 
     missing = required - check.keys()
     extra = check.keys() - required - optional - {"kind"}
     if missing:
-        raise ValueError(f"{label} is missing fields: {', '.join(sorted(missing))}")
+        raise OgkError("OGK-RULE-002", f"{label} is missing fields: {', '.join(sorted(missing))}")
     if extra:
-        raise ValueError(f"{label} has unknown fields: {', '.join(sorted(extra))}")
+        raise OgkError("OGK-RULE-003", f"{label} has unknown fields: {', '.join(sorted(extra))}")
 
 
 def validate_path(path: object, label: str, *, pattern: bool = True) -> None:
     """A check path is relative to the project, written with /, and cannot leave it."""
     if not isinstance(path, str) or not path or len(path) > 300:
-        raise ValueError(f"{label} must be a relative path of at most 300 characters")
+        raise OgkError("OGK-RULE-004", f"{label} must be a relative path of at most 300 characters")
     parts = path.split("/")
     if path.startswith("/") or any(part in ("", ".", "..") or not SEGMENT.fullmatch(part) for part in parts):
-        raise ValueError(f"{label} {path!r} must stay inside the project: relative, with / and without . or ..")
+        raise OgkError("OGK-RULE-005", f"{label} {path!r} must stay inside the project: relative, with / and without . or ..")
     if not pattern and any(character in path for character in "*?"):
-        raise ValueError(f"{label} {path!r} names one file: wildcards are not allowed")
+        raise OgkError("OGK-RULE-006", f"{label} {path!r} names one file: wildcards are not allowed")
 
 
 def _validate_check_path(path: object, label: str, *, pattern: bool = True) -> None:
     """A check path also stays out of the folders no search reads: a check never looks inside .git or .openguildkit."""
     validate_path(path, label, pattern=pattern)
     if SKIPPED_DIRECTORIES & {part.casefold() for part in path.split("/")}:
-        raise ValueError(f"{label} {path!r} is not searched: a check does not read inside .git or .openguildkit")
+        raise OgkError("OGK-RULE-007", f"{label} {path!r} is not searched: a check does not read inside .git or .openguildkit")
 
 
 def _is_number(value: object) -> bool:
@@ -75,7 +76,7 @@ def _is_scalar(value: object) -> bool:
 def _validate_paths(check: dict, label: str) -> None:
     paths = check["paths"]
     if not isinstance(paths, list) or not paths or len(paths) > MAX_PATHS:
-        raise ValueError(f"{label}.paths must list 1 to {MAX_PATHS} paths")
+        raise OgkError("OGK-RULE-008", f"{label}.paths must list 1 to {MAX_PATHS} paths")
     for index, path in enumerate(paths):
         _validate_check_path(path, f"{label}.paths[{index}]")
 
@@ -88,13 +89,13 @@ def _validate_text(check: dict, label: str) -> None:
         raise ValueError(f"{label}.contains must list 1 to {MAX_LITERALS} literal texts")
     for literal in literals:
         if not isinstance(literal, str) or not literal.strip() or len(literal) > MAX_LITERAL_LENGTH:
-            raise ValueError(f"{label}.contains holds literal texts of 1 to {MAX_LITERAL_LENGTH} characters")
+            raise OgkError("OGK-RULE-009", f"{label}.contains holds literal texts of 1 to {MAX_LITERAL_LENGTH} characters")
     if check["expect"] not in ("present", "absent"):
         raise ValueError(f"{label}.expect must be present or absent")
     if "ignore_case" in check and type(check["ignore_case"]) is not bool:
         raise ValueError(f"{label}.ignore_case must be true or false")
     if "each" in check and (check["each"] is not True or check["expect"] != "present"):
-        raise ValueError(f"{label}.each must be true, with expect present; omit it otherwise")
+        raise OgkError("OGK-RULE-010", f"{label}.each must be true, with expect present; omit it otherwise")
 
 
 def _validate_size(check: dict, label: str) -> None:
@@ -102,7 +103,7 @@ def _validate_size(check: dict, label: str) -> None:
     _validate_paths(check, label)
     limit = check["max_bytes"]
     if type(limit) is not int or not 1 <= limit <= MAX_SIZE_BYTES:
-        raise ValueError(f"{label}.max_bytes must be a whole number of bytes from 1 to {MAX_SIZE_BYTES}")
+        raise OgkError("OGK-RULE-011", f"{label}.max_bytes must be a whole number of bytes from 1 to {MAX_SIZE_BYTES}")
 
 
 def _validate_field(check: dict, label: str) -> None:
@@ -117,7 +118,7 @@ def _validate_field(check: dict, label: str) -> None:
     if not operators:
         raise ValueError(f"{label} needs one of {', '.join(FIELD_OPERATORS)}")
     if "integer" in check and check["integer"] is not True:
-        raise ValueError(f"{label}.integer must be true; omit it otherwise")
+        raise OgkError("OGK-RULE-012", f"{label}.integer must be true; omit it otherwise")
     for bound in ("min", "max"):
         if bound in check and not (_is_number(check[bound]) and math.isfinite(check[bound])):
             raise ValueError(f"{label}.{bound} must be a number")
@@ -137,7 +138,7 @@ def validate_check(check: object, label: str, *, allow_command: bool) -> None:
         raise ValueError(f"{label} must be a JSON object")
     kind = check.get("kind")
     if kind not in CHECK_KINDS:
-        raise ValueError(f"{label}.kind must be one of {', '.join(CHECK_KINDS)}")
+        raise OgkError("OGK-RULE-013", f"{label}.kind must be one of {', '.join(CHECK_KINDS)}")
     if kind == "file-exists":
         _fields(check, label, {"paths"}, set())
         _validate_paths(check, label)
@@ -149,7 +150,7 @@ def validate_check(check: object, label: str, *, allow_command: bool) -> None:
         _validate_size(check, label)
     else:
         if not allow_command:
-            raise ValueError(
+            raise OgkError("OGK-RULE-014", 
                 f"{label} runs a command: only a pack in .openguildkit/catalog/packs/ may declare one"
             )
         _fields(check, label, {"command"}, set())

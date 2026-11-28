@@ -188,6 +188,7 @@ class RelevanceTests(RelevanceCase):
         self.assertEqual(set(self.catalog["packs"]) - set(SUBJECTS), set())
 
     def test_the_profile_can_keep_every_rule_asked(self):
+        # OGK-PROJECT-025
         profile = validate_profile({**FINTECH, "ask_every_rule": True}, self.catalog)
         task, profile = self.task(BUG, profile=profile)
         relevance = self.relevance(task, profile)

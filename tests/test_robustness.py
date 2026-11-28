@@ -193,6 +193,7 @@ class FuzzTestCase(unittest.TestCase):
 
 class InputFileTests(FuzzTestCase):
     def test_setup_answers(self):
+        # OGK-PROJECT-001, OGK-PROJECT-003, OGK-PROJECT-005, OGK-PROJECT-006, OGK-PROJECT-018, OGK-PROJECT-021
         profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
         profile.update(boards=["security"], guard="warn", waivers={"allowed_by": ["Camille"], "max_days": 30})
         self.fuzz("preview --answers", profile, lambda path: self.cli("preview", "--answers", path, "--json"))
@@ -265,6 +266,7 @@ class InputFileTests(FuzzTestCase):
 
 class StateFileTests(FuzzTestCase):
     def test_a_damaged_profile_gives_a_message_on_every_command(self):
+        # OGK-PROJECT-013, OGK-PROJECT-017
         self.consulted()
         profile_path = self.root / ".openguildkit" / "project.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))

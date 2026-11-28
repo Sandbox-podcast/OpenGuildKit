@@ -67,6 +67,7 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(evaluate_check(self.root, {**literal, "paths": ["slow.txt"]})["status"], "failed")
 
     def test_each_asks_every_matched_file_to_hold_one_of_the_texts(self):
+        # OGK-RULE-010
         self.write(".github/workflows/a.yml", "permissions: write-all\n")
         self.write(".github/workflows/b.yml", "on: push\n")
         anywhere = {"kind": "text", "paths": [".github/workflows/*.yml"], "contains": ["permissions:"],
@@ -123,6 +124,7 @@ class EvaluatorTests(unittest.TestCase):
         self.assertIn("Invalid JSON", outcome["evidence"])
 
     def test_paths_stay_inside_the_project(self):
+        # OGK-RULE-006
         for path in ("../secret.json", "/etc/passwd.json", "C:/x.json", "a/./b.json", "a\\b.json", "a//b.json", ""):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 validate_check({"kind": "field", "path": path, "field": "a", "equals": 1}, "check", allow_command=False)
@@ -130,6 +132,7 @@ class EvaluatorTests(unittest.TestCase):
             validate_check({"kind": "field", "path": "*.json", "field": "a", "equals": 1}, "check", allow_command=False)
 
     def test_a_check_cannot_name_a_path_inside_git_or_the_project_state(self):
+        # OGK-RULE-007
         for check in (
             {"kind": "text", "paths": [".git/config"], "contains": ["tok"], "expect": "present"},
             {"kind": "text", "paths": ["*.md", "vendor/.GIT/config"], "contains": ["tok"], "expect": "absent"},
@@ -156,6 +159,7 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(evaluate_check(self.root, {"kind": "file-exists", "paths": ["SECURITY.md"]})["status"], "failed")
 
     def test_the_work_is_bounded(self):
+        # OGK-RULE-009
         self.write("big.txt", "x" * (MAX_FILE_BYTES + 1))
         outcome = evaluate_check(self.root, {"kind": "text", "paths": ["big.txt"], "contains": ["x"], "expect": "present"})
         self.assertEqual(outcome["status"], "failed")
@@ -194,6 +198,7 @@ class SizeCheckTests(unittest.TestCase):
                        allow_command=False)
 
     def test_fields_are_required_and_nothing_else_is_accepted(self):
+        # OGK-RULE-002, OGK-RULE-003
         for fields, message in (({"paths": None}, "missing fields: paths"), ({"max_bytes": None}, "missing fields: max_bytes"),
                                 ({"contains": ["x"]}, "unknown fields: contains"), ({"max": 5}, "unknown fields: max")):
             check = {key: value for key, value in self.check(**fields).items() if value is not None}
@@ -201,11 +206,13 @@ class SizeCheckTests(unittest.TestCase):
                 validate_check(check, "check", allow_command=False)
 
     def test_max_bytes_is_a_whole_positive_number_below_the_limit(self):
+        # OGK-RULE-011
         for value in (0, -1, True, False, 1.5, 100.0, "100", None, [100], MAX_SIZE_BYTES + 1):
             with self.subTest(max_bytes=value), self.assertRaisesRegex(ValueError, "max_bytes"):
                 validate_check(self.check(max_bytes=value), "check", allow_command=False)
 
     def test_paths_are_relative_to_the_project_and_limited_in_number(self):
+        # OGK-RULE-004, OGK-RULE-005, OGK-RULE-008
         for paths in (["../AGENTS.md"], ["/etc/passwd"], ["a/./b"], ["a//b"], [""], [], "AGENTS.md",
                       [f"f{index}.md" for index in range(21)]):
             with self.subTest(paths=paths), self.assertRaisesRegex(ValueError, "paths"):
@@ -292,6 +299,7 @@ class SizeCheckTests(unittest.TestCase):
 
 class CatalogFormatTests(unittest.TestCase):
     def test_a_bundled_pack_cannot_run_a_command(self):
+        # OGK-RULE-014
         command = pack([{"id": "lint", "check": {"kind": "command", "command": "make lint"}}])
         with self.assertRaisesRegex(CatalogError, r"\.openguildkit/catalog/packs/"):
             validate_entry("packs", command)
@@ -309,6 +317,7 @@ class CatalogFormatTests(unittest.TestCase):
             load_catalog(central_policy=("a" * 40, central))
 
     def test_a_rule_without_a_check_still_needs_its_text_and_evidence_is_named(self):
+        # OGK-RULE-013
         with self.assertRaisesRegex(CatalogError, "missing fields: instruction"):
             validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
         named = {"id": "a", "instruction": "Do it.", "verification": "Look.",

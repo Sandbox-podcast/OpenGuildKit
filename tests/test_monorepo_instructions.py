@@ -82,6 +82,7 @@ class TeamInstructionTests(ProjectTestCase):
     def test_an_unclosed_code_block_is_refused_with_its_line(self):
         self.agents.write_text("# Rules\n\nRun the tests:\n```sh\nnpm test\n", encoding="utf-8")
         _, error = self.run_cli("init", "--answers", self.root / "answers.json", code=1)
+        # OGK-PROJECT-029
         self.assertIn("AGENTS.md ends inside an unclosed code block at line 4", error)
         self.assertEqual(self.agents.read_text(encoding="utf-8"), "# Rules\n\nRun the tests:\n```sh\nnpm test\n")
 
@@ -100,6 +101,7 @@ class TeamInstructionTests(ProjectTestCase):
         self.assertEqual(self.agents.read_text(encoding="utf-8").count(BEGIN), 1)
 
     def test_a_file_that_is_not_utf8_is_named(self):
+        # OGK-PROJECT-032
         self.agents.write_bytes("# Règles\n".encode("latin-1"))
         _, error = self.run_cli("init", "--answers", self.root / "answers.json", code=1)
         self.assertIn("AGENTS.md is not UTF-8", error)

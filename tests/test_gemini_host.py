@@ -481,6 +481,7 @@ class GeminiHostListTests(GeminiCase):
     def test_a_profile_with_an_unknown_host_names_the_choices(self):
         write_json(self.root / "answers.json", {"personal_data": "no", "name": "Portal", "host": "nope"})
         _, error = self.run_cli("init", "--answers", self.root / "answers.json", code=1)
+        # OGK-PROJECT-020
         self.assertIn("host must be one of claude-code, codex, gemini-cli, other", error)
 
     def question(self) -> dict:

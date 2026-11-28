@@ -185,6 +185,7 @@ class ActivationTests(ProjectCase):
         self.assertNotIn("separate_requester", self.profile())
 
     def test_the_option_is_not_part_of_what_an_approval_rests_on_and_voids_none(self):
+        # OGK-PROJECT-024
         catalog = load_catalog()
         profile = validate_profile(self.profile(), catalog)
         self.assertEqual(profile_fingerprint(profile, catalog),

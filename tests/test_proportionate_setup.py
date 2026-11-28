@@ -171,6 +171,7 @@ class NormTests(unittest.TestCase):
         return setup_profile({"name": "Ledger", **answers}, self.catalog, init_questions(self.catalog, "Ledger"))[0]
 
     def test_a_card_provider_people_decisions_and_personal_data_propose_their_norms(self):
+        # OGK-PROJECT-038
         for answers, norm in (({"stack": ["Python", "Stripe"], "personal_data": "no"}, "pci-dss-cardholder-data"),
                               ({"personal_data": "yes", "people_decisions": "yes"}, "eu-ai-act-system"),
                               ({"personal_data": "yes"}, "gdpr-personal-data")):

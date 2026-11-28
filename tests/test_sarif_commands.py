@@ -215,7 +215,7 @@ class CheckSarifTests(SarifProject):
     def test_a_failure_that_is_not_a_finding_prints_no_file(self):
         result = self.cli("check", "--format", "sarif", code=1)
         self.assertEqual(result.stdout, "")
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-PROJECT-026]: "), result.stderr)
 
     def test_the_exit_code_of_each_failure_is_the_one_of_the_text_form(self):
         self.init(host="claude-code")

@@ -368,7 +368,7 @@
         {
           "file": "src/openguildkit/project_rules.py",
           "symbol": "Fingerprints",
-          "line": 326
+          "line": 327
         },
         {
           "file": "src/openguildkit/guard_records.py",
@@ -408,7 +408,7 @@
         {
           "file": "src/openguildkit/project.py",
           "symbol": "_changes",
-          "line": 250
+          "line": 251
         }
       ],
       "in_dossier": [
@@ -532,7 +532,7 @@
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 187
+          "line": 188
         }
       ],
       "in_dossier": [],

@@ -252,6 +252,7 @@ class ProjectMcpTests(ResultCase):
             self.assertNotIn(text, json.dumps(answer))
 
     def test_a_profile_linked_outside_the_state_directory_is_not_served(self):
+        # OGK-PROJECT-033
         write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         served, = self.replies(call(1, "project_profile"))

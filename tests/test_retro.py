@@ -763,6 +763,7 @@ class DraftPackTests(unittest.TestCase):
         self.assertIsNone(draft_pack(rules, "2026-11-26"))
 
     def test_a_profile_refuses_a_draft_pack_until_its_description_is_rewritten(self):
+        # OGK-PROJECT-023
         profile, catalog = profile_and_catalog()
         pack = draft_pack(self.reservations(), "2026-11-26")
         catalog = {**catalog, "packs": {**catalog["packs"], pack["id"]: pack}}

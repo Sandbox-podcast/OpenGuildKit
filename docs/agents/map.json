@@ -273,7 +273,7 @@
     {"command": "storybook propose", "function": "run", "module": "src/openguildkit/storybook_cli.py", "line": 137},
     {"command": "storybook generate", "function": "run", "module": "src/openguildkit/storybook_cli.py", "line": 142},
     {"command": "trace", "function": "run", "module": "src/openguildkit/trace_cli.py", "line": 36},
-    {"command": "projects", "function": "run", "module": "src/openguildkit/projects_cli.py", "line": 73},
+    {"command": "projects", "function": "run", "module": "src/openguildkit/projects_cli.py", "line": 74},
     {"command": "org-catalog show", "function": "_show", "module": "src/openguildkit/org_catalog_cli.py", "line": 108},
     {"command": "org-catalog set", "function": "_set", "module": "src/openguildkit/org_catalog_cli.py", "line": 176},
     {"command": "org-catalog accept", "function": "_accept", "module": "src/openguildkit/org_catalog_cli.py", "line": 261},

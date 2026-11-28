@@ -135,6 +135,7 @@ class FreezeTests(EarlierProject):
 
     def test_issue_481_who_and_why_are_one_line_each(self):
         """Issue #481: the freeze is shown in a line of the hook: its fields hold one line."""
+        # OGK-PROJECT-007
         refused = self.cli("profile", "set", "freeze", "on", "--by", "CM", "--reason", "two\nlines", code=1)
         self.assertIn("single line", refused.stderr)
         self.assertNotIn("frozen", self.profile())
