@@ -325,8 +325,9 @@ def _restricted_changes(before: dict, after: dict, person: list[str]) -> list[tu
     if not lifted:
         return []
     kept = restricted_paths(after) or ["none"]
-    return [(f"{plural(len(lifted), 'restricted path')} lifted ({', '.join(lifted)}): agents may read and edit "
-             f"{'it' if len(lifted) == 1 else 'them'}", ["profile", "set", "restricted-paths", *kept, *person])]
+    what = (f"{plural(len(lifted), 'restricted path')} lifted ({', '.join(lifted)}): agents may read and edit "
+            f"{'it' if len(lifted) == 1 else 'them'}")
+    return [(what, ["profile", "set", "restricted-paths", *kept, *person])]
 
 
 def lifted_paths(before: dict, after: dict) -> list[str]:

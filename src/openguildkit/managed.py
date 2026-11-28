@@ -99,8 +99,8 @@ def _locks(host: str, allow: dict | None) -> tuple[dict, list[str]]:
         return {}, []
     if host != "claude-code":
         page = "the server's name as well as its command or address" if host == "codex" else "names of servers"
-        return {}, [f"The allow list is not written for {host}: its page asks {page}, which the list does not hold. "
-                    "Check it with openguildkit host scan --allow FILE in each project."]
+        return {}, [(f"The allow list is not written for {host}: its page asks {page}, which the list does not hold. "
+                     "Check it with openguildkit host scan --allow FILE in each project.")]
     keys, left = {}, []
     if "models" in allow:
         keys["availableModels"] = allow["models"]
