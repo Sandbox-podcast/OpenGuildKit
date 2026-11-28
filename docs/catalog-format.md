@@ -299,6 +299,26 @@ openguildkit org-catalog show                                                   
 - **A new commit in N repositories.** [`integrations/github/openguildkit-org-catalog-update.yml`](../integrations/github/openguildkit-org-catalog-update.yml), copied to each repository, checks out the catalog every Monday and, when its default branch moved past the pinned commit, opens a pull request whose description is the output of `org-catalog set` without `--by` and the command to pin. The job pins nothing and writes no file (its branch holds one empty commit): a person checks out the branch, pins at their terminal, commits the lock and pushes, or closes the pull request.
 - **Off.** `openguildkit org-catalog off --by INITIALS --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records, and records who stopped it, why and at which commit in the history.
 
+### Organization policy
+
+An option, off by default (RFC #452, not decided yet): the security or platform team writes `policy.json` at the root of the organization catalog, and every repository that pins a commit holding it keeps its minimum. A repository may be stricter, never less strict. A commit without `policy.json` keeps the fingerprint it had, and a project that follows no organization catalog reads nothing more.
+
+```json
+{"schema_version": 1,
+ "minimum": {"guard": "enforce", "approval": "signed", "separate_requester": true},
+ "required": {"packs": ["secure-sdlc"]},
+ "frozen": {"by": "SEC", "reason": "Compromised model provider", "since": "2026-11-28"}}
+```
+
+Every field but `schema_version` is optional; any other field stops the pin, so a requirement OpenGuildKit does not enforce never passes for one it does. `minimum.guard` is `observe` or `enforce`, `minimum.approval` is `signed`, `minimum.separate_requester` is `true`, `required.packs` lists pack IDs (an organization pack is used once the project follows the catalog that provides it).
+
+- **The pin.** `org-catalog set` reads `policy.json` with the records and says the minimum the commit brings; the person pins it at a terminal, as for the records. `openguildkit org-catalog policy` shows the minimum in force and where the profile is under it.
+- **Profile changes.** `profile set`, `add`, `remove` and the web page refuse a change that goes under the minimum, even from a person at a terminal, and write nothing. A change that raises a setting, or keeps a gap the profile already had, goes on.
+- **`check`** fails with one line per gap, which names the setting, the value required, the commit of the policy and the command that meets it (SARIF `policy-below-floor`), and with `policy-frozen` while the policy freezes the repositories.
+- **In CI.** `openguildkit guard --ci --org-policy PATH --org-commit SHA` reads the policy from the copy and the commit the organization's required workflow gives, never from the lock a pull request carries; without the options it reads the commit the base revision pins. It fails, whatever the guard mode, when the profile of the base revision or the one the change brings is under the minimum.
+- **Freeze (#481).** `frozen` stops the merges of every repository whose required workflow passes the policy commit: `guard --ci` fails every change with `policy-frozen`. Only a new commit of the policy lifts it. Edits on each workstation stop through the freeze of each project (`openguildkit profile set freeze on`, [incident response](workflow.md#incident-response)).
+- **`--policy-repo`** still reads only the central export rule `packs/export-link-expiry.json`; on a commit that holds `policy.json` instead, it names the commands above.
+
 ## Source dates
 
 Every source carries `checked`, a date written `YYYY-MM-DD`, placed right after its `url`:

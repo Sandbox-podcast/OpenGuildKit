@@ -69,6 +69,10 @@ _RULES = {
     "evidence-journal-changed": ("Evidence journal changed",
                                  "A journal cited as evidence no longer matches the hash recorded with it."),
     "guard-frozen": ("Project frozen", "The base revision is frozen: no change is accepted but the one that lifts it."),
+    # check and guard --ci: the organization policy (org_policy.py).
+    "policy-below-floor": ("Under the organization policy",
+                           "A setting or a pack of the profile is under the minimum the organization policy requires."),
+    "policy-frozen": ("Organization freeze", "The organization policy freezes every repository: no change is accepted."),
     "guard-no-base-profile": ("No profile on the base revision",
                               "The base revision has no OpenGuildKit profile, so nothing is enforced."),
     "guard-workflow-edited": ("Check workflow edited", "The change edits a workflow that runs this check."),

@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import audit_log
+from . import audit_log, org_policy_cli
 from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
@@ -71,6 +71,7 @@ def add_parser(commands) -> None:
     accept = actions.add_parser(
         "accept", help="Accept, at a terminal, a project record that replaces a record of the organization catalog.")
     accept.add_argument("record", metavar="COLLECTION/ID", help="The replaced record, such as packs/review.")
+    org_policy_cli.add_parser(actions)
     off = actions.add_parser("off", help="Stop following the organization catalog, at a terminal.")
     for command in (accept, off):
         add_by(command, required=True)
@@ -179,6 +180,7 @@ def _set(args, root: Path, state: Path) -> int:
     folder = args.repo.resolve()
     stored = args.name or _stored_repo(args.repo, root)
     read = read_files(stored, args.commit, root, folder if args.name else None)
+    org_policy_cli.from_read(read)  # A policy.json that cannot be read stops the pin (RFC #452).
     target = load_catalog(state / "catalog", central_policy=central_policy(args), organization=read)
     after = records_of(target)
     with copies_read_from(root, {args.name: str(folder)} if args.name else None):
@@ -190,6 +192,7 @@ def _set(args, root: Path, state: Path) -> int:
             print_json({"repo": stored, "commit": args.commit, "applied": False, "changes": _public(found)})
             return 0
         _print_changes(found, args.commit)
+        org_policy_cli.print_summary(read)
         if unreadable:
             print(f"The commit pinned now cannot be read, so every record shows as added: {unreadable}")
         print(f"To pin it, a person runs at a terminal: openguildkit org-catalog set --repo "
@@ -208,6 +211,7 @@ def _set(args, root: Path, state: Path) -> int:
         print_json({"repo": stored, "commit": args.commit, "applied": True, "changes": _public(found)})
     else:
         _print_changes(found, args.commit)
+        org_policy_cli.print_summary(read)
         print(f"Pinned the organization catalog at {args.commit[:12]} ({stored}), by {person['by']}.")
         if args.name:
             print(f"Each machine points at its copy: {variable_name(args.name)}=PATH (guard --ci: --org-catalog "
@@ -298,6 +302,8 @@ def run(args, root: Path, state: Path) -> int:
         return _show(args, root, state)
     if args.org_action == "set":
         return _set(args, root, state)
+    if args.org_action == "policy":
+        return org_policy_cli.run(args, state)
     if args.org_action == "accept":
         return _accept(args, state)
     return _off(args, root, state)

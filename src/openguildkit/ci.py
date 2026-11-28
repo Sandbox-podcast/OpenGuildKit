@@ -11,6 +11,7 @@ from .storage import parse_json
 
 
 POLICY_PATH = f"packs/{EXPORT_EXPIRY_ID}.json"
+ORG_POLICY = "policy.json"  # org_policy.py
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
 
@@ -35,8 +36,24 @@ def _committed_json(repo: Path, commit: str, path: str) -> dict:
     return parse_json(_committed_file(repo, commit, path), f"{commit}:{path}")
 
 
+def _holds(repo: Path, commit: str, path: str) -> bool:
+    try:
+        return FULL_COMMIT.fullmatch(commit) is not None and _git(repo, "cat-file", "-e", f"{commit}:{path}") == b""
+    except ValueError:
+        return False
+
+
 def read_policy_pack(repo: Path, commit: str) -> dict:
-    return _committed_json(repo, commit, POLICY_PATH)
+    """The central export rule; a commit that holds an organization policy instead names the command that reads it."""
+    try:
+        return _committed_json(repo, commit, POLICY_PATH)
+    except ValueError:
+        if not _holds(repo, commit, ORG_POLICY):
+            raise
+        raise ValueError(f"--policy-repo reads only the central export rule ({POLICY_PATH}), and commit {commit[:12]} "
+                         f"holds an organization policy ({ORG_POLICY}). Pin it at a terminal: openguildkit org-catalog "
+                         "set --repo PATH --commit SHA --by INITIALS --reason WHY; in CI: openguildkit guard --ci "
+                         "--org-policy PATH --org-commit SHA.") from None
 
 
 def check_export(profile: dict, catalog: dict, target: Path, commit: str) -> dict:

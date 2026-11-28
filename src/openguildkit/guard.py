@@ -16,7 +16,7 @@ import sys
 import time
 from pathlib import Path, PurePosixPath
 
-from . import git, incident, lazy_re, light_lane, requester, roles
+from . import git, incident, lazy_re, light_lane, org_policy, requester, roles
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -1130,7 +1130,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
 
 
 def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None,
-             org_catalog: list[str] | None = None) -> dict:
+             org_catalog: list[str] | None = None, org_policy_copy: tuple[str, str] | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
@@ -1138,7 +1138,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     a record of an approval already on base covers only the files its base version listed, so re-exporting an
     old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory, inside
     copies_read_from: the copy of an organization catalog is looked for from the real root, or at the NAME=PATH given
-    as org_catalog. require_signed makes local approvals a problem.
+    as org_catalog. require_signed makes local approvals a problem. An organization policy (org_policy.py), from
+    org_policy_copy (PATH, SHA) or else the base revision's pin, fails a profile under its minimum, and every change
+    while it freezes the repositories.
 
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
@@ -1184,6 +1186,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                                                             changed, records):
             problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
                                                  f"{incident.LIFT}"))
+        floor = [flag(code, message[0].upper() + message[1:]) for code, message in org_policy.ci_problems(
+            org_policy_copy, root, base_state, profile, catalog, parse_copies(org_catalog), bool(changed))]
+        problems += floor
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = Fingerprints(profile, catalog)
@@ -1254,5 +1259,5 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
-    return {"mode": "enforce" if freeze else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
+    return {"mode": "enforce" if freeze or floor else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}

@@ -23,6 +23,9 @@ from . import git, lazy_re
 from .shell import shell_word
 
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
+# The organization policy (RFC #452, org_policy.py): one file at the root, read and fingerprinted with the records
+# when the commit has it, so a commit without it keeps the fingerprint it had before.
+POLICY_FILE = "policy.json"
 FULL_COMMIT = lazy_re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 FINGERPRINT = lazy_re.compile(r"sha256:[0-9a-f]{64}")
 LOCK_NAME = ".openguildkit/catalog.lock.json"
@@ -104,8 +107,9 @@ def _named_folder(name: str, named: dict[str, str]) -> Path:
 
 
 def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
-    """(path, object) of each record file at the commit: COLLECTION/NAME.json, plain files only."""
-    listing = _git(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS)
+    """(path, object) of each record file at the commit: COLLECTION/NAME.json, and the policy file at the root, plain
+    files only."""
+    listing = _git(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE)
     if listing.returncode:
         raise ValueError(f"Git could not list the files of {commit[:12]} in {repo}.")
     files = []
@@ -116,7 +120,8 @@ def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
         mode, kind, obj = header.split(b" ")
         path = name.decode("utf-8", "replace")
         parts = path.split("/")
-        if kind == b"blob" and mode in (b"100644", b"100755") and len(parts) == 2 and parts[1].endswith(".json"):
+        if kind == b"blob" and mode in (b"100644", b"100755") and (
+                len(parts) == 2 and parts[1].endswith(".json") or parts == [POLICY_FILE]):
             files.append((path, obj.decode("ascii")))
     return sorted(files)
 
@@ -140,7 +145,7 @@ def _contents(repo: Path, objects: list[str]) -> list[bytes]:
 def fingerprint(files: dict[str, list[tuple[str, bytes]]]) -> str:
     """The digest of the paths and contents read, in path order."""
     digest = hashlib.sha256()
-    for path, data in sorted(item for collection in COLLECTIONS for item in files.get(collection, [])):
+    for path, data in sorted(item for collection in (*COLLECTIONS, POLICY_FILE) for item in files.get(collection, [])):
         digest.update(path.encode("utf-8") + b"\0" + hashlib.sha256(data).hexdigest().encode("ascii") + b"\n")
     return "sha256:" + digest.hexdigest()
 

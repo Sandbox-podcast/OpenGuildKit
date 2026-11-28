@@ -17,6 +17,7 @@ from . import (
     host_coverage,
     managed,
     org_catalog_cli,
+    org_policy_cli,
     profile_cli,
     projects_cli,
     tasks_cli,
@@ -176,6 +177,7 @@ def command_parser(left_out: frozenset[str] = frozenset()) -> argparse.ArgumentP
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
     guard.add_argument("--org-catalog", action="append", metavar="NAME=PATH",
                        help="With --ci, the copy of the organization catalog that the lock calls NAME.")
+    org_policy_cli.add_guard_options(guard)
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
@@ -801,7 +803,8 @@ def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
         found: list[dict] = []
         result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
-                          require_signed=args.require_signed, findings=found, org_catalog=args.org_catalog)
+                          require_signed=args.require_signed, findings=found, org_catalog=args.org_catalog,
+                          org_policy_copy=org_policy_cli.ci_copy(args))
         if args.format == "sarif":
             _print_guard_sarif(root, found, result["mode"])
         elif args.json:
@@ -1324,6 +1327,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     for _, message, _ in issues:
         print(f"OpenGuildKit: {message}", file=sys.stderr)
     report.sharing(issues)
+    org_policy_cli.check(state, profile, catalog, report)
     if failing:
         raise RuleError(f"The instructions match the project profile, but {len(failing)} "
                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "

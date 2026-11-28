@@ -192,6 +192,14 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`, `guard --ci` only. The profile of the base revision holds `frozen` and the change is not the one that lifts it, so no change is accepted, whatever the guard mode. A person lifts the freeze at a terminal: `openguildkit profile set freeze off --by INITIALS --reason WHY` ([incident response](workflow/incident-response.md)).
 
+#### `policy-below-floor`
+
+`error`, `check` and `guard --ci`, on the profile. The [organization policy](catalog-format.md#organization-policy) requires a guard mode, signed approvals, the separation of requester and approver or a pack, and the profile is under it; the message names the setting, the value required, the commit of the policy and the command that meets it. `guard --ci` judges the profile of the base revision and the one the change brings, whatever the guard mode.
+
+#### `policy-frozen`
+
+`error`, `check` and `guard --ci`. The organization policy holds `frozen`: every change of every repository that follows it fails, whatever the guard mode, until a commit of the policy lifts it ([organization policy](catalog-format.md#organization-policy)).
+
 #### `guard-no-base-profile`
 
 `note`, on the profile. The base revision has no OpenGuildKit profile, so nothing is enforced: expected for the pull request that adds it.
