@@ -1,5 +1,9 @@
 """The legal reason of each regulatory pack: the subject relevance.py retains for it and the text it rests on, a table
-for maintainers."""
+for maintainers.
+
+Entry: LEGAL_BASIS
+Tests: tests/test_relevance.py
+"""
 
 
 

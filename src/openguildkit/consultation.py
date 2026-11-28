@@ -1,5 +1,10 @@
 """Prepare a board consultation: the scope snapshot of the task, the review request for the host agent, and each
-board's brief with the rules that concern the task."""
+board's brief with the rules that concern the task.
+
+Entry: profile_settings, json_section, research_decision, answer_lines, scope_lines, code_not_found
+Tests: tests/test_agent_native.py, tests/test_assumptions.py, tests/test_cli_surface.py, tests/test_pass_relevance.py,
+tests/test_rule_decline.py, tests/test_short_lane.py
+"""
 
 import json
 import re

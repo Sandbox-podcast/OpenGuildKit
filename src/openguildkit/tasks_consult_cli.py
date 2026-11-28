@@ -1,5 +1,9 @@
 """The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass,
-submit, progress, review, deliberate, respond and challenge, with the input files they read."""
+submit, progress, review, deliberate, respond and challenge, with the input files they read.
+
+Entry: run_consult, run_route, run_pass, run_review, input_file
+Tests: tests/test_brain_knowledge.py
+"""
 
 import sys
 from contextlib import contextmanager

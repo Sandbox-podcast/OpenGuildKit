@@ -4,6 +4,9 @@ A dossier lives in .openguildkit/market/ID.json and is shared with the team thro
 The CLI validates it and attaches it to consultations; the host agent gathers the
 observations within the project's research policy. Its dates decide what is stale, due or in
 the future: they follow the real clock, whatever SOURCE_DATE_EPOCH says.
+
+Entry: dossier_path, validate_dossier, validate_watch, load_dossier, dossier_text, save_dossier
+Tests: tests/test_market.py
 """
 
 import codecs

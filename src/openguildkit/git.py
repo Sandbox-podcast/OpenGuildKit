@@ -1,4 +1,8 @@
-"""Run Git: one place for its options, for a machine without Git, and for reading file names as they are on disk."""
+"""Run Git: one place for its options, for a machine without Git, and for reading file names as they are on disk.
+
+Entry: run, text, names, split_names, unquote
+Tests: tests/test_guard.py, tests/test_trace.py
+"""
 
 import os
 import re

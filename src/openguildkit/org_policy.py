@@ -11,6 +11,9 @@ strict: `profile` refuses a change that goes under the minimum, `check` and `gua
      "required": {"packs": ["secure-sdlc"]}, "frozen": {"by": "SEC", "reason": "WHY", "since": "2026-11-28"}}
 
 A project that follows no organization catalog, or one whose commit has no policy.json, reads nothing more.
+
+Entry: parse, pinned, gaps, findings, refuse_lowering, ci_problems
+Tests: tests/test_org_policy.py
 """
 
 import json

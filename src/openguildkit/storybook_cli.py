@@ -2,6 +2,9 @@
 existing React application.
 
 The Storybook modules load when the command runs, so the other commands start without them.
+
+Entry: add_parser, run
+Tests: tests/test_architecture.py, tests/test_storybook.py, tests/test_storybook_extract.py
 """
 
 import argparse

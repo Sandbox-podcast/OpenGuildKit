@@ -2,7 +2,14 @@
 
 The rest of the task path has its own modules: tasks_record (the shape of a record), tasks_approval (whether an
 approval holds), tasks_blockers, tasks_review (consultation, review and passes), tasks_closing (decision, result,
-closing) and tasks_status (the next step and the line of the task list)."""
+closing) and tasks_status (the next step and the line of the task list).
+
+Entry: create_task, write_task, list_tasks
+Tests: tests/test_approval_lifecycle.py, tests/test_before_delivered_review.py, tests/test_blocker_clearances.py,
+tests/test_blockers.py, tests/test_clock.py, tests/test_closing_points.py, tests/test_deliberation.py,
+tests/test_delivered_review.py, tests/test_evidence_fingerprints.py, tests/test_requester.py, tests/test_retro.py,
+tests/test_short_lane.py
+"""
 
 import json
 import uuid

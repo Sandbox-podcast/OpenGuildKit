@@ -1,4 +1,8 @@
-"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks."""
+"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks.
+
+Entry: add_parser, run
+Tests: tests/test_exit_codes.py, tests/test_gemini_host.py
+"""
 
 import json
 import sys

@@ -1,4 +1,11 @@
-"""Runs `ci-check`: the decision records of a change, against its base commit, the files it touches and the guard workflow."""
+"""Runs `ci-check`: the decision records of a change, against its base commit, the files it touches and the guard workflow.
+
+Entry: ci_guard
+Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
+tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
+tests/test_sarif_commands.py, tests/test_short_lane.py
+"""
 
 import calendar
 import io

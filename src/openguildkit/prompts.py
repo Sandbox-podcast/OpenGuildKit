@@ -1,4 +1,8 @@
-"""Ask questions to a person at a terminal: the setup questionnaire of init and the task questions of task consult."""
+"""Ask questions to a person at a terminal: the setup questionnaire of init and the task questions of task consult.
+
+Entry: prompt_choices, prompt_questions
+Tests: tests/test_clean_errors.py, tests/test_first_run.py, tests/test_proportionate_setup.py
+"""
 
 import sys
 

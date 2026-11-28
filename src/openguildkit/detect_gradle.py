@@ -1,5 +1,9 @@
 """Proposes the components a Gradle build declares: Android and Kotlin plugins, Ktor from the build files or the version
-catalog, and the modules of the settings."""
+catalog, and the modules of the settings.
+
+Entry: gradle_components, gradle_modules
+Tests: tests/test_detect_versions.py, tests/test_components.py
+"""
 
 import re
 import tomllib

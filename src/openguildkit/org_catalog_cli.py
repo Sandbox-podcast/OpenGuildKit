@@ -4,6 +4,9 @@
 pins it in the catalog lock (with --name, under a name that carries no path); `accept` records that a person accepts a
 project record that replaces an organization record; `off` stops following it. The lock keeps each pin and each stop
 with who, when and why. Nothing here runs for a project that never calls them.
+
+Entry: add_parser, run
+Tests: tests/test_command_output_budget.py, tests/test_org_catalog.py, tests/test_org_policy.py
 """
 
 import os

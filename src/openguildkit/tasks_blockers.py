@@ -1,5 +1,10 @@
 """Blockers of an approved task: clearing one with evidence, waiving one within the project's policy, and the
-waivers that expired."""
+waivers that expired.
+
+Entry: resolve_blocker, unresolved_blockers, verification_blocker_problems, expired_waivers
+Tests: tests/test_blocker_clearances.py, tests/test_blockers.py, tests/test_clock.py,
+tests/test_evidence_fingerprints.py
+"""
 
 import re
 from datetime import date, datetime

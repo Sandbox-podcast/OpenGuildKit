@@ -1,5 +1,9 @@
 """What the commands ask of the catalog besides loading it: a recorded value against its rule's bounds, the boards an
-organization replaced and the sources without a date."""
+organization replaced and the sources without a date.
+
+Entry: recorded_value, board_replacements, replaced_boards, undated_sources
+Tests: tests/test_new_brains.py, tests/test_recorded_values.py
+"""
 
 import re
 from typing import Any

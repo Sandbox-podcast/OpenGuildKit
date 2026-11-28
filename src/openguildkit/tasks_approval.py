@@ -1,5 +1,9 @@
 """Whether an approval still holds: the rules and settings that changed since it, the scope it covered, and the
-messages that say a task is already decided or its review is stale."""
+messages that say a task is already decided or its review is stale.
+
+Entry: require_approval, rule_changes, require_current_scope
+Tests: tests/test_approval_lifecycle.py, tests/test_rule_changes.py
+"""
 
 from pathlib import Path
 

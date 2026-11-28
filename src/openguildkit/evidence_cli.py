@@ -5,7 +5,7 @@ their signature, the profile changes, the history of the allowed signers file in
 controls and a manifest with the SHA-256 of each file. It reads the project, writes only a new folder inside it and
 states no conformity to any framework. `verify` recomputes the manifest of a dossier.
 Entry: add_parser, run.
-Tests: tests/test_evidence.py.
+Tests: tests/test_evidence.py, tests/test_command_output_budget.py.
 """
 
 import hashlib

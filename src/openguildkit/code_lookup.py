@@ -1,4 +1,9 @@
-"""Looks up in the project's code the names a task cites, from the files Git tracks or a bounded walk of the folder."""
+"""Looks up in the project's code the names a task cites, from the files Git tracks or a bounded walk of the folder.
+
+Entry: code_lookup, MAX_SCANNED_FILES
+Tests: tests/test_agent_native.py, tests/test_assumptions.py, tests/test_cli_surface.py, tests/test_pass_relevance.py,
+tests/test_project_walk.py, tests/test_rule_decline.py, tests/test_short_lane.py
+"""
 
 import os
 import re

@@ -7,6 +7,10 @@ person accepted, and can replace every server with a local mock for demos and te
 
 Credentials never enter a file: a server names the environment variables it reads, and the
 host passes them through.
+
+Entry: read_scenario, load_mock, mock_ids
+Tests: tests/test_catalog_format_doc.py, tests/test_catalog_sources.py, tests/test_check_links.py,
+tests/test_features.py, tests/test_new_brains.py, tests/test_source_dates.py
 """
 
 import copy

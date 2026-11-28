@@ -12,6 +12,9 @@ Documentalist gives a reader a whole space. The local register follows the real 
 observation may compare it with a compatible portal's invitation settings. A share can mark its space as
 dedicated to its deliverable: the register then refuses another deliverable in that space, so that
 one space per deliverable gives each deliverable its own reader list.
+
+Entry: project_overview, export_docs, load_shares, portal_space, share_space, add_share
+Tests: tests/test_publishing.py
 """
 
 import ipaddress

@@ -9,6 +9,9 @@ of the project's own catalog has no subject and follows its origin: a regulation
 personal or regulated data, the others concern every task. Every pack left out is recorded as not concerned,
 with the reason, and needs no answer. LEGAL_BASIS (legal_basis.py) gives, for each regulatory pack, the subject
 retained and its legal reason. judge_rules then decides rule by rule, for the board passes, the handoff and the closing alike.
+
+Entry: rule_not_concerned, judge_rules, sensitive_area, evidence_owner, changed_files, condition_met
+Tests: tests/test_pass_relevance.py, tests/test_relevance.py
 """
 
 from pathlib import Path, PurePosixPath

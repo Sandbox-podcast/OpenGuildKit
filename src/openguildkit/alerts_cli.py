@@ -1,4 +1,8 @@
-"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project."""
+"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project.
+
+Entry: add_parser, run, task_command, consultation_task
+Tests: tests/test_architecture.py, tests/test_requester.py
+"""
 
 import sys
 from pathlib import Path

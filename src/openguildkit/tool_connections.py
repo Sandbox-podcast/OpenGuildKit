@@ -1,4 +1,11 @@
-"""Writes the MCP servers a person accepted into each host's configuration, removes them, and reports which are connected."""
+"""Writes the MCP servers a person accepted into each host's configuration, removes them, and reports which are connected.
+
+Entry: read_manifest, check_settings, apply_connections, remove_connections, connection_status, connected_tools, HOSTS,
+CLAUDE_MCP_FILE, CODEX_CONFIG_FILE
+Tests: tests/test_catalog_format_doc.py, tests/test_catalog_sources.py, tests/test_check_links.py,
+tests/test_features.py, tests/test_new_brains.py, tests/test_source_dates.py, tests/test_tool_registry.py,
+tests/test_tools.py
+"""
 
 import json
 import os

@@ -2,11 +2,10 @@
 
     python scripts/build_map.py [--check]
 
-A person writes the role, entry points, documentation page and `covers` of each module, the tests attached by
-hand, and the `paths` entries: files and folders outside the package (scripts, web/src, integrations/ci/lib, the
+A person writes the role, documentation page and `covers` of each module, and the `paths` entries: files and folders outside the package (scripts, web/src, integrations/ci/lib, the
 documentation) with the tests and commands scripts/check_fast.py runs for them. The script adds what the code says:
-an entry for each module of src/openguildkit (a new one gets an empty role to write), each test file that imports a
-module directly, the tests that name each fixture of tests/, and the `commands` section, one entry per terminal
+an entry for each module of src/openguildkit (a new one gets an empty role to write), its entry points and test files
+from the `Entry:` and `Tests:` lines of its docstring, each test file that imports a module directly, the tests that name each fixture of tests/, and the `commands` section, one entry per terminal
 command with the function that runs it, its module and the line of that function, or of the branch that
 handles the command inside a larger function. The tests of a command are those of its module. The file holds one entry per
 line, so `grep -n '"src/openguildkit/results.py"' docs/agents/map.json` prints a whole entry.
@@ -81,6 +80,22 @@ def fixture_entries(root: Path) -> list[dict]:
             tests = sorted(test for test, text in texts.items() if '"fixtures"' in text and folder in text)
         entries.append({"path": path.relative_to(root).as_posix(), "tests": tests, "generated": "fixture"})
     return entries
+
+
+def header(path: Path) -> tuple[list[str], list[str]]:
+    """The names of the `Entry:` line and the paths of the `Tests:` line of a module's docstring (#502). Each line may
+    go on over the next ones, up to the other line or a blank line; backticks and a final period are left out."""
+    found: dict[str, list[str]] = {"Entry": [], "Tests": []}
+    current = None
+    for line in (ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) or "").splitlines():
+        label, _, rest = line.partition(":")
+        if label in found:
+            current, line = label, rest
+        elif not line.strip():
+            current = None
+        if current:
+            found[current] += [item.split(" (")[0].strip(" .`") for item in line.split(",") if item.strip(" .`")]
+    return found["Entry"], found["Tests"]
 
 
 class Module:
@@ -216,8 +231,9 @@ def build(current: dict, root: Path = ROOT) -> dict:
     for name in names:
         path = f"src/openguildkit/{name}"
         item = dict(by_module.get(path) or {"module": path, "role": "", "entry": [], "tests": [], "doc": "docs/architecture.md"})
-        kept = {test for test in item.get("tests", []) if (root / test).is_file()}  # A removed test file leaves.
-        item["tests"] = sorted(kept | importers[name])
+        entry, tests = header(root / path)
+        item["entry"] = entry
+        item["tests"] = sorted({test for test in tests if (root / test).is_file()} | importers[name])
         modules.append(item)
     paths = [{**item, "tests": [test for test in item["tests"] if (root / test).is_file()]}
              for item in current.get("paths", []) if item.get("generated") != "fixture"]

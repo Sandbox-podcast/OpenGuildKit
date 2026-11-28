@@ -1,4 +1,8 @@
-"""Writes what the team validated as Storybook files: Design Tokens, CSF3 stories and their index."""
+"""Writes what the team validated as Storybook files: Design Tokens, CSF3 stories and their index.
+
+Entry: detect_framework, generate
+Tests: tests/test_storybook_extract.py
+"""
 
 import hashlib
 import json

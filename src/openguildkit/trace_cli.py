@@ -3,6 +3,9 @@
 A reviewer, a security officer or an auditor asks which decision covers a file. The exported records list the files
 of each change; this command reads them, says for each whether it still holds, and asks Git whether the file changed
 after the last decision. It reads and writes nothing else: no task, no record, no Git index.
+
+Entry: add_parser, run
+Tests: tests/test_command_output_budget.py, tests/test_trace.py
 """
 
 import os

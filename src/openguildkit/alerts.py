@@ -6,6 +6,9 @@ already produced (npm audit, pip-audit, OSV-Scanner or GitHub Dependabot alerts)
 whatever scanner reported it, with a life cycle: open, confirmed, dismissed or resolved.
 Tasks link the alerts that concern them; a confirmed critical alert blocks their approval and
 completion until it is resolved or a person records why it is accepted.
+
+Entry: read_report, register_path, load_register, save_register, import_report
+Tests: tests/test_alerts.py
 """
 
 import codecs

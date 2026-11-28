@@ -2,6 +2,9 @@
 
 Detection only reads local manifests. It never runs a package manager or opens the
 network, and the team confirms or corrects the proposal before it reaches the profile.
+
+Entry: walk, detected_project_name, detect_stack, components_for_profile
+Tests: tests/test_detect_versions.py
 """
 
 import itertools

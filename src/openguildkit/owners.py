@@ -9,6 +9,9 @@ the file is .github/CODEOWNERS, CODEOWNERS or docs/CODEOWNERS, searched in that 
 used; patterns follow most gitignore rules, but `!` negation and `[ ]` ranges do not work; the last matching pattern
 takes precedence; a pattern without owners leaves its paths without one; paths are case sensitive; a file of 3 MB or
 more is not loaded.
+
+Entry: parse, owners_of, read_codeowners, touched_paths, owner_line
+Tests: tests/test_owners.py
 """
 
 import re

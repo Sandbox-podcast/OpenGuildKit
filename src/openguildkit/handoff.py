@@ -1,4 +1,10 @@
-"""Writes the implementation handoff of an approved task: what to build, the checks to run and the rules that hold."""
+"""Writes the implementation handoff of an approved task: what to build, the checks to run and the rules that hold.
+
+Entry: handoff, review_lines
+Tests: tests/test_assumptions.py, tests/test_blockers.py, tests/test_board_entries.py, tests/test_brain_selection.py,
+tests/test_brains.py, tests/test_clock.py, tests/test_decision_brief.py, tests/test_evidence_fingerprints.py,
+tests/test_output_size.py, tests/test_owners.py, tests/test_sensitive.py, tests/test_short_lane.py
+"""
 
 from pathlib import Path
 

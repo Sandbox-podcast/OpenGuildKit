@@ -3,6 +3,9 @@
 OpenGuildKit cannot stop a host agent from using its tools. Some hosts can, through
 their own project settings. This module writes those settings for the hosts it knows
 and tells the requester which rules remain instructions or human checks.
+
+Entry: signers_rule, approval_warning, host_controls, apply_host_settings, board_control
+Tests: tests/test_audit_log.py, tests/test_managed_settings.py
 """
 
 import json

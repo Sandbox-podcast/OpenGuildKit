@@ -5,6 +5,12 @@ modules do. Each action reads the task, checks what its status allows, and write
 lock; what only a person may do (approve, withdraw an approval, clear, waive, close over open points) waits for
 them at a terminal. The actions live in tasks_consult_cli, tasks_decide_cli, tasks_close_cli and tasks_list_cli;
 this module keeps the parser, task new and the table that runs the others.
+
+Entry: add_parser, run
+Tests: tests/e2e/test_short_lane.py, tests/e2e/test_task_retro.py, tests/test_audit_log.py,
+tests/test_before_delivered_review.py, tests/test_brain_knowledge.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_next_steps.py, tests/test_performance.py, tests/test_requester.py,
+tests/test_short_lane.py, tests/test_task_dependencies.py, tests/test_task_index.py, tests/test_unhooked_hosts.py
 """
 
 import sys

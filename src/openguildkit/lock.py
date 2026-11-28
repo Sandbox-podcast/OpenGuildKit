@@ -3,6 +3,9 @@
 The lock holds a copy of every bundled pack, board, sector and pattern the profile
 uses. Commands read the locked copy instead of the bundled one. `openguildkit update`
 shows what a newer catalog would change and applies it only when asked.
+
+Entry: lock_path, read_lock, central_policy, installed_catalog, project_catalog
+Tests: tests/test_org_catalog.py, tests/test_performance.py
 """
 
 import json

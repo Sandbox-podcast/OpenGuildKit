@@ -3,6 +3,9 @@
 Every act left to a person, and every question asked at a terminal, starts with `interactive()`. Python's
 `isatty()` is true on Windows for any character device, the NUL device included: there the handle of standard
 input must also be a console. `typed()` is the one place where a person confirms an act by typing its name.
+
+Entry: interactive, console, windows_console
+Tests: tests/test_terminal.py
 """
 import os
 import sys

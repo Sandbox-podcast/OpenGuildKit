@@ -2,6 +2,9 @@
 
 Both need only the standard library and storage, so that `openguildkit --version`, and the edit hook of a project whose guard
 is off, answer without importing the CLI or the guard (#539).
+
+Entry: package_version, declared_mode, guard_declared_off
+Tests: tests/test_guard.py
 """
 
 import os

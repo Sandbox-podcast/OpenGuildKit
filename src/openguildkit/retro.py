@@ -6,6 +6,9 @@ profile command a person could type. Everything is a count taken from a task rec
 exported decision record (`.openguildkit/decisions/`): no model, no estimate, no field that holds a person, and no file
 written unless the person asks for a draft rule pack with --draft-rules (draft_pack, write_draft). The functions take and
 return dicts; reading the records is the command's part (tasks_cli.py).
+
+Entry: facts_of_task, facts_of_record, task_retro, recurrences, proposals, project_summary, render_task, render_project
+Tests: tests/test_rule_decline.py
 """
 
 import re

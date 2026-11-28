@@ -7,7 +7,7 @@ come from HOOK_HOSTS and EDIT_MATCHERS of hosts.py, the tools without one from U
 page read says `not established`.
 
 Entry: add_options, matrix, markdown_table, run.
-Tests: tests/test_doc_pages.py (HostCoverageTests).
+Tests: tests/test_doc_pages.py (HostCoverageTests), tests/test_cli_coverage.py.
 """
 
 from . import hosts

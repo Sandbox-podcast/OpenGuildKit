@@ -3,7 +3,8 @@ every change takes, from a command at a terminal or from the web page (write_cha
 
 Entry: weakening_changes, write_change, save_edited, check_proposal, report_change, print_touched, Weakening,
 InvalidProfile.
-Tests: tests/test_profile_commands.py, tests/test_rule_decline.py, tests/test_short_lane.py, tests/test_requester.py.
+Tests: tests/test_profile_commands.py, tests/test_rule_decline.py, tests/test_short_lane.py, tests/test_requester.py,
+tests/test_profile_reference.py.
 """
 
 from argparse import Namespace

@@ -11,6 +11,10 @@ optional excerpt in which control characters are written U+XXXX and a line that 
 
 Nothing here opens a network connection, starts a process or writes a file. Matching is by words and literal text, never
 by a pattern that can backtrack, so a line of a megabyte costs one pass.
+
+Entry: discover, scan, scan_report, render_scan, scan_exit_code
+Tests: tests/test_host_scan.py, tests/test_host_surfaces.py, tests/test_allow_list_scan.py, tests/test_gemini_host.py,
+tests/test_registry_pins.py
 """
 
 import json

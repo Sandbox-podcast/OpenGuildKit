@@ -8,6 +8,9 @@ still matches it; otherwise the record is read again and the entry replaced. The
 skipped: the guard still reads every record it does not skip, check reads them all, so a missing, stale or corrupt
 index costs time and never changes a decision. It is written whole and atomically, without the project lock, so the
 hook never waits and concurrent commands each leave a complete index.
+
+Entry: tasks_with_status, entries, save
+Tests: tests/test_performance.py
 """
 
 import json

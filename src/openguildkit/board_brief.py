@@ -1,5 +1,11 @@
 """Writes the brief of one board's pass: its part of the scope, the rules of its packs that concern the task, and its
-reading list."""
+reading list.
+
+Entry: pack_rules, board_brief, CONTEST_ITEM
+Tests: tests/test_agent_native.py, tests/test_assumptions.py, tests/test_board_entries.py,
+tests/test_brain_knowledge.py, tests/test_cli_surface.py, tests/test_new_brains.py, tests/test_pass_relevance.py,
+tests/test_rule_decline.py, tests/test_short_lane.py
+"""
 
 import json
 import re

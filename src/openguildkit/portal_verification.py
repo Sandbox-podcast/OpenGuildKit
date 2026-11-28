@@ -2,6 +2,9 @@
 
 The observation describes the server's invitation policy, not a live reader session.
 Credentials are requested at a terminal, held in memory and never saved in the register.
+
+Entry: verify_portal
+Tests: tests/test_portal_verification.py
 """
 
 import getpass

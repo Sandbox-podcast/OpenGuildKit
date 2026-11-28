@@ -3,6 +3,12 @@
 `openguildkit guard` says whether an approved task covers the work in progress. Host
 hooks run it when a request arrives and before a file edit. In CI, it checks that a
 pull request carries an exported decision that matches the rules of its base revision.
+
+Entry: guard_mode, covering_approvals, edited_paths, signers_file, hook_answer, guard_hook
+Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
+tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
+tests/test_sarif_commands.py, tests/test_short_lane.py
 """
 
 import json

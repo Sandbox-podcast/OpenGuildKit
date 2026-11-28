@@ -5,6 +5,9 @@ the change, with what the decision asked (expected outcome, the board's recommen
 disagreements left open, its decision criteria) and its own lens. It returns findings, each with a file, a line, a
 severity and an action; task complete keeps a blocking finding, or one left to the person, as an open point. A task
 whose diff no board reviewed closes as before.
+
+Entry: delivered_change, board_brief, record_findings, print_overview, open_points, exported_review
+Tests: tests/test_before_delivered_review.py, tests/test_command_output_budget.py
 """
 
 import json

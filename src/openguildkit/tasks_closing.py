@@ -1,5 +1,10 @@
 """Deciding and closing a task: the decision and its withdrawal, the authorizations of external actions, the result,
-the evidence handed to a follow-up task, and the points left open at the closing."""
+the evidence handed to a follow-up task, and the points left open at the closing.
+
+Entry: record_decision, revoke_approval, record_authorization, record_result, complete_task, points_left_open
+Tests: tests/test_blocker_clearances.py, tests/test_blockers.py, tests/test_closing_points.py,
+tests/test_deliberation.py
+"""
 
 import re
 from pathlib import Path

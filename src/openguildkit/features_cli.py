@@ -3,6 +3,9 @@
 Turning an option on or off changes the profile's tools by the profile commands' path (profile_changes), so the change
 is recorded with who, when and why, and the instructions follow. Connecting the tool's MCP server stays with
 tools plan and tools apply.
+
+Entry: add_parser, run
+Tests: tests/test_cli_coverage.py, tests/test_features.py
 """
 
 import json

@@ -1,5 +1,10 @@
 """The consultation and the boards' review of a task: recording them, the rounds kept when it is consulted again,
-the sequential passes, and the text a person reads before deciding."""
+the sequential passes, and the text a person reads before deciding.
+
+Entry: record_consultation, record_review, start_pass, submit_pass, assemble_review, decision_text
+Tests: tests/test_approval_lifecycle.py, tests/test_blocker_clearances.py, tests/test_blockers.py,
+tests/test_deliberation.py
+"""
 
 from collections.abc import Mapping
 from pathlib import Path

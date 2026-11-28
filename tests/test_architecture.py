@@ -236,6 +236,25 @@ class ModuleShapeTests(unittest.TestCase):
         self.assertNotIn("cli.main", projects)
         self.assertNotIn("redirect_stderr", projects)
 
+    def test_issue_502_each_module_names_its_entry_points_and_its_tests_in_its_header(self):
+        """Issue #502: the module headers named no test file and the entry points of 3 modules of 65; the map, written
+        by hand, missed 51 tests that import a module."""
+        from tests.support import load_script
+
+        header = load_script(REPO / "scripts" / "build_map.py").header
+        for path in sorted(PACKAGE.glob("*.py")):
+            with self.subTest(module=path.name):
+                entry, tests = header(path)
+                tree = parsed(path)
+                defined = {node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+                defined |= {target.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+                            for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                            if isinstance(target, ast.Name)}
+                self.assertTrue(entry, "an Entry: line in the docstring")
+                self.assertTrue(tests, "a Tests: line in the docstring")
+                self.assertEqual([name for name in entry if name not in defined | {"module"}], [])
+                self.assertEqual([test for test in tests if not (REPO / test).is_file()], [])
+
     def test_issue_530_each_task_action_runs_in_the_function_named_after_it(self):
         """Issue #530: task verify, result and complete ran in _outcome, clear and waive in _resolve, submit in _pass:
         a search for the action's name found no function."""

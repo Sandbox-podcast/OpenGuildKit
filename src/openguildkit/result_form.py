@@ -1,4 +1,8 @@
-"""The result template a person fills for an approved task, and the check of the result they return."""
+"""The result template a person fills for an approved task, and the check of the result they return.
+
+Entry: validate_result, result_template, RESULT_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE
+Tests: tests/test_recorded_values.py, tests/test_relevance.py, tests/test_results.py
+"""
 
 from pathlib import Path
 from urllib.parse import urlsplit

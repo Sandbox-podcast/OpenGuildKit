@@ -1,5 +1,9 @@
 """Whether an approval still holds, with only the modules the edit hook already loads: its seal, its rules, its age, its
-signature and its history."""
+signature and its history.
+
+Entry: approval_problem, days_since, DONE_STATUSES, STALE_DAYS
+Tests: tests/test_approval_lifecycle.py, tests/test_rule_changes.py
+"""
 
 from datetime import UTC, datetime
 from pathlib import Path

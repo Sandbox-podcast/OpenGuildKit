@@ -1,4 +1,8 @@
-"""Discover bibliographic references separately from active rule packs."""
+"""Discover bibliographic references separately from active rule packs.
+
+Entry: load_references, check_reference_links, with_pattern_references, english_title, find_references
+Tests: tests/test_references.py
+"""
 
 import re
 import unicodedata

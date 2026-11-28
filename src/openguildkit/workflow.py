@@ -2,6 +2,11 @@
 the deliberation between boards, the decision brief, the blockers and the implementation handoff.
 
 The questionnaire (questionnaire.py), the routing (routing.py) and the consultation (consultation.py) come first.
+
+Entry: TaskStateError, mock_evidence
+Tests: tests/test_assumptions.py, tests/test_board_entries.py, tests/test_brain_selection.py, tests/test_clock.py,
+tests/test_decision_brief.py, tests/test_evidence_fingerprints.py, tests/test_output_size.py, tests/test_owners.py,
+tests/test_sensitive.py, tests/test_short_lane.py
 """
 
 from pathlib import Path

@@ -1,5 +1,9 @@
 """The task actions a person decides: decide, revoke, decision-payload, authorize, blockers, clear, waive and
-alerts. What only a person may do waits for them at a terminal (terminal.typed)."""
+alerts. What only a person may do waits for them at a terminal (terminal.typed).
+
+Entry: run_decide, run_revoke, run_resolve, run_authorize
+Tests: tests/test_approval_lifecycle.py, tests/test_blockers.py, tests/test_requester.py
+"""
 
 import sys
 from pathlib import Path

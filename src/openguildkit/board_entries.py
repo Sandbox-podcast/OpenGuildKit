@@ -1,4 +1,10 @@
-"""Checks the review entry a board returns: its findings, its evidence, its challenge and its warnings."""
+"""Checks the review entry a board returns: its findings, its evidence, its challenge and its warnings.
+
+Entry: required_text, received_value, evidence_positions, validate_board_entry, validate_review, review_warnings
+Tests: tests/test_assumptions.py, tests/test_board_entries.py, tests/test_brain_selection.py, tests/test_brains.py,
+tests/test_clock.py, tests/test_decision_brief.py, tests/test_evidence_fingerprints.py, tests/test_output_size.py,
+tests/test_owners.py, tests/test_sensitive.py, tests/test_short_lane.py
+"""
 
 import json
 import re

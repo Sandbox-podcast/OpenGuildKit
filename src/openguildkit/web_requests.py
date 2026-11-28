@@ -1,5 +1,11 @@
 """What the local web interface refuses to run or to read: commands that need a person at a terminal, paths outside the
-project, secrets, and the project files it may show or write."""
+project, secrets, and the project files it may show or write.
+
+Entry: Refused, terminal_command, named_command, terminal_reason, check_request, check_paths, ProjectFiles, MAX_FILE,
+REFUSALS, HUMAN_ONLY_TEXT
+Tests: tests/test_approval_lifecycle.py, tests/test_cli_surface.py, tests/test_next_steps.py, tests/test_org_catalog.py,
+tests/test_projects.py, tests/test_webui.py
+"""
 
 from __future__ import annotations
 

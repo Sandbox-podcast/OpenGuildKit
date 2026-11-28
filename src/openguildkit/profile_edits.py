@@ -1,5 +1,9 @@
 """What each `profile` command writes into the profile: packs and rules adopted or declined, lists, settings and their
-values."""
+values.
+
+Entry: lifted_paths, rule_argument, changed_profile, LIST_FIELDS, SET_FIELDS, RULE_WORD
+Tests: tests/test_profile_reference.py
+"""
 
 import difflib
 

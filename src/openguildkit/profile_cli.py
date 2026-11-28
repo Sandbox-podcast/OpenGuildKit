@@ -3,7 +3,9 @@
 Each change goes through profile_changes.write_change, the path the web page saves through too. What weakens a
 protection is the person's decision: here it needs an interactive terminal and the typed confirmation (_confirm).
 Entry: add_parser, run.
-Tests: tests/test_profile_commands.py, tests/test_profile_reference.py.
+Tests: tests/test_profile_commands.py, tests/test_profile_reference.py, tests/test_audit_log.py,
+tests/test_gemini_host.py, tests/test_org_catalog.py, tests/test_requester.py, tests/test_rule_decline.py,
+tests/test_short_lane.py.
 """
 
 import sys

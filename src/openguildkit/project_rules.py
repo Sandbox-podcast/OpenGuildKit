@@ -1,4 +1,8 @@
-"""The rule plan of a profile: packs and their conflicts, scopes, provenance and the profile fingerprint."""
+"""The rule plan of a profile: packs and their conflicts, scopes, provenance and the profile fingerprint.
+
+Entry: resolved_profile, rule_plan, pack_scopes, Fingerprints, profile_fingerprint
+Tests: tests/test_rule_checks.py
+"""
 
 from pathlib import PurePosixPath
 

@@ -1,5 +1,9 @@
 """Reads one instruction or configuration file for what a person does not see: hidden characters, sentences that cancel
-the rules, downloads piped into an interpreter."""
+the rules, downloads piped into an interpreter.
+
+Entry: visible_text, scan_finding, analyse_text, line_of, LEVELS
+Tests: tests/test_host_scan.py, tests/test_host_surfaces.py, tests/test_allow_list_scan.py
+"""
 
 import re
 import unicodedata

@@ -6,6 +6,9 @@ file compares to a value, or a file stays within a number of bytes. Literal text
 regular expressions keeps every match linear, so no pattern can make a check hang. Only a pack
 of the project's own catalog may declare a `command` check, which task verify runs like the
 project's check commands.
+
+Entry: validate_path, validate_check, describe_check, parse_fields, compare_field, matching_paths
+Tests: tests/test_rule_checks.py
 """
 
 import json

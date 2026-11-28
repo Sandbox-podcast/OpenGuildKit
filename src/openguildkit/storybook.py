@@ -6,6 +6,9 @@ The CLI never runs npm and never opens the network. It writes the refs file that
 the known stories in .openguildkit/storybook.json so boards can cite a story and its state. From the
 application's sources it writes an inventory, proposals the team decides on, and for validated items
 only, Design Tokens, CSF3 stories and an index that the team edits.
+
+Entry: committed_path, ref_id, index_file, read_index, components, compare
+Tests: tests/test_storybook.py, tests/test_storybook_extract.py
 """
 
 import json

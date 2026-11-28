@@ -1,4 +1,8 @@
-"""The setup questionnaire of init and the completion of its answers into a profile."""
+"""The setup questionnaire of init and the completion of its answers into a profile.
+
+Entry: is_norm, norm_reason, init_questions, unsure_answers, complete_answers, setup_profile
+Tests: tests/test_rule_checks.py
+"""
 
 import json
 

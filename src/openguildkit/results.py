@@ -6,6 +6,9 @@ others are listed as not concerned, with the reason. A rule with a machine check
 and recorded by task verify instead of being reported. A named piece of evidence is a
 document its owner provides, as a project path or an https link: the tool checks that a path
 exists, never what it says. A project can make some rules mandatory with `required_rules`.
+
+Entry: expected_checks, asked_checks, not_concerned, run_command_checks, decision_changes, decision_revision_message
+Tests: tests/test_results.py
 """
 
 import hashlib

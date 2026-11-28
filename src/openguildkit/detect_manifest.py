@@ -1,4 +1,8 @@
-"""A component that detection proposes, and the bounded read of the manifest it comes from."""
+"""A component that detection proposes, and the bounded read of the manifest it comes from.
+
+Entry: DetectedComponent, read_manifest_text, MAX_MANIFEST_BYTES
+Tests: tests/test_detect_versions.py, tests/test_components.py
+"""
 
 from pathlib import Path
 

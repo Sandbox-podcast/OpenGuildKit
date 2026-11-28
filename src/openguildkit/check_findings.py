@@ -4,6 +4,9 @@ The commands keep printing what they printed. When a person asks for `--format s
 under the code of its rule, a level and the file it is about, and writes them with `sarif.to_sarif`. The codes are
 the ones docs/sarif.md lists, one heading each; a code is part of what a code scanning alert is keyed on, so a rule is
 added or retired there, never renamed.
+
+Entry: RULES, APPROVAL_CODES, Report
+Tests: tests/test_org_catalog.py, tests/test_requester.py
 """
 
 from .project import STATE_DIR

@@ -1,4 +1,10 @@
-"""Loads the tool registry and the project's own tools, and checks each tool and MCP server it declares."""
+"""Loads the tool registry and the project's own tools, and checks each tool and MCP server it declares.
+
+Entry: tool_names, load_tools, check_tool_links, tool_key, CATEGORIES, TRANSPORTS, TOOL_ID, SETTING_NAME, SECRET_WORD,
+SETTING_VALUE, PROJECT_ORIGIN, PROJECT_TOOLS
+Tests: tests/test_catalog_format_doc.py, tests/test_catalog_sources.py, tests/test_check_links.py,
+tests/test_features.py, tests/test_new_brains.py, tests/test_registry_pins.py, tests/test_source_dates.py
+"""
 
 import re
 from pathlib import Path

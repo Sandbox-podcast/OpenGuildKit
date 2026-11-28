@@ -5,6 +5,9 @@ person at a terminal: approving a task or clearing a blocker without a signature
 external action, accepting an alert, setting its severity or dismissing a critical one, declaring that a check
 command cannot run, closing a task over sensitive points, or a profile change that weakens a protection. For those,
 it answers with the command to type.
+
+Entry: serve, make_server, find_front_end, WebApp, Handler
+Tests: tests/test_approval_lifecycle.py, tests/test_org_catalog.py, tests/test_projects.py
 """
 
 from __future__ import annotations

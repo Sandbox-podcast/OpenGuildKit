@@ -6,6 +6,9 @@ can be connected to "Jira" or "Snyk" without an account. List and get tools read
 records, so an id one call returns is accepted by the others; a project can swap in its own
 records with a scenario file. The mock's tool names are
 OpenGuildKit's own: it rehearses the agent's flow, it does not imitate a vendor's API.
+
+Entry: validate_mock, reference_problems, check_synthetic, apply_scenario, is_generic, signature
+Tests: tests/e2e/test_tool_mocks.py, tests/test_tools.py
 """
 
 import copy

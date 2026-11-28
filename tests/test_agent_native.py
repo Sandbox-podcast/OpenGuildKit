@@ -118,6 +118,8 @@ class MapTests(unittest.TestCase):
                 attached.add(test)
             for prefix in item.get("covers", []):
                 self.assertFalse(prefix.startswith("/") or ".." in prefix)
+        # A test of a script is attached by the script's entry of paths (tests/test_agent_cost.py).
+        attached |= {test for item in self.map.get("paths", []) for test in item["tests"]}
         files = sorted(path.relative_to(REPO).as_posix() for path in (REPO / "tests").rglob("test_*.py"))
         self.assertEqual([relative for relative in files if relative not in attached], [])
 

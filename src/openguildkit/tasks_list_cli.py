@@ -1,5 +1,9 @@
 """The task actions that read the tasks: list, show and retro, with the exported records of a teammate and the
-warnings on what the team does not share."""
+warnings on what the team does not share.
+
+Entry: run_list, run_show, run_retro, sharing_issues
+Tests: tests/test_next_steps.py, tests/test_retro.py, tests/test_task_index.py
+"""
 
 import sys
 from pathlib import Path

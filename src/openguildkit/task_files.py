@@ -1,4 +1,11 @@
-"""Finds and reads a task record: its file, its check, and the records kept between the requests of the web page."""
+"""Finds and reads a task record: its file, its check, and the records kept between the requests of the web page.
+
+Entry: task_path, KeptRecords, keeping_records, read_task
+Tests: tests/test_approval_lifecycle.py, tests/test_before_delivered_review.py, tests/test_blocker_clearances.py,
+tests/test_blockers.py, tests/test_clock.py, tests/test_closing_points.py, tests/test_deliberation.py,
+tests/test_delivered_review.py, tests/test_evidence_fingerprints.py, tests/test_requester.py, tests/test_retro.py,
+tests/test_short_lane.py, tests/test_webui.py
+"""
 
 import contextlib
 import difflib

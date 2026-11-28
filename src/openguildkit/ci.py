@@ -1,4 +1,8 @@
-"""Read versioned evidence from Git and evaluate the central policy's field check on it."""
+"""Read versioned evidence from Git and evaluate the central policy's field check on it.
+
+Entry: read_policy_pack, check_export
+Tests: tests/e2e/test_export_ci.py
+"""
 
 import re
 from pathlib import Path

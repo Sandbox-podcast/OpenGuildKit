@@ -3,6 +3,9 @@
 The sources are read with text patterns and the standard library, not a JavaScript parser: React function
 components with their props, literal defaults and string-union prop types, the export aliases and re-exports of
 index files, and CSS and SCSS stylesheets. Each item keeps the file and line it comes from.
+
+Entry: normalize_color, extract
+Tests: tests/test_storybook_extract.py
 """
 
 import json

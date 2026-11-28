@@ -1,4 +1,8 @@
-"""Read a single OpenGuildKit project's metadata over local MCP."""
+"""Read a single OpenGuildKit project's metadata over local MCP.
+
+Entry: serve_project
+Tests: tests/test_project_mcp.py
+"""
 
 import json
 import re

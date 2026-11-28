@@ -1,4 +1,8 @@
-"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources."""
+"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources.
+
+Entry: add_parser, run
+Tests: tests/test_architecture.py, tests/test_cli_coverage.py
+"""
 
 from pathlib import Path
 

@@ -1,4 +1,10 @@
-"""Load and validate OpenGuildKit's declarative knowledge catalog."""
+"""Load and validate OpenGuildKit's declarative knowledge catalog.
+
+Entry: is_positive_integer, CatalogError, record_files, validate_fields, validate_text, validate_id, bundle_sources,
+read_record_files, bundled_ids
+Tests: tests/test_catalog_bundle.py, tests/test_catalog_format_doc.py, tests/test_catalog_load.py,
+tests/test_catalog_sources.py, tests/test_org_catalog.py
+"""
 
 import copy
 import json

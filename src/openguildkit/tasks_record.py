@@ -1,5 +1,9 @@
 """The shape of a task record: the fields each part may hold, the checks of a record read from disk and of a
-brief, and the time stamp records carry."""
+brief, and the time stamp records carry.
+
+Entry: timestamp, task_record_problem, board_brief_problem, validate_brief
+Tests: tests/test_blocker_clearances.py, tests/test_task_dependencies.py
+"""
 
 from collections.abc import Iterator
 from typing import cast

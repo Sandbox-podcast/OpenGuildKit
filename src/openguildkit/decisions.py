@@ -6,6 +6,9 @@ signed approval: the approver signs the decision with an SSH key listed in an
 allowed-signers file kept in the repository, and the CLI verifies it locally. The key may be a
 certificate of an authority (a `cert-authority` line); an approver who adds signed_at to the
 payload has the approval, once recorded, verified at that time, so that an expiry later on voids none.
+
+Entry: git_revision, changed_paths_since, exported_boards, exported_rounds, shared_digest, task_shared_digest
+Tests: tests/test_decisions.py
 """
 
 import json

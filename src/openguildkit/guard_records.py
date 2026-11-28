@@ -1,4 +1,11 @@
-"""Checks the decision records a project exports: their shape, their seal, their history and the conflicts between them."""
+"""Checks the decision records a project exports: their shape, their seal, their history and the conflicts between them.
+
+Entry: record_check, exported_decisions
+Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
+tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
+tests/test_sarif_commands.py, tests/test_short_lane.py
+"""
 
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING

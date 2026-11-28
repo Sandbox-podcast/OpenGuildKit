@@ -1,5 +1,9 @@
 """Reads one configured MCP server: the package and the pin it launches, its match in the tool registry, and its masked
-command line."""
+command line.
+
+Entry: registry_index, configured_server
+Tests: tests/test_host_surfaces.py, tests/test_allow_list_scan.py, tests/test_registry_pins.py
+"""
 
 import json
 import re

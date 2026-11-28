@@ -1,4 +1,12 @@
-"""Exports an approval decision and its withdrawal as a signed record, and names the conflicts between records."""
+"""Exports an approval decision and its withdrawal as a signed record, and names the conflicts between records.
+
+Entry: export_decision, record_of_another_task, record_shape, conflict_message, withdrawal_of, export_withdrawal,
+untracked_files, changes_since_approval, RECORD_VERSION
+Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
+tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
+tests/test_sarif_commands.py, tests/test_short_lane.py
+"""
 
 import json
 import re

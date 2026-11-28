@@ -4,6 +4,9 @@ Host hooks run openguildkit guard --hook before every edit an agent makes. That 
 without importing the rest of the CLI, and ends before importing the guard when the profile declares it off; a bare
 --version answers without the CLI too. Every other command, and a hook call written any other way, goes to cli.main,
 which parses it as before.
+
+Entry: hook_call, main
+Tests: tests/test_cli_errors.py, tests/test_performance.py
 """
 
 import sys
