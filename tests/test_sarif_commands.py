@@ -474,7 +474,7 @@ RULE_LIKE = re.compile(r"^(?:decision|instructions|host|catalog|task|source|brai
 # The modules that write a rule code, and the words of theirs that look like one and are not: the `task decision-payload`
 # command, and the kind of sharing issue that is not a finding.
 WRITERS = ("check_findings.py", "check_cli.py", "cli.py", "guard.py", "lock.py", "org_policy.py", "project.py",
-           "requester.py", "tasks_cli.py")
+           "project_instructions.py", "requester.py", "tasks_cli.py")
 NOT_CODES = {"decision-payload", "task-absent"}
 
 
