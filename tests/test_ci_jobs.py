@@ -281,18 +281,11 @@ class CiLogTest(unittest.TestCase):
         self.assertEqual((failed.returncode, failed.stdout), (3, ""))
         self.assertIn("catalog problem", failed.stderr, "the reason of a failure stays in the log")
 
-    def test_the_log_of_the_tests_ends_with_the_slowest_ones_where_unittest_can_list_them(self):
-        """unittest has --durations from Python 3.12; the floor of requires-python does not."""
+    def test_issue_451_the_tests_run_one_process_per_file_with_fewer_on_macos(self):
+        """Issue #451: the suite ran in one process; each test file now gets its own, four at once, three on macOS."""
         run = self.step("Unit and end-to-end tests")["run"]
-        match = re.fullmatch(r"python -m unittest discover -s tests -v \$\{\{ matrix\.python != '([\d.]+)' && '(--durations 25)' \|\| '' \}\}", run)
-        self.assertIsNotNone(match, run)
-        floor = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["requires-python"]
-        floor = floor.removeprefix(">=")
-        self.assertEqual(match.group(1), floor, "the one Python that has no --durations")
-        self.assertLess(tuple(map(int, floor.split("."))), (3, 12), "from Python 3.12 on, drop the condition")
-        for version in self.job["strategy"]["matrix"]["python"]:
-            if version != floor:
-                self.assertGreaterEqual(tuple(map(int, version.split("."))), (3, 12), version)
+        self.assertEqual(run, "python scripts/run_tests.py --jobs ${{ matrix.os == 'macos-latest' && 3 || 4 }}")
+        self.assertTrue((ROOT / "scripts" / "run_tests.py").is_file())
 
 
 class ToolVersionFilesTest(unittest.TestCase):

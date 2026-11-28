@@ -26,6 +26,7 @@ MAP = ROOT / "docs" / "agents" / "map.json"
 # Files this repository checks outside the module map.
 EXTRA = {
     "scripts/check_fast.py": ["tests/test_agent_native.py"],
+    "scripts/run_tests.py": ["tests/test_test_suite.py"],
     "scripts/agent_cost.py": ["tests/test_agent_native.py"],
     "scripts/check_fix_trace.py": ["tests/test_agent_native.py"],
     "scripts/check_oracle.py": ["tests/test_agent_native.py"],

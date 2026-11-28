@@ -55,8 +55,9 @@ jobs:
         run: openguildkit brains --check
 
       - name: Unit and end-to-end tests
-        # --durations ends the log with the 25 slowest tests; unittest has it from Python 3.12.
-        run: python -m unittest discover -s tests -v ${{ matrix.python != '3.11' && '--durations 25' || '' }}
+        # One process per test file, several at once, and only the output of a failed file (#451). macOS runners
+        # have three processors. `python -m unittest discover -s tests --durations 25` lists the slowest tests.
+        run: python scripts/run_tests.py --jobs ${{ matrix.os == 'macos-latest' && 3 || 4 }}
 
       - name: Replay the request status example
         run: python examples/request-status/replay.py

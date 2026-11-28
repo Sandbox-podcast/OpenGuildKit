@@ -152,6 +152,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - CI: a test job no longer prints the 12,472 lines of `openguildkit catalog --json` that made 81 % of its log (the step still fails on a non-zero exit code, with the message on standard error), and the unittest log ends with the 25 slowest tests on Python 3.12 and later (#517)
 - CI: the wheel and its web interface are built once on Ubuntu and installed on each system from an artifact (7 web builds per run become 3); a pull request runs 4 of the 6 test cells and a push to `main` all 6; the CI coordinator, the web checks and the journeys start only when a file they read changed, and `contribution-checks` counts a skipped one as passed (#474)
 - Code coverage (`.github/workflows/coverage.yml`): an optional workflow, run on request, measures the branches of `src/openguildkit` with `coverage`, the processes the tests start included, lists each module in the run summary and fails when `guard.py` or `hosts.py` falls under its floor. `docs/testing.md` tells it from `scripts/coverage.py`, which measures the catalog (#472)
+- Tests: `python scripts/run_tests.py --jobs N` runs each test file in its own process, several at once, the largest first, prints only the output of a failed file and exits 1 when one fails; the CI test job uses it with four processes, three on macOS, and `unittest discover` still runs the whole suite in one process (#451)
 
 ## 0.17.0
 

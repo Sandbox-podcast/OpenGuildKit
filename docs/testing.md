@@ -5,10 +5,13 @@ For: a developer who runs or adds tests.
 The test suite uses `unittest` from the standard library and runs offline. CI runs the standard suite on Linux, macOS and Windows with Python 3.11 and 3.15, four of the six combinations on a pull request (hosted macOS runners are scarce: [CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request) says what to do when one never comes). A separate job runs the timed performance tests once per operating system on Python 3.15. A published release is checked by `.github/workflows/release-check.yml`, not on each pull request: it installs the files attached to the release on Linux, macOS and Windows and upgrades a v0.16.1 project to it ([GOVERNANCE.md](../GOVERNANCE.md#releases), step 7).
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests          # everything, under 5 minutes
+python scripts/run_tests.py --jobs 4                          # everything, one process per test file, four at once
+PYTHONPATH=src python -m unittest discover -s tests --durations 25   # everything in one process, slowest tests last
 PYTHONPATH=src python -m unittest tests.test_robustness      # one kind
 PYTHONPATH=src python -m unittest tests.e2e.test_concurrency.LockTests   # one class
 ```
+
+`scripts/run_tests.py` runs each file `discover` finds as `python -m unittest tests.MODULE`, the largest files first, prints the whole output of a file that fails and exits 1 if any does; CI runs it with four processes, three on macOS (#451). This page records no duration for it: read the step "Unit and end-to-end tests" of a CI run.
 
 On Windows, set `PYTHONPATH` with `set PYTHONPATH=src` (cmd) or `$env:PYTHONPATH="src"` (PowerShell), or install the project with `python -m pip install -e .` and drop it.
 
@@ -24,7 +27,7 @@ Git reads no configuration of the machine during the tests. `tests/__init__.py` 
 
 ## Kinds of tests
 
-On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose other applications kept the load average between 3.8 and 6.6: 1 218 tests in 279 s, 3 skipped (the time budgets); the one failure of that run, `test_a_component_path_with_spaces_works_in_the_check_shell`, needs a `python` command, which this laptop does not have. On the same laptop and the same day, the suite took 636 s for 1 198 tests before #252, and 431 s for 1 202 tests after it. A matrix job on GitHub Actions was not timed for this commit. Each time below is the sum of its tests in an earlier run with `--durations 0` on the same laptop and the same day (1 205 tests in 283 s, before the last commits of #252's branch).
+On 26 November 2026, the sixth audit measured 2 141 tests in 515 s in one process, under a load average of 7 to 9 (#451). On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose other applications kept the load average between 3.8 and 6.6: 1 218 tests in 279 s, 3 skipped (the time budgets); the one failure of that run, `test_a_component_path_with_spaces_works_in_the_check_shell`, needs a `python` command, which this laptop does not have. On the same laptop and the same day, the suite took 636 s for 1 198 tests before #252, and 431 s for 1 202 tests after it. A matrix job on GitHub Actions was not timed for this commit. Each time below is the sum of its tests in an earlier run with `--durations 0` on the same laptop and the same day (1 205 tests in 283 s, before the last commits of #252's branch).
 
 | Kind | Where | What it proves | Time |
 | --- | --- | --- | --- |
