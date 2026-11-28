@@ -26,7 +26,7 @@ from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data
 from .storage import file_sha256, write_text
 from .wording import plural
-from .workflow import is_decision_task
+from .workflow import is_decision_task, required_text
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
 CRITERION_STATUSES = ("met", "not-met")
@@ -242,12 +242,6 @@ def evidence_state(root: Path, value: str, fingerprint: str | None) -> str:
     return "unchanged" if evidence_fingerprint(root, value) == fingerprint else "changed"
 
 
-def _text(value: object, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field} must contain text.")
-    return value.strip()
-
-
 def _shape(task: dict) -> str:
     return f"Run openguildkit task result {task['id']} --template for the shape."
 
@@ -321,7 +315,7 @@ def _revision(task: dict, payload: dict, changed: list[str] | None) -> dict:
             return {}
         raise _refusal(task, "Name the delivered revision or pull request: revision (a commit SHA) or pull_request.")
     try:
-        return {key: _text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
+        return {key: required_text(payload[key], key) for key in ("revision", "pull_request") if payload.get(key)}
     except ValueError as error:
         raise _refusal(task, str(error)) from None
 
@@ -335,7 +329,7 @@ def _criterion(task: dict, item: object, known: dict, root: Path | None) -> dict
     if item["status"] not in CRITERION_STATUSES:
         raise _refusal(task, f"A criterion status is met or not-met, not {item['status']!r}.")
     try:
-        entry = {key: _text(item[key], f"criterion {key}") for key in ("criterion", "status", "evidence")}
+        entry = {key: required_text(item[key], f"criterion {key}") for key in ("criterion", "status", "evidence")}
     except ValueError as error:
         raise _refusal(task, str(error)) from None
     verified = item.get("verified_by")
@@ -372,7 +366,7 @@ def _pack_answer(task: dict, item: object, scope: set) -> dict | None:
     fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
     try:
         return {"pack": item["pack"], "status": item["status"],
-                **{field: _text(item.get(field), f"{item['pack']} {field}") for field in fields}}
+                **{field: required_text(item.get(field), f"{item['pack']} {field}") for field in fields}}
     except ValueError as error:
         raise _refusal(task, f"{error} A {item['status']} pack needs {' and '.join(fields)}.") from None
 
@@ -459,7 +453,7 @@ def _check_entry(task: dict, item: object, known: dict, source: str, root: Path 
     if check.get("kind") == "evidence" and item["status"] == "passed":
         fields = ("evidence", "owner")
     try:
-        entry.update({field: _text(item.get(field), f"{item['check']} {field}") for field in fields})
+        entry.update({field: required_text(item.get(field), f"{item['check']} {field}") for field in fields})
     except ValueError as error:
         needed = " and ".join(fields)
         if check.get("kind") == "evidence" and item["status"] == "passed":

@@ -33,7 +33,7 @@ class TaskStateError(ValueError):
     status and the next command that runs in it (tasks_status.state_refusal)."""
 
 
-def _text(value: object, field: str) -> str:
+def required_text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must contain text.")
     return value.strip()
@@ -42,7 +42,7 @@ def _text(value: object, field: str) -> str:
 def _text_list(value: object, field: str) -> list[str]:
     if not isinstance(value, list):
         raise ValueError(f"{field} must be a list of strings.")
-    return [_text(item, field) for item in value]
+    return [required_text(item, field) for item in value]
 
 
 DATED_SOURCES = ("public", "measurement", "interview")
@@ -56,7 +56,7 @@ _LOCATION = lazy_re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
 def _evidence_day(value: object, field: str) -> str:
     """A real YYYY-MM-DD date that is not in the future on the real clock (one day of margin for time zones)."""
     if not isinstance(value, str) or not _DATE.fullmatch(value):
-        raise ValueError(f"{field}: got {_received(value)}; write the date YYYY-MM-DD.")
+        raise ValueError(f"{field}: got {received_value(value)}; write the date YYYY-MM-DD.")
     try:
         day = date.fromisoformat(value)
     except ValueError:
@@ -97,10 +97,10 @@ def _evidence_item(
         return _evidence_outcome(None, found, problems)
     source = item["source"]
     if source not in EVIDENCE_SOURCES:
-        found.append(f"{field}.source: got {_received(source)}; accepted: {', '.join(EVIDENCE_SOURCES)}.")
+        found.append(f"{field}.source: got {received_value(source)}; accepted: {', '.join(EVIDENCE_SOURCES)}.")
         source = None
-    result = {"source": source, "ref": _checked(found, _text, item["ref"], f"{field}.ref"),
-              "supports": _checked(found, _text, item["supports"], f"{field}.supports")}
+    result = {"source": source, "ref": _checked(found, required_text, item["ref"], f"{field}.ref"),
+              "supports": _checked(found, required_text, item["supports"], f"{field}.supports")}
     if source == "tool" and result["ref"] is not None:
         result["ref"] = _tool_reference(result["ref"], tool_ids)
     ref = result["ref"]
@@ -110,7 +110,7 @@ def _evidence_item(
         result["date"] = _checked(found, _evidence_day, item["date"], f"{field}.date")
     if "revision" in item:
         if not isinstance(item["revision"], str) or not _REVISION.fullmatch(item["revision"]):
-            found.append(f"{field}.revision: got {_received(item['revision'])}; write a commit SHA.")
+            found.append(f"{field}.revision: got {received_value(item['revision'])}; write a commit SHA.")
         result["revision"] = item["revision"]
     if source in DATED_SOURCES and "date" not in item and ref is not None and not ref.startswith("market:"):
         found.append(f"{field}.date: a {source} source needs the date it was observed.")
@@ -172,7 +172,7 @@ def mock_evidence(task: dict) -> list[str]:
     ]
 
 
-def _received(value: object) -> str:
+def received_value(value: object) -> str:
     """The value a person sent, short enough for one line of an error."""
     text = redact_credentials(json.dumps(value, ensure_ascii=False)[:2000])
     return text if len(text) <= 60 else text[:57] + "..."
@@ -205,14 +205,14 @@ def _checked(problems: list[str], function, *args):
 def _choice(value: object, field: str, path: str, problems: list[str]) -> str | None:
     if isinstance(value, str) and value in CHOICES[field]:
         return value
-    problems.append(f"{path}: got {_received(value)}; accepted: {', '.join(CHOICES[field])}.")
+    problems.append(f"{path}: got {received_value(value)}; accepted: {', '.join(CHOICES[field])}.")
     return None
 
 
 def _keys(value: object, expected: set, optional: set, path: str, problems: list[str]) -> bool:
     """An object with the expected keys; missing and unknown keys are both reported."""
     if not isinstance(value, dict):
-        problems.append(f"{path}: got {_received(value)}; expected an object with {', '.join(sorted(expected))}.")
+        problems.append(f"{path}: got {received_value(value)}; expected an object with {', '.join(sorted(expected))}.")
         return False
     missing, unknown = expected - value.keys(), value.keys() - expected - optional
     if missing:
@@ -226,27 +226,27 @@ def _keys(value: object, expected: set, optional: set, path: str, problems: list
 def _blocker(item: object, path: str, problems: list[str]) -> dict | None:
     """A blocking finding names who can resolve it and what would clear it."""
     if not isinstance(item, dict):
-        problems.append(f"{path}: got {_received(item)}; each blocker is an object with finding, owner and "
+        problems.append(f"{path}: got {received_value(item)}; each blocker is an object with finding, owner and "
                         "clears_when, as in blocker_item.")
         return None
     _keys(item, {"finding", "owner", "clears_when"}, {"phase"}, path, problems)
-    blocker = {key: _checked(problems, _text, item.get(key, _ABSENT), f"{path}.{key}")
+    blocker = {key: _checked(problems, required_text, item.get(key, _ABSENT), f"{path}.{key}")
                for key in ("finding", "owner", "clears_when")}
     if "phase" in item:
         blocker["phase"] = _choice(item["phase"], "phase", f"{path}.phase", problems)
     return blocker
 
 
-def _evidence_refs(references: object, count: int, path: str, problems: list[str]) -> list[int]:
+def evidence_positions(references: object, count: int, path: str, problems: list[str]) -> list[int]:
     """Positions in the entry's own evidence list, counted from one."""
     if not isinstance(references, list):
-        problems.append(f"{path}: got {_received(references)}; write a list of positions such as [1, 3].")
+        problems.append(f"{path}: got {received_value(references)}; write a list of positions such as [1, 3].")
         return []
     wrong = [index for index in references if type(index) is not int or not 1 <= index <= count]
     if wrong:
         valid = f"1 to {count}" if count else "none: the entry's evidence list is empty, add the evidence first"
         problems.append(
-            f"{path}: {_received(wrong)} must point to the board's evidence list: evidence_refs are positions in "
+            f"{path}: {received_value(wrong)} must point to the board's evidence list: evidence_refs are positions in "
             f"this entry's own evidence list, counted from 1 ([1, 3] cites its first and third items); valid here: "
             f"{valid}."
         )
@@ -276,7 +276,7 @@ def _validate_challenge(
     if specialists is _ABSENT:
         specialists = []
     elif not isinstance(specialists, list):
-        problems.append(f"{path}.specialists: got {_received(specialists)}; expected a list of lens findings.")
+        problems.append(f"{path}.specialists: got {received_value(specialists)}; expected a list of lens findings.")
         specialists = []
     for position, specialist in enumerate(specialists):
         lens_path = f"{path}.specialists[{position}]"
@@ -288,16 +288,16 @@ def _validate_challenge(
                             "from the entry.")
             continue
         if not isinstance(specialist_id, str) or specialist_id not in expected or specialist_id in findings:
-            problems.append(f"{lens_path}.id: unexpected or repeated {board_id} specialist {_received(specialist_id)}; "
+            problems.append(f"{lens_path}.id: unexpected or repeated {board_id} specialist {received_value(specialist_id)}; "
                             f"expected each of {', '.join(expected)} once.")
             continue
         lens_path = f"{board_id}/{specialist_id}"
         basis = _choice(specialist["basis"], "basis", f"{lens_path} basis", problems)
-        references = _evidence_refs(specialist["evidence_refs"], len(evidence), f"{lens_path} evidence_refs", problems)
+        references = evidence_positions(specialist["evidence_refs"], len(evidence), f"{lens_path} evidence_refs", problems)
         if basis == "observed" and not references:
             problems.append(f"{lens_path} needs an evidence reference for an observed finding.")
         findings[specialist_id] = {
-            "id": specialist_id, "finding": _checked(problems, _text, specialist["finding"], f"{lens_path} finding"),
+            "id": specialist_id, "finding": _checked(problems, required_text, specialist["finding"], f"{lens_path} finding"),
             "basis": basis, "evidence_refs": list(dict.fromkeys(references)),
         }
     # A lens whose finding is malformed is already reported; only the lenses never written are missing.
@@ -319,7 +319,7 @@ def _validate_challenge(
             )
     blockers = [] if challenge["blockers"] is _ABSENT else challenge["blockers"]
     if not isinstance(blockers, list):
-        problems.append(f"{path}.blockers: got {_received(blockers)}; expected a list, empty unless the board blocks.")
+        problems.append(f"{path}.blockers: got {received_value(blockers)}; expected a list, empty unless the board blocks.")
         blockers = []
     elif structured:
         blockers = [_blocker(item, f"{path}.blockers[{index}]", problems) for index, item in enumerate(blockers)]
@@ -336,7 +336,7 @@ def _validate_challenge(
         "specialists": [findings[specialist_id] for specialist_id in expected if specialist_id in findings],
         "verdict": verdict,
         "confidence": confidence,
-        **{field: _checked(problems, _text, challenge[field], f"{path}.{field}")
+        **{field: _checked(problems, required_text, challenge[field], f"{path}.{field}")
            for field in ("alternative", "failure_mode", "verification")},
         "blockers": blockers,
     }
@@ -345,7 +345,7 @@ def _validate_challenge(
 def _contested(items: object, count: int, path: str, problems: list[str]) -> list[dict]:
     """The task's assumptions a board contests: each names one by its number, counted from 1, and says why."""
     if not isinstance(items, list):
-        problems.append(f"{path}: got {_received(items)}; expected a list of {json.dumps(CONTEST_ITEM)}, empty when "
+        problems.append(f"{path}: got {received_value(items)}; expected a list of {json.dumps(CONTEST_ITEM)}, empty when "
                         "the board contests no assumption.")
         return []
     contested = []
@@ -355,10 +355,10 @@ def _contested(items: object, count: int, path: str, problems: list[str]) -> lis
             continue
         number = item["assumption"]
         if type(number) is not int or not 1 <= number <= count:
-            problems.append(f"{item_path}.assumption: got {_received(number)}; the number of a listed assumption, "
+            problems.append(f"{item_path}.assumption: got {received_value(number)}; the number of a listed assumption, "
                             f"1 to {count}.")
             continue
-        reason = _checked(problems, _text, item["reason"], f"{item_path}.reason")
+        reason = _checked(problems, required_text, item["reason"], f"{item_path}.reason")
         if reason:
             contested.append({"assumption": number, "reason": reason})
     return contested
@@ -377,7 +377,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
         raise ValueError("A board review must be a JSON object, as printed under Entry to return.")
     board_id = entry.get("id")
     if not isinstance(board_id, str) or not board_id.strip():
-        raise ValueError(f"id: got {_received(board_id)}; write the board's ID, one of {', '.join(selected)}.")
+        raise ValueError(f"id: got {received_value(board_id)}; write the board's ID, one of {', '.join(selected)}.")
     board_id = board_id.strip()
     if board_id not in selected:
         raise ValueError(f"id: board {board_id!r} was not selected for this consultation. Selected: {', '.join(selected)}.")
@@ -397,7 +397,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     structured = consultation.get("evidence_format") == "structured"
     evidence = [] if entry["evidence"] is _ABSENT else entry["evidence"]
     if not isinstance(evidence, list):
-        problems.append(f"{board_id}.evidence: got {_received(evidence)}; expected a list of evidence items.")
+        problems.append(f"{board_id}.evidence: got {received_value(evidence)}; expected a list of evidence items.")
         evidence = []
     if structured:
         checked = [
@@ -409,12 +409,12 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
         checked = _checked(problems, _text_list, evidence, f"{board_id} evidence") or []
     result = {
         "id": board_id,
-        "recommendation": _checked(problems, _text, entry["recommendation"], f"{board_id}.recommendation"),
+        "recommendation": _checked(problems, required_text, entry["recommendation"], f"{board_id}.recommendation"),
         "evidence": checked,
         "open_questions": _checked(problems, _text_list, entry["open_questions"], f"{board_id}.open_questions"),
     }
     if "reviewer" in template:
-        result["reviewer"] = _checked(problems, _text, entry["reviewer"], f"{board_id}.reviewer")
+        result["reviewer"] = _checked(problems, required_text, entry["reviewer"], f"{board_id}.reviewer")
     if "challenge" in template and entry["challenge"] is not _ABSENT:
         stored = consultation.get("board_briefs", {}).get(board_id, {})
         listed = stored.get("lenses_not_concerned") if isinstance(stored, dict) else None
@@ -447,7 +447,7 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
         raise ValueError(f"Review execution must be one of {', '.join(EXECUTION_MODES)}.")
     if review["consultation_id"] != consultation["id"]:
         raise ValueError("This review belongs to another consultation. Run task template again.")
-    summary = _text(review["summary"], "Review summary")
+    summary = required_text(review["summary"], "Review summary")
     if not isinstance(review["boards"], list):
         raise ValueError("Review boards must be a list.")
 
@@ -721,7 +721,7 @@ def deliberation_request(task: dict) -> dict:
 def _response_problems(response: object, items: dict, evidence: dict) -> tuple[list[tuple], list[str]]:
     """The (objection, board) pairs a response answers, and its problems."""
     if not isinstance(response, dict):
-        return [], [f"got {_received(response)}; each response is an object as in the template of task deliberate."]
+        return [], [f"got {received_value(response)}; each response is an object as in the template of task deliberate."]
     keys = {"board", "position", "response", "evidence_refs"}
     target = "objections" if "objections" in response else "objection"
     if response.keys() != keys | {target}:
@@ -733,9 +733,9 @@ def _response_problems(response: object, items: dict, evidence: dict) -> tuple[l
     problems = [f"{item_id}/{board}: unknown objection or board in response." for item_id in ids
                 if item_id not in items or board not in (items[item_id]["from"], items[item_id]["to"])]
     if not isinstance(response["position"], str) or response["position"] not in POSITIONS:
-        problems.append(f"{board}: position got {_received(response['position'])}; accepted: {', '.join(POSITIONS)}.")
+        problems.append(f"{board}: position got {received_value(response['position'])}; accepted: {', '.join(POSITIONS)}.")
     count = len(evidence.get(board, []))
-    _evidence_refs(response["evidence_refs"], count, f"{board} evidence_refs", problems)
+    evidence_positions(response["evidence_refs"], count, f"{board} evidence_refs", problems)
     if response["position"] in ("maintain", "amend") and not response["evidence_refs"]:
         problems.append(f"{board} must cite its evidence to maintain or amend a position.")
     if not isinstance(response["response"], str) or not response["response"].strip():
@@ -1146,8 +1146,8 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
     review = validate_review(consultation, task["review"])
     decision = task["decision"]
     approval = {
-        "by": _text(decision.get("by"), "Approver"),
-        "reason": _text(decision.get("reason"), "Approval reason"),
+        "by": required_text(decision.get("by"), "Approver"),
+        "reason": required_text(decision.get("reason"), "Approval reason"),
     }
     if is_decision_task(task):
         heading = "# Approved decision record"
