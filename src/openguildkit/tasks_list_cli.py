@@ -7,8 +7,8 @@ from pathlib import Path
 from .clock import today
 from .decisions import DECISIONS_DIR, export_digest, exported_records, ignored_by_git
 from .doc_links import doc_link
-from .guard import exported_decisions
 from .guard_export import record_of_another_task
+from .guard_records import exported_decisions
 from .project import STATE_DIR
 from .project_rules import Fingerprints
 from .results import DONE_STATUSES

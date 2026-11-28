@@ -20,7 +20,7 @@ from .alerts import load_register
 from .catalog import package_file
 from .command import Command
 from .decisions import approval_policy, export_digest, exported_records, git_revision, seal, verify_recorded_signature
-from .guard import exported_decisions
+from .guard_records import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
 from .project_rules import Fingerprints

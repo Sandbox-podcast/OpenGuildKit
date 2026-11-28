@@ -8,8 +8,9 @@ from pathlib import Path, PurePosixPath
 
 from . import incident, short_lane
 from .decisions import CLOCK_SKEW, DECISIONS_DIR, approval_policy
-from .guard import guard_mode, record_check
+from .guard import guard_mode
 from .guard_export import conflict_message, record_shape
+from .guard_records import record_check
 from .project import STATE_DIR, load_profile
 from .startup import UNKNOWN_MODE, declared_mode
 from .storage import file_sha256, parse_json, read_json

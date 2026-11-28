@@ -11,7 +11,7 @@ from pathlib import Path
 from . import git
 from .command import Command
 from .decisions import exported_records
-from .guard import exported_decisions
+from .guard_records import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
 from .project_rules import Fingerprints
