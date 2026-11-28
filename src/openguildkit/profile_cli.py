@@ -12,7 +12,7 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
-from . import audit_log, incident, light_lane, requester
+from . import audit_log, incident, light_lane, org_policy, requester
 from .cli_surface import add_by
 from .clock import today
 from .doc_links import doc_link
@@ -614,6 +614,7 @@ def write_change(root: Path, state: Path, args, edit, by: str, reason: str, conf
         profile = load_profile(state, catalog)
         edited, change = edit(profile, catalog)
         updated = validate_profile(edited, catalog)
+        org_policy.refuse_lowering(profile, updated, catalog, lock, state)  # Even at a terminal (RFC #452).
         weakened = weakening_changes(profile, updated, catalog)
         voided = voided_approvals(state, updated, catalog)
         if weakened:

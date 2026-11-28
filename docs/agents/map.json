@@ -778,7 +778,8 @@
       ],
       "tests": [
         "tests/test_command_output_budget.py",
-        "tests/test_org_catalog.py"
+        "tests/test_org_catalog.py",
+        "tests/test_org_policy.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -791,9 +792,40 @@
       ],
       "tests": [
         "tests/test_command_output_budget.py",
-        "tests/test_org_catalog.py"
+        "tests/test_org_catalog.py",
+        "tests/test_org_policy.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/org_policy.py",
+      "role": "Reads the organization policy (`policy.json` of the organization catalog) at the pinned commit, or at the commit `guard --ci --org-policy` is given, and lists where a profile is under its minimum or frozen.",
+      "entry": [
+        "parse",
+        "pinned",
+        "gaps",
+        "findings",
+        "refuse_lowering",
+        "ci_problems"
+      ],
+      "tests": [
+        "tests/test_org_policy.py"
+      ],
+      "doc": "docs/catalog-format.md"
+    },
+    {
+      "module": "src/openguildkit/org_policy_cli.py",
+      "role": "`org-catalog policy`, the lines `check` fails on, the policy a commit brings in `org-catalog set`, and the options of `guard --ci`.",
+      "entry": [
+        "add_parser",
+        "add_guard_options",
+        "check",
+        "run"
+      ],
+      "tests": [
+        "tests/test_org_policy.py"
+      ],
+      "doc": "docs/catalog-format.md"
     },
     {
       "module": "src/openguildkit/owners.py",

@@ -106,6 +106,7 @@ EXAMPLES = [
                   "--commit $target_commit"),
     # An organization catalog (RFC #446), pinned at a commit of a local Git copy.
     Example("org", "org-catalog show"), Example("org", "org-catalog show --json"),
+    Example("org", "org-catalog policy"), Example("org", "org-catalog policy --json"),
     Example("init", "org-catalog set --repo $org --commit $org_commit"),
     Example("init", "org-catalog set --repo $org --commit $org_commit --json"),
     Example("init", "org-catalog set --repo $org --commit $org_commit --by CM --reason Pilot", typed="$org_short"),

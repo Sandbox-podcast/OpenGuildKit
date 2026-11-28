@@ -83,6 +83,8 @@ Say whether an approved task covers the work, for hooks and CI.
 - `--base BASE`: Base revision for --ci (default origin/main).
 - `--require-signed`: With --ci, fail while the base revision's approvals are local and cannot be verified.
 - `--org-catalog NAME=PATH`: With --ci, the copy of the organization catalog that the lock calls NAME.
+- `--org-policy PATH`: With --ci and --org-commit, the copy of the organization catalog whose policy.json sets the minimum, instead of the one the base revision pins.
+- `--org-commit SHA`: With --org-policy, the full SHA of the policy commit.
 - `--json`: Print the result as JSON.
 - `--format {text,sarif}`: With --ci, print the problems as SARIF 2.1.0 for code scanning instead of text.
 
@@ -523,6 +525,12 @@ Accept, at a terminal, a project record that replaces a record of the organizati
 - `COLLECTION/ID`: The replaced record, such as packs/review.
 - `--by INITIALS`: Your initials or team handle, not your full name: it is committed.
 - `--reason WHY`: Why, in one line.
+
+### org-catalog policy
+
+Show the minimum the organization policy of the pinned commit requires, and where the profile is under it.
+
+- `--json`: Print it as JSON.
 
 ### org-catalog off
 

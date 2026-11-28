@@ -71,6 +71,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `lock.py` | Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog. |
 | `org_catalog.py` | Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network; fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one. |
 | `org_catalog_cli.py` | The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a local replacement, off. |
+| `org_policy.py` | Reads the organization policy (`policy.json` of the organization catalog) at the pinned commit, or at the commit `guard --ci --org-policy` is given, and lists where a profile is under its minimum or frozen. |
+| `org_policy_cli.py` | `org-catalog policy`, the lines `check` fails on, the policy a commit brings in `org-catalog set`, and the options of `guard --ci`. |
 | `patterns.py` | Matches the project's stack and context to versioned stack patterns and the packs they apply. |
 | `references.py` | Searches the reference library, separately from the active rule packs. |
 | `brains.py` | Assembles what a brain knows: its specialists' methods, packs and references. |
