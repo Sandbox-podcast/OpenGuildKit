@@ -386,6 +386,8 @@ def restricted_paths(profile: dict) -> list[str]:
 
 
 def validate_profile(answers: dict, catalog: dict) -> dict:
+    """The profile the answers describe, each field checked, in the order project.json writes them; ValueError names
+    the first field that is wrong."""
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
@@ -406,17 +408,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if research not in ("local-only", "public-sources"):
         raise ValueError("research must be local-only or public-sources")
     inputs = recommendation_inputs(answers, catalog)
-    patterns = pattern_entries(answers.get("patterns", []), catalog, components)
-    if "patterns" not in answers and "packs" not in answers:
-        patterns = [
-            {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
-            for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
-        ]
-    declined = declined_entries(answers.get("declined", []), catalog)
-    both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
-    if both:
-        raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
-    check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
+    patterns, declined = _chosen_patterns(answers, catalog, (sector, stack, roles, components), inputs)
     packs = catalog_ids(answers.get("packs", default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
     profile = {
         "schema_version": SCHEMA_VERSION,
@@ -440,6 +432,32 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         profile["patterns"] = patterns
     if declined:
         profile["declined"] = declined
+    _add_agent_settings(profile, answers)
+    _add_rule_choices(profile, answers, catalog)
+    _add_approval(profile, answers, catalog)
+    _add_options(profile, answers, catalog)
+    return profile
+
+
+def _chosen_patterns(answers: dict, catalog: dict, context: tuple, inputs: dict) -> tuple[list, list]:
+    """The patterns of the profile, the recommended ones when it names neither patterns nor packs, and its declines."""
+    sector, stack, roles, components = context
+    patterns = pattern_entries(answers.get("patterns", []), catalog, components)
+    if "patterns" not in answers and "packs" not in answers:
+        patterns = [
+            {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
+            for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
+        ]
+    declined = declined_entries(answers.get("declined", []), catalog)
+    both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
+    if both:
+        raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
+    check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
+    return patterns, declined
+
+
+def _add_agent_settings(profile: dict, answers: dict) -> None:
+    """The host, the tools and the guard mode."""
     host = answers.get("host")
     if host is not None:
         from .hosts import HOSTS
@@ -454,6 +472,10 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if guard not in ("off", "observe", "enforce"):
             raise ValueError("guard must be off, observe or enforce")
         profile["guard"] = guard
+
+
+def _add_rule_choices(profile: dict, answers: dict, catalog: dict) -> None:
+    """The required and declined rules, then the check that no selected pack is a draft of task retro."""
     required_rules = _texts(answers.get("required_rules", []), "required_rules")
     for item in required_rules:
         pack_id, _, rule_id = item.partition("/")
@@ -470,30 +492,40 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if drafts:
         raise ValueError(f"Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and "
                          "rewrite its description before a profile uses it.")
+
+
+def _add_approval(profile: dict, answers: dict, catalog: dict) -> None:
+    """The approval: local or signed, with its options max_age_days and roles."""
     approval = answers.get("approval")
-    if approval is not None:
-        if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
-            raise ValueError("approval.mode must be local or signed")
-        # max_age_days (incident.py) and roles (roles.py) are options that go with either mode.
-        setting = {key: value for key, value in approval.items() if key not in ("max_age_days", "roles")}
-        if setting["mode"] == "signed":
-            if set(setting) != {"mode", "allowed_signers", "approvers"}:
-                raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
-            path = setting["allowed_signers"]
-            if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/"):
-                raise ValueError("approval.allowed_signers must be a path inside the project")
-            profile["approval"] = {"mode": "signed", "allowed_signers": path.strip(),
-                                   "approvers": _texts(setting["approvers"], "approval.approvers")}
-        elif set(setting) != {"mode"}:
-            raise ValueError("A local approval takes no other setting")
-        if "max_age_days" in approval:
-            days = approval["max_age_days"]
-            if type(days) is not int or not 1 <= days <= 366:
-                raise ValueError("approval.max_age_days must be a whole number of days between 1 and 366")
-            profile["approval"] = {**profile.get("approval", {"mode": "local"}), "max_age_days": days}
-        if "roles" in approval:
-            profile["approval"] = {**profile.get("approval", {"mode": "local"}),
-                                   "roles": _approval_roles(approval["roles"], catalog)}
+    if approval is None:
+        return
+    if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
+        raise ValueError("approval.mode must be local or signed")
+    # max_age_days (incident.py) and roles (roles.py) are options that go with either mode.
+    setting = {key: value for key, value in approval.items() if key not in ("max_age_days", "roles")}
+    if setting["mode"] == "signed":
+        if set(setting) != {"mode", "allowed_signers", "approvers"}:
+            raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
+        path = setting["allowed_signers"]
+        if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/"):
+            raise ValueError("approval.allowed_signers must be a path inside the project")
+        profile["approval"] = {"mode": "signed", "allowed_signers": path.strip(),
+                               "approvers": _texts(setting["approvers"], "approval.approvers")}
+    elif set(setting) != {"mode"}:
+        raise ValueError("A local approval takes no other setting")
+    if "max_age_days" in approval:
+        days = approval["max_age_days"]
+        if type(days) is not int or not 1 <= days <= 366:
+            raise ValueError("approval.max_age_days must be a whole number of days between 1 and 366")
+        profile["approval"] = {**profile.get("approval", {"mode": "local"}), "max_age_days": days}
+    if "roles" in approval:
+        profile["approval"] = {**profile.get("approval", {"mode": "local"}),
+                               "roles": _approval_roles(approval["roles"], catalog)}
+
+
+def _add_options(profile: dict, answers: dict, catalog: dict) -> None:
+    """The waivers and the options a person turns on: short lane, separate requester, freeze, restricted paths,
+    a question per rule, required boards, conflict resolutions and the recorded changes."""
     waivers = answers.get("waivers")
     if waivers is not None:
         if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:
@@ -533,7 +565,6 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     changes = _changes(answers.get("changes", []))
     if changes:
         profile["changes"] = changes
-    return profile
 
 
 def load_profile(state: Path, catalog: dict) -> dict:

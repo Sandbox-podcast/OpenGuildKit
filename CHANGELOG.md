@@ -193,6 +193,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Pack `agent-native-engineering` 1.2.0: `brief-subagents-with-a-contract` gets a machine check, each agent file of `.claude/agents/`, `.codex/agents/`, `.gemini/agents/`, `.github/agents/`, `agents/` or `integrations/*/agents/` must state its stop condition (the word stop), so six of nine rules carry a check (#521)
 - Tests: `tests/test_core.py` and `tests/test_audit_fixes.py` are gone; their 15 tests live next to their modules, in `test_approval_lifecycle.py`, `test_catalog_sources.py`, `test_upgrades.py`, `test_alerts.py` and `test_project_checks.py` (#488)
 - Code coverage (`.github/workflows/coverage.yml`): the package must stay at 92 % or more, `guard.py` at 93 % and `hosts.py` at 95 %, one point under a measure of the whole suite on 28 November 2026 (93.3 %, 93.9 %, 96.1 %) (#472)
+- Code: `project.py` (1 737 lines) is split into `project.py` (finding a project, validating and loading its profile), `project_setup.py` (the setup questionnaire), `project_rules.py` (rule plan and fingerprints) and `project_instructions.py` (`AGENTS.md` and the other instruction files); `validate_profile` goes from 150 to 52 lines; no output changes (#512)
 
 ## 0.17.0
 
