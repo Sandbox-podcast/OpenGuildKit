@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from . import audit_log
+from .command import Command
 
 
 def add_parser(commands) -> None:
@@ -20,7 +21,8 @@ def add_parser(commands) -> None:
     audit.add_argument("--since", metavar="YYYY-MM-DD", help="With export: only the events of this day and after.")
 
 
-def run(args, root: Path) -> int:
+def run(command: Command) -> int:
+    args, root = command.args, command.root
     if args.mode == "export":
         if args.path is not None:
             raise ValueError("audit export takes no path: it reads the records and the profile of the project.")

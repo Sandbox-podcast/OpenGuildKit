@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import _interactive_init, main
+from openguildkit.cli import main
+from openguildkit.init_cli import _interactive_init
 from openguildkit.patterns import recommend_patterns
 from openguildkit.references import load_references
 from openguildkit.project import profile_recommendations, validate_profile

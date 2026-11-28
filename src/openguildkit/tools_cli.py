@@ -6,6 +6,7 @@ from functools import partial
 from pathlib import Path
 from typing import TextIO
 
+from .command import Command
 from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
 from .project import load_profile
 from .sensitive import looks_like_credential
@@ -407,7 +408,8 @@ def _status(args, root: Path, state: Path) -> int:
     return 0 if all(item["configured"] for item in status if "reason" not in item) else 1
 
 
-def run(args, root: Path, state: Path, catalog: dict) -> int:
+def run(command: Command) -> int:
+    args, root, state, catalog = command.args, command.root, command.state, command.catalog
     action = args.tools_action
     mock_dir = state / "catalog" / "tool-mocks"
     if action == "mock":

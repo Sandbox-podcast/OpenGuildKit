@@ -717,17 +717,18 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_a_regulation_stops_being_active_only_at_a_terminal(self):
         from openguildkit.catalog import load_catalog
-        from openguildkit.webui import weakening_changes
+        from openguildkit.profile_changes import weakening_changes
 
-        patterns = load_catalog()["patterns"]
+        catalog = load_catalog()
+        patterns = catalog["patterns"]
         regulation = next(pattern_id for pattern_id, item in patterns.items() if item.get("kind") == "regulation")
         method = next(pattern_id for pattern_id, item in patterns.items() if item.get("kind") != "regulation")
         before = {"patterns": [regulation, {"id": method, "components": ["web"]}]}
-        self.assertEqual(weakening_changes(self.root, before, {"patterns": [regulation]}), [])
-        changes = weakening_changes(self.root, before, {"patterns": [{"id": method}]})
+        self.assertEqual(weakening_changes(before, {"patterns": [regulation]}, catalog), [])
+        changes = weakening_changes(before, {"patterns": [{"id": method}]}, catalog)
         self.assertEqual(changes, [(f"regulation {regulation} no longer active",
                                     ["profile", "decline", regulation, "--by", "INITIALS", "--reason", "WHY"])])
-        declined = weakening_changes(self.root, {"patterns": []}, {"declined": [{"id": regulation, "by": "A"}]})
+        declined = weakening_changes({"patterns": []}, {"declined": [{"id": regulation, "by": "A"}]}, catalog)
         self.assertEqual(declined[0][1][:3], ["profile", "decline", regulation])
 
     def reviewed_task(self):

@@ -12,7 +12,7 @@ from .project import STATE_DIR, load_profile
 from .project_instructions import RuleError
 from .storage import print_json
 
-__all__ = ["add_guard_options", "add_parser", "check", "ci_copy", "from_read", "print_summary", "run"]
+__all__ = ["add_guard_options", "add_parser", "check_policy", "ci_copy", "from_read", "print_summary", "run"]
 PROFILE = f"{STATE_DIR}/project.json"
 
 
@@ -53,7 +53,7 @@ def print_summary(read: dict) -> None:
           + (" It freezes every repository." if policy["frozen"] else ""))
 
 
-def check(state: Path, profile: dict, catalog: dict, report) -> None:
+def check_policy(state: Path, profile: dict, catalog: dict, report) -> None:
     """In check: each unmet requirement and the freeze, on standard error and in the report, then a failure."""
     found = findings(profile, catalog, pinned(read_lock(state), state))
     for code, message in found:

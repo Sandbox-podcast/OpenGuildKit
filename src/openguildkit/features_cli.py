@@ -1,6 +1,6 @@
 """The `openguildkit features` commands: list the features, turn an option on or off, with who and why.
 
-Turning an option on or off changes the profile's tools by the profile commands' path (profile_cli), so the change
+Turning an option on or off changes the profile's tools by the profile commands' path (profile_changes), so the change
 is recorded with who, when and why, and the instructions follow. Connecting the tool's MCP server stays with
 tools plan and tools apply.
 """
@@ -8,8 +8,9 @@ tools plan and tools apply.
 import json
 from pathlib import Path
 
-from . import profile_cli
+from . import profile_changes
 from .cli_surface import add_by
+from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
@@ -108,7 +109,8 @@ def _print_still_connected(root: Path, state: Path, targets: list[str], tools: d
               f"access to {titles}. To remove the connection: openguildkit tools remove {item['key']}{host}.")
 
 
-def run(args, root: Path, state: Path, catalog: dict) -> int:
+def run(command: Command) -> int:
+    args, root, state, catalog = command.args, command.root, command.state, command.catalog
     tools = load_tools(state / "catalog" / "tools")
     features = load_features(tools)
     if args.features_action == "list":
@@ -119,9 +121,9 @@ def run(args, root: Path, state: Path, catalog: dict) -> int:
             _print(view)
         return 0
     targets = _targets(args.names, features, tools)
-    updated, record, catalog = profile_cli.write_change(root, state, args, _edit(args, features, tools),
+    updated, record, catalog = profile_changes.write_change(root, state, args, _edit(args, features, tools),
                                                   args.by.strip(), args.reason.strip(), _refuse)
-    profile_cli.report_change(state, updated, record, catalog, False)
+    profile_changes.report_change(state, updated, record, catalog, False)
     if args.features_action == "enable":
         _print_connect(targets, tools)
     else:

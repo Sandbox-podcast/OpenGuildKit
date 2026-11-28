@@ -12,19 +12,20 @@ minimum a JSON file describes, read and never written, and --strict ends in 1 wh
 --format csv prints one line per folder under a header that does not change.
 """
 
-import contextlib
 import csv
-import io
 import sys
 from collections import Counter
 from functools import cache
 from pathlib import Path
 
 from .alerts import LEGACY_STATUSES, load_register
+from .check_cli import check_status
+from .cli import command_parser
+from .command import Command
 from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
-from .project import STATE_DIR, load_profile, state_path
+from .project import STATE_DIR, load_profile
 from .project_setup import GUARD_MODES
 from .shell import shell_word
 from .storage import print_json, read_json
@@ -62,7 +63,8 @@ def add_parser(commands) -> None:
                           help="csv prints one line per folder under a fixed header, for a spreadsheet.")
 
 
-def run(args) -> int:
+def run(command: Command) -> int:
+    args = command.args
     policy = read_policy(args.policy) if args.policy is not None else None
     if args.strict and policy is None:
         raise ValueError("--strict compares each project with a policy: add --policy FILE.")
@@ -235,23 +237,10 @@ def _open_points(task: dict) -> int:
 
 
 def _check(root: Path, read: dict) -> dict:
-    """openguildkit check on the project, in this process, its output kept: whether it passes and, when it fails,
-    the last line it printed. It is given the task records the project's line read, so that it reads none again;
-    the rest runs as cli.main runs the command: its own options, catalog and profile, the same error line."""
-    from . import cli  # The CLI imports this module: its entry point is reached when the command runs.
-
-    out, err = io.StringIO(), io.StringIO()
-    args = cli.command_parser().parse_args(["--project", str(root), "check"])
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            state = state_path(root)
-            catalog = project_catalog(args, state)
-            code = cli.check(args, root, state, load_profile(state, catalog), catalog, read)
-        except (OSError, ValueError, EOFError) as error:
-            print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
-            code = 1
-    lines = [line.removeprefix("OpenGuildKit: ") for line in err.getvalue().splitlines() if line.strip()]
-    return {"passes": code == 0, "code": code, "message": lines[-1] if code and lines else None}
+    """openguildkit check on the project, in this process (check_cli.check_status): whether it passes and, when it
+    fails, the line that says why. It is given the task records the project's line read, so that it reads none again;
+    the rest runs as the CLI runs the command: its own options, catalog and profile."""
+    return check_status(command_parser().parse_args(["--project", str(root), "check"]), root, read)
 
 
 def _matches(folder: Path, text: str) -> list[dict]:
@@ -300,14 +289,10 @@ GAP_WORDS = {
 }
 
 
-def _plural(count: int, word: str) -> str:
-    return f"{count} {word}{'' if count == 1 else 's'}"
-
-
 def _servers(row: dict) -> str:
     detail = ", ".join(text for text in (f"{row['mcp_unpinned']} not pinned" if row["mcp_unpinned"] else "",
                                          f"{row['mcp_unlisted']} not in the registry" if row["mcp_unlisted"] else "") if text)
-    return _plural(row["mcp_servers"], "MCP server") + (f" ({detail})" if detail else "")
+    return plural(row["mcp_servers"], "MCP server") + (f" ({detail})" if detail else "")
 
 
 def _surfaces_line(row: dict) -> str:
@@ -317,7 +302,7 @@ def _surfaces_line(row: dict) -> str:
     if row["mcp_servers"]:
         parts.append(_servers(row))
     if row["permissive"]:
-        parts.append(_plural(row["permissive"], "permissive setting"))
+        parts.append(plural(row["permissive"], "permissive setting"))
     parts += [f"lock {row['lock']}"] if row["lock"] else []
     parts += [f"organization catalog {row['catalog_commit'][:12]}"] if row["catalog_commit"] else []
     parts += [f"last decision {row['last_decision']}"] if row["last_decision"] else []
@@ -383,7 +368,7 @@ def _print(result: dict, search: str | None, policy: dict | None) -> None:
         print(f"Next: openguildkit --project {shell_word(failing['path'])} check")
     if policy is not None:
         short = sum(1 for row in rows if row.get("drift"))
-        print(f"Policy: {_plural(short, 'folder')} fall{'s' if short == 1 else ''} short." if short
+        print(f"Policy: {plural(short, 'folder')} fall{'s' if short == 1 else ''} short." if short
               else "Policy: no folder falls short.")
 
 

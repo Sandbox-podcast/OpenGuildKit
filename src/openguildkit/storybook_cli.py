@@ -8,6 +8,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from .command import Command
 from .stack_versions import STORYBOOK_VERSION
 from .storage import print_json, project_lock, write_json
 
@@ -111,8 +112,9 @@ def _print_extract(result: dict, output: str) -> list[str]:
     ]
 
 
-def run(args, root: Path, state: Path) -> int | None:
+def run(command: Command) -> int | None:
     """Run one storybook action and print what it did, or its result as JSON."""
+    args, root, state = command.args, command.root, command.state
     from .storybook import INVENTORY, committed_path, compose, generate, import_indexes, propose
     from .storybook_extract import extract
 

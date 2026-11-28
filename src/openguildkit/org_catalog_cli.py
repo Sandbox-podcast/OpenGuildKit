@@ -13,6 +13,7 @@ from . import audit_log, org_policy_cli
 from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
+from .command import Command
 from .lock import (
     COLLECTIONS,
     apply_lock,
@@ -34,10 +35,9 @@ from .org_catalog import (
     read_files,
     records_of,
     replacements,
-    unaccepted_replacements,
     variable_name,
 )
-from .profile_cli import print_touched
+from .profile_changes import print_touched
 from .project import load_profile
 from .project_instructions import sync_instructions
 from .shell import shell_word
@@ -45,7 +45,7 @@ from .storage import print_json, project_lock
 from .tasks import tasks_touched
 from .terminal import typed
 
-__all__ = ["add_parser", "run", "unaccepted_replacements"]
+__all__ = ["add_parser", "run"]
 
 PERSON = "--by INITIALS --reason WHY"
 
@@ -294,7 +294,8 @@ def _off(args, root: Path, state: Path) -> int:
     return 0
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(command: Command) -> int:
+    args, root, state = command.args, command.root, command.state
     if args.org_action == "show":
         return _show(args, root, state)
     if args.org_action == "set":

@@ -11,6 +11,7 @@ import argparse
 import shlex
 
 from .cli_surface import GLOBAL_OPTIONS
+from .command import Command
 
 SHELLS = ("bash", "zsh")
 # The words every shell function below shares: it finds the command typed, then prints what can follow it.
@@ -55,10 +56,10 @@ def add_parser(commands) -> None:
                          'compinit, eval "$(openguildkit completion zsh)".')
 
 
-def run(args) -> None:
+def run(command: Command) -> None:
     from .cli import command_parser
 
-    print(script(args.shell, command_parser()), end="")
+    print(script(command.args.shell, command_parser()), end="")
 
 
 def _commands(parser: argparse.ArgumentParser, path: tuple[str, ...] = ()):
