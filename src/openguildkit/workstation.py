@@ -9,10 +9,11 @@ Entry: policy, audit_setting, no_profile_answer.
 Tests: tests/test_audit_log.py, tests/test_managed_settings.py.
 """
 
-import json
 import os
 import sys
 from pathlib import Path
+
+from .storage import load_json
 
 KEYS = ("audit_log", "no_profile")
 NO_PROFILE = ("allow", "observe", "refuse")
@@ -34,7 +35,7 @@ def policy() -> dict:
         if not path.is_file():
             continue
         try:
-            found = json.loads(path.read_text(encoding="utf-8-sig"))
+            found = load_json(path)
         except (OSError, ValueError) as error:
             raise ValueError(f"{path.as_posix()} cannot be read as the workstation policy: {error}") from error
         if not isinstance(found, dict) or set(found) - set(KEYS):

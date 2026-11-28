@@ -3,12 +3,12 @@
 Nothing is run here: the person confirms each proposed command before it becomes a project check.
 """
 
-import json
 import os
 import re
 from pathlib import Path
 
 from .detect import MAX_DEPTH, walk
+from .storage import load_json
 
 
 def _read(path: Path) -> str:
@@ -32,8 +32,8 @@ def _npm_scripts(directory: Path, names: set[str]) -> dict:
     if "package.json" not in names:
         return {}
     try:
-        scripts = json.loads(_read(directory / "package.json") or "{}").get("scripts", {})
-    except (ValueError, AttributeError):
+        scripts = load_json(directory / "package.json").get("scripts", {})
+    except (OSError, ValueError, AttributeError):
         return {}
     return scripts if isinstance(scripts, dict) else {}
 

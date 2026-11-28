@@ -17,7 +17,7 @@ import tempfile
 import time
 from pathlib import Path, PurePosixPath
 
-from . import incident, light_lane, requester, roles
+from . import git, incident, light_lane, requester, roles
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -605,15 +605,19 @@ def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
                          "with --output to another file, or open it again under another ID.")
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, check=False)
+def _git(root: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+    result = git.run(root, *args, stdin=stdin)
+    if result is None:
+        raise ValueError("guard --ci needs Git: it is not installed or not on the PATH.")
+    return result
 
 
-def _git_lines(root: Path, *args: str) -> list[str]:
-    result = _git(root, *args)
+def _git_lines(root: Path, command: str, *args: str) -> list[str]:
+    """The file names a Git command lists, as they are on disk (-z)."""
+    result = _git(root, command, "-z", *args)
     if result.returncode:
-        raise ValueError(f"git {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
-    return [line for line in result.stdout.decode("utf-8", errors="replace").splitlines() if line.strip()]
+        raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
+    return [line for line in git.split_names(result.stdout) if line.strip()]
 
 
 def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
@@ -627,8 +631,7 @@ def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
     if not names:
         return {}
     asked = "".join(f"{base}:{name}\n" for name in names).encode("utf-8")
-    output = io.BytesIO(subprocess.run(["git", "-C", str(root), "cat-file", "--batch"], input=asked,
-                                       capture_output=True, check=False).stdout)
+    output = io.BytesIO(_git(root, "cat-file", "--batch", stdin=asked).stdout)
     files = {}
     for name in names:
         # "<object> <type> <size>", then the content and a newline; or "<name> missing" alone.
@@ -718,7 +721,7 @@ def in_history(history: Path, commit: object) -> bool:
     is outside its history."""
     if not isinstance(commit, str) or not _COMMIT.fullmatch(commit):
         return False
-    return _git(history, "merge-base", "--is-ancestor", commit, "HEAD").returncode == 0
+    return git.text(history, "merge-base", "--is-ancestor", commit, "HEAD") is not None
 
 
 def _earlier_withdrawal(earlier: dict, task_id: str) -> bool:
@@ -967,12 +970,9 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
 
 def untracked_files(root: Path) -> list[str]:
     """The new files Git does not track yet, ignored files and decision records left out: no record lists them."""
-    result = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
-    if result.returncode:
-        return []
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
-    return sorted(path for path in result.stdout.decode("utf-8", errors="replace").split("\0")
-                  if path and not path.startswith(prefix))
+    return sorted(path for path in git.names(root, "ls-files", "--others", "--exclude-standard", "--full-name") or []
+                  if not path.startswith(prefix))
 
 
 def _earlier_records(files: dict[str, bytes]) -> dict:
@@ -1024,7 +1024,7 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
 
     covers maps each valid record's task to the files it covers, None when it lists none.
     """
-    listed = {path for files in covers.values() for path in files or []}
+    listed = {git.unquote(path) for files in covers.values() for path in files or []}
     missing = [path for path in work if path not in listed]
     if not missing:
         return None

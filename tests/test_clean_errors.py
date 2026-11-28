@@ -63,6 +63,34 @@ class CleanErrorTests(unittest.TestCase):
         error = self.run_cli("recommend", "--answers", nested)
         self.assertIn("nested too deeply", error)
 
+    def test_json_nested_too_deeply_in_a_file_of_the_project_is_one_line_or_left_aside(self):
+        """Issue #460: a file of 200 000 [ then 200 000 ] gave a RecursionError traceback in six commands."""
+        write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"],
+                                                "host": "claude-code", "guard": "observe"})
+        self.run_cli("init", "--answers", self.root / "profile.json", code=0)
+        refused = [(".openguildkit/catalog/tools/deep.json", ("tools", "list")),
+                   (".openguildkit/catalog/deliverables/deep.json", ("deliverable", "list")),
+                   (".openguildkit/catalog/tool-mocks/github.json", ("tools", "call", "github", "x")),
+                   (".openguildkit/catalog/references/deep.json", ("references", "x")),
+                   (".openguildkit/catalog/packs/deep.json", ("tools", "list")),
+                   (".claude/settings.json", ("host", "check")),
+                   (".claude/settings.json", ("check",))]
+        # A file the command reads only to propose something is left aside, as when it is not valid JSON.
+        ignored = [(".mcp.json", ("tools", "status")), ("package.json", ("init", "--questions"))]
+        for name, command in refused + ignored:
+            with self.subTest(name=name, command=command):
+                target = self.root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("[" * 200000 + "]" * 200000, encoding="utf-8")
+                result = run_cli(self.root, *command, expect=None, subprocess_mode=True)
+                target.unlink()
+                self.assertNotIn("Traceback", result.stderr)
+                if (name, command) in refused:
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(len(result.stderr.splitlines()), 1, result.stderr)
+                    self.assertIn(f"{Path(name).as_posix()}", result.stderr.replace("\\", "/"))
+                    self.assertIn("nested too deeply", result.stderr)
+
     def test_end_of_input_has_a_message(self):
         self.init()
         self.run_cli("task", "new", "Show statuses.", "--id", "status", code=0)

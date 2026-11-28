@@ -9,11 +9,9 @@ whose diff no board reviewed closes as before.
 
 import json
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
-from . import clock
+from . import clock, git
 from .sensitive import redact_credentials
 from .storage import print_json, project_lock, read_json, write_json
 from .wording import plural
@@ -42,11 +40,8 @@ def add_parser(actions) -> None:
 
 
 def _git(root: Path, *args: str) -> str | None:
-    if shutil.which("git") is None:
-        return None
-    completed = subprocess.run(["git", "-C", str(root), "-c", "core.quotepath=off", *args], capture_output=True,
-                               text=True, encoding="utf-8", errors="replace", check=False)
-    return None if completed.returncode else completed.stdout
+    # A diff names its files as they are on disk, accents included.
+    return git.text(root, "-c", "core.quotepath=off", *args)
 
 
 def _short(revision: str) -> str:
@@ -79,14 +74,14 @@ def delivered_change(root: Path, task: dict) -> dict:
     base, revision = task["decision"]["base_revision"]["commit"], task["result"]["revision"]
     committed = bool(_COMMIT.fullmatch(revision)) and _git(root, "rev-parse", "--verify", f"{revision}^{{commit}}")
     spec = [base, revision] if committed else [base]
-    names = _git(root, "diff", "--name-only", "--no-renames", *spec, "--")
+    names = git.names(root, "diff", "--name-only", "--no-renames", *spec, "--")
     if names is None:
         raise ValueError(f"Git could not compare the approved revision {_short(base)} with the delivered one: check "
                          "that both are in this repository (git fetch), then run the command again.")
-    files = [name for name in names.splitlines() if name and not name.startswith(".openguildkit/")]
+    files = [name for name in names if not name.startswith(".openguildkit/")]
     untracked = [] if committed else [
-        name for name in (_git(root, "ls-files", "--others", "--exclude-standard") or "").splitlines()
-        if name and not name.startswith(".openguildkit/")]
+        name for name in git.names(root, "ls-files", "--others", "--exclude-standard") or []
+        if not name.startswith(".openguildkit/")]
     diff = _git(root, "diff", "--no-color", "--no-renames", *spec, "--", *files) if files else ""
     stats = {}
     for line in (_git(root, "diff", "--numstat", "--no-renames", *spec, "--", *files) or "").splitlines() if files else []:

@@ -6,8 +6,10 @@ import os
 import stat
 import tempfile
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 
 # Windows refuses to replace a file while another process reads it, and to read it while it is
@@ -23,22 +25,37 @@ def _current_umask() -> int:
     return mask
 
 
-def _unique_keys(pairs):
+def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """A JSON object whose fields each appear once: json.loads keeps the last of two silently."""
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"Duplicate JSON key: {key}")
+            raise ValueError(f"duplicate JSON field {key!r}")
         result[key] = value
     return result
 
 
+def _loads(content: bytes, pairs: Callable | None) -> Any:
+    """JSON read as UTF-8 with or without a byte order mark; a value nested too deeply is a ValueError of one line, not
+    a RecursionError and its traceback."""
+    try:
+        return json.loads(content.decode("utf-8-sig"), object_pairs_hook=pairs)
+    except RecursionError as error:
+        raise ValueError("JSON nested too deeply") from error
+
+
+def load_json(path: Any, *, pairs: Callable | None = None) -> Any:
+    """The JSON value of a file (a path or a package resource). Text that is not UTF-8, JSON that is not valid and a
+    value nested too deeply raise a ValueError of one line, which the caller prefixes with what the file is; an
+    unreadable file raises OSError."""
+    return _loads(path.read_bytes(), pairs)
+
+
 def parse_json(content: bytes, label: str) -> dict:
     try:
-        data = json.loads(content.decode("utf-8-sig"), object_pairs_hook=_unique_keys)
-    except (UnicodeError, ValueError) as error:
+        data = _loads(content, unique_fields)
+    except ValueError as error:
         raise ValueError(f"Invalid JSON in {label}: {error}") from error
-    except RecursionError as error:
-        raise ValueError(f"Invalid JSON in {label}: nested too deeply") from error
     if not isinstance(data, dict):
         raise ValueError(f"Expected a JSON object in {label}")
     return data

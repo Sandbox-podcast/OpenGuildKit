@@ -10,7 +10,6 @@ payload has the approval, once recorded, verified at that time, so that an expir
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -18,7 +17,7 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import clock
+from . import clock, git
 from .storage import read_json
 
 NAMESPACE = "openguildkit-decision"
@@ -29,31 +28,21 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess | None:
-    if shutil.which("git") is None:
-        return None
-    return subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
-        env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
-    )
-
-
 def git_revision(root: Path) -> dict | None:
     """The commit the project is at, and whether files differ from it. None outside a Git repository."""
-    head = _git(root, "rev-parse", "--verify", "HEAD")
-    if head is None or head.returncode:
+    head = git.text(root, "rev-parse", "--verify", "HEAD")
+    if head is None:
         return None
-    status = _git(root, "status", "--porcelain", "--untracked-files=no")
-    dirty = bool(status and status.returncode == 0 and status.stdout.strip())
-    return {"commit": head.stdout.strip(), "dirty": dirty}
+    status = git.text(root, "status", "--porcelain", "--untracked-files=no")
+    return {"commit": head.strip(), "dirty": bool(status and status.strip())}
 
 
 def changed_paths_since(root: Path, commit: str) -> list[str]:
     """Changes to tracked and staged files between an approved commit and the working tree."""
-    change = _git(root, "diff", "--name-only", "--no-renames", commit, "--")
-    if change is None or change.returncode:
+    change = git.names(root, "diff", "--name-only", "--no-renames", commit, "--")
+    if change is None:
         raise ValueError("Could not compare the project files with the approved Git revision.")
-    return change.stdout.splitlines()
+    return change
 
 
 def exported_boards(review: dict) -> list[dict]:
@@ -214,19 +203,18 @@ def committed_signers(root: Path, relative: str) -> str:
     """
     shown = f"The allowed signers file {relative}"
     retry = "Have the person review and commit it, then sign again."
-    inside = _git(root, "rev-parse", "--is-inside-work-tree")
-    if inside is None or inside.returncode or inside.stdout.strip() != "true":
+    inside = git.text(root, "rev-parse", "--is-inside-work-tree")
+    if inside is None or inside.strip() != "true":
         raise ValueError(f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
                          "Signed approvals need the project and this file in Git.")
-    tracked = _git(root, "ls-files", "--error-unmatch", "--", relative)
-    committed = _git(root, "show", f"HEAD:./{relative}")
-    if tracked.returncode or committed.returncode:
+    tracked = git.text(root, "ls-files", "--error-unmatch", "--", relative)
+    committed = git.text(root, "show", f"HEAD:./{relative}")
+    if tracked is None or committed is None:
         raise ValueError(f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
-    changed = _git(root, "diff", "--quiet", "HEAD", "--", relative)
-    if changed.returncode:
+    if git.text(root, "diff", "--quiet", "HEAD", "--", relative) is None:
         raise ValueError(f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
                          f"verified against the committed file, never against a working copy. {retry}")
-    return committed.stdout
+    return committed
 
 
 class SignerNotCurrent(ValueError):
@@ -279,9 +267,9 @@ def merged_reference(root: Path) -> str | None:
     """The branch that holds reviewed, merged work: the remote's default branch (origin/HEAD, which git clone sets), or
     else the upstream branch the current branch tracks. None when the repository has neither."""
     for reference in ("refs/remotes/origin/HEAD", "@{upstream}"):
-        found = _git(root, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", reference)
-        if found is not None and not found.returncode and found.stdout.strip():
-            name = found.stdout.strip()
+        found = git.text(root, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", reference)
+        if found and found.strip():
+            name = found.strip()
             return name.removeprefix("refs/remotes/")
     return None
 
@@ -298,23 +286,22 @@ def signers_at_approval(history: Path, payload: dict, *, merged_only: bool = Fal
     commit = base.get("commit") if isinstance(base, dict) else None
     if not isinstance(commit, str) or not commit or commit.startswith("-"):
         return None
-    ancestor = _git(history, "merge-base", "--is-ancestor", commit, "HEAD")
-    if ancestor is None or ancestor.returncode:
+    if git.text(history, "merge-base", "--is-ancestor", commit, "HEAD") is None:
         return None
     if merged_only:
         merged = merged_reference(history)
-        if merged is None or _git(history, "merge-base", "--is-ancestor", commit, merged).returncode:
+        if merged is None or git.text(history, "merge-base", "--is-ancestor", commit, merged) is None:
             return None
     try:
-        profile = json.loads(_git(history, "show", f"{commit}:./{PROJECT_FILE}").stdout)
+        profile = json.loads(git.text(history, "show", f"{commit}:./{PROJECT_FILE}") or "")
         policy = profile["approval"]
         approvers, relative = policy["approvers"], Path(policy["allowed_signers"]).as_posix()
     except (ValueError, TypeError, KeyError):
         return None
-    signers = _git(history, "show", f"{commit}:./{relative}")
-    if policy.get("mode") != "signed" or not isinstance(approvers, list) or signers.returncode:
+    signers = git.text(history, "show", f"{commit}:./{relative}")
+    if policy.get("mode") != "signed" or not isinstance(approvers, list) or signers is None:
         return None
-    return approvers, signers.stdout
+    return approvers, signers
 
 
 def _not_merged(history: Path, payload: dict) -> str:
@@ -380,10 +367,8 @@ def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
     """The project paths that git ignores, so a teammate who pulls the repository will not have them."""
     if not paths:
         return set()
-    result = _git(root, "check-ignore", "--no-index", "--", *paths)
-    if result is None or result.returncode not in (0, 1):
-        return set()
-    return {line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()}
+    # check-ignore fails with 1 when it ignores none of the paths.
+    return {name.replace("\\", "/") for name in git.names(root, "check-ignore", "--no-index", "--", *paths) or []}
 
 
 def reconsult_command(task_id: str) -> str:
@@ -445,10 +430,8 @@ def revisions_outside_history(root: Path, commits: list[str]) -> set[str]:
     wanted = sorted({commit for commit in commits if commit})
     if not wanted:
         return set()
-    listed = _git(root, "rev-list", "--ignore-missing", *wanted, "--not", "HEAD")
-    if listed is None or listed.returncode:
-        return set()
-    return set(listed.stdout.split()) & set(wanted)
+    listed = git.text(root, "rev-list", "--ignore-missing", *wanted, "--not", "HEAD")
+    return set((listed or "").split()) & set(wanted)
 
 
 def outside_history_message(task_id: str, commit: str) -> str:

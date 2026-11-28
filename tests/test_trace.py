@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openguildkit.storage import write_json
 
@@ -70,16 +71,16 @@ class TraceTests(CapturedCli, unittest.TestCase):
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
 
-    def approve(self):
-        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+    def approve(self, task=TASK):
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", task)
         answers = {**json.loads((EXAMPLE / "answers.json").read_text()), "outcome": "Customers see each request's status."}
         write_json(self.work / "answers.json", answers)
-        self.run_cli("task", "consult", TASK, "--answers", self.work / "answers.json")
-        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        self.run_cli("task", "consult", task, "--answers", self.work / "answers.json")
+        template = json.loads(self.run_cli("task", "template", task)[0])
         write_json(self.work / "review.json",
                    {"consultation_id": template["consultation_id"], **json.loads((EXAMPLE / "review.json").read_text())})
-        self.run_cli("task", "review", TASK, "--file", self.work / "review.json")
-        self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille Martin", "--reason", "Agreed", typed=TASK)
+        self.run_cli("task", "review", task, "--file", self.work / "review.json")
+        self.run_cli("task", "decide", task, "--approve", "--by", "Camille Martin", "--reason", "Agreed", typed=task)
 
     def complete(self):
         self.run_cli("task", "verify", TASK)
@@ -140,6 +141,62 @@ class TraceTests(CapturedCli, unittest.TestCase):
         # Another file is not touched by that commit.
         self.write("other.md")
         self.assertNotIn("Changed since", self.trace(RECORD)[0])
+
+    def test_a_file_with_an_accent_or_a_space_is_traced_to_the_task_that_delivered_it(self):
+        """Issue #458: task export wrote docs/résumé.md in Git's quoted form, and trace said no decision covered it."""
+        self.main_branch()
+        self.approve()
+        names = ["docs/a b.md", "docs/résumé.md"]
+        for name in names:
+            self.write(name)
+        self.git("add", "docs")
+        self.git("commit", "-q", "-m", "docs")
+        self.complete()
+        self.run_cli("task", "export", TASK)
+        record = json.loads((self.root / RECORD).read_text())
+        self.assertEqual(record["files"], names)
+        for name in names:
+            self.assertIn(f"{TASK} [", self.trace(name)[0].splitlines()[0])
+        # A record exported before the fix still names the file.
+        write_json(self.root / RECORD, {**record, "files": ["docs/a b.md", '"docs/r\\303\\251sum\\303\\251.md"']})
+        self.assertIn(f"{TASK} [", self.trace("docs/résumé.md")[0].splitlines()[0])
+
+    def test_two_decisions_of_the_same_day_are_ordered_by_their_time(self):
+        """Issue #525: two approvals of one day were ordered by task ID, and the commit of the later one was named as a
+        change no decision covers."""
+        self.main_branch()
+        for task, text, second in (("za", "Support portal\n", 1), ("ab", "Support portal, with statuses\n", 5)):
+            with patch("openguildkit.clock.real_timestamp", return_value=f"2026-11-26T20:17:0{second}+00:00"):
+                self.approve(task)
+            self.write("README.md", text)
+            self.git("commit", "-q", "-am", f"change of {task}")
+            self.run_cli("task", "export", task)
+            self.git("add", "-f", f".openguildkit/decisions/{task}.json")
+            self.git("commit", "-q", "-m", f"record of {task}")
+        out, _ = self.trace("README.md")
+        self.assertTrue(out.startswith("ab ["), out)
+        self.assertNotIn("Changed since", out)
+        self.assertIn("Next: openguildkit task show ab", out)
+        detail = json.loads(self.trace("README.md", "--json")[0])
+        self.assertEqual([item["task"] for item in detail["decisions"]], ["ab", "za"])
+        self.write("README.md", "Unreviewed\n")
+        self.git("commit", "-q", "-am", "unreviewed change")
+        self.assertIn("Changed since the last decision", self.trace("README.md")[0])
+
+    def test_an_earlier_approval_exported_later_does_not_hide_the_latest_one(self):
+        """Issue #525: changes were counted from the first decision of the list, not from the latest in the history."""
+        self.main_branch()
+        for task, text, second in (("ab", "Support portal\n", 5), ("za", "Support portal, with statuses\n", 1)):
+            with patch("openguildkit.clock.real_timestamp", return_value=f"2026-11-26T20:17:0{second}+00:00"):
+                self.approve(task)
+            self.write("README.md", text)
+            self.git("commit", "-q", "-am", f"change of {task}")
+            self.run_cli("task", "export", task)
+            self.git("add", "-f", f".openguildkit/decisions/{task}.json")
+            self.git("commit", "-q", "-m", f"record of {task}")
+        out, _ = self.trace("README.md")
+        self.assertTrue(out.startswith("ab ["), out)
+        self.assertNotIn("Changed since", out)
 
     def test_a_journal_changed_after_the_export_is_named(self):
         self.delivered()

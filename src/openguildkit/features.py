@@ -6,10 +6,10 @@ so tools recommend, plan and apply then connect its MCP server. Nothing else rec
 option is on when a name in the profile's tools resolves to its tool.
 """
 
-import json
 import re
 
 from .catalog import CatalogError, package_file, unique_fields
+from .storage import load_json
 from .tools import match_tools
 
 ALTERNATIVES = 3
@@ -44,7 +44,7 @@ def _feature(record: object, tools: dict) -> dict:
 def load_features(tools: dict) -> list[dict]:
     """The features shipped with OpenGuildKit, each option checked against the tool registry."""
     path = package_file("registry", "features", "features.json")
-    record = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_fields)
+    record = load_json(path, pairs=unique_fields)
     features = [_feature(entry, tools) for entry in record["features"]]
     ids = [feature["id"] for feature in features]
     if len(set(ids)) != len(ids):

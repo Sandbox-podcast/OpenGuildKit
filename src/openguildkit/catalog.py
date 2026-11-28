@@ -6,6 +6,7 @@ import json
 import os
 import re
 import unicodedata
+from collections.abc import Iterator
 from datetime import date, timedelta
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
@@ -14,7 +15,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from . import clock
 from .rule_checks import validate_check
-from .storage import file_signature
+from .storage import file_signature, load_json, unique_fields
 from .wording import plural
 
 
@@ -59,13 +60,16 @@ class CatalogError(ValueError):
     """A catalog record or dependency is invalid."""
 
 
-def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise CatalogError(f"duplicate JSON field {key!r}")
-        result[key] = value
-    return result
+def record_files(directory) -> Iterator[tuple[Any, Any]]:
+    """Each .json file of a catalog folder, in the order of its name, with its JSON: a file that cannot be read or
+    parsed raises CatalogError prefixed with its path."""
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if path.name.endswith(".json"):
+            try:
+                record = load_json(path, pairs=unique_fields)
+            except (OSError, ValueError) as error:
+                raise CatalogError(f"{path}: {error}") from error
+            yield path, record
 
 
 def validate_fields(
@@ -600,14 +604,9 @@ def _registry():
 def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list,
                   replaceable: frozenset = frozenset()) -> None:
     """Validate the record files of one folder and add them to entries."""
-    for path in sorted(directory.iterdir(), key=lambda item: item.name):
-        if not path.name.endswith(".json"):
-            continue
+    for path, entry in record_files(directory):
         try:
-            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
             entry, overlay = _load_entry(collection, path, entry, entries, bundled, replaceable)
-        except RecursionError as exc:
-            raise CatalogError(f"{path}: JSON nested too deeply") from exc
         except (OSError, ValueError) as exc:
             raise CatalogError(f"{path}: {exc}") from exc
         entries[entry["id"]] = entry

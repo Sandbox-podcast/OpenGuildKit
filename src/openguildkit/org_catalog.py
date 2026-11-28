@@ -20,6 +20,7 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import NoReturn
 
+from . import git
 from .shell import shell_word
 
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
@@ -42,13 +43,12 @@ _READ: dict[tuple[str, str], dict] = {}
 _READ_KEPT = 8
 
 
-def _git(repo: Path, *arguments: str, stdin: bytes | None = None) -> subprocess.CompletedProcess:
+def _git(repo: Path, *arguments: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
     """Run Git on the local copy, with every way to reach a network turned off."""
-    return subprocess.run(
-        ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(repo), *arguments],
-        env={**os.environ, "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}, input=stdin,
-        capture_output=True, check=False,
-    )
+    result = git.run(repo, *arguments, stdin=stdin, offline=True)
+    if result is None:
+        raise ValueError("Reading the organization catalog needs Git: it is not installed or not on the PATH.")
+    return result
 
 
 def _is_repository(repo: Path) -> bool:

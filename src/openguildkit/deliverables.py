@@ -14,7 +14,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
 from .catalog import (
-    CatalogError, package_file, unique_fields, validate_fields, validate_id, validate_list, validate_sources,
+    CatalogError, package_file, record_files, validate_fields, validate_id, validate_list, validate_sources,
     validate_text,
 )
 from .storage import write_text
@@ -105,11 +105,8 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
         roots.append(extra_dir)
     found = {}
     for root in roots:
-        for path in sorted(root.iterdir(), key=lambda item: item.name):
-            if not path.name.endswith(".json"):
-                continue
+        for path, record in record_files(root):
             try:
-                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
                     raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
