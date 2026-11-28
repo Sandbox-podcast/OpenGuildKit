@@ -111,6 +111,19 @@ def _not_concerned_lines(data: dict) -> list[str]:
     return []
 
 
+def _pack_excerpt(block: list[str], room: int) -> tuple[list[str], int]:
+    """The heading of a pack and as many of its rules as fit in room bytes, with the room left."""
+    excerpt = [block[0]]
+    remaining = room - len((block[0] + "\n").encode("utf-8"))
+    for rule in block[1:]:
+        size = len((rule + "\n").encode("utf-8"))
+        if size > remaining:
+            break
+        excerpt.append(rule)
+        remaining -= size
+    return excerpt, remaining
+
+
 def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
     """The rules of the board's packs that concern the task, the most specific first, within room bytes; the
     packs that do not fit are named with the command that prints them, and those that do not concern the task
@@ -129,14 +142,7 @@ def _rule_lines(data: dict, task_id: str, room: int) -> list[str]:
             room -= size
         else:
             if pack is data["rules"][0]:
-                excerpt = [block[0]]
-                remaining = room - len((block[0] + "\n").encode("utf-8"))
-                for rule in block[1:]:
-                    size = len((rule + "\n").encode("utf-8"))
-                    if size > remaining:
-                        break
-                    excerpt.append(rule)
-                    remaining -= size
+                excerpt, remaining = _pack_excerpt(block, room)
                 if len(excerpt) > 1:
                     lines.extend(excerpt)
                     room = remaining
