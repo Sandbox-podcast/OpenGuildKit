@@ -18,11 +18,9 @@ from .catalog import (
     validate_dependencies,
     validate_entry,
 )
-from .ci import read_policy_pack
 from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
 from .project import selected_packs
-from .project_instructions import RuleError, check_instructions
 from .startup import package_version
 from .storage import file_signature, read_json, write_json
 
@@ -85,6 +83,8 @@ def central_policy(args) -> tuple[str, dict] | None:
     repo, commit = (args.policy_repo, args.policy_commit) if args is not None else (None, None)
     if (repo is None) != (commit is None):
         raise ValueError("Supply --policy-repo and --policy-commit together.")
+    from .ci import read_policy_pack  # Not for the edit hook, which reads the lock (#539).
+
     return None if repo is None else (commit, read_policy_pack(repo, commit))
 
 
@@ -115,6 +115,8 @@ LOCK_OLDER = (
 
 def require_instructions(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     """Refuse out-of-date instructions, naming update rather than sync when they follow a newer installed catalog."""
+    from .project_instructions import RuleError, check_instructions  # Not for the edit hook (#539).
+
     try:
         check_instructions(root, profile, catalog)
     except ValueError as error:
@@ -125,6 +127,8 @@ def require_instructions(args, root: Path, state: Path, profile: dict, catalog: 
 
 
 def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
+    from .project_instructions import check_instructions
+
     try:
         check_instructions(root, profile, catalog)
     except ValueError:

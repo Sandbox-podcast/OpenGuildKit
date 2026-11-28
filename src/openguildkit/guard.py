@@ -15,8 +15,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING
 
-from . import git, incident, lazy_re, light_lane, org_policy, requester, roles
+from . import git, incident, lazy_re, light_lane
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -40,31 +41,21 @@ from .decisions import (
     verify_recorded_signature,
     verify_signature,
 )
-from .delivered_review import exported_review
 from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
-from .org_catalog import copies_read_from, organization_in, parse_copies
+from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
-from .project_rules import Fingerprints
-from .results import DONE_STATUSES, verification_of
 from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
 from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import (
-    STALE_DAYS,
-    STATUSES,
-    approval_problem,
-    days_since,
-    evidence_states,
-    expired_waiver_problem,
-    read_task,
-    task_path,
-)
 from .terminal import interactive
 from .wording import plural
-from .workflow import TaskStateError, exported_blockers, mock_evidence
-from .workstation import no_profile_answer
+
+# The hook runs before every edit an agent makes: it imports the task records, the rule plan, the export and CI
+# modules only in the functions that use them (#539).
+if TYPE_CHECKING:
+    from .project_rules import Fingerprints
 
 FLAGGED = "Edit flagged, not blocked"  # the words of an edit observe lets through; the audit log reads them
 _PATCH_FILE = lazy_re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
@@ -86,7 +77,21 @@ def guard_mode(profile: dict) -> str:
 
 
 def _age_days(moment: str) -> int | None:
+    from .tasks import days_since
+
     return days_since(moment)
+
+
+def read_task(state: Path, task_id: str) -> dict:
+    """tasks.read_task, imported on the first call: the hook loads tasks only when a record may be approved."""
+    from .tasks import read_task as read
+
+    return read(state, task_id)
+
+
+# The statuses of tasks.STATUSES that cannot cover an edit, named here so that the hook reads the status index without
+# importing tasks (tests/test_performance.py compares the two).
+NOT_COVERING = ("draft", "consulting", "reviewed", "changes-requested", "done", "done-with-reservations")
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
@@ -100,7 +105,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
     if not directory.is_dir():
         return []
     approved = []
-    for task_id in tasks_with_status(state, set(STATUSES) - {"approved"}):
+    for task_id in tasks_with_status(state, set(NOT_COVERING)):
         try:
             task = read_task(state, task_id)
         except Exception:  # A broken record covers nothing; it must not stop the guard.
@@ -109,6 +114,9 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
             approved.append(task)
     if not approved:
         return []
+    from .project_rules import Fingerprints
+    from .tasks import STALE_DAYS, approval_problem
+
     fingerprints = Fingerprints(profile, catalog)
     outside = revisions_outside_history(root, [base_commit(task) for task in approved])
     covered = []
@@ -205,6 +213,8 @@ def _describe(approvals: list[dict]) -> str:
         if item.get("lane") and mixed:
             text += f", short lane limited to {', '.join(item['paths'])}"
         if item["stale"]:
+            from .tasks import STALE_DAYS
+
             text += f", approved more than {STALE_DAYS} days ago: ask the person whether it still applies"
         parts.append(text)
     return "; ".join(parts)
@@ -259,6 +269,8 @@ def scope_note(approvals: list[dict]) -> str:
 
 def approval_text(item: dict) -> str:
     """One covering task in a line of guard: its ID and brief, its lane, and a warning on an old approval."""
+    from .tasks import STALE_DAYS
+
     lane = f" (short lane: {', '.join(item['paths'])})" if item.get("lane") else ""
     stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
     return f"{item['task']}: {item['brief']}{lane}{stale}"
@@ -382,6 +394,8 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
     off ends the hook before load(): whatever the catalog and the profile say, the answer is to let the edit through.
     """
     if declared_mode(project) == "off":
+        from .workstation import no_profile_answer
+
         return no_profile_answer(event, project) or hook_answer(event, "off", "outside")
     mode, dialect = None, "claude"
     try:
@@ -441,6 +455,11 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
     """
+    from .delivered_review import exported_review
+    from .results import verification_of
+    from .tasks import evidence_states
+    from .workflow import TaskStateError, exported_blockers, mock_evidence
+
     if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise TaskStateError("Only an approved or completed task can be exported.")
     check_decision(task, root, profile)
@@ -684,7 +703,7 @@ def _record_shape(record: dict, relative: str) -> None:
                          "Export the decision again or remove the file.")
 
 
-def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path,
+def _record_check(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path,
                   earlier: dict, *, extracted: bool = False, history: Path | None = None) -> tuple[str, str, str] | None:
     """The kind of problem a decision record has, its message and the code of its rule (docs/sarif.md), or None when
     it holds.
@@ -726,13 +745,15 @@ def _earlier_withdrawal(earlier: dict, task_id: str) -> bool:
         isinstance(before["withdrawn"].get(key), str) for key in ("by", "reason", "at"))
 
 
-def _rules_hold(fingerprint: str | Fingerprints, recorded: str) -> bool:
+def _rules_hold(fingerprint: "str | Fingerprints", recorded: str) -> bool:
     """Whether a record was approved under the current rules; a Fingerprints also accepts the fingerprint that an
     earlier release recorded for the same rules, so that an upgrade does not turn every record into earlier rules."""
+    from .project_rules import Fingerprints
+
     return fingerprint.holds(recorded) if isinstance(fingerprint, Fingerprints) else recorded == fingerprint
 
 
-def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, policy: dict, base_root: Path, earlier: dict,
+def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path, earlier: dict,
                   *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
     """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which _record_check writes
     for the codes decision-stale, decision-record-unverified and decision-withdrawn; None when it holds.
@@ -846,6 +867,8 @@ def _same_approval(earlier: object, record: dict) -> bool:
 def _completion_problem(record: dict) -> str | None:
     """Whether a record's completion agrees with what task complete writes. No person seals a completion, so
     this is consistency, not proof: the record's own digest can be recomputed by whoever edits it."""
+    from .results import DONE_STATUSES
+
     status, completed = record.get("status"), record.get("completed")
     if status not in ("approved", *DONE_STATUSES):
         return f"status {status!r} is not a status a task is exported with"
@@ -864,13 +887,15 @@ def _completion_problem(record: dict) -> str | None:
 
 
 def _has_local_task(state: Path, task_id: str) -> bool:
+    from .tasks import task_path
+
     try:
         return task_path(state, task_id).is_file()
     except ValueError:
         return False
 
 
-def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints,
+def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: "str | Fingerprints",
                        tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
@@ -944,6 +969,8 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
 
     The record keeps the approval as it was, with who withdrew it, why and when; its digest is computed again.
     """
+    from .workflow import TaskStateError
+
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
     if not any(isinstance(item.get("revoked"), dict) for item in task.get("rounds", [])):
@@ -1146,6 +1173,11 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
     """
+    from . import org_policy, requester, roles
+    from .org_catalog import copies_read_from, parse_copies
+    from .project_rules import Fingerprints
+    from .tasks import expired_waiver_problem
+
     if _git(root, "rev-parse", "--is-inside-work-tree").returncode:
         raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
     report = findings if findings is not None else []

@@ -508,6 +508,28 @@ class StartupTests(unittest.TestCase):
             with self.subTest(module=module):
                 self.assertNotIn(module, loaded)
 
+    def test_issue_539_the_active_edit_hook_imports_only_what_it_runs(self):
+        """Issue #539: the active hook imported 42 modules of the package, the task records, the rule plan, the
+        instruction files, the export and the CI checks included, to refuse an edit that no task covers."""
+        from openguildkit import guard
+
+        self.assertEqual(set(guard.NOT_COVERING), set(tasks.STATUSES) - {"approved"})
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.project(folder, "enforce")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(main(["--project", str(root), "task", "new", "A draft.", "--id", "draft"]), 0)
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard", "--hook",
+                            "pre-edit", stdin=hook)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        loaded = {name for name in imported(result.stderr) if name.startswith("openguildkit")}
+        for module in ("tasks", "project_rules", "project_instructions", "project_setup", "ci", "results", "workflow",
+                       "consultation", "sensitive", "detect", "routing", "delivered_review", "org_policy", "roles",
+                       "requester"):
+            with self.subTest(module=module):
+                self.assertNotIn(f"openguildkit.{module}", loaded)
+        self.assertLessEqual(len(loaded), 25, sorted(loaded))
+
     def test_version_answers_without_the_cli(self):
         """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""
         result = python("-X", "importtime", "-m", "openguildkit", "--version")
