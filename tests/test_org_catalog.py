@@ -1,6 +1,7 @@
 """An organization catalog, pinned at a commit of a local Git copy (RFC #446): an option, off by default."""
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -377,6 +378,20 @@ class OrgCatalogTests(unittest.TestCase):
         self.cli("update", "--apply")
         self.cli("sync")
         self.assertEqual(len(self.lock()["organization_history"]), 3)
+
+    def test_issue_454_a_pin_and_a_stop_are_audit_events_and_the_export_rebuilds_them(self):
+        """Issue #454: following or leaving an organization catalog changes the rules, and the audit log said nothing."""
+        with patch.dict(os.environ, {"OPENGUILDKIT_AUDIT_LOG": "1"}):
+            self.pin(self.first)
+            self.cli("org-catalog", "off", "--by", "CM", "--reason", "Back to the bundled catalog", typed="off")
+        log = self.root / ".openguildkit" / "audit" / "audit.jsonl"
+        pinned, stopped = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual((pinned["event"], pinned["by"], pinned["commit"]), ("org-catalog.pinned", "Camille Martin", self.first))
+        self.assertEqual((stopped["event"], stopped["by"], stopped["commit"]), ("org-catalog.off", "CM", self.first))
+        self.assertNotIn("bundled catalog", log.read_text(encoding="utf-8"))
+        exported = [json.loads(line) for line in self.cli("audit", "export").stdout.splitlines()]
+        self.assertEqual([(item["event"], item["commit"]) for item in exported if item["event"].startswith("org-")],
+                         [("org-catalog.pinned", self.first), ("org-catalog.off", self.first)])
 
     def test_issue_457_a_project_that_never_pins_one_has_no_history_and_the_same_output(self):
         """Issue #457: a project without an organization catalog reads and writes what it did before."""

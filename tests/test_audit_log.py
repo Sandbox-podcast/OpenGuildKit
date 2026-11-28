@@ -8,10 +8,12 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import audit_log
+from openguildkit.clock import real_today
 from openguildkit.decisions import (
     PAYLOAD_VERSIONS,
     check_decision_seal,
@@ -22,6 +24,7 @@ from openguildkit.decisions import (
 )
 from openguildkit.storage import read_json, write_json
 from tests.support import CapturedCli, openguildkit_on_path
+from tests.test_roles import RoleCase
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
@@ -180,6 +183,28 @@ class EventTests(AuditCase):
         [event] = self.events()
         self.assertEqual((event["event"], event["host"], event["paths"]), ("host.applied", "claude-code", [".claude/settings.json"]))
 
+    def test_issue_454_an_edit_the_guard_flags_in_observe_is_an_event(self):
+        """Issue #454: an edit observe let through and flagged wrote nothing, so the SOC saw no sign of it."""
+        self.init(guard="observe", host="claude-code")
+        with patch.dict(os.environ, ON):
+            output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin=self.edit(), code=0)
+        self.assertIn("Edit flagged, not blocked", output)
+        [event] = self.events()
+        self.assertEqual((event["event"], event["mode"], event["paths"]), ("guard.flagged", "observe", ["app.py"]))
+        self.assertNotIn("SECRET-CONTENT", self.log.read_text(encoding="utf-8"))
+
+    def test_issue_454_an_authorization_of_an_external_action_is_an_event(self):
+        """Issue #454: task authorize wrote the decision in tasks/ only, which Git ignores."""
+        self.init(guard="enforce")
+        self.approve()
+        with patch.dict(os.environ, ON):
+            self.run_cli("task", "authorize", TASK, "--action", "external-api", "--target", "status.example.test",
+                         "--deny", "--by", "Camille", "--reason", "Not this week")
+        [event] = self.events()
+        self.assertEqual((event["event"], event["task"], event["action"], event["target"], event["decision"], event["by"]),
+                         ("task.authorized", TASK, "external-api", "status.example.test", "deny", "Camille"))
+        self.assertNotIn("Not this week", self.log.read_text(encoding="utf-8"))
+
     def test_the_schema_has_one_documented_example_per_event_type(self):
         text = (Path(__file__).resolve().parents[1] / "docs" / "audit-log.md").read_text(encoding="utf-8")
         examples = [json.loads(line) for line in re.findall(r"^\{\"v\":.*\}$", text, re.MULTILINE)]
@@ -188,6 +213,37 @@ class EventTests(AuditCase):
             self.assertEqual(audit_log.problem_with_event(item), None, item)
         self.assertIn("unknown event", audit_log.problem_with_event({**examples[0], "event": "guard.seen"}))
         self.assertIn("unknown field", audit_log.problem_with_event({**examples[0], "content": "x"}))
+
+
+class BlockerEventTests(RoleCase):
+    def setUp(self):
+        super().setUp()
+        self.init()
+        (self.root / "README.md").write_text("Portal\n", encoding="utf-8")
+        self.log = self.state / "audit" / "audit.jsonl"
+
+    def test_issue_454_clearing_a_blocker_is_an_event(self):
+        """Issue #454: a blocker cleared before the decision left its trace in tasks/ only."""
+        self.reviewed()
+        with patch.dict(os.environ, ON):
+            self.clear("PL")
+        [event] = [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual((event["event"], event["task"], event["blocker"], event["by"]),
+                         ("blocker.cleared", "sx", "security:1", "PL"))
+        self.assertNotIn("Retention is recorded", self.log.read_text(encoding="utf-8"))
+
+    def test_issue_454_waiving_a_blocker_is_an_event_with_its_end_day(self):
+        """Issue #454: a waiver, a lowered protection, was not visible to the SOC."""
+        self.run_cli("profile", "set", "waivers", "allowed", "--allowed-by", "PL", "--max-days", "30", "--by", "Sam",
+                     "--reason", "Waivers", typed="allowed")
+        self.reviewed()
+        until = (real_today() + timedelta(days=10)).isoformat()
+        with patch.dict(os.environ, ON):
+            self.run_cli("task", "waive", "sx", "security:1", "--reason", "Accepted", "--scope", "Pilot", "--until",
+                         until, "--by", "PL", typed="sx")
+        [event] = [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual((event["event"], event["blocker"], event["by"], event["until"]),
+                         ("blocker.waived", "security:1", "PL", until))
 
 
 class VerifyTests(AuditCase):
@@ -224,6 +280,16 @@ class VerifyTests(AuditCase):
         self.log.write_bytes(b"\n".join([lines[0], b"not json", lines[2]]) + b"\n")
         _, error = self.run_cli("audit", "verify", code=1)
         self.assertIn("line 2 is not a JSON event", error)
+
+    def test_issue_454_a_line_that_follows_the_chain_but_is_not_an_event_of_the_schema_is_named(self):
+        """Issue #454: audit verify checked the chain only, so a line of an unknown event or field passed."""
+        lines = self.lines()
+        planted = json.dumps({"v": 1, "at": "2026-11-27T09:00:00+00:00", "event": "guard.seen", "project": "p",
+                              "prev": hashlib.sha256(lines[-1]).hexdigest()}, separators=(",", ":")).encode()
+        self.log.write_bytes(b"\n".join([*lines, planted]) + b"\n")
+        _, error = self.run_cli("audit", "verify", code=1)
+        self.assertIn("3 events intact, then line 4 follows the chain but is not an event of the schema: unknown event "
+                      "'guard.seen'", error)
 
     def test_an_unreadable_path_is_one_line(self):
         _, error = self.run_cli("audit", "verify", self.root / "missing.jsonl", code=1)

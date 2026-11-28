@@ -1114,6 +1114,8 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
+    audit_log.record(root, f"blocker.{details['kind']}", task=args.id, blocker=args.blocker, by=args.by,
+                     signer=details.get("signer"), until=details.get("until"))
     print(details["kind"])
 
 
@@ -1542,7 +1544,10 @@ def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
-    print(result["authorizations"][-1]["decision"])
+    entry = result["authorizations"][-1]
+    audit_log.record(root, "task.authorized", task=args.id, action=entry["action"], target=entry["target"],
+                     decision=entry["decision"], by=entry["by"])
+    print(entry["decision"])
 
 
 def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:

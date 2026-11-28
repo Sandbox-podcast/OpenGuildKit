@@ -65,6 +65,7 @@ from .workflow import TaskStateError, exported_blockers, mock_evidence
 from .workstation import no_profile_answer
 
 MODES = ("off", "observe", "enforce")
+FLAGGED = "Edit flagged, not blocked"  # the words of an edit observe lets through; the audit log reads them
 # The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
 UNKNOWN_MODE = "unknown"
 _PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
@@ -276,7 +277,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)
-    verdict = "Edit refused" if refuse else "Edit flagged, not blocked (guard: observe)"
+    verdict = "Edit refused" if refuse else f"{FLAGGED} (guard: observe)"
     if mode == UNKNOWN_MODE:
         detail += "; the profile cannot be read, so the guard cannot know its mode and refuses edits as in enforce"
     if outcome == "covered":
@@ -370,12 +371,14 @@ def _one_line(error: BaseException) -> str:
 
 
 def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[int, str, str]:
-    """The answer of _decide_hook; a refusal is also written in the audit log, when a person turned it on."""
+    """The answer of _decide_hook; a refusal, or an edit flagged in observe, is also written in the audit log, when a
+    person turned it on."""
     answer = _decide_hook(event, raw, project, load)
-    if answer[0] == 2:
+    flagged = answer[0] == 0 and event == "pre-edit" and FLAGGED in answer[1]
+    if answer[0] == 2 or flagged:
         from . import audit_log
 
-        audit_log.refused(raw, project)
+        audit_log.refused(raw, project, "guard.flagged" if flagged else "guard.refused")
     return answer
 
 
