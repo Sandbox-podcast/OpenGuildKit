@@ -13,7 +13,7 @@ from .alerts import blocking_alerts, load_register
 from .approval_check import DONE_STATUSES
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
-from .guard_export import changes_since_approval, export_decision, export_withdrawal, untracked_files
+from .guard_export import changes_since_approval, export_decision, export_withdrawal, print_written, untracked_files
 from .handoff import handoff
 from .lock import require_instructions
 from .project import STATE_DIR
@@ -415,12 +415,12 @@ def run_export(command: TaskCommand) -> None:
     args, root, state, profile, task = command.args, command.root, command.state, command.profile, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
         path = export_withdrawal(root, state, task, args.output).resolve()
-        print(path.relative_to(root).as_posix() if root in path.parents else str(path))
+        print_written(args, root, path, withdrawn=True)
         print(f"OpenGuildKit: the record now carries the withdrawal of the approval of {args.id}: guard --ci refuses "
               "it, and task list --decisions shows it as withdrawn. Commit it.", file=sys.stderr)
         return
     path = export_decision(root, state, task, profile, args.output).resolve()
-    print(path.relative_to(root).as_posix() if root in path.parents else str(path))
+    print_written(args, root, path, withdrawn=False)
     untracked = untracked_files(root) if task["decision"].get("base_revision") else []
     if untracked:
         shown = ", ".join(untracked[:10]) + (f" and {len(untracked) - 10} more" if len(untracked) > 10 else "")

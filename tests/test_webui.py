@@ -438,6 +438,15 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual((result["code"], result["json"]), (0, []))
 
+    def test_issue_484_the_page_reads_an_answer_and_an_error_as_before_under_the_envelope(self):
+        """Issue #484: with OPENGUILDKIT_JSON_ENVELOPE=1 in the shell that starts ui, the page reads the same JSON."""
+        with patch.dict(os.environ, {"OPENGUILDKIT_JSON_ENVELOPE": "1"}):
+            _, result = self.run_in_page("task", "list", "--json")
+            self.assertEqual((result["code"], result["json"]), (0, []))
+            _, result = self.run_in_page("task", "show", "nope", "--json")
+        self.assertEqual((result["code"], result["json"]), (1, None))
+        self.assertTrue(result["stderr"].startswith("OpenGuildKit: Unknown task: nope."), result["stderr"])
+
     def test_concurrent_requests_keep_their_own_output(self):
         results = []
 
@@ -940,7 +949,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertTrue(closing["command"].endswith(" task complete request-history --by Camille"), closing["command"])
 
     def test_the_named_command_keeps_its_words_and_stops_at_the_end_of_the_sentence(self):
-        from openguildkit.web_requests import named_command
+        from openguildkit.errors import named_command
 
         self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by INITIALS, "
                                        "at a terminal."), ["task", "complete", "t1", "--by", "INITIALS"])

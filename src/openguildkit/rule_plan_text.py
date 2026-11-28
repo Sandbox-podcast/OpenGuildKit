@@ -11,14 +11,14 @@ Tests: `tests/test_proportionate_setup.py`, `tests/test_command_output_budget.py
 import sys
 
 from .project import RULES_NOTE
-from .storage import json_text, print_json
+from .storage import print_json
 
 
 def print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
-    file = file or sys.stdout
     if as_json:
-        print(json_text(plan), end="", file=file)
+        print_json(plan)
         return
+    file = file or sys.stdout
     if plan["patterns"]:
         print("Patterns, with why they apply and their rules", file=file)
         for pattern in plan["patterns"]:

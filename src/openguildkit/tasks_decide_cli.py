@@ -155,7 +155,11 @@ def run_decide(command: TaskCommand) -> None:
     _save_decided(state, task, result, still_holds)
     if args.approve:
         audit_log.record(root, "task.approved", task=args.id, by=args.by, signer=args.signer, seal=result["decision"]["seal"])
-    print(result["status"])
+    if args.json:
+        print_json({"task": args.id, "status": result["status"],
+                    "decision": {key: result["decision"][key] for key in ("outcome", "by", "reason", "at")}})
+    else:
+        print(result["status"])
     print(f"Next: openguildkit task handoff {args.id} gives the agent the implementation brief." if args.approve
           else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 

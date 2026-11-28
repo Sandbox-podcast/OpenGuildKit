@@ -120,8 +120,29 @@ def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
+# The version of the shape of a --json answer and of an error under --json (#484). With OPENGUILDKIT_JSON_ENVELOPE=1,
+# a --json answer comes inside {"schema_version", "command", "data"}; without it, as it always came.
+SCHEMA_VERSION = 1
+ENVELOPE_VARIABLE = "OPENGUILDKIT_JSON_ENVELOPE"
+_ANSWERING: list[str | None] = [None]
+
+
+@contextmanager
+def answering(command: str | None):
+    """Inside the block, print_json answers the --json of `command` (its words, such as "task checks"); None when the
+    command was not asked for JSON, whose JSON output (a template to fill in) never takes the envelope."""
+    before, _ANSWERING[0] = _ANSWERING[0], command
+    try:
+        yield
+    finally:
+        _ANSWERING[0] = before
+
+
 def print_json(data) -> None:
-    """Print a command's JSON answer on standard output, as every command with --json does."""
+    """Print a command's JSON answer on standard output, as every command with --json does, in the envelope when
+    OPENGUILDKIT_JSON_ENVELOPE is 1."""
+    if _ANSWERING[0] is not None and os.environ.get(ENVELOPE_VARIABLE) == "1":
+        data = {"schema_version": SCHEMA_VERSION, "command": _ANSWERING[0], "data": data}
     print(json_text(data), end="")
 
 

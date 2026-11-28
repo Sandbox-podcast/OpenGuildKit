@@ -14,6 +14,7 @@ tests/test_evidence_fingerprints.py, tests/test_next_steps.py, tests/test_perfor
 tests/test_short_lane.py, tests/test_task_dependencies.py, tests/test_task_index.py, tests/test_unhooked_hosts.py
 """
 
+import contextlib
 import sys
 from pathlib import Path
 
@@ -29,7 +30,7 @@ from .project import WORK_DIR
 from .records import Catalog, Profile
 from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
-from .storage import project_lock
+from .storage import print_json, project_lock
 from .task_files import read_task, task_path
 from .tasks import create_task, waiting_for, waits_line
 from .tasks_close_cli import (
@@ -353,17 +354,17 @@ ACTION_OPTIONS = {
     "clear": (_blocker_options, _clear_options),
     "waive": (_blocker_options, _waive_options),
     "blockers": (_json_option("Print the blockers as JSON."),),
-    "export": (_export_options,),
+    "export": (_export_options, _json_option("Print the record written as JSON.")),
     "checks": (_json_option("Print the checks as JSON."), _all_rules_option),
     "result": (_all_rules_option, _result_source_options),
     "complete": (_complete_options,),
-    "verify": (_verify_options,),
+    "verify": (_verify_options, _json_option("Print the recorded result as JSON; the text goes to standard error.")),
     "alerts": (_alerts_options,),
     "runs": (_json_option("Print the comparison as JSON."),),
     "respond": (_file_option("Completed deliberation JSON."),),
     "progress": (_json_option("Print the progress as JSON."),),
     "authorize": (_authorize_options,),
-    "decide": (_decide_options,),
+    "decide": (_decide_options, _json_option("Print the decision recorded as JSON.")),
     "revoke": (_revoke_options,),
     "decision-payload": (_payload_options,),
 }
@@ -414,7 +415,14 @@ def run_waive(command: TaskCommand) -> None:
 
 
 def run_verify(command: TaskCommand) -> int | None:
-    return run_outcome(command)
+    """task verify; with --json, its text goes to standard error and the result it recorded to standard output."""
+    if not command.args.json:
+        return run_outcome(command)
+    with contextlib.redirect_stdout(sys.stderr):
+        code = run_outcome(command)
+    task = read_task(command.state, command.args.id)
+    print_json({"task": task["id"], "status": task["status"], "result": task["result"]})
+    return code
 
 
 def run_result(command: TaskCommand) -> int | None:

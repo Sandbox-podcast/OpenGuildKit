@@ -167,7 +167,7 @@ Under `--json`, an error is a sentence on standard error: the agent falls back t
 
 **Check.** A test that loads each `--json` example of `tests/test_command_output_budget.py` and requires an object with `schema_version`, and an error example with `error.code`.
 
-**Today.** `schema_version` only in the task record.
+**Today.** With `OPENGUILDKIT_JSON_ENVELOPE=1`, `storage.print_json` puts every `--json` answer in `{schema_version, command, data}`, off by default so that the web page and scripts keep the shape they read; under `--json` an error is JSON on standard output with `error.code`, `error.message` and `error.next`. `tests/test_json_output.py` runs each `--json` example of the budget test with the envelope and refuses JSON printed around `print_json`.
 Issue #484.
 
 ### `declared-state-machine`

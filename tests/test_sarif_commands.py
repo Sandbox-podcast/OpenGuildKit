@@ -520,7 +520,7 @@ class OptionTests(SarifProject):
     def test_sarif_and_json_together_are_refused_with_what_to_type(self):
         self.init()
         result = self.cli("guard", "--ci", "--format", "sarif", "--json", code=1)
-        self.assertEqual(result.stdout, "")
+        self.assertIn("one of them", json.loads(result.stdout)["error"]["message"])  # Issue #484: JSON under --json.
         self.assertIn("--format sarif", result.stderr)
         self.assertIn("--json", result.stderr)
         self.assertIn("one of them", result.stderr)
@@ -543,9 +543,10 @@ class OptionTests(SarifProject):
         refused = self.cli("check", "--format", "xml", code=2)
         self.assertIn("invalid choice: 'xml'", refused.stderr)
 
-    def test_the_check_command_has_no_json_form_to_refuse(self):
+    def test_issue_484_the_check_command_answers_in_json(self):
+        """Issue #484: check had no --json; it now prints whether it passes and its findings."""
         self.init()
-        self.assertEqual(self.cli("check", "--json", code=2).stdout, "")
+        self.assertEqual(json.loads(self.cli("check", "--json").stdout), {"passes": True, "findings": []})
 
 
 if __name__ == "__main__":

@@ -8,7 +8,6 @@ Entry: add_parser, run
 Tests: tests/test_cli_coverage.py, tests/test_features.py
 """
 
-import json
 from pathlib import Path
 
 from . import profile_changes
@@ -17,6 +16,7 @@ from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .records import Catalog, Profile
+from .storage import print_json
 from .tool_connections import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status
 from .tool_registry import load_tools
 from .tools import resolve_tool
@@ -122,7 +122,7 @@ def run(command: Command) -> int:
     if args.features_action == "list":
         view = features_view(features, tools, load_profile(state, catalog))
         if args.json:
-            print(json.dumps(view, indent=2, ensure_ascii=False))
+            print_json(view)
         else:
             _print(view)
         return 0

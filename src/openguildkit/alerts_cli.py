@@ -32,7 +32,7 @@ from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
 from .records import Task
-from .storage import json_text, project_lock, read_json, write_json
+from .storage import print_json, project_lock, read_json, write_json
 from .task_files import read_task, task_path
 from .tasks import create_task
 from .terminal import typed
@@ -85,7 +85,7 @@ def _confirm_person(alert_id: str, what: str) -> None:
 
 def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
     if as_json:
-        print(json_text({**data, "alerts": alerts}), end="")
+        print_json({**data, "alerts": alerts})
         return
     for item in data.get("imports", []):
         print(f"Imported {plural(item['alerts'], 'alert')} from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
@@ -101,7 +101,7 @@ def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
 
 def _print_changes(changes: dict, as_json: bool) -> None:
     if as_json:
-        print(json_text(changes), end="")
+        print_json(changes)
         return
     scope = f" (scope {changes['scope']})" if changes.get("scope") else ""
     print(f"{changes['tool']}{scope}: {plural(len(changes['reported']), 'alert')} reported, {len(changes['new'])} new, "
@@ -160,7 +160,7 @@ def _alert_tasks(args, state: Path) -> None:
         if args.open and rows:
             save_register(state, register)
     if args.json:
-        print(json_text(rows), end="")
+        print_json(rows)
     elif not rows:
         print("No confirmed alert waits for a task.")
     for row in [] if args.json else rows:

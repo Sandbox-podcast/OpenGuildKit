@@ -14,6 +14,7 @@ from . import host_coverage, managed, org_policy_cli
 from .catalog_queries import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
+from .errors import OgkError
 from .guard import NO_TASK, approval_text, covering_approvals, guard_mode, hook_command, scope_note
 from .guard_ci import ci_guard
 from .guard_records import exported_decisions
@@ -234,7 +235,8 @@ def _host_scan(args, root: Path, state: Path) -> int:
 
 
 def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, read: dict | None = None) -> int:
-    """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output.
+    """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output, or with
+    --json as an object: whether it passes and its findings, in the form SARIF reads (sarif.finding).
 
     The command stops where it stopped: a problem that ends it (instructions, host settings, catalog lock, approvals
     that no longer hold) ends it in SARIF too, with the findings gathered up to there and the same exit code. A failure
@@ -242,7 +244,12 @@ def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, rea
     records a caller already read, by ID (projects), which are not read again."""
     from .check_findings import Report
 
-    report = Report(args.format == "sarif")
+    as_json = getattr(args, "json", False)
+    if as_json and args.format == "sarif":
+        raise OgkError("OGK-CHECK-001", "--format sarif and --json both print the result on the standard output: use "
+                                        "one of them. Type openguildkit check --format sarif for code scanning, or "
+                                        "openguildkit check --json for a program.")
+    report = Report(args.format == "sarif" or as_json)
     code = 0
     try:
         _check_project(args, root, state, profile, catalog, report, {} if read is None else read)
@@ -252,7 +259,10 @@ def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, rea
         report.blocked(problem)
         print(f"OpenGuildKit: {problem}", file=sys.stderr)
         code = 1
-    if report.active:
+    if as_json:
+        print_json({"passes": code == 0 and not any(item["level"] == "error" for item in report.items),
+                    "findings": report.items})
+    elif report.active:
         print(report.text(root), end="")
     return code
 

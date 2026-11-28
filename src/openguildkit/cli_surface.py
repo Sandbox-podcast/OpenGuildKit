@@ -86,10 +86,12 @@ class VersionAction(argparse.Action):
         parser.exit()
 
 
-def format_option(parser: argparse.ArgumentParser, what: str) -> None:
-    """The --format option of the commands that can print SARIF: `what` says what is printed."""
+def format_option(parser: argparse.ArgumentParser, what: str, json_help: str | None = None) -> None:
+    """The --format option of the commands that can print SARIF: `what` says what is printed; json_help adds --json."""
     parser.add_argument("--format", choices=FORMATS, default="text",
                         help=f"{what} as SARIF 2.1.0 for code scanning instead of text.")
+    if json_help:
+        parser.add_argument("--json", action="store_true", help=json_help)
 
 
 class RootHelp(argparse.HelpFormatter):

@@ -123,6 +123,17 @@ def _line(parser: argparse.ArgumentParser, action: argparse.Action) -> str:
     return f"- `{name}`" + (f": {help_text}" if help_text else "")
 
 
+# What every --json output shares (#484), said once at the top of the reference.
+JSON_OUTPUT = (
+    "With `--json`, a command prints its answer as JSON on standard output. With `OPENGUILDKIT_JSON_ENVELOPE=1` in "
+    "the environment, every answer comes in one object, `{\"schema_version\": 1, \"command\": \"task checks\", "
+    "\"data\": ...}`, whose `data` is the answer printed without the variable; the default keeps the shape scripts "
+    "and the web interface read. Under `--json`, an error is also JSON on standard output, with the same exit code "
+    "and its line on standard error: `{\"schema_version\": 1, \"error\": {\"code\": \"OGK-TASK-004\", "
+    "\"message\": ..., \"next\": ...}}`, where `code` is null for an error that has no code yet "
+    "([error codes](errors.md)) and `next` is the command the message names, or null.")
+
+
 def reference(parser: argparse.ArgumentParser) -> str:
     """The reference of every command, one section each, with its options and their help, as Markdown."""
     lines = ["# Command reference", "",
@@ -133,6 +144,7 @@ def reference(parser: argparse.ArgumentParser) -> str:
               "or `zsh` prints a script that completes it. These options come before the command, or after it:"), ""]
     lines += [_line(parser, action) for action in _visible(parser)
               if action.option_strings and action.option_strings[0] in (*GLOBAL_OPTIONS, "--version")]
+    lines += ["", "## JSON output", "", JSON_OUTPUT]
     for path, command in _commands(parser):
         if not path:
             continue

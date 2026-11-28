@@ -1,7 +1,7 @@
 """What the local web interface refuses to run or to read: commands that need a person at a terminal, paths outside the
 project, secrets, and the project files it may show or write.
 
-Entry: Refused, terminal_command, named_command, terminal_reason, check_request, check_paths, ProjectFiles, MAX_FILE,
+Entry: Refused, terminal_command, terminal_reason, check_request, check_paths, ProjectFiles, MAX_FILE,
 REFUSALS, HUMAN_ONLY_TEXT
 Tests: tests/test_approval_lifecycle.py, tests/test_cli_surface.py, tests/test_next_steps.py, tests/test_org_catalog.py,
 tests/test_projects.py, tests/test_webui.py
@@ -126,23 +126,6 @@ def _subcommand(args) -> str | None:
 def terminal_command(root: Path, argv: list[str]) -> str:
     """The command the page asks the person to run at their terminal, quoted as the CLI quotes its own."""
     return shell_command(["openguildkit", "--project", str(root), *argv])
-
-
-def named_command(message: str) -> list[str] | None:
-    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by INITIALS, at a terminal."),
-    up to the end of its clause, or None when it names none."""
-    match = re.search(r"\bopenguildkit (.+)", message)
-    if match is None:
-        return None
-    words = []
-    for word in match.group(1).split():
-        words.append(word.rstrip(",;."))
-        if word.endswith((",", ";", ".")):
-            break
-    words = [word for word in words if word]
-    if "--project" in words[:1]:
-        words = words[2:]
-    return words or None
 
 
 def terminal_reason(args) -> str:

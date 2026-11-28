@@ -4,7 +4,7 @@ that named a file.
 With OPENGUILDKIT_DEBUG=1, an error turned into one line prints its traceback on standard error first; the hook
 that runs before every edit imports only this module for it, and `traceback` is loaded only when it is asked for.
 
-Entry: print_trace, error_message
+Entry: print_trace, error_message, json_error, command_words
 Tests: tests/test_cli_errors.py
 """
 
@@ -12,7 +12,8 @@ import os
 import sys
 from pathlib import Path
 
-from .errors import os_error_message
+from .errors import OgkError, named_command, os_error_message
+from .storage import SCHEMA_VERSION
 
 VARIABLE = "OPENGUILDKIT_DEBUG"
 
@@ -31,6 +32,23 @@ def _leaf(parser, args):
         if action.choices and hasattr(action.choices, "get") and getattr(args, action.dest, None) in action.choices:
             return _leaf(action.choices[getattr(args, action.dest)], args)
     return parser
+
+
+def command_words(parser, args) -> str:
+    """The words of the command args came from, such as "task checks" or "host check", as the envelope of a --json
+    answer names it: the subcommands, then the value of a positional argument that names a mode."""
+    leaf = _leaf(parser, args)
+    modes = [getattr(args, action.dest) for action in leaf._actions if not action.option_strings and action.choices
+             and not hasattr(action.choices, "get") and getattr(args, action.dest, None) in action.choices]
+    return " ".join([*leaf.prog.split()[1:], *modes])
+
+
+def json_error(error: BaseException | None, text: str) -> dict:
+    """An error under --json (#484): its code (errors.OgkError) or null, its message, and the command it names."""
+    words = named_command(text)
+    return {"schema_version": SCHEMA_VERSION, "error": {"code": error.code if isinstance(error, OgkError) else None,
+                                                      "message": text,
+                                                      "next": f"openguildkit {' '.join(words)}" if words else None}}
 
 
 def error_message(error: BaseException, parser, args) -> str:

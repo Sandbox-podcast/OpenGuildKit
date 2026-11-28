@@ -36,9 +36,9 @@ from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_changes, task_files
-from .errors import error_line
+from .errors import error_line, named_command
 from .lock import package_version
-from .storage import write_text
+from .storage import SCHEMA_VERSION, write_text
 from .web_requests import (
     HUMAN_ONLY_TEXT,
     REFUSALS,
@@ -46,12 +46,13 @@ from .web_requests import (
     Refused,
     check_paths,
     check_request,
-    named_command,
     terminal_command,
     terminal_reason,
 )
 
 DEFAULT_PORT = 7311
+# The keys of a --json answer in its envelope, and of an error under --json (storage.print_json, cli._failed).
+ENVELOPE_KEYS = {"schema_version", "command", "data", "error"}
 MAX_BODY = 8 * 1024 * 1024
 # A script that starts the server for its own browser, such as the end-to-end tests, may set the key of the run.
 KEY_VARIABLE = "OPENGUILDKIT_UI_KEY"
@@ -160,6 +161,10 @@ class CliRunner:
         if stdout.lstrip()[:1] in ("{", "["):
             with contextlib.suppress(ValueError):
                 data = json.loads(stdout)
+        if isinstance(data, dict) and data.get("schema_version") == SCHEMA_VERSION and data.keys() <= ENVELOPE_KEYS:
+            # The page reads the answers as they always came, with or without OPENGUILDKIT_JSON_ENVELOPE (#484);
+            # an error under --json stays the line on standard error.
+            data = data.get("data")
         if data is not None:
             if omit:
                 data = _without(data, set(omit))

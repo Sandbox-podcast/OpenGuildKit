@@ -28,7 +28,7 @@ from .market import (
     set_unknown,
     watch_source,
 )
-from .storage import json_text, project_lock
+from .storage import print_json, project_lock
 
 MODES = {
     "new": "create an empty dossier",
@@ -133,8 +133,8 @@ def _due(args, state: Path, research: str) -> None:
                for source in due_sources(dossier)]
         results.append({"dossier": dossier_id, "due": due, "paused": dossier.get("watch", {}).get("paused", False)})
     if args.json:
-        print(json_text(results[0] if not args.all else {"dossiers": results,
-                                                         "due": [item for result in results for item in result["due"]]}), end="")
+        print_json(results[0] if not args.all else {"dossiers": results,
+                                                         "due": [item for result in results for item in result["due"]]})
         return
     for result in results:
         if args.all:
@@ -174,7 +174,7 @@ def run(command: Command) -> None:
         dossier = load_dossier(state, args.dossier)
         result = {"dossier": args.dossier, "gaps": dossier_gaps(dossier, profile.get("research", "local-only"))}
         if args.json:
-            print(json_text(result), end="")
+            print_json(result)
         else:
             print("\n".join(f"- {gap}" for gap in result["gaps"]) or "No gap found.")
         return

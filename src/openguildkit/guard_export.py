@@ -1,7 +1,7 @@
 """Exports an approval decision and its withdrawal as a signed record, and names the conflicts between records.
 
 Entry: export_decision, record_of_another_task, record_shape, conflict_message, withdrawal_of, export_withdrawal,
-untracked_files, changes_since_approval, RECORD_VERSION
+untracked_files, changes_since_approval, RECORD_VERSION, print_written
 Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
 tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
 tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
@@ -24,7 +24,7 @@ from .decisions import (
 )
 from .project import STATE_DIR
 from .records import Profile, Task
-from .storage import read_json, write_json
+from .storage import print_json, read_json, write_json
 
 
 def export_decision(root: Path, state: Path, task: Task, profile: Profile, output: Path | None = None) -> Path:
@@ -329,3 +329,12 @@ def changes_since_approval(root: Path, task: Task) -> list[str] | None:
     track yet (the decision records left out); None when the approval named no Git revision."""
     files = changed_files(root, (task.get("decision") or {}).get("base_revision"))
     return None if files is None else sorted({*files, *untracked_files(root)})
+
+
+def print_written(args, root: Path, path: Path, withdrawn: bool) -> None:
+    """The path of the record task export wrote, relative to the project when it is inside, or as JSON with --json."""
+    shown = path.relative_to(root).as_posix() if root in path.parents else str(path)
+    if args.json:
+        print_json({"task": args.id, "path": shown, "withdrawn": withdrawn})
+    else:
+        print(shown)
