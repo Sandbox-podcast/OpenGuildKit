@@ -13,7 +13,8 @@ from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
 from openguildkit.relevance import changed_files, pack_relevance
 
-NAMES = ["docs/résumé.md", "docs/a b.md", 'docs/say "hi".md']
+# Windows refuses a quote in a file name; Git quotes such a name elsewhere, so it is tested where it can exist.
+NAMES = ["docs/résumé.md", "docs/a b.md", *([] if os.name == "nt" else ['docs/say "hi".md'])]
 
 
 @unittest.skipIf(shutil.which("git") is None, "needs git")
