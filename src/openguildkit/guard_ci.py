@@ -231,6 +231,121 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."
 
 
+def _judge_record(root: Path, base: str, relative: str, prefix: str, flag, *, fingerprint, policy: dict,
+                  base_root: Path, earlier: dict, profile: dict) -> tuple[list[str], dict | None]:
+    """The problems of one decision record the change brings, in the order guard --ci reports them, and the record
+    when it covers its files (None when it is missing, invalid or faulty)."""
+    from . import requester, roles
+    from .tasks_blockers import expired_waiver_problem
+
+    problems: list[str] = []
+    record = _read_record(root, relative, prefix, flag, problems)
+    if record is None:
+        return problems, None
+    checked = record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+    fault = (checked[2], checked[1]) if checked else None
+    # A waiver that expired opens its blocker again: the record no longer covers the change.
+    expired = None if fault else expired_waiver_problem(record, relative)
+    fault = fault or (("decision-waiver-expired", expired) if expired else None)
+    journal = _journal_mismatch(root, record)
+    outside = None if fault else _lane_fault(record, (earlier.get(record["task"]) or record).get("files"),
+                                             profile.get("light_paths") or [], base)
+    if fault:
+        problems.append(flag(fault[0], fault[1], relative))
+    if journal:
+        problems.append(flag("evidence-journal-changed", journal, relative))
+    if outside:
+        problems.append(flag("decision-lane-outside", f"{relative}: {outside}", relative))
+    if fault:
+        return problems, None
+    # The base revision's profile says whether the requester may approve: a change cannot turn that off for itself.
+    same = requester.record_problem(record, record["task"] not in earlier) if requester.active(profile) else None
+    if same:
+        problems.append(flag(same[0], f"{relative}: {same[1]}", relative))
+    late = None if record["task"] in earlier else _signed_late(root, base, record, relative)
+    if late:
+        problems.append(flag("decision-signed-late", late, relative))
+    # The roles of the base revision judge a record it does not carry: who cleared, who approved (roles.py).
+    outside_role = [] if record["task"] in earlier else roles.record_problems(record, profile)
+    for message in outside_role:
+        problems.append(flag("decision-role-outside", f"{relative}: {message}", relative))
+    if not journal and not outside and not same and not late and not outside_role:
+        return problems, record
+    return problems, None
+
+
+def _read_record(root: Path, relative: str, prefix: str, flag, problems: list[str]) -> dict | None:
+    """The decision record at relative, of the right place and shape, or None with its problem added to problems
+    (none for a record the change deletes)."""
+    path = root / relative
+    if not path.is_file():
+        return None
+    if PurePosixPath(relative).parent != PurePosixPath(prefix):
+        problems.append(flag("decision-record-invalid", f"{relative} is not directly under {prefix}: task export "
+                             f"writes each record there, named after its task, and no record elsewhere covers a "
+                             f"change. Move it to {prefix}TASK.json or remove it.", relative))
+        return None
+    try:
+        record = read_json(path)
+    except (OSError, ValueError):
+        problems.append(flag("decision-record-invalid", conflict_message(path, relative) or (
+            f"{relative} is not a decision record written by openguildkit task export. "
+            "Export the decision again or remove the file."), relative))
+        return None
+    try:
+        record_shape(record, relative)
+    except ValueError as error:
+        problems.append(flag("decision-record-invalid", str(error), relative))
+        return None
+    return record
+
+
+def _judge_records(root: Path, base: str, records: list[str], prefix: str, flag, problems: list[str],
+                   **context) -> tuple[list[str], dict, dict]:
+    """Judge each decision record of the change, adding its problems: the tasks of the valid ones, the record path
+    of each, and the files each covers (its base version's list for an approval already on base)."""
+    valid, where, covers = [], {}, {}
+    earlier = context["earlier"]
+    for relative in records:
+        found, record = _judge_record(root, base, relative, prefix, flag, **context)
+        problems += found
+        if record is not None:
+            valid.append(record["task"])
+            where[record["task"]] = relative
+            covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
+    return valid, where, covers
+
+
+def _freeze_problem(root: Path, base_state: Path, freeze, changed: list[str], records: list[str], problems: list[str],
+                    flag) -> None:
+    """A frozen base fails every change but the one that lifts the freeze, whatever the guard mode (incident.py)."""
+    if freeze and changed and not incident.lifts_freeze(base_state / "project.json", root / incident.PROFILE,
+                                                        changed, records):
+        problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
+                                             f"{incident.LIFT}"))
+
+
+def _coverage_problems(work: list[str], records: list[str], valid: list[str], covers: dict, problems: list[str],
+                       flag) -> None:
+    """Add to problems the decision a change lacks: none exported, none valid, or files no valid one lists."""
+    if work and not records:
+        problems.append(flag("decision-missing", "The changes come with no exported decision "
+                                                 "(openguildkit task export ID)."))
+    elif work and not valid and not problems:
+        problems.append(flag("decision-missing", "No exported decision in this change is valid."))
+    elif work and valid and (uncovered := _uncovered(work, covers)):
+        problems.append(flag("decision-files-uncovered", uncovered))
+
+
+def _unsigned_finding(require_signed: bool, problems: list[str], notes: list[str], flag) -> None:
+    """Approvals that are local, not signed: a problem under --require-signed, else a note."""
+    if require_signed:
+        problems.append(flag("approvals-not-signed", f"{_local_records()}: --require-signed fails this check until they are."))
+    else:
+        notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
+                                                  "they are.", None, "note"))
+
+
 def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None,
              org_catalog: list[str] | None = None, org_policy_copy: tuple[str, str] | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
@@ -247,10 +362,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
     """
-    from . import git, org_policy, requester, roles
+    from . import git, org_policy
     from .org_catalog import copies_read_from, parse_copies
     from .project_rules import Fingerprints
-    from .tasks_blockers import expired_waiver_problem
 
     if git.required(root, "rev-parse", "--is-inside-work-tree", needs=_NEEDS_GIT).returncode:
         raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
@@ -266,7 +380,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
     work = [path for path in changed if path not in records]
-    valid, problems, covers, where = [], [], {}, {}
+    problems: list[str] = []
     running = _changed_guard_workflows(root, base, work)
     notes = [_workflow_note(running)] if running else []
     for path in running:
@@ -288,11 +402,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         profile = load_profile(base_state, catalog)
         policy = approval_policy(profile)
         freeze = incident.frozen(profile)
-        # A frozen base fails every change but the one that lifts the freeze, whatever the guard mode (incident.py).
-        if freeze and changed and not incident.lifts_freeze(base_state / "project.json", root / incident.PROFILE,
-                                                            changed, records):
-            problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
-                                                 f"{incident.LIFT}"))
+        _freeze_problem(root, base_state, freeze, changed, records, problems, flag)
         floor = [flag(code, message[0].upper() + message[1:]) for code, message in org_policy.ci_problems(
             org_policy_copy, root, base_state, profile, catalog, parse_copies(org_catalog), bool(changed))]
         problems += floor
@@ -301,70 +411,11 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         fingerprint = Fingerprints(profile, catalog)
         earlier = _earlier_records(_base_files(root, base, [name for name in names
                                                             if name.startswith(prefix) and name.endswith(".json")]))
-        for relative in records:
-            path = root / relative
-            if not path.is_file():
-                continue
-            if PurePosixPath(relative).parent != PurePosixPath(prefix):
-                problems.append(flag("decision-record-invalid", f"{relative} is not directly under {prefix}: task export "
-                                     f"writes each record there, named after its task, and no record elsewhere covers a "
-                                     f"change. Move it to {prefix}TASK.json or remove it.", relative))
-                continue
-            try:
-                record = read_json(path)
-            except (OSError, ValueError):
-                problems.append(flag("decision-record-invalid", conflict_message(path, relative) or (
-                    f"{relative} is not a decision record written by openguildkit task export. "
-                    "Export the decision again or remove the file."), relative))
-                continue
-            try:
-                record_shape(record, relative)
-            except ValueError as error:
-                problems.append(flag("decision-record-invalid", str(error), relative))
-                continue
-            checked = record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
-            fault = (checked[2], checked[1]) if checked else None
-            # A waiver that expired opens its blocker again: the record no longer covers the change.
-            expired = None if fault else expired_waiver_problem(record, relative)
-            fault = fault or (("decision-waiver-expired", expired) if expired else None)
-            journal = _journal_mismatch(root, record)
-            outside = None if fault else _lane_fault(record, (earlier.get(record["task"]) or record).get("files"),
-                                                     profile.get("light_paths") or [], base)
-            if fault:
-                problems.append(flag(fault[0], fault[1], relative))
-            if journal:
-                problems.append(flag("evidence-journal-changed", journal, relative))
-            if outside:
-                problems.append(flag("decision-lane-outside", f"{relative}: {outside}", relative))
-            # The base revision's profile says whether the requester may approve: a change cannot turn that off for itself.
-            same = None if fault or not requester.active(profile) else requester.record_problem(
-                record, record["task"] not in earlier)
-            if same:
-                problems.append(flag(same[0], f"{relative}: {same[1]}", relative))
-            late = None if fault or record["task"] in earlier else _signed_late(root, base, record, relative)
-            if late:
-                problems.append(flag("decision-signed-late", late, relative))
-            # The roles of the base revision judge a record it does not carry: who cleared, who approved (roles.py).
-            outside_role = [] if fault or record["task"] in earlier else roles.record_problems(record, profile)
-            for message in outside_role:
-                problems.append(flag("decision-role-outside", f"{relative}: {message}", relative))
-            if not fault and not journal and not outside and not same and not late and not outside_role:
-                valid.append(record["task"])
-                where[record["task"]] = relative
-                covers[record["task"]] = (earlier.get(record["task"]) or record).get("files")
-    if work and not records:
-        problems.append(flag("decision-missing", "The changes come with no exported decision "
-                                                 "(openguildkit task export ID)."))
-    elif work and not valid and not problems:
-        problems.append(flag("decision-missing", "No exported decision in this change is valid."))
-    elif work and valid and (uncovered := _uncovered(work, covers)):
-        problems.append(flag("decision-files-uncovered", uncovered))
+        valid, where, covers = _judge_records(root, base, records, prefix, flag, problems, fingerprint=fingerprint,
+                                              policy=policy, base_root=base_root, earlier=earlier, profile=profile)
+    _coverage_problems(work, records, valid, covers, problems, flag)
     if policy["mode"] != "signed" and guard_mode(profile) != "off":
-        if require_signed:
-            problems.append(flag("approvals-not-signed", f"{_local_records()}: --require-signed fails this check until they are."))
-        else:
-            notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
-                                                      "they are.", None, "note"))
+        _unsigned_finding(require_signed, problems, notes, flag)
     ok = not problems and (not work or bool(valid))
     return {"mode": "enforce" if freeze or floor else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}
