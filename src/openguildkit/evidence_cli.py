@@ -19,12 +19,12 @@ from . import clock, git
 from .alerts import load_register
 from .catalog import package_file
 from .command import Command
-from .decisions import approval_policy, exported_records, git_revision, record_digest, seal, verify_recorded_signature
+from .decisions import approval_policy, export_digest, exported_records, git_revision, seal, verify_recorded_signature
 from .guard import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
 from .project_rules import Fingerprints
-from .storage import json_text, read_json, write_text
+from .storage import file_sha256, json_text, read_json, write_text
 
 DOSSIER_FILES = ("alerts.jsonl", "controls.json", "decisions.jsonl", "profile-changes.jsonl", "signers-history.jsonl")
 MANIFEST = "MANIFEST.json"
@@ -109,7 +109,7 @@ def _within(day: object, since: str | None, until: str | None) -> bool:
 
 def _sha256(path: Path) -> str | None:
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return file_sha256(path)
     except OSError:
         return None
 
@@ -149,7 +149,7 @@ def _seal(decision: dict) -> dict:
 
 def _digest_state(record: dict) -> str:
     recorded = record.get("record_sha256")
-    return "absent" if recorded is None else "holds" if recorded == record_digest(record) else "broken"
+    return "absent" if recorded is None else "holds" if recorded == export_digest(record) else "broken"
 
 
 def _signature(root: Path, policy: dict, decision: dict) -> dict:

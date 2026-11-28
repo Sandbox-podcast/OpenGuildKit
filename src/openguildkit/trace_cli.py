@@ -5,7 +5,6 @@ of each change; this command reads them, says for each whether it still holds, a
 after the last decision. It reads and writes nothing else: no task, no record, no Git index.
 """
 
-import hashlib
 import os
 from pathlib import Path
 
@@ -16,7 +15,7 @@ from .guard import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
 from .project_rules import Fingerprints
-from .storage import print_json
+from .storage import file_sha256, print_json
 
 _COMMIT = frozenset("0123456789abcdef")
 
@@ -134,7 +133,7 @@ def _evidence_changed(root: Path, result: dict) -> list[str]:
             continue
         path = root / item["evidence"]
         try:
-            current = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+            current = file_sha256(path) if path.is_file() else None
         except OSError:
             current = None
         if current is not None and current != item["sha256"]:

@@ -6,12 +6,10 @@ pull request carries an exported decision that matches the rules of its base rev
 """
 
 import calendar
-import hashlib
 import io
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path, PurePosixPath
@@ -28,12 +26,12 @@ from .decisions import (
     check_decision,
     check_decision_seal,
     date_moved,
+    export_digest,
     exported_boards,
     exported_records,
     exported_rounds,
     history_message,
     outside_history_message,
-    record_digest,
     revisions_outside_history,
     seal,
     shared_digest,
@@ -47,7 +45,7 @@ from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
 from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
 from .startup import UNKNOWN_MODE, declared_mode
-from .storage import parse_json, read_json, write_json
+from .storage import file_sha256, parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .terminal import interactive
 from .wording import plural
@@ -82,7 +80,7 @@ def _age_days(moment: str) -> int | None:
     return days_since(moment)
 
 
-def read_task(state: Path, task_id: str) -> dict:
+def _read_task(state: Path, task_id: str) -> dict:
     """tasks.read_task, imported on the first call: the hook loads tasks only when a record may be approved."""
     from .tasks import read_task as read
 
@@ -107,7 +105,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
     approved = []
     for task_id in tasks_with_status(state, set(NOT_COVERING)):
         try:
-            task = read_task(state, task_id)
+            task = _read_task(state, task_id)
         except Exception:  # A broken record covers nothing; it must not stop the guard.
             continue
         if task["status"] == "approved" and task.get("answers", {}).get("kind") != "decision":
@@ -555,7 +553,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     if findings:
         record["delivered_review"] = findings
     # What was added after the approval (completion, result) is covered by a digest of the whole record.
-    record["record_sha256"] = record_digest(record)
+    record["record_sha256"] = export_digest(record)
     write_json(path, record)
     return path
 
@@ -621,16 +619,12 @@ def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
                          "with --output to another file, or open it again under another ID.")
 
 
-def _git(root: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
-    result = git.run(root, *args, stdin=stdin)
-    if result is None:
-        raise ValueError("guard --ci needs Git: it is not installed or not on the PATH.")
-    return result
+_NEEDS_GIT = "guard --ci"  # What a missing Git stops (git.required).
 
 
 def _git_lines(root: Path, command: str, *args: str) -> list[str]:
     """The file names a Git command lists, as they are on disk (-z)."""
-    result = _git(root, command, "-z", *args)
+    result = git.required(root, command, "-z", *args, needs=_NEEDS_GIT)
     if result.returncode:
         raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
     return [line for line in git.split_names(result.stdout) if line.strip()]
@@ -647,7 +641,7 @@ def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
     if not names:
         return {}
     asked = "".join(f"{base}:{name}\n" for name in names).encode("utf-8")
-    output = io.BytesIO(_git(root, "cat-file", "--batch", stdin=asked).stdout)
+    output = io.BytesIO(git.required(root, "cat-file", "--batch", stdin=asked, needs=_NEEDS_GIT).stdout)
     files = {}
     for name in names:
         # "<object> <type> <size>", then the content and a newline; or "<name> missing" alone.
@@ -793,7 +787,7 @@ def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints"
             f"{relative}: what the record shows (brief, summary, board verdicts and recommendations, earlier "
             f"rounds) does not match what was approved. {export_again}")
     current = record.get("schema_version", 1) >= RECORD_VERSION or "shared_sha256" in payload or "record_sha256" in record
-    if current and record.get("record_sha256") != record_digest(record):
+    if current and record.get("record_sha256") != export_digest(record):
         return "decision-record-invalid", f"{relative} was changed after it was exported. {export_again}"
     inconsistent = _completion_problem(record) if current else None
     if inconsistent:
@@ -950,7 +944,7 @@ def _withdrawn_here(state: Path, record: dict, tasks: dict | None = None) -> dic
     task = (tasks or {}).get(record["task"])
     if task is None:
         try:
-            task = read_task(state, record["task"])
+            task = _read_task(state, record["task"])
         except Exception:  # An unreadable task record is reported by task list and check.
             return None
     return withdrawal_of(task, record)
@@ -987,7 +981,7 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
         raise ValueError(f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
     record = {key: value for key, value in record.items() if key != "record_sha256"}
     record["withdrawn"] = withdrawn
-    record["record_sha256"] = record_digest(record)
+    record["record_sha256"] = export_digest(record)
     write_json(path, record)
     return path
 
@@ -1079,7 +1073,8 @@ def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | No
     """Why a new record cannot be true: its approval says it was signed (signed_at) after the commit of the change that
     first carries the record, the clocks of two machines allowed to differ by CLOCK_SKEW."""
     moment = (record["decision"].get("payload") or {}).get("signed_at")
-    brought = _git(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative)
+    brought = git.required(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative,
+                           needs=_NEEDS_GIT)
     first = brought.stdout.split()[:1]
     if not isinstance(moment, str):  # None: the signature check says so.
         return None
@@ -1115,7 +1110,7 @@ def _changed_guard_workflows(root: Path, base: str, changed: list[str]) -> list[
     for path in changed:
         if not path.startswith(WORKFLOW_DIR):
             continue
-        versions = [_git(root, "show", f"{revision}:{path}") for revision in (base, "HEAD")]
+        versions = [git.required(root, "show", f"{revision}:{path}", needs=_NEEDS_GIT) for revision in (base, "HEAD")]
         if path == running or any(not item.returncode and GUARD_STEP.encode() in item.stdout for item in versions):
             found.append(path)
     return found
@@ -1148,7 +1143,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
             continue
         path = root / evidence
         try:
-            current = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+            current = file_sha256(path) if path.is_file() else None
         except OSError:
             current = None
         if current is not None and current != digest:
@@ -1179,7 +1174,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     from .project_rules import Fingerprints
     from .tasks_blockers import expired_waiver_problem
 
-    if _git(root, "rev-parse", "--is-inside-work-tree").returncode:
+    if git.required(root, "rev-parse", "--is-inside-work-tree", needs=_NEEDS_GIT).returncode:
         raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
     report = findings if findings is not None else []
 
@@ -1187,7 +1182,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         report.append({"code": code, "level": level, "message": message, "path": path, "line": None})
         return message
 
-    if _git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}").returncode:
+    if git.required(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", needs=_NEEDS_GIT).returncode:
         raise ValueError(f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"

@@ -8,7 +8,6 @@ certificate of an authority (a `cert-authority` line); an approver who adds sign
 payload has the approval, once recorded, verified at that time, so that an expiry later on voids none.
 """
 
-import hashlib
 import json
 import re
 import shutil
@@ -17,14 +16,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import clock, git
-from .storage import read_json
+from .storage import canonical_sha256, read_json
 
 NAMESPACE = "openguildkit-decision"
-
-
-def _sha256(value: object) -> str:
-    canonical = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def git_revision(root: Path) -> dict | None:
@@ -70,16 +64,16 @@ def exported_rounds(task: dict) -> list[dict]:
 
 def shared_digest(brief: str, summary: str, boards: list[dict], rounds: list[dict]) -> str:
     """The digest of what an exported record shows of the approval; the approval's seal covers it."""
-    return _sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
+    return canonical_sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
 
 
 def task_shared_digest(task: dict) -> str:
     return shared_digest(task["brief"], task["review"]["summary"], exported_boards(task["review"]), exported_rounds(task))
 
 
-def record_digest(record: dict) -> str:
-    """The digest of an exported record, without the field that holds it."""
-    return _sha256({key: value for key, value in record.items() if key != "record_sha256"})
+def export_digest(record: dict) -> str:
+    """The digest of an exported record, without the field that holds it: hexadecimal, unlike catalog.record_digest."""
+    return canonical_sha256({key: value for key, value in record.items() if key != "record_sha256"})
 
 
 # Approvals sealed from version 2 on also cover what their exported record shows; from version 3 on, the payload a
@@ -148,10 +142,10 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         "task": task["id"],
         "outcome": "approved",
         "consultation_id": task["consultation"]["id"],
-        "scope_sha256": _sha256(task["consultation"]["scope"]),
-        "review_sha256": _sha256(task["review"]),
+        "scope_sha256": canonical_sha256(task["consultation"]["scope"]),
+        "review_sha256": canonical_sha256(task["review"]),
         "profile_fingerprint": task["profile_fingerprint"],
-        "blocker_resolutions_sha256": _sha256(task.get("blocker_resolutions", {})),
+        "blocker_resolutions_sha256": canonical_sha256(task.get("blocker_resolutions", {})),
         "by": by.strip(),
         "reason": reason.strip(),
         "base_revision": base_revision,
@@ -160,7 +154,7 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
     # approval names each protected board whose removal they confirmed.
     adjustments = task["consultation"].get("adjustments")
     if adjustments:
-        payload["adjustments_sha256"] = _sha256(adjustments)
+        payload["adjustments_sha256"] = canonical_sha256(adjustments)
         confirmed = sorted(item["board"] for item in adjustments if item.get("confirmation") == "pending")
         if confirmed:
             payload["confirmed_removals"] = confirmed
@@ -187,7 +181,7 @@ def payload_text(payload: dict) -> str:
 
 
 def seal(payload: dict) -> str:
-    return _sha256(payload)
+    return canonical_sha256(payload)
 
 
 def approval_policy(profile: dict) -> dict:

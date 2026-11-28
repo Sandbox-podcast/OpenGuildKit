@@ -16,10 +16,9 @@ ORG_POLICY = "policy.json"  # org_policy.py
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
 
-def _git(repo: Path, *args: str) -> bytes:
-    result = git.run(repo.resolve(), *args, offline=True)
-    if result is None:
-        raise ValueError("Reading the evidence needs Git: it is not installed or not on the PATH.")
+def _committed_bytes(repo: Path, *args: str) -> bytes:
+    """What a Git command prints about a commit, which must be in the copy."""
+    result = git.required(repo.resolve(), *args, needs="Reading the evidence", offline=True)
     if result.returncode:
         raise ValueError(f"Git could not read {args[-1]} in {repo}. Fetch the required commit first.")
     return result.stdout
@@ -28,9 +27,9 @@ def _git(repo: Path, *args: str) -> bytes:
 def _committed_file(repo: Path, commit: str, path: str) -> bytes:
     if not FULL_COMMIT.fullmatch(commit):
         raise ValueError("Use a full lowercase Git commit SHA.")
-    if _git(repo, "rev-parse", "--verify", f"{commit}^{{commit}}").strip() != commit.encode("ascii"):
+    if _committed_bytes(repo, "rev-parse", "--verify", f"{commit}^{{commit}}").strip() != commit.encode("ascii"):
         raise ValueError("The supplied SHA must identify a commit directly.")
-    return _git(repo, "show", f"{commit}:{path}")
+    return _committed_bytes(repo, "show", f"{commit}:{path}")
 
 
 def _committed_json(repo: Path, commit: str, path: str) -> dict:
@@ -39,7 +38,7 @@ def _committed_json(repo: Path, commit: str, path: str) -> dict:
 
 def _holds(repo: Path, commit: str, path: str) -> bool:
     try:
-        return FULL_COMMIT.fullmatch(commit) is not None and _git(repo, "cat-file", "-e", f"{commit}:{path}") == b""
+        return FULL_COMMIT.fullmatch(commit) is not None and _committed_bytes(repo, "cat-file", "-e", f"{commit}:{path}") == b""
     except ValueError:
         return False
 

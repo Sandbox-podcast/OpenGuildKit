@@ -16,12 +16,12 @@ MAX_CLI_LINES = 1500
 MAX_CLI_FUNCTION_LINES = 120
 # Top-level function names that more than one module of the package defines (#530): a name searched from its
 # command should lead to one function. Lower the ceiling when a copy goes; never raise it.
-MAX_SHARED_FUNCTION_NAMES = 75
+MAX_SHARED_FUNCTION_NAMES = 68
 # The public names several modules define: the entry points every command module has, and the homonyms #530 lists
 # that are not merged yet. A public name added to two modules fails.
 SHARED_PUBLIC_NAMES = {
     "add_parser", "run", "main", "add_options", "serve", "describe", "parse", "fingerprint", "timestamp",
-    "approval_problem", "board_brief", "changed_files", "frozen_text", "open_points", "record_digest", "scope_entry",
+    "approval_problem", "board_brief", "changed_files", "frozen_text", "open_points", "scope_entry",
 }
 
 

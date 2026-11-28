@@ -6,7 +6,7 @@ import unittest
 
 from openguildkit.storage import write_json
 from openguildkit.tasks import waiting_for
-from openguildkit.tasks_record import record_problem
+from openguildkit.tasks_record import task_record_problem
 from tests.test_approval_lifecycle import EXAMPLE, ApprovalCase
 
 
@@ -26,7 +26,7 @@ class DependencyTests(ApprovalCase):
         self.assertEqual(output, "portal\n")
         self.assertIn("Waits for api-schema (draft) and auth-flow (draft).", error)
         self.assertEqual(self.task("portal")["after"], ["api-schema", "auth-flow"])
-        self.assertIsNone(record_problem(self.task("portal")))
+        self.assertIsNone(task_record_problem(self.task("portal")))
 
     def test_an_unknown_task_itself_or_a_cycle_is_refused(self):
         self.new("api-schema")
@@ -95,7 +95,7 @@ class DependencyTests(ApprovalCase):
     def test_a_damaged_after_field_is_named(self):
         self.new("plain")
         task = self.task("plain")
-        self.assertEqual(record_problem({**task, "after": "x"}), "after must be a list")
+        self.assertEqual(task_record_problem({**task, "after": "x"}), "after must be a list")
 
 
 if __name__ == "__main__":

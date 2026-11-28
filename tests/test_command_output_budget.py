@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.cli import command_parser
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.storage import write_json
 from tests.support import run_cli
 from tests.test_cli_coverage import _subcommands, command_paths
@@ -606,7 +606,7 @@ class Projects:
         path = root / ".openguildkit" / "decisions" / f"{TASK}.json"
         record = {**json.loads(path.read_text(encoding="utf-8")), "files": ["README.md"]}
         record.pop("record_sha256")
-        write_json(path, {**record, "record_sha256": record_digest(record)})
+        write_json(path, {**record, "record_sha256": export_digest(record)})
         commit_everything(root)
 
     def export_evidence(self, root: Path) -> None:

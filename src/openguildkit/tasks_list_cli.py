@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from .clock import today
-from .decisions import DECISIONS_DIR, exported_records, ignored_by_git, record_digest
+from .decisions import DECISIONS_DIR, export_digest, exported_records, ignored_by_git
 from .doc_links import doc_link
 from .guard import exported_decisions, record_of_another_task
 from .project import STATE_DIR
@@ -196,7 +196,7 @@ def _retro_record(root: Path, state: Path, task_id: str) -> dict:
     path = state / DECISIONS_DIR / f"{task_id}.json"
     record = read_json(path)
     where = path.relative_to(root).as_posix()
-    if not isinstance(record, dict) or record.get("record_sha256") != record_digest(record):
+    if not isinstance(record, dict) or record.get("record_sha256") != export_digest(record):
         raise ValueError(f"The exported record {where} does not match its digest: it was changed after it was "
                          "exported. Restore it from git, or run openguildkit check to see what it reports.")
     try:
@@ -224,7 +224,7 @@ def _closed_facts(state: Path) -> tuple[list[dict], dict]:
         if record is None:
             ignored["exported_records_not_holding"] += 1
         elif record.get("completed") is True and record.get("status") in DONE_STATUSES:
-            if record.get("record_sha256") != record_digest(record):
+            if record.get("record_sha256") != export_digest(record):
                 ignored["exported_records_not_holding"] += 1
             elif (record["task"], record.get("task_created_at") or "") not in held:
                 facts.append(facts_of_record(record))

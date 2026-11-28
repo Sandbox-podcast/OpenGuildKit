@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.guard import _base_files, _earlier_records
 from openguildkit.storage import write_json
 
@@ -107,7 +107,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         self.write("payments.py", "charge()\n")
         record = json.loads((self.root / archived).read_text())
         record["files"] = [*record["files"], "payments.py"]
-        record["record_sha256"] = record_digest(record)
+        record["record_sha256"] = export_digest(record)
         write_json(self.root / archived, record)
         self.commit_all("payments")
         result = self.ci(code=1)
@@ -253,7 +253,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         self.exported_on_a_branch()
         record = json.loads((self.root / RECORD).read_text())
         record["withdrawn"] = "yes"
-        record["record_sha256"] = record_digest(record)
+        record["record_sha256"] = export_digest(record)
         write_json(self.root / RECORD, record)
         self.git("commit", "-q", "-am", "forged")
         self.assertIn("withdrawn must name who", " ".join(self.ci(code=1)["problems"]))

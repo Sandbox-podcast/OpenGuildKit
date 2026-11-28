@@ -14,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 from openguildkit.cli import command_parser
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.storage import write_json
 
 from tests.support import openguildkit_on_path, run_cli
@@ -313,7 +313,7 @@ class GuardSarifTests(SarifProject):
         self.assertEqual(self.found(document), [])
         # Whoever removes the signature can recompute the record's own digest; the signature check still refuses it.
         unsigned = {**record, "decision": {key: value for key, value in record["decision"].items() if key != "signature"}}
-        unsigned["record_sha256"] = record_digest(unsigned)
+        unsigned["record_sha256"] = export_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         document, _ = self.ci(code=1)
         self.assertEqual(self.found(document), [("decision-unsigned", "error", f".openguildkit/decisions/{TASK}.json")])

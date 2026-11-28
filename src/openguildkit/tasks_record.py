@@ -151,7 +151,7 @@ def shape_problem(value: object, shape: object, field: str) -> str | None:
     return None if isinstance(value, cast(type, shape)) else f"{field} must be {'an object' if shape is dict else 'a list'}"
 
 
-def record_problem(task: dict) -> str | None:
+def task_record_problem(task: dict) -> str | None:
     """Describe the first field of a task record that the commands could not use, if any."""
     if not isinstance(task.get("brief"), str) or not task["brief"].strip():
         return "brief must be text"

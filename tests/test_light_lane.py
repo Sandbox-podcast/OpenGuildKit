@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import light_lane, profile_changes, surfaces
-from openguildkit.decisions import check_decision_seal, record_digest
+from openguildkit.decisions import check_decision_seal, export_digest
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
@@ -591,7 +591,7 @@ class DecisionTests(LaneCase):
         self.assertIn("holds under the current rules", self.run_cli("task", "list", "--decisions")[0])
         # Whoever widens the paths of the record and recomputes its digest cannot recompute the approval's seal.
         wider = {**record, "paths": ["docs/**", "src/**"]}
-        wider["record_sha256"] = record_digest(wider)
+        wider["record_sha256"] = export_digest(wider)
         write_json(path, wider)
         listing, _ = self.run_cli("task", "list", "--decisions")
         self.assertIn("the lane or the paths of the record are not those that were approved", listing)

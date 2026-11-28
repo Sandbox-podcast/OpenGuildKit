@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 from openguildkit import profile_changes, requester
 from openguildkit.catalog import load_catalog
-from openguildkit.decisions import check_decision_seal, decision_payload, record_digest
+from openguildkit.decisions import check_decision_seal, decision_payload, export_digest
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
@@ -351,7 +351,7 @@ class CiTests(GitCase):
         path = self.root / ".openguildkit" / "decisions" / "retry.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         forged = {**record, "requested_by": "Someone Else"}
-        forged["record_sha256"] = record_digest(forged)
+        forged["record_sha256"] = export_digest(forged)
         write_json(path, forged)
         self.commit_all("Forge")
         result = self.ci(code=1)

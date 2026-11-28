@@ -101,6 +101,18 @@ def file_signature(path: Path, info: os.stat_result | None = None, *, content: b
     return (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino, digest)
 
 
+def canonical_sha256(value: object) -> str:
+    """The SHA-256 of a JSON value whatever the order of its keys: the one canonical form of the seals, the record
+    digests and the profile fingerprint."""
+    canonical = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def file_sha256(path: Path) -> str:
+    """The SHA-256 of a file's bytes, in hexadecimal; OSError when it cannot be read."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 

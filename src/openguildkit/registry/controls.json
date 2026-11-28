@@ -47,12 +47,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 280
+          "line": 278
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 330
+          "line": 328
         },
         {
           "file": "src/openguildkit/hosts.py",
@@ -76,17 +76,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 142
+          "line": 136
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 189
+          "line": 183
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 757
+          "line": 751
         }
       ],
       "in_dossier": [
@@ -107,17 +107,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 223
+          "line": 217
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 197
+          "line": 191
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 318
+          "line": 312
         }
       ],
       "in_dossier": [
@@ -149,7 +149,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1161
+          "line": 1156
         }
       ],
       "in_dossier": [
@@ -170,7 +170,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1161
+          "line": 1156
         }
       ],
       "in_dossier": [],
@@ -189,17 +189,17 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "export_decision",
-          "line": 454
+          "line": 452
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 899
+          "line": 893
         },
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 61
+          "line": 60
         }
       ],
       "in_dossier": [
@@ -219,12 +219,12 @@
         {
           "file": "src/openguildkit/project_rules.py",
           "symbol": "Fingerprints",
-          "line": 322
+          "line": 320
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 749
+          "line": 743
         },
         {
           "file": "src/openguildkit/check_cli.py",

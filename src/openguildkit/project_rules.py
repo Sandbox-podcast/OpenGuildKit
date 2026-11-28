@@ -1,7 +1,5 @@
 """The rule plan of a profile: packs and their conflicts, scopes, provenance and the profile fingerprint."""
 
-import hashlib
-import json
 from pathlib import PurePosixPath
 
 from . import lazy_re
@@ -16,6 +14,7 @@ from .project import (
     rules_in_force,
     selected_packs,
 )
+from .storage import canonical_sha256
 
 
 def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
@@ -315,8 +314,7 @@ def profile_fingerprint(profile: dict, catalog: dict, *, legacy: bool = False) -
             {key: value for key, value in _without_dates(catalog["patterns"][pattern_id]).items() if key != "core_for"}
             for pattern_id in pattern_ids(profile)
         ]
-    canonical = json.dumps(snapshot, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return canonical_sha256(snapshot)
 
 
 class Fingerprints:

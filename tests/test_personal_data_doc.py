@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 from openguildkit.alerts import REGISTER_FILE
-from openguildkit.decisions import DECISIONS_DIR, record_digest
+from openguildkit.decisions import DECISIONS_DIR, export_digest
 from openguildkit.market import MARKET_DIR
 from openguildkit.project import STATE_DIR
 from openguildkit.project_instructions import PROJECT_IGNORE
@@ -138,7 +138,7 @@ class ProcedureTests(unittest.TestCase):
             written = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual({key: value for key, value in written.items() if key != "record_sha256"},
                          {key: value for key, value in record.items() if key != "record_sha256"})
-        self.assertEqual(written["record_sha256"], record_digest(written))
+        self.assertEqual(written["record_sha256"], export_digest(written))
 
 
 class ExampleTests(unittest.TestCase):

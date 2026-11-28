@@ -22,7 +22,7 @@ from .results import DONE_STATUSES
 from .storage import file_signature, read_json, write_text
 from .tasks_approval import approval_problem
 from .tasks_blockers import _DAY
-from .tasks_record import STATUSES, record_problem, timestamp, validate_brief
+from .tasks_record import STATUSES, task_record_problem, timestamp, validate_brief
 from .tasks_status import kept_line, line_to_keep, task_row
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -129,7 +129,7 @@ def _validated_task(state: Path, path: Path, task_id: str) -> dict:
     task = read_json(path)
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
-    problem = record_problem(task)
+    problem = task_record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
         raise ValueError(

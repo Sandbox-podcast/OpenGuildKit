@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.decisions import decision_payload, record_digest, seal
+from openguildkit.decisions import decision_payload, export_digest, seal
 from openguildkit.storage import read_json, write_json
 from tests.support import run_cli
 from tests.test_team_sharing import EXAMPLE, TASK, SharingCase
@@ -380,13 +380,13 @@ class SharedIdTests(SharingCase):
 
         def completed(record):
             record.update(completed=True, status="completed")
-            record["record_sha256"] = record_digest(record)
+            record["record_sha256"] = export_digest(record)
         self.forge(completed)
         self.assert_refused_everywhere("its completion")
 
         def done_without_closing(record):
             record.update(completed=True, status="done", completed_at="2026-11-22T10:00:00+00:00")
-            record["record_sha256"] = record_digest(record)
+            record["record_sha256"] = export_digest(record)
         self.forge(done_without_closing)
         self.assert_refused_everywhere("its completion")
 

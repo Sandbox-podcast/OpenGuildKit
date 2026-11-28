@@ -25,6 +25,16 @@ def run(root: Path, *args: str, stdin: bytes | None = None, offline: bool = Fals
         return None
 
 
+def required(root: Path, *args: str, needs: str, stdin: bytes | None = None,
+             offline: bool = False) -> subprocess.CompletedProcess[bytes]:
+    """Git's result in root, as run gives it, for a command that cannot go on without Git: needs names that command in
+    the error raised when Git is not installed."""
+    result = run(root, *args, stdin=stdin, offline=offline)
+    if result is None:
+        raise ValueError(f"{needs} needs Git: it is not installed or not on the PATH.")
+    return result
+
+
 def text(root: Path, *args: str) -> str | None:
     """What Git prints; None when it fails or is not installed."""
     result = run(root, *args)

@@ -20,16 +20,13 @@ SEVERITIES = ("blocking", "important", "minor")
 ACTIONS = ("fix", "defer", "decision")
 # The diff printed in one brief. The rest is one git command away, which the brief prints.
 DIFF_LIMIT = 6000
+# A diff names its files as they are on disk, accents included.
+_AS_ON_DISK = ("-c", "core.quotepath=off")
 FINDINGS_GROUP = "Findings on the delivered diff"
 _COMMIT = lazy_re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
 _HUNK = lazy_re.compile(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 FORMAT = {"board": "BOARD", "findings": [{"file": "path/of/the/change.py", "line": 42, "severity": "blocking",
                                           "action": "fix", "finding": "What is wrong, and where the diff shows it."}]}
-
-
-def _git(root: Path, *args: str) -> str | None:
-    # A diff names its files as they are on disk, accents included.
-    return git.text(root, "-c", "core.quotepath=off", *args)
 
 
 def _short(revision: str) -> str:
@@ -60,7 +57,8 @@ def delivered_change(root: Path, task: dict) -> dict:
     """
     require_reviewable(task)
     base, revision = task["decision"]["base_revision"]["commit"], task["result"]["revision"]
-    committed = bool(_COMMIT.fullmatch(revision)) and _git(root, "rev-parse", "--verify", f"{revision}^{{commit}}")
+    committed = bool(_COMMIT.fullmatch(revision)) and git.text(root, *_AS_ON_DISK, "rev-parse", "--verify",
+                                                               f"{revision}^{{commit}}")
     spec = [base, revision] if committed else [base]
     names = git.names(root, "diff", "--name-only", "--no-renames", *spec, "--")
     if names is None:
@@ -70,9 +68,10 @@ def delivered_change(root: Path, task: dict) -> dict:
     untracked = [] if committed else [
         name for name in git.names(root, "ls-files", "--others", "--exclude-standard") or []
         if not name.startswith(".openguildkit/")]
-    diff = _git(root, "diff", "--no-color", "--no-renames", *spec, "--", *files) if files else ""
+    diff = git.text(root, *_AS_ON_DISK, "diff", "--no-color", "--no-renames", *spec, "--", *files) if files else ""
     stats = {}
-    for line in (_git(root, "diff", "--numstat", "--no-renames", *spec, "--", *files) or "").splitlines() if files else []:
+    numstat = git.text(root, *_AS_ON_DISK, "diff", "--numstat", "--no-renames", *spec, "--", *files) if files else ""
+    for line in (numstat or "").splitlines():
         added, removed, name = line.split("\t", 2)
         stats[name] = f"+{added} -{removed}"
     return {"base": base, "revision": revision if committed else "working tree", "delivered": revision,

@@ -1,7 +1,6 @@
 """Load and validate OpenGuildKit's declarative knowledge catalog."""
 
 import copy
-import hashlib
 import json
 import os
 import re
@@ -15,7 +14,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from . import clock, lazy_re
 from .rule_checks import validate_check
-from .storage import file_signature, load_json, unique_fields
+from .storage import canonical_sha256, file_signature, load_json, unique_fields
 from .wording import plural
 
 
@@ -742,8 +741,7 @@ def _organization_records(collection: str, organization: dict, entries: dict) ->
 
 def record_digest(record: dict) -> str:
     """The digest of one record's JSON, whatever the order of its keys."""
-    canonical = json.dumps(record, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return "sha256:" + canonical_sha256(record)
 
 
 def _merged_records(builtin, project: Path | None, organization: dict | None = None) -> dict[str, dict[str, dict[str, Any]]]:

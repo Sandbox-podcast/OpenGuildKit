@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
 
@@ -389,7 +389,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertEqual(record["files"], ["docs/a b.md", "docs/résumé.md"])
         record = {key: value for key, value in record.items() if key != "record_sha256"}
         record["files"] = ["docs/a b.md", '"docs/r\\303\\251sum\\303\\251.md"']
-        record["record_sha256"] = record_digest(record)
+        record["record_sha256"] = export_digest(record)
         self.commit_record(f"{TASK}.json", record)
         result = self.ci()
         self.assertEqual(result["decisions"], [TASK])
@@ -612,7 +612,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertIn("in no decision record of this change: allowed_signers", swapped["problems"][0])
         unsigned = {**record, "decision": {key: value for key, value in record["decision"].items() if key != "signature"}}
         # Whoever removes the signature can recompute the record's own digest; the signature check still refuses it.
-        unsigned["record_sha256"] = record_digest(unsigned)
+        unsigned["record_sha256"] = export_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         self.assertIn("not signed", self.ci(code=1)["problems"][0])
 
