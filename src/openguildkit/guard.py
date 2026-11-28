@@ -1024,7 +1024,7 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
 
     covers maps each valid record's task to the files it covers, None when it lists none.
     """
-    listed = {path for files in covers.values() for path in files or []}
+    listed = {git.unquote(path) for files in covers.values() for path in files or []}
     missing = [path for path in work if path not in listed]
     if not missing:
         return None

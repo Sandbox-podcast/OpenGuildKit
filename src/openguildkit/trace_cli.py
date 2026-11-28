@@ -65,7 +65,8 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
         row = rows.get(shown) or {"status": "unreadable", "problem": None}
         files = record.get("files") if isinstance(record, dict) else None
         listed = isinstance(files, list) and all(isinstance(item, str) for item in files)
-        if listed and relative not in files:
+        # git.unquote: a record exported before names were read with -z holds Git's quoted form (issue #458).
+        if listed and relative not in {git.unquote(item) for item in files}:
             continue
         if not listed or not isinstance(record.get("decision"), dict):
             # A file that is not a record, or a record without its file list: it may cover this file or not.

@@ -141,6 +141,25 @@ class TraceTests(CapturedCli, unittest.TestCase):
         self.write("other.md")
         self.assertNotIn("Changed since", self.trace(RECORD)[0])
 
+    def test_a_file_with_an_accent_or_a_space_is_traced_to_the_task_that_delivered_it(self):
+        """Issue #458: task export wrote docs/résumé.md in Git's quoted form, and trace said no decision covered it."""
+        self.main_branch()
+        self.approve()
+        names = ["docs/a b.md", "docs/résumé.md"]
+        for name in names:
+            self.write(name)
+        self.git("add", "docs")
+        self.git("commit", "-q", "-m", "docs")
+        self.complete()
+        self.run_cli("task", "export", TASK)
+        record = json.loads((self.root / RECORD).read_text())
+        self.assertEqual(record["files"], names)
+        for name in names:
+            self.assertIn(f"{TASK} [", self.trace(name)[0].splitlines()[0])
+        # A record exported before the fix still names the file.
+        write_json(self.root / RECORD, {**record, "files": ["docs/a b.md", '"docs/r\\303\\251sum\\303\\251.md"']})
+        self.assertIn(f"{TASK} [", self.trace("docs/résumé.md")[0].splitlines()[0])
+
     def test_a_journal_changed_after_the_export_is_named(self):
         self.delivered()
         journal = json.loads((self.root / RECORD).read_text())["result"]["journals"][0]

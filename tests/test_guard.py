@@ -370,6 +370,32 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertEqual(error, "OpenGuildKit: guard --ci needs Git: it is not installed or not on the PATH.\n")
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
+    def test_ci_reads_accented_names_and_records_exported_before_they_were(self):
+        """Issue #458: task export wrote docs/résumé.md as "docs/r\\303\\251sum\\303\\251.md"; a record exported so
+        before the fix still covers the file."""
+        self.git("init", "-q", "-b", "main")
+        self.init(guard="enforce")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("checkout", "-q", "-b", "feature")
+        self.approve_example()
+        for name in ("docs/résumé.md", "docs/a b.md"):
+            (self.root / "docs").mkdir(exist_ok=True)
+            (self.root / name).write_text("x\n", encoding="utf-8")
+        self.git("add", "docs")
+        self.git("commit", "-q", "-m", "change")
+        exported = self.run_cli("task", "export", TASK)[0].strip()
+        record = json.loads((self.root / exported).read_text())
+        self.assertEqual(record["files"], ["docs/a b.md", "docs/résumé.md"])
+        record = {key: value for key, value in record.items() if key != "record_sha256"}
+        record["files"] = ["docs/a b.md", '"docs/r\\303\\251sum\\303\\251.md"']
+        record["record_sha256"] = record_digest(record)
+        self.commit_record(f"{TASK}.json", record)
+        result = self.ci()
+        self.assertEqual(result["decisions"], [TASK])
+        self.assertTrue(result["ok"], result["problems"])
+
+    @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):
         self.git("init", "-q", "-b", "main")
         (self.root / "README.md").write_text("Portal\n", encoding="utf-8")

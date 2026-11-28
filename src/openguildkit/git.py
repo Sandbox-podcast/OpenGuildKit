@@ -1,12 +1,15 @@
 """Run Git: one place for its options, for a machine without Git, and for reading file names as they are on disk."""
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 # No way to reach a network: a replaced or lazily fetched object, or a remote protocol, would read outside the copy.
 _OFFLINE = ("--no-replace-objects", "-c", "protocol.allow=never")
+_ESCAPE = re.compile(rb'\\([0-7]{3}|.)')
+_ESCAPED = {b"a": b"\a", b"b": b"\b", b"t": b"\t", b"n": b"\n", b"v": b"\v", b"f": b"\f", b"r": b"\r"}
 
 
 def run(root: Path, *args: str, stdin: bytes | None = None, offline: bool = False) -> subprocess.CompletedProcess[bytes] | None:
@@ -39,3 +42,12 @@ def names(root: Path, command: str, *args: str) -> list[str] | None:
     result = run(root, command, "-z", *args)
     return None if result is None or result.returncode else split_names(result.stdout)
 
+
+def unquote(name: str) -> str:
+    """A name as Git printed it without -z, as it is on disk: records exported before names were read with -z hold
+    the quoted form. Git quotes a name only to escape something in it, so a name without a backslash is left as it is."""
+    if len(name) < 2 or name[0] != '"' or name[-1] != '"' or "\\" not in name:
+        return name
+    raw = _ESCAPE.sub(lambda match: bytes([int(match[1], 8)]) if len(match[1]) == 3 else _ESCAPED.get(match[1], match[1]),
+                      name[1:-1].encode("utf-8"))
+    return raw.decode("utf-8", errors="replace")

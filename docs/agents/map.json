@@ -554,7 +554,8 @@
         "run",
         "text",
         "names",
-        "split_names"
+        "split_names",
+        "unquote"
       ],
       "tests": [
         "tests/test_git.py",
