@@ -48,6 +48,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
 | `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
 | `projects_cli.py` | The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only. |
+| `controls.py` | The controls of OpenGuildKit and the frameworks they may answer: the registry `controls.json`, its validation (a clause only with its source and the day it was read) and the generated tables of `docs/compliance.md`. |
+| `evidence_cli.py` | The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of SHA-256, `verify` recomputes it. Reads the project and states no conformity. |
 | `trace_cli.py` | The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only. |
 | `allowlist.py` | The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and matched against what a project configures. |
 | `audit_cli.py` | The `audit` commands: verify the chain of the audit log, and export its events for a SIEM. |
@@ -55,6 +57,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `managed.py` | Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running. |
 | `workstation.py` | Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
+| `rule_plan_text.py` | Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks: patterns, regulations, packs and conflicts. |
 | `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
 | `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |

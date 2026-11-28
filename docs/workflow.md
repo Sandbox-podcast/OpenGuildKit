@@ -660,6 +660,8 @@ Then Git says whether the file changed after the most recent decision: after its
 
 The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
 
+For an auditor, `openguildkit evidence export --output DOSSIER` gathers the exported decisions of a period with the state of their seals and signatures, and `evidence verify DOSSIER` checks that no file changed ([compliance](compliance.md#the-evidence-dossier)).
+
 ## Several projects at once
 
 ```bash
@@ -667,6 +669,8 @@ openguildkit projects ~/code                      # each project among the subfo
 openguildkit projects ~/code/*                    # the folders the shell names, one by one
 openguildkit projects ~/code --search "refund"    # briefs, decision reasons and rule IDs that hold the text
 openguildkit projects ~/code --json               # every project and every match, for a program
+openguildkit projects ~/code --surfaces           # also the agent tools and MCP servers of each folder, a project or not
+openguildkit projects ~/code --policy policy.json --strict --format csv > fleet.csv   # gaps to a minimum, one line per folder
 ```
 
 A tech lead or a security officer who looks after several repositories sees where to act without opening each one. `projects` takes folders: a project itself, or a folder whose subfolders are projects (one level down; hidden folders are skipped). Without a folder it reads the current one. It prints one line per project: the guard mode, whether approvals are signed, the tasks by status, the approvals that no longer hold, the open points (the blockers a reviewed task still waits on and the points a task closed with reservations left open), the critical alerts confirmed in the alert register, and whether `openguildkit check` passes, with its last line when it fails. The last line gives the `check` command of the first project that fails it.
@@ -676,6 +680,24 @@ A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuil
 `--search TEXT` finds the text, case aside, in the first line of each task's brief, its decision reason and the rule IDs of its result (`rule:python/follow-python-style (failed)`), in the tasks of each copy and then in the exported records of the tasks it does not hold. Each match names its project. The first 50 are printed; `--json` gives them all.
 
 `projects` writes nothing and registers no project anywhere: it reads each project as its own commands do, runs `check` in the same process, and takes the folders again at each run. The web interface runs it on its own project only, since a path outside the project is refused there.
+
+### Inventory of a fleet (options, off by default)
+
+`--surfaces` adds to each project what `host scan` finds in its folder: the host and the state of its hooks, the agent tools, the MCP servers (how many, how many without a fixed version, how many the registry does not know), the permissive settings, the version that wrote the catalog lock, the commit of the organization catalog it follows and the day of its last decision.
+A folder without a profile is read the same way: where agents already work, it is printed on its own line (`not an OpenGuildKit project; agents at work: cursor`) instead of among the folders that hold nothing. That is the list to read before a deployment.
+
+`--policy FILE` compares each project with the minimum a JSON file describes, and reads the surfaces too. The file is read and never written, and holds any of three fields:
+
+```json
+{"guard": "enforce", "approvals": "signed", "separate_requester": true}
+```
+
+`guard` is the lowest mode accepted (`off`, `observe` or `enforce`), `approvals` asks for signed approvals, `separate_requester` asks for the [requester kept from approving](#requester-and-approver). Each gap is named, with the value found, on the line of the project (`policy gap: guard observe, the policy asks for enforce`) and under `drift` in `--json`.
+A folder where agents work without a profile, and a project that cannot be read, are a gap of the field `project`. Any other field, or a value the policy does not allow, stops the command, so that a typo is not a rule that never fires. `--strict` ends in 1 when a folder falls short; it needs `--policy`.
+
+`--format csv` prints one line per folder under a header that does not change: `path,state,name,guard,approvals,tasks,attention,open_points,critical_alerts,check,host,hooks,lock,catalog_commit,last_decision,tools,mcp_servers,mcp_unpinned,mcp_unlisted,permissive,drift`.
+A cell is empty when its option was not given (`--surfaces` fills `host` to `permissive`, `--policy` fills `drift`, where `none` says that no gap was found), `tools` and `tasks` hold `;`-separated values, and a text that starts with `=`, `+`, `-` or `@` gets a quote before it, so that a spreadsheet shows a project name instead of running it. It does not go with `--json` or `--search`.
+None of this writes in a project: the folders are read as before, and a policy file may sit anywhere.
 
 ## Inspecting a task
 

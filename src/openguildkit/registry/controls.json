@@ -1,0 +1,337 @@
+{
+  "schema_version": 1,
+  "frameworks": [
+    "eu-ai-act",
+    "iso-iec-42001",
+    "nist-ai-rmf",
+    "soc-2",
+    "dora",
+    "nis-2"
+  ],
+  "controls": [
+    {
+      "id": "human-approval",
+      "title": "A person approves a task before an agent works on it",
+      "guarantees": "task decide --approve needs the person to type the task ID at an interactive terminal, or, in a project with signed approvals, an SSH signature by an approver (a board removal is still typed at the terminal); without either the command is refused and the task stays reviewed.",
+      "not_covered": "It does not identify the person behind the terminal: the name is the one typed with --by.",
+      "commands": [
+        "task decide ID --approve --by NAME --reason WHY"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/tasks_cli.py",
+          "symbol": "_decide",
+          "line": 551
+        },
+        {
+          "file": "src/openguildkit/terminal.py",
+          "symbol": "interactive",
+          "line": 11
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "edit-gate",
+      "title": "Edits through the agent host are refused until an approved task covers them",
+      "guarantees": "With guard enforce and a host that has hooks (Claude Code, Codex, Gemini CLI), the hook before an edit refuses it with exit code 2 unless a task whose approval still holds covers it; guard observe flags the edit and lets it through.",
+      "not_covered": "A shell command does not go through the hooks, and a host without hooks has none: guard --ci is then the only barrier. host check and host scan say which tools have no hook.",
+      "commands": [
+        "guard --hook pre-edit",
+        "host check"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "hook_answer",
+          "line": 241
+        },
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "guard_hook",
+          "line": 287
+        },
+        {
+          "file": "src/openguildkit/hosts.py",
+          "symbol": "HOOK_HOSTS",
+          "line": 20
+        }
+      ],
+      "in_dossier": [],
+      "maps_to": []
+    },
+    {
+      "id": "sealed-decision",
+      "title": "An approval is sealed over what was approved",
+      "guarantees": "The approval carries a SHA-256 seal over the consultation, the review, the rules in force, the approver, the reason and the Git revision; a record changed after its export, or approved under other rules, no longer holds, and check, task list --decisions and guard --ci say so.",
+      "not_covered": "A local seal is not a signature: an agent that writes files can forge a record and compute its digests again. The completion of a task is checked for consistency, not sealed by a person.",
+      "commands": [
+        "check",
+        "task list --decisions"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/decisions.py",
+          "symbol": "decision_payload",
+          "line": 152
+        },
+        {
+          "file": "src/openguildkit/decisions.py",
+          "symbol": "seal",
+          "line": 199
+        },
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "_record_fault",
+          "line": 710
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "signed-approval",
+      "title": "In a signed project an approval carries an SSH signature checked against the committed signers",
+      "guarantees": "With approvals in signed mode, task decide --approve needs an SSH signature of the decision payload by an approver; ssh-keygen verifies it against the allowed signers file as Git holds it at HEAD, and guard --ci verifies each record against the signers of the base revision.",
+      "not_covered": "It shows that a key listed in the signers file signed. Who holds the key, and how it is kept, is outside OpenGuildKit.",
+      "commands": [
+        "profile set approval signed --signers PATH --approver NAME",
+        "task decision-payload ID --by NAME --reason WHY"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/decisions.py",
+          "symbol": "verify_signature",
+          "line": 234
+        },
+        {
+          "file": "src/openguildkit/decisions.py",
+          "symbol": "committed_signers",
+          "line": 207
+        },
+        {
+          "file": "src/openguildkit/decisions.py",
+          "symbol": "verify_recorded_signature",
+          "line": 328
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl",
+        "signers-history.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "separate-requester",
+      "title": "The person who asked for the work does not approve it (option, off by default)",
+      "guarantees": "With separate-requester on in the profile, every new task names its requester, task decide refuses an approval by that person, and guard --ci refuses a record whose approver is its requester when the base revision has the option on.",
+      "not_covered": "Off unless a person turns it on. Names are compared without case or spaces, and a signed approval compares the requester to the signer's principal: a requester named otherwise than their principal is not caught.",
+      "commands": [
+        "task new BRIEF --requested-by NAME",
+        "profile set separate-requester on"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/requester.py",
+          "symbol": "approval_problem",
+          "line": 46
+        },
+        {
+          "file": "src/openguildkit/requester.py",
+          "symbol": "record_problem",
+          "line": 72
+        },
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "ci_guard",
+          "line": 1107
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl",
+        "profile-changes.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "ci-decision-gate",
+      "title": "A change must come with a valid exported decision, judged under the rules of the base revision",
+      "guarantees": "guard --ci checks each file changed since the base against the exported records the change brings; the mode, the profile, the catalog lock and the allowed signers come from the base revision, so a pull request cannot weaken the rules it is judged by.",
+      "not_covered": "That the check must pass before a merge is a setting of the Git host, which OpenGuildKit does not read.",
+      "commands": [
+        "guard --ci --base REV"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "ci_guard",
+          "line": 1107
+        }
+      ],
+      "in_dossier": [],
+      "maps_to": []
+    },
+    {
+      "id": "exported-decision-record",
+      "title": "An approval can be exported as a record the team commits",
+      "guarantees": "task export writes .openguildkit/decisions/ID.json with the approval payload, its signature, the brief, the board verdicts and a SHA-256 of the whole record; trace and task list --decisions read every record, teammates' included, and say whether it still holds.",
+      "not_covered": "Work done without a task has no record: guard --ci then reports a missing decision. A record exported outside Git lists no files and covers no path.",
+      "commands": [
+        "task export ID",
+        "trace FILE"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "export_decision",
+          "line": 417
+        },
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "exported_decisions",
+          "line": 849
+        },
+        {
+          "file": "src/openguildkit/trace_cli.py",
+          "symbol": "trace",
+          "line": 59
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "rules-in-force",
+      "title": "An approval holds only under the rules it was given under",
+      "guarantees": "The approval records the fingerprint of the rules, checks and boards in force; when they change the approval no longer holds, check exits 1 and the hook stops covering edits with it. check also fails when the instructions of the project no longer match its profile and its catalog lock.",
+      "not_covered": "Only a change of the rules, checks and boards voids an approval: the guard mode, the host, the research setting, the approval mode and the waiver policy leave approvals standing.",
+      "commands": [
+        "check"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/project.py",
+          "symbol": "Fingerprints",
+          "line": 1317
+        },
+        {
+          "file": "src/openguildkit/guard.py",
+          "symbol": "_rules_hold",
+          "line": 704
+        },
+        {
+          "file": "src/openguildkit/cli.py",
+          "symbol": "check",
+          "line": 1227
+        }
+      ],
+      "in_dossier": [
+        "decisions.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "profile-change-history",
+      "title": "Each change to the profile records who made it, when and why",
+      "guarantees": "Every profile command appends its change, the person, the day and the reason to changes in .openguildkit/project.json; a change that lowers a protection (guard, signed approvals, public research) is typed by a person at an interactive terminal.",
+      "not_covered": "A hand edit of project.json is not an entry: Git holds it, and OpenGuildKit does not read that history except for the signers file.",
+      "commands": [
+        "profile set guard enforce --by NAME --reason WHY"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/profile_cli.py",
+          "symbol": "write_change",
+          "line": 575
+        },
+        {
+          "file": "src/openguildkit/profile_cli.py",
+          "symbol": "weakening_changes",
+          "line": 134
+        },
+        {
+          "file": "src/openguildkit/project.py",
+          "symbol": "_changes",
+          "line": 579
+        }
+      ],
+      "in_dossier": [
+        "profile-changes.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "alert-register",
+      "title": "Dependency alerts are kept with who decided what, and a confirmed critical alert blocks approval",
+      "guarantees": "alerts import merges the reports of the project's scanners (npm audit, pip-audit, OSV-Scanner, GitHub Dependabot) into .openguildkit/alerts.json; severity, status, acceptance and dismissal record who, why and when; a confirmed critical alert that no person accepted blocks the approval and the completion of its tasks.",
+      "not_covered": "It reads the reports it is given and runs no scanner: a dependency no report lists is not in the register.",
+      "commands": [
+        "alerts import FILE",
+        "alerts set ID --status confirmed --by NAME",
+        "alerts accept ID --by NAME --reason WHY"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/alerts.py",
+          "symbol": "import_report",
+          "line": 347
+        },
+        {
+          "file": "src/openguildkit/alerts.py",
+          "symbol": "set_status",
+          "line": 441
+        },
+        {
+          "file": "src/openguildkit/alerts.py",
+          "symbol": "accept_alert",
+          "line": 471
+        },
+        {
+          "file": "src/openguildkit/alerts.py",
+          "symbol": "blocking_alerts",
+          "line": 514
+        }
+      ],
+      "in_dossier": [
+        "alerts.jsonl"
+      ],
+      "maps_to": []
+    },
+    {
+      "id": "agent-surface-inventory",
+      "title": "The agent tools, MCP servers and instruction files of a repository are listed and scanned",
+      "guarantees": "host scan lists the agent tools whose files the repository holds, the MCP servers they configure and the permissive settings, and reports hidden characters, phrases that cancel the rules and downloads piped into an interpreter in the files an agent reads; projects --surfaces lists them for a folder of repositories.",
+      "not_covered": "It reads files, offline: a tool with no file in the repository cannot be seen, and what an agent does is not observed.",
+      "commands": [
+        "host scan",
+        "projects FOLDER --surfaces"
+      ],
+      "code": [
+        {
+          "file": "src/openguildkit/surfaces.py",
+          "symbol": "discover",
+          "line": 941
+        },
+        {
+          "file": "src/openguildkit/surfaces.py",
+          "symbol": "scan",
+          "line": 442
+        },
+        {
+          "file": "src/openguildkit/projects_cli.py",
+          "symbol": "_inventory",
+          "line": 175
+        }
+      ],
+      "in_dossier": [],
+      "maps_to": []
+    }
+  ]
+}

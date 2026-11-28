@@ -343,6 +343,21 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/controls.py",
+      "role": "The controls of OpenGuildKit and the frameworks they may answer: the registry `controls.json`, its validation (a clause only with its source and the day it was read) and the generated tables of `docs/compliance.md`.",
+      "entry": [
+        "load",
+        "validate",
+        "locate",
+        "render",
+        "update_page"
+      ],
+      "tests": [
+        "tests/test_controls.py"
+      ],
+      "doc": "docs/compliance.md"
+    },
+    {
       "module": "src/openguildkit/decisions.py",
       "role": "Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records.",
       "entry": [
@@ -425,6 +440,19 @@
         "tests/test_stack_patterns.py"
       ],
       "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/evidence_cli.py",
+      "role": "The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of SHA-256, `verify` recomputes it. Reads the project and states no conformity.",
+      "entry": [
+        "add_parser",
+        "run"
+      ],
+      "tests": [
+        "tests/test_command_output_budget.py",
+        "tests/test_evidence.py"
+      ],
+      "doc": "docs/compliance.md"
     },
     {
       "module": "src/openguildkit/features.py",
@@ -1059,6 +1087,18 @@
         "tests/test_lenses_and_methods.py",
         "tests/test_machine_checks.py",
         "tests/test_rule_checks.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/rule_plan_text.py",
+      "role": "Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks: patterns, regulations, packs and conflicts.",
+      "entry": [
+        "_print_rule_plan"
+      ],
+      "tests": [
+        "tests/test_command_output_budget.py",
+        "tests/test_proportionate_setup.py"
       ],
       "doc": "docs/architecture.md"
     },

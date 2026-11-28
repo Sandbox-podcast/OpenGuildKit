@@ -227,6 +227,7 @@ EXAMPLES = [
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
     # The audit log: the events rebuilt from the records, and a file that is not a log.
     Example("exported", "audit export"), Example("exported", "audit verify $example/brief.md", code=1),
+    Example("exported", "evidence export --output pack"), Example("evidenced", "evidence verify pack"),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.
     Example("done", "projects $root"), Example("done", "projects $root --json"),
     Example("done", "projects $root --search status"),
@@ -371,9 +372,10 @@ class Projects:
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
         "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
+        "evidenced": ("exported", "export_evidence"),
         "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci", "exported", "delivered", "org", "replaced"}
+    NEEDS_GIT = {"git", "ci", "exported", "evidenced", "delivered", "org", "replaced"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -599,6 +601,9 @@ class Projects:
         record.pop("record_sha256")
         write_json(path, {**record, "record_sha256": record_digest(record)})
         commit_everything(root)
+
+    def export_evidence(self, root: Path) -> None:
+        run_cli(root, "evidence", "export", "--output", "pack")
 
     def deliver_in_git(self, root: Path) -> None:
         """Approved at a commit, then a change committed and its revision recorded by task verify."""
