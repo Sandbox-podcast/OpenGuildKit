@@ -111,20 +111,28 @@ class KeptRecords:
     def __init__(self, limit: int = 256 * 1024 * 1024):
         self.limit = limit
         self.size = 0
-        self.entries: dict[Path, tuple[tuple, bytes]] = {}
+        self.entries: dict[Path, tuple[tuple, bytes, int]] = {}
 
     def get(self, path: Path, signature: tuple | None) -> dict | None:
         kept = self.entries.get(path)
         return marshal.loads(kept[1]) if kept is not None and signature is not None and kept[0] == signature else None
 
-    def put(self, path: Path, signature: tuple | None, record: dict) -> None:
+    def settled(self, path: Path, stat: tuple | None) -> dict | None:
+        """The record kept for a file whose size, times and inode are unchanged and whose modification was settled
+        when it was read (older than the racy window of task_index): no need to read the file for its digest."""
+        kept = self.entries.get(path)
+        if kept is None or stat is None or kept[0][:4] != stat or stat[1] + task_index.RACY_NANOSECONDS >= kept[2]:
+            return None
+        return marshal.loads(kept[1])
+
+    def put(self, path: Path, signature: tuple | None, record: dict, read_at: int = 0) -> None:
         if signature is None:
             return
         blob = marshal.dumps(record)
         before = self.entries.pop(path, None)
         self.size -= len(before[1]) if before else 0
         if self.size + len(blob) <= self.limit:
-            self.entries[path] = (signature, blob)
+            self.entries[path] = (signature, blob, read_at)
             self.size += len(blob)
 
 
@@ -150,12 +158,16 @@ def read_task(state: Path, task_id: str) -> dict:
     kept = _KEPT
     if kept is None:
         return _validated_task(state, path, task_id)
+    task = kept.settled(path, file_signature(path))
+    if task is not None:
+        return task
     # The signature is taken before the read: a file that changes in between is read again next time.
+    read_at = time.time_ns()
     signature = file_signature(path, content=True)
     task = kept.get(path, signature)
     if task is None:
         task = _validated_task(state, path, task_id)
-        kept.put(path, signature, task)
+    kept.put(path, signature, task, read_at)
     return task
 
 

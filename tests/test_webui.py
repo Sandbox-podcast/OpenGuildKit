@@ -780,6 +780,27 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(fourth["alpha"]["json"]["brief"], "Show THE alpha requests")
         self.assertIn(path.name, {name.rpartition("/")[2] for name in parsed})
 
+    def test_a_second_opening_batch_reads_no_task_file_whose_stat_is_unchanged(self):
+        """Issue #537: each batch still opened and hashed every kept task record, 0.6 s of the 2 s batch on 1,000."""
+        for name in ("alpha", "beta"):
+            self.run_in_page("task", "new", f"Show the {name} requests", "--id", name)
+        old = 1_700_000_000_000_000_000
+        for path in (self.root / ".openguildkit" / "tasks").glob("*.json"):
+            os.utime(path, ns=(old, old))
+        hashed, original = [], tasks.file_signature
+
+        def counting(path, info=None, *, content=False):
+            if content:
+                hashed.append(Path(path).name)
+            return original(path, info, content=content)
+
+        opening = {"tasks": ["task", "list", "--json"], "check": ["check"], "alpha": ["task", "show", "alpha"]}
+        self.parsed_task_records(opening)
+        with patch("openguildkit.tasks.file_signature", counting):
+            second, parsed = self.parsed_task_records(opening)
+        self.assertEqual((hashed, parsed), ([], []))
+        self.assertEqual(second["alpha"]["json"]["brief"], "Show the alpha requests")
+
     def test_a_kept_task_record_is_handed_out_as_a_copy_and_the_memory_it_takes_is_limited(self):
         """Issue #537: a command changes the record it reads; the next one must not see the change."""
         self.run_in_page("task", "new", "Show the alpha requests", "--id", "alpha")
