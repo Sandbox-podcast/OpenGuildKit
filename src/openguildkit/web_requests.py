@@ -235,7 +235,7 @@ class ProjectFiles:
         self.root = root
 
     def _resolve(self, relative: str) -> Path:
-        if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or "\\" in relative:
+        if not isinstance(relative, str) or not relative or relative.startswith("/") or Path(relative).is_absolute() or "\\" in relative:
             raise Refused("OGK-WEB-013", "Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
         target = _resolved(self.root / relative)
