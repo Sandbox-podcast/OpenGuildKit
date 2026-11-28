@@ -97,6 +97,17 @@ def register_text(entries: list[dict]) -> str:
     return "[\n" + lines + "\n]\n"
 
 
+# What every --json output shares (#484).
+JSON_OUTPUT = """
+## JSON output
+
+With `--json`, a command prints its answer as JSON on standard output.
+With `OPENGUILDKIT_JSON_ENVELOPE=1` in the environment, every answer comes in one object, `{"schema_version": 1, "command": "task checks", "data": ...}`, whose `data` is the answer printed without the variable; the default keeps the shape scripts and the web interface read.
+Under `--json`, an error is JSON on standard output too, with the same exit code and its line on standard error: `{"schema_version": 1, "error": {"code": "OGK-TASK-004", "message": ..., "next": ...}}`.
+`code` is null for an error that has no code yet, and `next` is the command the message names, or null.
+"""
+
+
 def _cell(text: str) -> str:
     return text.replace("|", "\\|")
 
@@ -107,11 +118,11 @@ def page_text(entries: list[dict]) -> str:
     return ("# Error codes\n\n"
             "For: a person or an agent that reads an error of the CLI and looks for where it comes from.\n\n"
             "An error that carries a code starts with it: `OpenGuildKit [OGK-TASK-004]: Task already exists: x`, and "
-            "under `--json` its object holds the same code in `error.code` ([output](cli.md)).\n"
+            "under `--json` its object holds the same code in `error.code` ([JSON output](#json-output)).\n"
             "A code is raised from one place and keeps its meaning when its words change: search the code, not the "
             "sentence. `python scripts/build_errors.py` writes this page and [`agents/errors.json`](agents/errors.json) "
             "from the code; the other errors still print `OpenGuildKit: message`.\n\n"
-            "| Code | Raised by | Message | Tests |\n|---|---|---|---|\n" + rows)
+            "| Code | Raised by | Message | Tests |\n|---|---|---|---|\n" + rows + JSON_OUTPUT)
 
 
 def main(argv: list[str] | None = None) -> int:

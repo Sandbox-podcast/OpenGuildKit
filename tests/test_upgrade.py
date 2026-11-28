@@ -65,7 +65,8 @@ class UpgradeTestCase(CliTestCase):
         self.assertEqual(rows["open-draft"]["status"], "draft")
         self.assertEqual(self.run_cli("task", "show", self.approved).stdout.count('"status": "approved"'), 1)
         handoff = self.run_cli("task", "handoff", self.approved, expect=1)
-        self.assertEqual(handoff.stderr.strip(), self.old_approval_line().replace(f"{self.approved}: ", "", 1))
+        self.assertEqual(handoff.stderr.strip(), self.old_approval_line().replace(f"OpenGuildKit: {self.approved}: ",
+                                                                                   "OpenGuildKit [OGK-TASK-012]: ", 1))
         self.assertEqual(json.loads(self.run_cli("guard", "--json").stdout)["covered_by"], [])
 
     def assert_old_draft_continues(self):

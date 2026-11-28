@@ -562,7 +562,7 @@ class SarifTests(ScanCase):
         self.assertIn("openguildkit host scan --format sarif", both.stderr)
         other = run_cli(self.root, "host", "check", "--format", "sarif", expect=1)
         self.assertIn("openguildkit host scan --format sarif", other.stderr)
-        self.assertEqual((both.stdout, other.stdout), ("", ""))
+        self.assertEqual((json.loads(both.stdout)["error"]["code"], other.stdout), (None, ""))  # Issue #484.
 
 
 class SourceTests(unittest.TestCase):

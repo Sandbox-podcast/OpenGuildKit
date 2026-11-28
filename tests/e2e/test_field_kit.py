@@ -337,7 +337,7 @@ class PersonDecideTests(KitTestCase):
                              self.out / "decision.sig", "camille@example.test")
         self.assertEqual(code, 1)
         self.assertNotIn("unrecognized arguments", shown)
-        self.assertIn("OpenGuildKit:", shown)
+        self.assertRegex(shown, r"OpenGuildKit( \[OGK-[A-Z]+-\d{3}\])?:")
 
 
 if __name__ == "__main__":
