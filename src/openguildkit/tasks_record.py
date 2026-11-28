@@ -128,27 +128,33 @@ def shape_problem(value: object, shape: object, field: str) -> str | None:
         problems = (shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
         return next((problem for problem in problems if problem), None)
     if isinstance(shape, dict):
-        if not isinstance(value, dict):
-            return f"{field} must be an object"
-        for key, inner in shape.items():
-            if key == "*":
-                problems = (shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
-            else:
-                name = key.rstrip("?")
-                if name not in value:
-                    if key.endswith("?"):
-                        continue
-                    return f"{field}.{name} is missing" if field else f"{name} is missing"
-                problems = iter([shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
-            problem = next((problem for problem in problems if problem), None)
-            if problem:
-                return problem
-        return None
+        return _dict_shape_problem(value, shape, field)
     if shape is int:
         return None if type(value) is int else f"{field} must be a whole number"
     if shape is str:
         return None if isinstance(value, str) else f"{field} must be text"
     return None if isinstance(value, cast(type, shape)) else f"{field} must be {'an object' if shape is dict else 'a list'}"
+
+
+def _dict_shape_problem(value: object, shape: dict, field: str) -> str | None:
+    """Where value departs from an object shape: a missing key, or the first of its fields that departs."""
+    problems: Iterator[str | None]
+    if not isinstance(value, dict):
+        return f"{field} must be an object"
+    for key, inner in shape.items():
+        if key == "*":
+            problems = (shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
+        else:
+            name = key.rstrip("?")
+            if name not in value:
+                if key.endswith("?"):
+                    continue
+                return f"{field}.{name} is missing" if field else f"{name} is missing"
+            problems = iter([shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
+        problem = next((problem for problem in problems if problem), None)
+        if problem:
+            return problem
+    return None
 
 
 def task_record_problem(task: dict) -> str | None:
