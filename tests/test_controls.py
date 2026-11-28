@@ -9,10 +9,10 @@ import importlib.util
 import json
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
-from openguildkit import controls
+from openguildkit import clock, controls
 from openguildkit.cli import command_parser
 
 REPO = Path(__file__).resolve().parents[1]
@@ -68,7 +68,7 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("not-a-framework", refused(with_mapping({**READ, "reference": "not-a-framework"})))
         self.assertIn("checked", refused(with_mapping({key: value for key, value in READ.items() if key != "checked"})))
         self.assertIn("checked", refused(with_mapping({**READ, "checked": "yesterday"})))
-        future = (date.today() + timedelta(days=2)).isoformat()
+        future = (clock.real_today() + timedelta(days=2)).isoformat()
         self.assertIn("checked", refused(with_mapping({**READ, "checked": future})))
         for key in ("clause", "source"):
             self.assertIn(key, refused(with_mapping({name: value for name, value in READ.items() if name != key})))

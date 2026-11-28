@@ -56,7 +56,7 @@ def approval_problem(task: dict, profile: dict, by: str, signer: str | None = No
     from .workflow import blocker_list  # Only task decide needs it.
 
     boards = [{"id": entry["id"], "verdict": entry.get("challenge", {}).get("verdict")}
-              for entry in task["review"]["boards"]]
+              for entry in task.get("review", {}).get("boards", [])]
     blocked = blocking_boards(profile, boards, blocker_list(task))
     signed, names = signer is not None, _admitted(profile, blocked)
     who = signer if signed else by

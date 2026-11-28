@@ -6,11 +6,11 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from openguildkit.clock import real_now
 from openguildkit.decisions import decision_payload, payload_text, seal, verify_recorded_signature
 from openguildkit.storage import write_json
 
@@ -504,7 +504,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
             f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
         self.signed_project()
         self.git("checkout", "-q", "-b", "late")
-        moment = datetime.now(timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+        moment = real_now().replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.decide_signed(keys, "camille", moment)
         self.run_cli("task", "export", TASK)
         record = f".openguildkit/decisions/{TASK}.json"

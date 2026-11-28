@@ -11,10 +11,11 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.clock import real_today
 from openguildkit.storage import write_json
 
 from tests.support import run_cli
@@ -95,7 +96,7 @@ class RolesTests(RoleCase):
         self.run_cli("profile", "set", "waivers", "allowed", "--allowed-by", "PL", "--allowed-by", "CM", "--max-days",
                      "30", "--by", "Sam", "--reason", "Waivers", typed="allowed")
         self.reviewed()
-        until = (date.today() + timedelta(days=10)).isoformat()
+        until = (real_today() + timedelta(days=10)).isoformat()
         waive = ["task", "waive", "sx", "security:1", "--reason", "Accepted", "--scope", "Pilot", "--until", until]
         _, error = self.run_cli(*waive, "--by", "PL", typed="sx", code=1)
         self.assertIn("a person of role security waives it (CM)", error)
