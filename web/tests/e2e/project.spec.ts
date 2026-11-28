@@ -717,6 +717,8 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
 
   await page.getByRole('tab', { name: /Partages/ }).click();
+  // The project keeps the name an earlier journey typed (#463): a person who clears it is told why it is needed.
+  await page.getByLabel('Personne qui enregistre un retrait').fill('');
   await expect(
     page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/),
   ).toBeVisible();
