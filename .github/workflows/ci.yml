@@ -380,7 +380,8 @@ jobs:
             echo "PR_BODY<<$delimiter"; gh api "repos/$GH_REPO/pulls/$NUMBER" --jq '.body // ""'; echo "$delimiter"
           } >> "$GITHUB_ENV"
       - name: Pull request text
-        if: github.event_name == 'pull_request'
+        # Dependabot writes its own body, with no "Not verified" section; the other two checks still read its diff.
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
         run: python scripts/check_pr_text.py --base "$BASE"
       - name: A closed bug has its test and its ledger line
         if: github.event_name == 'pull_request'
