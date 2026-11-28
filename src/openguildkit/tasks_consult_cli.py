@@ -39,8 +39,9 @@ from .tasks_review import (
 )
 from .tasks_status import passes_left
 from .terminal import interactive
+from .tool_connections import connected_tools
 from .tool_registry import load_tools
-from .tools import connected_tools, match_tools, tool_evidence_warnings
+from .tools import match_tools, tool_evidence_warnings
 from .workflow import RESOLUTION_RULE, TaskStateError, challenge_report, deliberation_request, nothing_to_deliberate
 
 

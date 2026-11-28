@@ -12,19 +12,16 @@ from unittest import mock as patching
 
 from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.mcp_mock import call_tool, describe, example_arguments, list_all_arguments, reference_problems
+from openguildkit.tool_connections import apply_connections, connection_status, read_manifest, remove_connections
 from openguildkit.tool_registry import CATEGORIES, _validate_tool, check_tool_links, load_tools
 from openguildkit.tools import (
     NOT_DOCUMENTED,
-    apply_connections,
     choose_server,
-    connection_status,
     detect_tools,
     load_mock,
     match_tools,
     mock_ids,
     plan_connections,
-    read_manifest,
-    remove_connections,
     scenario_records,
 )
 from tests.support import run_cli
