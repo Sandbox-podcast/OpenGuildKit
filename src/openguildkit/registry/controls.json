@@ -8,6 +8,14 @@
     "dora",
     "nis-2"
   ],
+  "framework_notes": {
+    "eu-ai-act": "Read in the consolidated text of 27 July 2026. Its requirements bind the providers and deployers of high-risk AI systems: a cell applies only when the team provides such a system, and OpenGuildKit governs the coding agents that build it, not the system. Articles 9 (risk management), 12 (record-keeping) and 14 (human oversight) were read and left empty: they ask the high-risk system itself to manage its risks, record its events and be overseen, which a tool around coding agents does not do.",
+    "iso-iec-42001": "Not read: the standard is sold by ISO, and its public page (https://www.iso.org/standard/42001) refused an automated read on 2026-11-28; no clause is filled.",
+    "nist-ai-rmf": "Read in NIST AI 100-1 (January 2023), the tables of the GOVERN, MAP, MEASURE and MANAGE functions. A subcategory is an outcome for the organization: OpenGuildKit supplies part of the evidence, never the policy. No MEASURE subcategory is filled: OpenGuildKit measures nothing about an AI system.",
+    "soc-2": "Not read: the Trust Services Criteria of the AICPA are downloaded behind an account of aicpa-cima.com (page seen on 2026-11-28); no criterion is filled.",
+    "dora": "Read in the text published in the Official Journal (L 333, 27.12.2022). It binds financial entities: each filled cell is a part of Article 8 or 9, and the policies, the risk assessment and the approval by management lines these articles ask for stay with the entity.",
+    "nis-2": "Read in the text published in the Official Journal (L 333, 27.12.2022). A directive binds through the law of each Member State, and Commission Implementing Regulation (EU) 2024/2690, which details the measures for some entities, was not read."
+  },
   "controls": [
     {
       "id": "human-approval",
@@ -32,7 +40,44 @@
       "in_dossier": [
         "decisions.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 17(1)(a)",
+          "fit": "partial",
+          "quote": "procedures for the management of modifications to the high-risk AI system",
+          "gap": "Approves each agent task before work; the written strategy and procedures of the quality management system stay with the provider, and a change made without a task is not covered.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nist-ai-rmf",
+          "clause": "MAP 3.5",
+          "fit": "partial",
+          "quote": "Processes for human oversight are defined, assessed, and documented",
+          "gap": "The approval before work is defined and its record documents it; assessing the oversight process, and the organizational policy behind it, stay with the organization.",
+          "source": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner",
+          "gap": "Gives the approval of agent tasks; the documented, risk-based change policy approved by management lines, and the testing, stay with the entity.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nis-2",
+          "clause": "Article 21(2)(e)",
+          "fit": "partial",
+          "quote": "security in network and information systems acquisition, development and maintenance",
+          "gap": "Holds agent work in development behind an approval; the other measures for acquisition and maintenance stay with the entity.",
+          "source": "https://publications.europa.eu/resource/celex/32022L2555",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "edit-gate",
@@ -61,7 +106,35 @@
         }
       ],
       "in_dossier": [],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 17(1)(a)",
+          "fit": "partial",
+          "quote": "procedures for the management of modifications to the high-risk AI system",
+          "gap": "Refuses agent edits no approved task covers, only through hosts with hooks and under guard enforce; shell commands are not seen.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nist-ai-rmf",
+          "clause": "MANAGE 2.4",
+          "fit": "partial",
+          "quote": "Mechanisms are in place and applied, and responsibilities are assigned and understood, to supersede, disengage, or deactivate AI systems",
+          "gap": "Stops an agent edit outside an approved task; it does not judge the performance of the agent, and shell commands and hosts without hooks pass.",
+          "source": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner",
+          "gap": "Keeps agent edits under an approval in hosts with hooks; shell commands and hosts without hooks are not controlled, and the policy stays with the entity.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "sealed-decision",
@@ -124,7 +197,17 @@
         "decisions.jsonl",
         "signers-history.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner",
+          "gap": "Ties an approval to a key of the committed signers file; who holds the key, and the change policy, stay with the entity.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "separate-requester",
@@ -156,7 +239,17 @@
         "decisions.jsonl",
         "profile-changes.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "nist-ai-rmf",
+          "clause": "GOVERN 3.2",
+          "fit": "partial",
+          "quote": "Policies and procedures are in place to define and differentiate roles and responsibilities for human-AI configurations and oversight of AI systems",
+          "gap": "Keeps the requester from approving, when a person turns the option on; defining the other roles and the policy stay with the organization.",
+          "source": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "ci-decision-gate",
@@ -174,7 +267,35 @@
         }
       ],
       "in_dossier": [],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 17(1)(a)",
+          "fit": "partial",
+          "quote": "procedures for the management of modifications to the high-risk AI system",
+          "gap": "Checks each changed file against an approved record before merge; making the check required is a setting of the Git host, and the written procedures stay with the provider.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner",
+          "gap": "Verifies that each change brings a valid approval, under the rules of the base revision; it runs no test, and requiring the check before merge is a setting of the Git host.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nis-2",
+          "clause": "Article 21(2)(e)",
+          "fit": "partial",
+          "quote": "security in network and information systems acquisition, development and maintenance",
+          "gap": "Verifies in CI that each change of the repository was approved; it covers the repository only, not acquisition or the systems in production.",
+          "source": "https://publications.europa.eu/resource/celex/32022L2555",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "exported-decision-record",
@@ -205,7 +326,35 @@
       "in_dossier": [
         "decisions.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Annex IV, point 6",
+          "fit": "partial",
+          "quote": "A description of relevant changes made by the provider to the system through its lifecycle",
+          "gap": "Records each approved task with its brief and reviews; work done without a task has no record, and the description of the system as a whole stays with the provider.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 17(1)(k)",
+          "fit": "partial",
+          "quote": "systems and procedures for record-keeping of all relevant documentation and information",
+          "gap": "Keeps the approval records of agent tasks in the repository; the other documentation of the quality management system is outside OpenGuildKit.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner",
+          "gap": "Records each approved agent task in the repository; changes made without a task, and outside the repository, are not recorded.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "rules-in-force",
@@ -265,7 +414,26 @@
       "in_dossier": [
         "profile-changes.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 17(1)(k)",
+          "fit": "partial",
+          "quote": "systems and procedures for record-keeping of all relevant documentation and information",
+          "gap": "Records who changed the settings of OpenGuildKit, when and why; a hand edit of project.json is not an entry.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 9(4)(e)",
+          "fit": "partial",
+          "quote": "including changes to software, hardware, firmware components, systems or security parameters",
+          "gap": "Records the changes to the protections of OpenGuildKit itself, with who, when and why; the security parameters of other systems are outside it.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "alert-register",
@@ -302,7 +470,44 @@
       "in_dossier": [
         "alerts.jsonl"
       ],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Article 15(5)",
+          "fit": "partial",
+          "quote": "High-risk AI systems shall be resilient against attempts by unauthorised third parties to alter their use, outputs or performance by exploiting system vulnerabilities",
+          "gap": "Keeps the known vulnerabilities of dependencies that scanner reports list, with decisions; it runs no scanner and does not address attacks specific to AI.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nist-ai-rmf",
+          "clause": "MANAGE 3.1",
+          "fit": "partial",
+          "quote": "AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented",
+          "gap": "Documents decisions on vulnerabilities of third-party packages from the reports it is given; it does not monitor the AI risks or benefits of third-party models.",
+          "source": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 8(2)",
+          "fit": "partial",
+          "quote": "assess cyber threats and ICT vulnerabilities relevant to their ICT supported business functions",
+          "gap": "Keeps the vulnerabilities that scanner reports list for the repository; it assesses no threat and runs no scanner.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nis-2",
+          "clause": "Article 21(2)(e)",
+          "fit": "partial",
+          "quote": "including vulnerability handling and disclosure",
+          "gap": "Handles the vulnerabilities of dependencies that reports list; disclosure is not covered.",
+          "source": "https://publications.europa.eu/resource/celex/32022L2555",
+          "checked": "2026-11-28"
+        }
+      ]
     },
     {
       "id": "agent-surface-inventory",
@@ -331,7 +536,44 @@
         }
       ],
       "in_dossier": [],
-      "maps_to": []
+      "maps_to": [
+        {
+          "reference": "eu-ai-act",
+          "clause": "Annex IV, point 2(a)",
+          "fit": "partial",
+          "quote": "recourse to pre-trained systems or tools provided by third parties",
+          "gap": "Lists the agent tools and MCP servers configured in the repository; how they were used, integrated or modified, and the models behind them, are not described.",
+          "source": "https://publications.europa.eu/resource/celex/02024R1689-20260727",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nist-ai-rmf",
+          "clause": "GOVERN 1.6",
+          "fit": "partial",
+          "quote": "Mechanisms are in place to inventory AI systems",
+          "gap": "Lists the agent tools whose files a repository holds; a tool with no file there is not seen, and the resourcing is organizational.",
+          "source": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "dora",
+          "clause": "Article 8(4)",
+          "fit": "partial",
+          "quote": "Financial entities shall identify all information assets and ICT assets",
+          "gap": "Lists the agent tools and MCP servers configured in repositories; other ICT assets, and their criticality and links, are outside it.",
+          "source": "https://publications.europa.eu/resource/celex/32022R2554",
+          "checked": "2026-11-28"
+        },
+        {
+          "reference": "nis-2",
+          "clause": "Article 21(2)(i)",
+          "fit": "partial",
+          "quote": "asset management",
+          "gap": "Lists the agent tools and MCP servers configured in repositories; the other assets are outside it.",
+          "source": "https://publications.europa.eu/resource/celex/32022L2555",
+          "checked": "2026-11-28"
+        }
+      ]
     }
   ]
 }

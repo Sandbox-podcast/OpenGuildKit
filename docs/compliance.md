@@ -2,16 +2,17 @@
 
 For: an auditor or a security officer who asks which controls OpenGuildKit itself provides and which framework clause each may answer.
 
-An auditor or a security officer asks which controls OpenGuildKit itself provides, where each is held in the code, what it does not cover, and which requirement of a framework it answers. This page lists the controls and keeps the answer to the last question empty until someone has read the framework.
+An auditor or a security officer asks which controls OpenGuildKit itself provides, where each is held in the code, what it does not cover, and which requirement of a framework it answers. This page lists the controls and answers the last question only where someone has read the framework.
 
-It does not state that a project, an organization or OpenGuildKit complies with any framework. No text of a framework is copied here, and no clause is written from memory.
+It does not state that a project, an organization or OpenGuildKit complies with any framework. No clause is written from memory: each filled cell quotes the few words of the clause it relies on, copied from the source read that day, and nothing more of the text.
 
 ## How to read it
 
 The tables below are generated from [`src/openguildkit/registry/controls.json`](../src/openguildkit/registry/controls.json) by `python scripts/build_compliance.py`, and a test fails when the page differs from the file.
 
 - Each control names the commands that run it and the file and line of the code that holds it, which a test looks up again. Its last column says what the control does not cover.
-- The second table puts each control against six frameworks of the [catalog](references.md). A cell holds a clause only with the address of the source that was read and the day it was read. A cell that says `to verify` has no source read for it yet and stays empty.
+- The second table puts each control against six frameworks of the [catalog](references.md). A cell holds a clause only with the address of the source that was read and the day it was read. It says `Matches` when the control does what the clause asks, or `Partial` with the gap: what the clause asks that the control leaves to the team. A cell that says `to verify` has no clause read for it and stays empty; the note under the table says, for each framework, how it was read or why it was not.
+- The last list gives, for each filled cell, the words of the clause it relies on.
 
 ## Controls and frameworks
 
@@ -36,24 +37,52 @@ The tables below are generated from [`src/openguildkit/registry/controls.json`](
 
 | Control | `eu-ai-act` | `iso-iec-42001` | `nist-ai-rmf` | `soc-2` | `dora` | `nis-2` |
 |---|---|---|---|---|---|---|
-| `human-approval` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `edit-gate` | to verify | to verify | to verify | to verify | to verify | to verify |
+| `human-approval` | Partial: Article 17(1)(a) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Approves each agent task before work; the written strategy and procedures of the quality management system stay with the provider, and a change made without a task is not covered. | to verify | Partial: MAP 3.5 ([source](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf), read 2026-11-28). Gap: The approval before work is defined and its record documents it; assessing the oversight process, and the organizational policy behind it, stay with the organization. | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Gives the approval of agent tasks; the documented, risk-based change policy approved by management lines, and the testing, stay with the entity. | Partial: Article 21(2)(e) ([source](https://publications.europa.eu/resource/celex/32022L2555), read 2026-11-28). Gap: Holds agent work in development behind an approval; the other measures for acquisition and maintenance stay with the entity. |
+| `edit-gate` | Partial: Article 17(1)(a) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Refuses agent edits no approved task covers, only through hosts with hooks and under guard enforce; shell commands are not seen. | to verify | Partial: MANAGE 2.4 ([source](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf), read 2026-11-28). Gap: Stops an agent edit outside an approved task; it does not judge the performance of the agent, and shell commands and hosts without hooks pass. | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Keeps agent edits under an approval in hosts with hooks; shell commands and hosts without hooks are not controlled, and the policy stays with the entity. | to verify |
 | `sealed-decision` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `signed-approval` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `separate-requester` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `ci-decision-gate` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `exported-decision-record` | to verify | to verify | to verify | to verify | to verify | to verify |
+| `signed-approval` | to verify | to verify | to verify | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Ties an approval to a key of the committed signers file; who holds the key, and the change policy, stay with the entity. | to verify |
+| `separate-requester` | to verify | to verify | Partial: GOVERN 3.2 ([source](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf), read 2026-11-28). Gap: Keeps the requester from approving, when a person turns the option on; defining the other roles and the policy stay with the organization. | to verify | to verify | to verify |
+| `ci-decision-gate` | Partial: Article 17(1)(a) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Checks each changed file against an approved record before merge; making the check required is a setting of the Git host, and the written procedures stay with the provider. | to verify | to verify | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Verifies that each change brings a valid approval, under the rules of the base revision; it runs no test, and requiring the check before merge is a setting of the Git host. | Partial: Article 21(2)(e) ([source](https://publications.europa.eu/resource/celex/32022L2555), read 2026-11-28). Gap: Verifies in CI that each change of the repository was approved; it covers the repository only, not acquisition or the systems in production. |
+| `exported-decision-record` | Partial: Annex IV, point 6 ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Records each approved task with its brief and reviews; work done without a task has no record, and the description of the system as a whole stays with the provider.<br>Partial: Article 17(1)(k) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Keeps the approval records of agent tasks in the repository; the other documentation of the quality management system is outside OpenGuildKit. | to verify | to verify | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Records each approved agent task in the repository; changes made without a task, and outside the repository, are not recorded. | to verify |
 | `rules-in-force` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `profile-change-history` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `alert-register` | to verify | to verify | to verify | to verify | to verify | to verify |
-| `agent-surface-inventory` | to verify | to verify | to verify | to verify | to verify | to verify |
+| `profile-change-history` | Partial: Article 17(1)(k) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Records who changed the settings of OpenGuildKit, when and why; a hand edit of project.json is not an entry. | to verify | to verify | to verify | Partial: Article 9(4)(e) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Records the changes to the protections of OpenGuildKit itself, with who, when and why; the security parameters of other systems are outside it. | to verify |
+| `alert-register` | Partial: Article 15(5) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Keeps the known vulnerabilities of dependencies that scanner reports list, with decisions; it runs no scanner and does not address attacks specific to AI. | to verify | Partial: MANAGE 3.1 ([source](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf), read 2026-11-28). Gap: Documents decisions on vulnerabilities of third-party packages from the reports it is given; it does not monitor the AI risks or benefits of third-party models. | to verify | Partial: Article 8(2) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Keeps the vulnerabilities that scanner reports list for the repository; it assesses no threat and runs no scanner. | Partial: Article 21(2)(e) ([source](https://publications.europa.eu/resource/celex/32022L2555), read 2026-11-28). Gap: Handles the vulnerabilities of dependencies that reports list; disclosure is not covered. |
+| `agent-surface-inventory` | Partial: Annex IV, point 2(a) ([source](https://publications.europa.eu/resource/celex/02024R1689-20260727), read 2026-11-28). Gap: Lists the agent tools and MCP servers configured in the repository; how they were used, integrated or modified, and the models behind them, are not described. | to verify | Partial: GOVERN 1.6 ([source](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf), read 2026-11-28). Gap: Lists the agent tools whose files a repository holds; a tool with no file there is not seen, and the resourcing is organizational. | to verify | Partial: Article 8(4) ([source](https://publications.europa.eu/resource/celex/32022R2554), read 2026-11-28). Gap: Lists the agent tools and MCP servers configured in repositories; other ICT assets, and their criticality and links, are outside it. | Partial: Article 21(2)(i) ([source](https://publications.europa.eu/resource/celex/32022L2555), read 2026-11-28). Gap: Lists the agent tools and MCP servers configured in repositories; the other assets are outside it. |
 
-- `eu-ai-act`: Artificial Intelligence Act, Regulation (EU) 2024/1689
-- `iso-iec-42001`: ISO/IEC 42001:2023
-- `nist-ai-rmf`: NIST AI Risk Management Framework 1.0
-- `soc-2`: SOC 2, Examination and attestation report
-- `dora`: Digital Operational Resilience Act (DORA), Regulation (EU) 2022/2554
-- `nis-2`: NIS 2 Directive, Directive (EU) 2022/2555
+- `eu-ai-act`: Artificial Intelligence Act, Regulation (EU) 2024/1689. Read in the consolidated text of 27 July 2026. Its requirements bind the providers and deployers of high-risk AI systems: a cell applies only when the team provides such a system, and OpenGuildKit governs the coding agents that build it, not the system. Articles 9 (risk management), 12 (record-keeping) and 14 (human oversight) were read and left empty: they ask the high-risk system itself to manage its risks, record its events and be overseen, which a tool around coding agents does not do.
+- `iso-iec-42001`: ISO/IEC 42001:2023. Not read: the standard is sold by ISO, and its public page (https://www.iso.org/standard/42001) refused an automated read on 2026-11-28; no clause is filled.
+- `nist-ai-rmf`: NIST AI Risk Management Framework 1.0. Read in NIST AI 100-1 (January 2023), the tables of the GOVERN, MAP, MEASURE and MANAGE functions. A subcategory is an outcome for the organization: OpenGuildKit supplies part of the evidence, never the policy. No MEASURE subcategory is filled: OpenGuildKit measures nothing about an AI system.
+- `soc-2`: SOC 2, Examination and attestation report. Not read: the Trust Services Criteria of the AICPA are downloaded behind an account of aicpa-cima.com (page seen on 2026-11-28); no criterion is filled.
+- `dora`: Digital Operational Resilience Act (DORA), Regulation (EU) 2022/2554. Read in the text published in the Official Journal (L 333, 27.12.2022). It binds financial entities: each filled cell is a part of Article 8 or 9, and the policies, the risk assessment and the approval by management lines these articles ask for stay with the entity.
+- `nis-2`: NIS 2 Directive, Directive (EU) 2022/2555. Read in the text published in the Official Journal (L 333, 27.12.2022). A directive binds through the law of each Member State, and Commission Implementing Regulation (EU) 2024/2690, which details the measures for some entities, was not read.
+
+#### The words each filled cell relies on
+
+- `human-approval`, `eu-ai-act` Article 17(1)(a): “procedures for the management of modifications to the high-risk AI system”
+- `human-approval`, `nist-ai-rmf` MAP 3.5: “Processes for human oversight are defined, assessed, and documented”
+- `human-approval`, `dora` Article 9(4)(e): “all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner”
+- `human-approval`, `nis-2` Article 21(2)(e): “security in network and information systems acquisition, development and maintenance”
+- `edit-gate`, `eu-ai-act` Article 17(1)(a): “procedures for the management of modifications to the high-risk AI system”
+- `edit-gate`, `nist-ai-rmf` MANAGE 2.4: “Mechanisms are in place and applied, and responsibilities are assigned and understood, to supersede, disengage, or deactivate AI systems”
+- `edit-gate`, `dora` Article 9(4)(e): “all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner”
+- `signed-approval`, `dora` Article 9(4)(e): “all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner”
+- `separate-requester`, `nist-ai-rmf` GOVERN 3.2: “Policies and procedures are in place to define and differentiate roles and responsibilities for human-AI configurations and oversight of AI systems”
+- `ci-decision-gate`, `eu-ai-act` Article 17(1)(a): “procedures for the management of modifications to the high-risk AI system”
+- `ci-decision-gate`, `dora` Article 9(4)(e): “all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner”
+- `ci-decision-gate`, `nis-2` Article 21(2)(e): “security in network and information systems acquisition, development and maintenance”
+- `exported-decision-record`, `eu-ai-act` Annex IV, point 6: “A description of relevant changes made by the provider to the system through its lifecycle”
+- `exported-decision-record`, `eu-ai-act` Article 17(1)(k): “systems and procedures for record-keeping of all relevant documentation and information”
+- `exported-decision-record`, `dora` Article 9(4)(e): “all changes to ICT systems are recorded, tested, assessed, approved, implemented and verified in a controlled manner”
+- `profile-change-history`, `eu-ai-act` Article 17(1)(k): “systems and procedures for record-keeping of all relevant documentation and information”
+- `profile-change-history`, `dora` Article 9(4)(e): “including changes to software, hardware, firmware components, systems or security parameters”
+- `alert-register`, `eu-ai-act` Article 15(5): “High-risk AI systems shall be resilient against attempts by unauthorised third parties to alter their use, outputs or performance by exploiting system vulnerabilities”
+- `alert-register`, `nist-ai-rmf` MANAGE 3.1: “AI risks and benefits from third-party resources are regularly monitored, and risk controls are applied and documented”
+- `alert-register`, `dora` Article 8(2): “assess cyber threats and ICT vulnerabilities relevant to their ICT supported business functions”
+- `alert-register`, `nis-2` Article 21(2)(e): “including vulnerability handling and disclosure”
+- `agent-surface-inventory`, `eu-ai-act` Annex IV, point 2(a): “recourse to pre-trained systems or tools provided by third parties”
+- `agent-surface-inventory`, `nist-ai-rmf` GOVERN 1.6: “Mechanisms are in place to inventory AI systems”
+- `agent-surface-inventory`, `dora` Article 8(4): “Financial entities shall identify all information assets and ICT assets”
+- `agent-surface-inventory`, `nis-2` Article 21(2)(i): “asset management”
 <!-- controls:end -->
 
 ## What OpenGuildKit does not cover
@@ -85,7 +114,7 @@ The dossier holds the names people typed with `--by`, and their reasons: [person
 ## Filling a cell
 
 1. Read the official text of the framework, from the publisher's own page.
-2. In `controls.json`, add to `maps_to` of the control an entry with `reference` (an ID of the catalog that `frameworks` lists), `clause` (where to look, 80 characters at most, never a sentence of the text), `source` (the https address of the page read) and `checked` (the day it was read).
+2. In `controls.json`, add to `maps_to` of the control an entry with `reference` (an ID of the catalog that `frameworks` lists), `clause` (where to look, 80 characters at most, never a sentence of the text), `fit` (`matches` only when the control does what the clause asks, otherwise `partial`), `gap` (for `partial`, what the clause asks that the control does not do), `quote` (the words of the clause the cell relies on, copied from the page, 240 characters at most), `source` (the https address of the page read) and `checked` (the day it was read). Update the note of the framework in `framework_notes`.
 3. Run `python scripts/build_compliance.py`, which also sets the lines, and commit both files.
 
-A test refuses an entry whose reference is not in the catalog or whose clause, source or `checked` day is missing, malformed or in the future.
+A test refuses an entry whose reference is not in the catalog, whose clause, quote, fit, source or `checked` day is missing, malformed or in the future, or that says `partial` without its gap.
