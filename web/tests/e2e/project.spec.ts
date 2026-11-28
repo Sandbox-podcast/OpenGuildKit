@@ -362,7 +362,7 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByRole('button', { name: 'Lancer les commandes du projet' }).click();
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
+  await expect(page.getByText(/\d+ points? before the task can be done/)).toBeVisible();
   await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
   await page.getByLabel('Tes initiales').fill('CM');
   await page.getByRole('button', { name: /Marquer « non applicables » les règles non rapportées/ }).click();
@@ -750,7 +750,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await expect(row.getByText('Autres livrables visibles : docs-site', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Masquer les avertissements' }).click();
   await row.getByRole('button', { name: 'Accès retiré' }).click();
-  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by NAME/)).toBeVisible();
+  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by INITIALS/)).toBeVisible();
 
   await page.getByRole('tab', { name: /Relevés de décision/ }).click();
   await expect(page.getByRole('button', { name: /request-status/ }).first()).toBeVisible();
@@ -791,7 +791,7 @@ test('hands a profile change that weakens a protection to the terminal', async (
   await page.getByLabel('Recherche publique').selectOption('public-sources');
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
   const terminal = page.getByRole('dialog', { name: /Changement du profil : à faire dans ton terminal/ });
-  await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by NAME --reason WHY');
+  await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by INITIALS --reason WHY');
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   const profile = await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' });
   expect(JSON.parse(profile.body.text).research).toBe('local-only');

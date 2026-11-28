@@ -22,15 +22,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # 3.11 is the floor of requires-python; 3.15 is the version the maintainers work with.
+        # 3.11 is the floor of requires-python; 3.15 is the version the maintainers work with (.python-version).
         python: ["3.11", "3.15"]
+        # A pull request runs 4 of the 6 cells: both Pythons on Ubuntu, 3.15 on macOS and 3.11 on Windows, so each
+        # system and each Python is tried; a push to main runs all six (#474).
+        exclude: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"macos-latest","python":"3.11"},{"os":"windows-latest","python":"3.15"}]' || '[]') }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version: ${{ matrix.python }}
 
@@ -38,7 +41,9 @@ jobs:
         run: python -m pip install -e .
 
       - name: Validate the catalog
-        run: openguildkit catalog --json
+        # Its JSON is 12,000 lines: only a failure, through the exit code and standard error, is worth the log.
+        shell: bash
+        run: openguildkit catalog --json > /dev/null
 
       - name: Validate the reference library
         run: openguildkit references
@@ -50,7 +55,8 @@ jobs:
         run: openguildkit brains --check
 
       - name: Unit and end-to-end tests
-        run: python -m unittest discover -s tests -v
+        # --durations ends the log with the 25 slowest tests; unittest has it from Python 3.12.
+        run: python -m unittest discover -s tests -v ${{ matrix.python != '3.11' && '--durations 25' || '' }}
 
       - name: Replay the request status example
         run: python examples/request-status/replay.py
@@ -67,44 +73,35 @@ jobs:
       OPENGUILDKIT_PERF: "1"
       PYTHONPATH: src
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
-          python-version: "3.15"
+          python-version-file: .python-version
       # Time what the wheel ships: one catalog file instead of one file per record.
       - run: python scripts/build_catalog_bundle.py
       - run: python -m unittest tests.test_performance.PerformanceTests -v
 
-  package:
-    name: Build and install the wheel with Python ${{ matrix.python }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  # The wheel, with the web interface inside, is built once, the way release.yml builds it; the package job installs
+  # that wheel on each system (#474). The wheel holds Python files and the built interface, so the Python that
+  # builds it does not change it.
+  wheel:
+    name: Build the wheel
+    runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.11", "3.15"]
-        # Build one wheel on macOS to limit use of hosted macOS runners.
-        exclude:
-          - os: macos-latest
-            python: "3.11"
-    defaults:
-      run:
-        shell: bash
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
-          python-version: ${{ matrix.python }}
+          python-version-file: .python-version
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -127,13 +124,49 @@ jobs:
           python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
           python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/registry/catalog.bundle.json
 
-      # Once is enough: the metadata does not depend on the system. readme-renderer[md] renders the Markdown
-      # description as PyPI would.
+      # readme-renderer[md] renders the Markdown description as PyPI would.
       - name: Check the package metadata and its description
-        if: runner.os == 'Linux' && matrix.python == '3.15'
         run: |
           python -m pip install twine "readme-renderer[md]"
           python -m twine check --strict dist/*
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
+        with:
+          name: wheel
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Install the wheel with Python ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    needs: wheel
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.15"]
+        # Install the wheel once on macOS to limit use of hosted macOS runners.
+        exclude:
+          - os: macos-latest
+            python: "3.11"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 2026-10-07 v8.0.2
+        with:
+          name: wheel
+          path: dist
 
       # docs/install.md has teams install the wheel with pipx or uv: pipx on Windows, a fresh virtual
       # environment on Linux and macOS.
@@ -169,8 +202,46 @@ jobs:
           test -f .claude/skills/openguildkit/references/setup.md
           test -f .claude/agents/guild-board.md
 
+  # What changed decides which of the three jobs below have anything to check (#474). The step reads the list of files
+  # from Git, with no third-party action; when it cannot, every job runs. The patterns are what each job reads:
+  # the checks of web/ also read the registry of the CLI and docs/glossary.md from outside it (tests/test_workflows.py
+  # lists what they read).
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      coordinator: ${{ steps.filter.outputs.coordinator }}
+      web: ${{ steps.filter.outputs.web }}
+      journeys: ${{ steps.filter.outputs.journeys }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: filter
+        name: List the changed files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if changed=$(git diff --name-only "$BASE" HEAD 2>/dev/null) && [ -n "$changed" ]; then
+            echo "$(printf '%s\n' "$changed" | wc -l | tr -d ' ') files changed since $BASE."
+            all=false
+          else
+            echo "The changed files cannot be listed: every job runs."
+            all=true
+          fi
+          show() { if [ "$all" = true ] || printf '%s\n' "$changed" | grep -Eq "$2"; then echo "$1=true"; else echo "$1=false"; fi; }
+          {
+            show coordinator '^(integrations/ci/|examples/export-expiry/|\.github/workflows/ci\.yml$)'
+            show web '^(web/|src/openguildkit/registry/|docs/glossary\.md$|\.nvmrc$|\.github/workflows/ci\.yml$)'
+            show journeys '^(web/|src/|\.python-version$|\.nvmrc$|\.github/workflows/ci\.yml$)'
+          } | tee -a "$GITHUB_OUTPUT"
+
   ci-coordinator:
     name: CI coordinator on ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.coordinator == 'true' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -181,29 +252,32 @@ jobs:
       run:
         working-directory: integrations/ci
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
+          # The floor of integrations/ci/package.json; the other jobs read the version of .nvmrc.
           node-version: "22"
       - run: npm test
       - run: npm pack --dry-run
 
   web:
     name: Web app
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci --ignore-scripts
@@ -219,6 +293,8 @@ jobs:
   # Chrome the runner already has.
   web-e2e:
     name: Web journeys
+    needs: changes
+    if: ${{ needs.changes.outputs.journeys == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -228,15 +304,15 @@ jobs:
       PW_CHANNEL: chrome
       OGK_PYTHON: python
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
-          python-version: "3.15"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+          python-version-file: .python-version
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci --ignore-scripts
@@ -245,17 +321,69 @@ jobs:
         run: npm run e2e
       - name: Project interface journeys
         run: npm run e2e:project
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
         if: failure()
         with:
           name: playwright-results
           path: web/test-results
           retention-days: 7
 
+  # ruff and mypy at the versions pinned in pyproject.toml, counted per rule against scripts/lint-baseline.json:
+  # a count may go down and never up (docs/testing.md, "Lint and types").
+  lint:
+    name: Lint and types
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Install the pinned linter and type checker
+        run: python -m pip install ruff==0.17.6 mypy==2.4.1
+      - name: Compare the findings with the baseline
+        run: python scripts/lint_ratchet.py
+
+  # The conventions of docs/agents/conventions.md that a pull request can break. A push to main has no pull
+  # request: its steps are skipped.
+  conventions:
+    name: Conventions for agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # issues: read lets check_fix_trace.py read the labels of the issues a pull request closes.
+    permissions:
+      contents: read
+      issues: read
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      BASE: origin/${{ github.base_ref }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version-file: .python-version
+      - name: Pull request text
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_pr_text.py --base "$BASE"
+      - name: A closed bug has its test and its ledger line
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_fix_trace.py --base "$BASE"
+      - name: Removed assertions are listed
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_oracle.py --base "$BASE"
+
   contribution-checks:
     name: contribution-checks
     if: ${{ !cancelled() }}
-    needs: [test, performance, package, ci-coordinator, web, web-e2e]
+    needs: [changes, test, performance, wheel, package, ci-coordinator, web, web-e2e, lint, conventions]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Reads the jobs of this run, to tell a job that no runner picked up from a job that failed.
@@ -265,15 +393,21 @@ jobs:
       - name: Require all checks to pass
         env:
           GH_TOKEN: ${{ github.token }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
           TEST_RESULT: ${{ needs.test.result }}
           PERFORMANCE_RESULT: ${{ needs.performance.result }}
+          WHEEL_RESULT: ${{ needs.wheel.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
           COORDINATOR_RESULT: ${{ needs.ci-coordinator.result }}
           WEB_RESULT: ${{ needs.web.result }}
           WEB_E2E_RESULT: ${{ needs.web-e2e.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          CONVENTIONS_RESULT: ${{ needs.conventions.result }}
         run: |
-          printf 'Tests: %s\nPerformance: %s\nWheel: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\n' "$TEST_RESULT" "$PERFORMANCE_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT"
-          if test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$PACKAGE_RESULT" = success && test "$COORDINATOR_RESULT" = success && test "$WEB_RESULT" = success && test "$WEB_E2E_RESULT" = success; then
+          printf 'Changed files: %s\nTests: %s\nPerformance: %s\nWheel build: %s\nWheel install: %s\nCI coordinator: %s\nWeb: %s\nWeb journeys: %s\nLint: %s\nConventions: %s\n' "$CHANGES_RESULT" "$TEST_RESULT" "$PERFORMANCE_RESULT" "$WHEEL_RESULT" "$PACKAGE_RESULT" "$COORDINATOR_RESULT" "$WEB_RESULT" "$WEB_E2E_RESULT" "$LINT_RESULT" "$CONVENTIONS_RESULT"
+          # The CI coordinator, the web checks and the web journeys are skipped when no file they read changed: that
+          # counts as a pass, but only when the job that decided it succeeded.
+          if test "$CHANGES_RESULT" = success && test "$TEST_RESULT" = success && test "$PERFORMANCE_RESULT" = success && test "$WHEEL_RESULT" = success && test "$PACKAGE_RESULT" = success && { test "$COORDINATOR_RESULT" = success || test "$COORDINATOR_RESULT" = skipped; } && { test "$WEB_RESULT" = success || test "$WEB_RESULT" = skipped; } && { test "$WEB_E2E_RESULT" = success || test "$WEB_E2E_RESULT" = skipped; } && test "$LINT_RESULT" = success && test "$CONVENTIONS_RESULT" = success; then
             exit 0
           fi
           # A job cancelled before any step ran never got a runner: GitHub gave up waiting for one. That says

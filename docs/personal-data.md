@@ -1,5 +1,7 @@
 # Personal data the tool records
 
+For: a data protection officer or an administrator who asks what the tool records about people.
+
 OpenGuildKit records who decided what: who approved a task, cleared or waived a blocker, set a rule aside, closed the task, reviewed a dependency alert, changed the profile or shared a deliverable. This page lists each field that holds a person's name or address, the file it is in, whether Git tracks that file, why it is kept, how long, and how to remove or replace it. A team that keeps a record of processing activities can describe the tool's own processing from it.
 
 Read in the code of version 0.17.0 and tried on test projects on 22 November 2026 ([what was tried](#what-was-tried)).
@@ -13,7 +15,7 @@ Read in the code of version 0.17.0 and tried on test projects on 22 November 202
 - `--by` of `task decide`, `task clear`, `task waive`, `task revoke`, `task complete`, `task verify --cannot-run`, `task authorize`, `profile`, `alerts` and `docs share`, `--by` of `market provided` and `--verified-by` of `market change`, `--owner` of `task list`, and the name in `--delegate BOARD=NAME`;
 - the `owner` of each rule you set aside, and of each document you confirm, in a result file;
 - `waivers.allowed_by`, since the `--by` of `task waive` must be one of its entries;
-- in a project with signed approvals, the principal of your line in the allowed signers file, `approval.approvers` and `--signer`. A principal is any word `ssh-keygen` matches: it need not be an email address.
+- in a project with signed approvals, the principal of your line in the allowed signers file, `approval.approvers` and `--signer`. A principal is any word `ssh-keygen` matches: it need not be an email address. With a certificate of an authority, it is the principal the certificate names ([certificates](workflow.md#certificates-of-an-authority)).
 
 Three reasons. Names are copied into files the team commits and shares. The approver's name is inside the approval's seal and, in a signed project, inside what they signed: it cannot be replaced afterwards without breaking the approval ([the approver](#the-approver)). And a signed approval is verified against the principal in the approvers and the allowed signers file, today's or those of the revision it was signed at ([when an approver leaves](#when-an-approver-leaves)): a principal that is not an address keeps one out of every revision of those files.
 
@@ -28,8 +30,11 @@ The tool deletes none of these on its own. A file Git tracks keeps every earlier
 | Field | File | Written by | Why |
 |---|---|---|---|
 | `changes[].by`, and the approvers or waiver holders that `openguildkit profile set` writes in `changes[].change` | `.openguildkit/project.json` | every `profile` command; a profile saved in `openguildkit ui` (the name typed in the page, or `web interface`) | who changed the rules, when and why |
+| `frozen.by` | `.openguildkit/project.json` | `profile set freeze on` | who froze the project, when and why ([incident response](workflow.md#incident-response)) |
 | `declined[].by` | `.openguildkit/project.json` | `profile decline`, the `init` questionnaire, the `norms` of an answers file | who declined a norm, when and why |
+| `approval.roles` | `.openguildkit/project.json` | `profile set approver-roles` | who may clear the blockers of a board and approve what it blocked ([roles by board](workflow.md#roles-by-board)) |
 | `approval.approvers`, and in the file `approval.allowed_signers` names, one principal and public key per line | `.openguildkit/project.json`, the allowed signers file (for example `.openguildkit/allowed_signers`) | `profile set approval signed`; the person writes the signers file | who may sign an approval |
+| `organization.pinned.by`, `organization.exceptions[].by`, `organization_history[].by` | `.openguildkit/catalog.lock.json` | `org-catalog set`, `accept` and `off` | who pinned or stopped an organization catalog, accepted a local replacement, when and why (history is kept after `off`) ([organization catalog](catalog-format.md#organization-catalog)) |
 | `waivers.allowed_by` | `.openguildkit/project.json` | `profile set waivers allowed` | who may waive a blocker |
 | the same declines, adoptions, approvers and waiver holders, as sentences | the managed block of `AGENTS.md` | `init`, `sync`, every `profile` command | the agent reads the rules in force |
 | `decision.by`, `decision.payload.by`, `decision.signer`, `rounds[].decision.by` | `.openguildkit/decisions/ID.json` | `task export` | who approved, or requested changes in an earlier round |
@@ -52,9 +57,16 @@ A decision record also carries free text: the `brief`, the review `summary`, eac
 | whatever the agent writes in them: the answers, the boards' entries, the deliberation, the result | `.openguildkit/work/` | the agent, before it passes them to a `task` command | working files; the task record keeps what the commands accept |
 | `recipient` (email address), intended and observed dates, verification time and source | `.openguildkit/shares/portal-observations.json` | `docs share verify` | the last comparison of the register with a portal's invitation settings; each new verification replaces that space's observation |
 | `ogk-ui:decider`, `ogk-ui:signer` | the browser's local storage for the page's address (`http://ogk-….localhost:7311`, a host name drawn at each start) | `openguildkit ui`, when you type who decides or who signs | to fill the field again while the server runs |
+| `by`, `signer`, the task and the paths of each event, and `change`, which names the people a profile command adds as approvers or waiver holders | `.openguildkit/audit/audit.jsonl` | the guard hook, and `task decide`, `task revoke`, `profile` and `host apply`, only when a person turns the audit log on ([audit log](audit-log.md)) | what OpenGuildKit did and who did it, for the organization's log collector; the tool never deletes it, retention is the collector's, and deleting the file ends the chain |
 | each call to a mock and its arguments | the file `--log` names | `tools mock ID --log FILE`, `tools plan` or `tools apply` with `--mock --log FILE` | so a test can check what the agent called; mocks serve synthetic data |
 
 The task record also keeps the brief, the answers, the boards' reviews, the reasons and the evidence. `task new`, `task consult` and `task result` replace what looks like a credential with a placeholder, and warn when a brief, answers or a result hold an email address, a phone number or a bank account number: they record them anyway, and `docs export` warns again before it publishes them. `task list --json` shows the approver as `owner` and the person who closed the task as `closed_by`. The tool does not store what commands print, but a CI log keeps what the commands it runs print.
+
+### The evidence dossier
+
+`openguildkit evidence export --output DOSSIER` copies, for a period and for an auditor, fields listed above into a new folder of the project. `decisions.jsonl` holds `decided_by` (the `decision.by` of each exported record), `requested_by`, `signature.signer` and the reason; `profile-changes.jsonl` the `changes[].by`; `alerts.jsonl` the alerts with their `by`, `severity_set.by` and `accepted.by`; `signers-history.jsonl` the principals of the allowed signers file, never a key.
+
+It adds no person the project does not already name. Nothing ignores that folder: give it to the auditor, commit it only if the team means to, and delete it when the audit is closed.
 
 ### Read and shown, never written
 

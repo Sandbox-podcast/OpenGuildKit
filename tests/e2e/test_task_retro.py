@@ -280,7 +280,7 @@ class RulesAndReservationsTests(RetroCase):
         self.assertLess(len(text.splitlines()), 40)
         for words in ("4 closed tasks", "at least 3", "--min", f"rule:{SKIPPED_RULE} skipped in 3 tasks (a1, a2, a3)",
                       "rule:postgresql/protect-data-invariants not-applicable in 3 tasks (a1, a2, a3): Schema untouched.",
-                      f"openguildkit profile decline rule {SKIPPED_RULE} --by NAME --reason",
+                      f"openguildkit profile decline rule {SKIPPED_RULE} --by INITIALS --reason",
                       f"{FAILING} failed in 3 tasks (a2, a3, a4)", "qa: no blocker or objection in 3 of the 4 tasks",
                       "terminal", "None of these commands was run", "--by is theirs to fill in",
                       "--reason 'task retro: rule:typescript/strict-type-checking failed in 3 tasks (a2, a3, a4)'"):
@@ -291,9 +291,9 @@ class RulesAndReservationsTests(RetroCase):
         required = found[("rule", FAILING)]
         decline = found[("rule", "pack:fastapi")]
         self.assertEqual(required["command"], "openguildkit profile add required-rule typescript/strict-type-checking "
-                                              "--by NAME --reason 'task retro: rule:typescript/strict-type-checking "
+                                              "--by INITIALS --reason 'task retro: rule:typescript/strict-type-checking "
                                               "failed in 3 tasks (a2, a3, a4)'")
-        self.assertEqual(decline["command"], "openguildkit profile decline python-fastapi-postgresql --by NAME --reason "
+        self.assertEqual(decline["command"], "openguildkit profile decline python-fastapi-postgresql --by INITIALS --reason "
                                              f"'task retro: pack:fastapi not-applicable in 3 tasks (a1, a2, a3): "
                                              f"{decline['reason']}'")
         self.assertIn("api-design", decline["also_drops"])
@@ -301,7 +301,7 @@ class RulesAndReservationsTests(RetroCase):
             self.assertFalse(item["needs_terminal"])
         # One rule set aside in three tasks is declined alone, at a terminal (RFC #447).
         single = found[("rule", f"rule:{SKIPPED_RULE}")]
-        self.assertEqual(single["command"], f"openguildkit profile decline rule {SKIPPED_RULE} --by NAME --reason "
+        self.assertEqual(single["command"], f"openguildkit profile decline rule {SKIPPED_RULE} --by INITIALS --reason "
                                             f"'task retro: rule:{SKIPPED_RULE} skipped in 3 tasks (a1, a2, a3): "
                                             f"{SKIPPED}'")
         self.assertTrue(single["needs_terminal"])
@@ -422,7 +422,7 @@ class CheckCommandTests(RetroCase):
         self.assertEqual((stuck["count"], stuck["tasks"], stuck["check_command"]), (3, ["c1", "c2", "c3"], READY_COMMAND))
         self.assertEqual(stuck["point"], f"`{READY_COMMAND}` could not run: The sandbox has no network for the tests")
         self.assertEqual(shlex.split(stuck["command"]), ["openguildkit", "profile", "remove", "check", READY_COMMAND,
-                                                         "--by", "NAME", "--reason", stuck["proposed_reason"]])
+                                                         "--by", "INITIALS", "--reason", stuck["proposed_reason"]])
         self.assertTrue(stuck["proposed_reason"].startswith(f"task retro: `{READY_COMMAND}` could not run"))
         self.assertIn("in 3 tasks (c1, c2, c3)", stuck["proposed_reason"])
         self.assertTrue(stuck["needs_terminal"])
@@ -443,7 +443,7 @@ class CheckCommandTests(RetroCase):
     def test_a_committee_that_brought_nothing_in_every_task_can_leave_the_boards_the_profile_lists(self):
         qa = next(item for item in self.found("--min", "4") if item["kind"] == "committee")
         self.assertEqual((qa["board"], qa["count"], qa["convened_in"]), ("qa", 4, 4))
-        self.assertEqual(qa["command"], "openguildkit profile remove board qa --by NAME --reason "
+        self.assertEqual(qa["command"], "openguildkit profile remove board qa --by INITIALS --reason "
                                         "'task retro: qa brought no blocker or objection in 4 tasks (c1, c2, c3, c4)'")
         self.assertFalse(qa["needs_terminal"])
         result = cli(self.root, "profile", "remove", "board", "qa", "--by", "CM", "--reason", "Retrospective")

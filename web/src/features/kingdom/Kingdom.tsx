@@ -211,7 +211,7 @@ function ProjectForm({ open, project, onClose }: { open: boolean; project?: Proj
   const [v, setV] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [opId] = useState(newOpId);
-  useEffect(() => { if (open) { setV((s.drafts[draftKey] as typeof initial) ?? initial); setError(null); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setV((s.drafts[draftKey] as typeof initial) ?? initial); setError(null); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the form resets when it opens, not when its initial values change
   const dirty = open && JSON.stringify(v) !== JSON.stringify(initial);
   useDirtyGuard(draftKey, dirty);
   const members = [...new Set(list(s, 'member', s.session.orgId).map((m) => m.userId))];

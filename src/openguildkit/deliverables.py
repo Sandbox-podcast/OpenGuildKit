@@ -18,6 +18,7 @@ from .catalog import (
     validate_text,
 )
 from .storage import write_text
+from .wording import plural
 from .workflow import blocker_list, is_decision_task, objections
 
 DATA_CLASSES = ("none", "internal", "personal", "regulated")
@@ -160,9 +161,9 @@ def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
     dossier = task.get("consultation", {}).get("scope", {}).get("market")
     if not dossier:
         return [], ["- Market dossier: none attached. Create one in .openguildkit/market/ and consult the task with --market ID."]
-    gaps = f", {len(dossier.get('gaps', []))} gap(s)" if dossier.get("gaps") else ""
+    gaps = f", {plural(len(dossier.get('gaps', [])), 'gap')}" if dossier.get("gaps") else ""
     return [f"market: {json.dumps(dossier['id'])}"], [
-        f"- Market dossier: .openguildkit/market/{dossier['id']}.json ({len(dossier.get('observations', []))} observation(s){gaps}); "
+        f"- Market dossier: .openguildkit/market/{dossier['id']}.json ({plural(len(dossier.get('observations', [])), 'observation')}{gaps}); "
         f"cite observations as market:{dossier['id']}/ID"]
 
 
@@ -200,13 +201,13 @@ def _status_lines(task: dict) -> list[str]:
 
 
 def _advice_lines(task: dict) -> list[str]:
-    """Each committee's verdict and recommendation, then what the deliberation left open, or the objections that
+    """Each board's verdict and recommendation, then what the deliberation left open, or the objections that
     no deliberation answered and the person decided when approving."""
     review = task.get("review", {})
     lines = [f"- {entry['id']} ({entry.get('challenge', {}).get('verdict', 'no verdict')}): "
              f"{_one_line(entry.get('recommendation'))}" for entry in review.get("boards", [])]
     if not lines:
-        lines = ["No committee review is recorded."]
+        lines = ["No board review is recorded."]
     deliberation = task.get("deliberation")
     if deliberation:
         points = {item["id"]: _one_line(item.get("point")) for item in deliberation.get("objections", [])}
@@ -216,21 +217,21 @@ def _advice_lines(task: dict) -> list[str]:
         if left and deliberation.get("decision_needed"):
             lines.append(f"- Decision needed: {_one_line(deliberation['decision_needed'])}")
         if not left:
-            lines.append("No disagreement was left open between the committees.")
+            lines.append("No disagreement was left open between the boards.")
         return lines
     try:
         pending = objections(review, task.get("consultation", {}).get("domains"))
     except (KeyError, TypeError, AttributeError, ValueError):
-        return [*lines, "", "The objections between committees cannot be read from this task record."]
+        return [*lines, "", "The objections between boards cannot be read from this task record."]
     if not pending:
-        return [*lines, "", "No disagreement was left open between the committees."]
+        return [*lines, "", "No disagreement was left open between the boards."]
     lines += ["", f"{len(pending)} objection{'' if len(pending) == 1 else 's'} not deliberated, "
                   f"{', '.join(item['id'] for item in pending)}: the person decided them when approving."]
     return [*lines, *(f"- {item['id']}: {_one_line(item.get('point'))}" for item in pending)]
 
 
 def _condition_lines(task: dict) -> list[str]:
-    """Each blocker a committee set, without who owns, cleared or waived it: only the decision's own name is kept."""
+    """Each blocker a board set, without who owns, cleared or waived it: only the decision's own name is kept."""
     lines = []
     for item in blocker_list(task):
         when = "after the decision" if item.get("phase") == "verification" else "before the decision"
@@ -247,7 +248,7 @@ def _condition_lines(task: dict) -> list[str]:
             line += (f" Waived until {resolution.get('until', '')}: {_one_line(resolution.get('reason'))} "
                      f"(scope: {_one_line(resolution.get('scope'))})")
         lines.append(line)
-    return lines or ["No condition: no committee set a blocker."]
+    return lines or ["No condition: no board set a blocker."]
 
 
 def decision_sections(task: dict) -> dict[str, list[str]]:
@@ -264,7 +265,7 @@ def decision_sections(task: dict) -> dict[str, list[str]]:
               f"Approved by {decision.get('by', '')} on {_day(decision.get('at'))}."]
     summary = _quoted(task.get("review", {}).get("summary"))
     if summary:
-        chosen += ["", "The committees' review in short:", "", *summary]
+        chosen += ["", "The boards' review in short:", "", *summary]
     record = [f"- Exported decision record: `.openguildkit/decisions/{task_id}.json`, written by "
               f"`openguildkit task export {task_id}` (again after the task closes)."]
     if decision.get("seal"):
@@ -392,7 +393,7 @@ def draft_problems(deliverable: dict, text: str) -> list[str]:
         elif not sections[title]:
             problems.append(f'Section "{title}" is empty.')
     if "TODO" in visible:
-        problems.append(f"{visible.count('TODO')} placeholder(s) still say TODO.")
+        problems.append(f"{plural(visible.count('TODO'), 'placeholder')} still {'says' if visible.count('TODO') == 1 else 'say'} TODO.")
     if "Sources" in sections and not any(line.startswith("- ") and "TODO" not in line for line in sections["Sources"]):
         problems.append("List at least one source.")
     checked = {match["id"] for match in _CHECKED.finditer("\n".join(sections.get("Checks", [])))}

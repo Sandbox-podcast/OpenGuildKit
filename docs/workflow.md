@@ -1,5 +1,7 @@
 # Task workflow
 
+For: the person who decides on a change and the agent that follows the task path.
+
 Every change in an OpenGuildKit project goes through the same six steps, from the request to the closing. The host agent runs the commands; the person answers the questions, makes the decision and confirms what is theirs to confirm. A project can opt in to a [short lane](#short-lane) for a change a person declares trivial; it is off until a person turns it on.
 
 ```mermaid
@@ -134,7 +136,7 @@ openguildkit task consult ID --answers answers.json --add finance --remove marke
 
 Each addition or removal needs a reason; the consultation records it under `adjustments`. Only boards enabled in the profile can be added. Only the requester decides to remove a board, and the decision brief and the approval prompt list every change with its reason. A board selected by a `personal`, `regulated` or `unsure` data answer (security, and legal for regulated data) can be removed only with the approver's confirmation: the removal stays pending until the person approving types the board's name at the prompt, and approval is refused without it.
 
-A project can make some reviews mandatory with `openguildkit profile add required-board security --by NAME --reason WHY`, which writes `"required_boards": ["security"]` in its profile. These boards join every consultation and cannot be removed; `AGENTS.md` lists them under "Required reviews". When a required board is not enabled for the project, the consultation stops and names it. The requester can then name the person who will review instead, with `--delegate security=AM`: the brief tells the agent to prepare the review for that person, and the review entry carries that identifier in `reviewer`.
+A project can make some reviews mandatory with `openguildkit profile add required-board security --by INITIALS --reason WHY`, which writes `"required_boards": ["security"]` in its profile. These boards join every consultation and cannot be removed; `AGENTS.md` lists them under "Required reviews". When a required board is not enabled for the project, the consultation stops and names it. The requester can then name the person who will review instead, with `--delegate security=AM`: the brief tells the agent to prepare the review for that person, and the review entry carries that identifier in `reviewer`.
 
 Each selected board gets a brief with its purpose, the routing reasons, its expertises, its questions and its source leads. The request also carries a snapshot of the project scope: sector context, stack, resolved rule packs, conventions, checks and the research policy for this task.
 
@@ -239,7 +241,7 @@ The task goes back to `changes-requested`: the approval goes to `rounds` with wh
 
 ### Signed approvals
 
-A local approval is sealed with a SHA-256 of data that all sits in the task file. The seal detects an accidental edit; it does not prove who approved, because anyone who can write the file can recompute it. With `"guard": "enforce"`, `init`, `host check` and `check` say so in one line until a person requires signed approvals at their terminal, with `openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by NAME --reason WHY`. The profile then holds:
+A local approval is sealed with a SHA-256 of data that all sits in the task file. The seal detects an accidental edit; it does not prove who approved, because anyone who can write the file can recompute it. With `"guard": "enforce"`, `init`, `host check` and `check` say so in one line until a person requires signed approvals at their terminal, with `openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by INITIALS --reason WHY`. The profile then holds:
 
 ```json
 "approval": {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["CM"]}
@@ -261,6 +263,24 @@ What signed mode is worth depends on where the check runs:
 
 - **In CI** (`guard --ci`), the approvers and the signers file come from the base revision, which the pull request cannot change: a key the change adds signs nothing there, and a record the base revision does not carry is verified against today's approvers only. This is the check that holds against an agent that can write files and commit.
 - **In a local copy** (`task list`, `check`, the edit hook, `handoff`), a signature is verified against the signers file committed at `HEAD`. An agent that commits its own key to that file and to `approvers` can sign an approval that holds locally while the key is there; the pull request then shows the change to the signers file, and CI refuses the approval. When the key is gone from `HEAD` again, the approval holds only through the revision it was signed at, and that revision counts only when the merged branch contains it: `origin/HEAD` (the remote's default branch, which `git clone` sets; `git remote set-head origin --auto` sets it otherwise), or else the branch's upstream. A key committed and reverted on a local branch therefore approves nothing, and `task list` names the signer and the revision of every approval that holds this way. Local Git references can still be rewritten by whoever has a shell in the repository: locally, signed mode stops an edited file and a key that was never reviewed, and CI on the base revision is what decides.
+
+### Certificates of an authority
+
+Instead of one key per approver, the allowed signers file can trust an SSH authority, the one the company runs behind its single sign-on: one line, `PRINCIPAL cert-authority ssh-ed25519 AAAA...` (the authority's public key). The approver signs in to the directory, the authority gives them a short certificate for their principal, and they sign with it: `ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json`. `task decide` and every reader verify it with `ssh-keygen -Y verify`, which checks the authority's signature, the principal, the namespace and the validity of the certificate. An approver who leaves loses the right to sign when the authority stops issuing: no commit in each repository. A test signs and verifies with a certificate (`tests/test_decisions.py`).
+
+What it proves: the signature was made with a key that the committed signers file's authority certified for that principal, and the certificate was valid when it was checked. What it does not prove: what the authority checked before issuing it, that a person and not a program held the key (a passphrase or a hardware token still decides that), or when the person signed.
+
+Verified now, a certificate that expires voids every approval already recorded. An approver who wants to avoid that adds the time they sign at to the payload:
+
+```bash
+openguildkit task decision-payload request-status --by CM --reason "Agreed" --signed-at --output decision.json
+ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json
+openguildkit task decide request-status --approve --by CM --reason "Agreed" --signature decision.json.sig --signer CM --signed-at 2026-11-27T10:15:30Z
+```
+
+`--signed-at` alone writes the current UTC time in the payload; `task decide` takes the same value, in `YYYY-MM-DDTHH:MM:SSZ`, and verifies it because the approver signed it: a changed `signed_at` breaks both the signature and the seal. Without `--signed-at`, nothing changes. `task decide` always verifies at the current time, so a key or a certificate that has expired signs no new approval, and refuses a `signed_at` in the future. An approval already recorded (`task list`, `handoff`, `guard --ci`) is verified at its `signed_at`: it keeps holding after the certificate expires, while the approvers and the signers file it is checked against are unchanged. `guard --ci` also refuses a new record whose `signed_at` is more than five minutes after the commit that first brings the record (`decision-signed-late`).
+
+`signed_at` is what the signer states. Someone who still holds an expired certificate and its key can sign a payload that claims an earlier time, and the check accepts it if the time falls in the certificate's validity and is not later than its commit: no clock proves otherwise. Keep the certificates short, ask for a passphrase or a token, and review who merges.
 
 ## 5. Hand off
 
@@ -340,7 +360,7 @@ A brief names a subject the way it routes a board: whole words, a regular plural
 
 Inside a data protection pack that concerns the task, the rules about creating or changing a processing are left out of a task of kind `bug` or `maintenance`, which fixes or maintains a processing the project already runs: in `gdpr`, the record of processing and the DPIA decision (with their named evidence), the lawful basis of a new purpose, the retention of new data, and rights over new data; the age of consent, parental consent, the DPIA for pupils and the default protections of a new flow in `minors-data-protection`; the Art. 9 condition, the DPIA and the medical device qualification and planning in `health-data-protection`. The rules on minimising what the change touches, protecting health data, advertising to minors, notices for children and documenting a changed component stay asked. The `gdpr` rules on a new processor (Art. 28) and a transfer outside the EEA (Chapter V) are left out of a `bug` only: a migration to a hosted service often adds one, a fix almost never. A feature, or any other kind, keeps every rule; `required_rules`, `--all` and `ask_every_rule` keep them too. Each rule left out says why.
 
-A named evidence with a condition on the task's `data` is asked only when the data meets it. To see or answer every rule, run `task checks ID --all` or `task result ID --template --all`; to ask every rule on every task, run `openguildkit profile set ask-every-rule yes --by NAME --reason WHY`.
+A named evidence with a condition on the task's `data` is asked only when the data meets it. To see or answer every rule, run `task checks ID --all` or `task result ID --template --all`; to ask every rule on every task, run `openguildkit profile set ask-every-rule yes --by INITIALS --reason WHY`.
 
 ### The result file
 
@@ -352,16 +372,16 @@ The owner of a `skipped` or `not-applicable` answer is the person who decides it
 
 A rule can name evidence kept outside the code, such as the record of processing activities or the DPIA decision of the GDPR pack. These documents belong to the data controller (in practice the data protection officer or the person accountable for the processing), not to the task: keep them where the organisation keeps its compliance records (an intranet page, or a folder such as `docs/privacy/` that the owner maintains), and cite the same record from every task it covers. The handoff lists first the evidence the closing will ask for and who provides each. The template marks each one with the statuses it accepts: `"requirement": "passed"` (it cannot be declared not applicable: the profile's `required_rules` lists it, or it applies to the task's `data`) or `"passed-or-not-applicable"`; `task checks` prints the same word. A supplied evidence is `passed` with a project path that exists or an `https://` link, and `owner`: the person who provided or confirmed it. OpenGuildKit checks that the path exists; it never reads the document, and says so in `task complete` and in the exported record, with the name of the person who confirmed it. It warns when one file is cited for several different evidences, and when a file looks like configuration, code or an image (a `Dockerfile`, a `.py` or `.png` file).
 
-A result that lacks only named evidence is recorded: an evidence that is missing, declared not applicable where it must be supplied, or cited at a path that does not exist is held back with the reason (`Not recorded: ...`), and the task waits. `task result` and `task list` name the evidence and who provides it, and `task show` and the exported record carry `waiting_for` next to the status. When an answer is not recorded, the output says whether an earlier answer for the same check stays recorded, and does not call the task ready. The person can hand the missing evidence to a follow-up task that the owner will close: open it with `task new "BRIEF" --follows ID`, then run `task complete ID --defer EVIDENCE=FOLLOW-UP --by NAME` at a terminal. The task closes with that reservation visible.
+A result that lacks only named evidence is recorded: an evidence that is missing, declared not applicable where it must be supplied, or cited at a path that does not exist is held back with the reason (`Not recorded: ...`), and the task waits. `task result` and `task list` name the evidence and who provides it, and `task show` and the exported record carry `waiting_for` next to the status. When an answer is not recorded, the output says whether an earlier answer for the same check stays recorded, and does not call the task ready. The person can hand the missing evidence to a follow-up task that the owner will close: open it with `task new "BRIEF" --follows ID`, then run `task complete ID --defer EVIDENCE=FOLLOW-UP --by INITIALS` at a terminal. The task closes with that reservation visible.
 
 ### Closing the task
 
-Every project command is mandatory. A profile can make rules mandatory too with `openguildkit profile add required-rule secure-sdlc python/run-tests --by NAME --reason WHY`, which writes `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` refuses while a mandatory check has not passed, an asked check is not reported, a criterion is not met or a required evidence is awaited, and lists what is missing. Otherwise it closes the task:
+Every project command is mandatory. A profile can make rules mandatory too with `openguildkit profile add required-rule secure-sdlc python/run-tests --by INITIALS --reason WHY`, which writes `"required_rules": ["secure-sdlc", "python/run-tests"]`. `task complete` refuses while a mandatory check has not passed, an asked check is not reported, a criterion is not met or a required evidence is awaited, and lists what is missing. Otherwise it closes the task:
 
 - `done` when nothing is left open: a single line on standard output;
 - `done-with-reservations` when points stay open, listed one per line, grouped by nature and the most serious first: data protection, security or AI rules skipped or failed (or such a pack declared not applicable as a whole); board blocks not lifted (a `block` whose blockers were waived rather than cleared); project checks that could not run in this environment; blockers waived rather than cleared; disagreements between boards left open, each with its point, its two boards and the decision the person must take; named evidence handed to a follow-up task; other rules skipped or failed; warnings on the result; and, for the record, the board verdicts that asked for changes at approval. It gives the command for a linked follow-up: `openguildkit task new "BRIEF" --follows ID`.
 
-Closing over a data protection, security or AI rule that concerns the task and is skipped or failed, or over such a pack declared not applicable as a whole, needs the person: `task complete ID --by NAME`, at a terminal, typing the task ID. The open points are shown once, before the person types the ID. When only such a point is left, `task verify` and `task result` say the task is ready to close with the person at a terminal rather than plain `Ready`. The handoff of a closed task speaks of its checks in the past. `task export --output /dev/stdout` prints the record: an output reached through a link to a device is written to, while a link to a regular file is refused. `check` warns about evidence a reviewer cannot open (ignored by git, or under `.openguildkit/tasks/`) wherever the result cites it: named evidence, rule and pack answers, criteria and their `verified_by`, and blocker clearings; the logs `task verify` keeps for the check commands are left out. When the profile lists no check command, `task complete` says that no project command ran. Notes on what was not run or not read go to standard error. `task list`, `task show`, `task export`, `docs export`, `deliverable` and the guard read both closed statuses. `task export` adds the evidence supplied and who confirmed it, the evidence declared not applicable, the pack answers, the warnings, the deferred evidence, the criteria with what verified them and the open points.
+Closing over a data protection, security or AI rule that concerns the task and is skipped or failed, or over such a pack declared not applicable as a whole, needs the person: `task complete ID --by INITIALS`, at a terminal, typing the task ID. The open points are shown once, before the person types the ID. When only such a point is left, `task verify` and `task result` say the task is ready to close with the person at a terminal rather than plain `Ready`. The handoff of a closed task speaks of its checks in the past. `task export --output /dev/stdout` prints the record: an output reached through a link to a device is written to, while a link to a regular file is refused. `check` warns about evidence a reviewer cannot open (ignored by git, or under `.openguildkit/tasks/`) wherever the result cites it: named evidence, rule and pack answers, criteria and their `verified_by`, and blocker clearings; the logs `task verify` keeps for the check commands are left out. When the profile lists no check command, `task complete` says that no project command ran. Notes on what was not run or not read go to standard error. `task list`, `task show`, `task export`, `docs export`, `deliverable` and the guard read both closed statuses. `task export` adds the evidence supplied and who confirmed it, the evidence declared not applicable, the pack answers, the warnings, the deferred evidence, the criteria with what verified them and the open points.
 
 ### Project checks
 
@@ -375,11 +395,11 @@ When a command cannot run in this environment for this task (no network, a missi
 openguildkit task verify ID --cannot-run command:1 --by CM --reason "The sandbox has no network for npm ci."
 ```
 
-The command runs first: one that passes here cannot be declared. The reason takes at least three words, and a declaration is not combined with `--chaosfolk`. `task verify` prints the command as `skipped`, with who declared it and why. The command then no longer blocks completion, and the task closes as `done-with-reservations` with that point listed. A later `task verify` runs the command again and keeps the declaration while it still fails, saying so; the declaration ends when the command passes, or when the person who made it withdraws it with `task verify ID --withdraw command:1 --by NAME` at a terminal, which runs the command and records its outcome.
+The command runs first: one that passes here cannot be declared. The reason takes at least three words, and a declaration is not combined with `--chaosfolk`. `task verify` prints the command as `skipped`, with who declared it and why. The command then no longer blocks completion, and the task closes as `done-with-reservations` with that point listed. A later `task verify` runs the command again and keeps the declaration while it still fails, saying so; the declaration ends when the command passes, or when the person who made it withdraws it with `task verify ID --withdraw command:1 --by INITIALS` at a terminal, which runs the command and records its outcome.
 
 `task verify` exits with status 1 when a mandatory check command failed, so a script or a CI job can tell; it exits with 0 when only answers remain to give (the listed points say which). When a command fails, the message starts with the first line of its output that names the error ("Cannot find module 'express'") and ends with its last lines, then the log path.
 
-A check that cannot run on the team's workstations, because it needs the network, a service or credentials, does not belong in `checks`: leave it out at setup, or ask the person to run `openguildkit profile remove check 'COMMAND' --by NAME --reason WHY` at their terminal (a check removed weakens a protection), then run it in CI and name it under `conventions` (for example "The integration tests run in CI: tests/integration needs the payment sandbox") so the agent and the reviewers know where its result comes from.
+A check that cannot run on the team's workstations, because it needs the network, a service or credentials, does not belong in `checks`: leave it out at setup, or ask the person to run `openguildkit profile remove check 'COMMAND' --by INITIALS --reason WHY` at their terminal (a check removed weakens a protection), then run it in CI and name it under `conventions` (for example "The integration tests run in CI: tests/integration needs the payment sandbox") so the agent and the reviewers know where its result comes from.
 
 ## Delivered diff review
 
@@ -474,7 +494,7 @@ Whatever the profile and the task say, the lane never covers a change of rules, 
 
 - the state of the project: everything under `.openguildkit/` (the profile, the catalog, the decisions);
 - CI workflows: `.github/workflows/` and `.github/actions/`;
-- the instructions and settings of agents: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and `WARP.md` in any folder, and the files and folders `host scan` reads: `.claude/`, `.codex/`, `.cursor/`, `.cursorrules`, `.windsurf/`, `.windsurfrules`, `.clinerules`, `.roo/`, `.kilocode/`, `.junie/`, `.rules`, `.gemini/`, `.mcp.json`, `.vscode/mcp.json`, `.github/copilot-instructions.md` and `.github/instructions/`;
+- the instructions and settings of agents: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `WARP.md`, `AGENTS.override.md` and `CLAUDE.local.md` in any folder, and the files and folders `host scan` reads: `.claude/`, `.codex/`, `.cursor/`, `.cursorrules`, `.windsurf/`, `.windsurfrules`, `.clinerules`, `.roo/`, `.kilocode/`, `.junie/`, `.rules`, `.gemini/`, `.mcp.json`, `.vscode/mcp.json`, `.goosehints`, `.opencode/`, `.agents/skills/`, `.github/copilot-instructions.md`, `.github/instructions/`, `.github/prompts/` and `.github/agents/`;
 - the dependency manifests and lockfiles, in any folder: `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `bun.lock`, `bun.lockb`, `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `Cargo.toml`, `Cargo.lock`, `composer.json`, `composer.lock`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts`, `gradle.lockfile`, `libs.versions.toml`, `packages.config`, `Directory.Packages.props`, `Directory.Build.props`, `Package.swift`, `Package.resolved`, `mix.exs`, `mix.lock`, `pubspec.yaml`, `pubspec.lock`, `deno.json`, `deno.jsonc`, `deno.lock`, `environment.yml`, `conda-lock.yml`, `flake.lock`, `requirements*.txt` and `constraints*.txt`, and any file ending in `.lock`, `.lockb`, `-lock.json`, `-lock.yaml`, `-lock.yml`, `.csproj`, `.fsproj`, `.vbproj` or `.gemspec`.
 
 A change of these goes through the full path.
@@ -522,6 +542,38 @@ Turning it on or off changes who may approve, so both follow the rule of every s
 - **The seal** of an approval given with the option on records `"separate_requester": true`, and the exported record carries it in `decision`.
 - **`guard --ci`** reads the option at the base revision, as it reads `light_paths`, so a pull request cannot turn it off for itself. When it is on there, a record whose approver (`by`, or the signer) is its requester is refused (`decision-requester-approved`), and so is a new record that names no requester (`decision-requester-missing`). A record whose `requested_by` differs from the sealed one is invalid (`decision-record-invalid`).
 - **Tasks for dependency alerts** (`alerts tasks --open`) name `openguildkit alerts` as their requester when the option is on: the watch asked for them, and any person approves them.
+
+## Roles by board
+
+Until the project decides, `approval.approvers` and `waivers.allowed_by` are flat lists: a blocker the security board raised is cleared by whoever types `--by`, or, in a signed project, by the signature of any approver, and the final approval is the same. OpenGuildKit offers an option, `approver-roles`, off in every project: a project that sets none behaves exactly as before, and its records, approvals and exports are read as they were. A role only restricts, so setting one needs no terminal; giving a role more people, or removing it, weakens a protection and is a person's act at an interactive terminal, who types the board and the names to confirm.
+
+```bash
+openguildkit profile set approver-roles security CM JD --by SAM --reason "Security signs for security"
+openguildkit profile set approver-roles legal AB --by SAM --reason "Legal signs for legal"
+openguildkit profile set approver-roles security none --by SAM --reason "Roles ended"     # a person, at a terminal
+```
+
+The profile then holds `"approval": {"mode": "local", "roles": {"security": ["CM", "JD"], "legal": ["AB"]}}`; the keys are board IDs. In a signed project the names are the principals of the allowed signers file.
+
+- **Clearing and waiving.** `task clear` and `task waive` of a blocker a board with a role raised are refused unless the person is in that role, with `security:1 was raised by the security board: a signer of role security clears it (CM, JD). PL is not one of them.` A signed clearance compares the verified signer; a local one, and every waiver, the name given with `--by`, without case or spaces. A board without a role is as before.
+- **The final approval.** `task decide --approve` is refused when a board with a role gave a blocking advice on the task (a `block` verdict, or at least one blocker) and the approver is in none of those roles: the signer of a signed approval, else `--by`. One person approves, so a task blocked by two boards is approved by a member of either role, the blockers having been cleared by their own.
+- **`guard --ci`** reads the roles of the base revision, so a pull request cannot give itself a role. A record the base revision does not carry is refused (`decision-role-outside`) when a blocker was cleared or waived by someone outside the role of its board, or when its approval is outside the roles of the boards that blocked. A record the base revision already carries is not judged again.
+- **What it does not do.** A name typed with `--by` is not linked to a person: someone can type a member's name at a terminal they control, as `separate-requester` says of requesters. Only signed approvals tie a role to a key. The role does not void an approval, and it does not make `--requested-by` a principal: a requester is still compared by name.
+
+## Incident response
+
+When a model is compromised, a malicious MCP server is found or a secret leaks, two options of the profile stop what agents can do. Both are off in every project: a project that sets neither behaves as before, and its task records, approvals and exports are read as they were. Both only restrict, so they are set without a terminal, with `--by` and `--reason` like every profile change. Lifting or loosening one weakens a protection: a person at an interactive terminal types the command and its value to confirm it, as for `light-paths` or `approval signed`.
+
+```bash
+openguildkit profile set freeze on --by CM --reason "Model compromised, 2026-11-27"
+openguildkit profile set freeze off --by CM --reason "All clear"          # a person, at a terminal
+openguildkit profile set max-approval-age 30 --by CM --reason "Reconsult monthly"
+openguildkit profile set max-approval-age 60 --by CM --reason "Back to two months"   # looser: a person, at a terminal
+```
+
+- **Freeze.** `freeze on` writes `frozen` (`by`, `on`, `reason`) in the profile and in its history. The edit hook then refuses every edit inside the project, even under an approved task and in `observe`, with `Edit refused: the project is frozen by CM since 2026-11-27: REASON`, and each request reminds the agent. The approvals stand: `guard --json` still lists them in `covered_by`, and the freeze voids none. `guard --ci` reads the freeze at the base revision, as it reads the mode, so a pull request cannot lift it for itself: it fails every change (`guard-frozen`, whatever the guard mode) except the one that does nothing but lift the freeze, which touches only the profile, the catalog lock and decision records, drops `frozen` and adds the entries of `profile set freeze off` to the history. That change is then judged like any other and needs its decision. A freeze needs the guard on: with `"guard": "off"` the hook does not run, and the command says so. The freeze does not reach what runs outside the guard: an agent with a shell, a host that does not run the hooks, a change made through Cursor or Copilot before CI.
+- **Longest age of an approval.** `approval.max_age_days` (1 to 366) ends the cover of an approval older than that: `guard --json` no longer lists it in `covered_by`, the edit hook refuses the edits it covered, and `task list`, `check` (`decision-expired`), `handoff`, `verify`, `result`, `complete` and `export` name the approval and the command that consults the task again, the same as for an approval given under earlier rules. A completed task is history and is not reached. An approval whose date cannot be read does not cover. `guard --ci` does not date records: it judges the change a pull request brings. The stale flag after 14 days stays a message for a project without a limit.
+- **What is not here.** A freeze or a limit for the whole organization, pushed to every repository by a policy file or a workstation configuration, needs the organization policy of the same audit and is not part of this option.
 
 ## Dependency alerts
 
@@ -587,7 +639,7 @@ openguildkit init --answers answers.json
 
 It never carries what belongs to people or to the first repository, and says so on its last lines: the project name, the history of changes, people's names, the signers file, component paths (each pattern applies to the whole new project until the person scopes it), check commands (add the second repository's with `openguildkit profile add check`) and the host's tool connections (`tools apply` writes them per repository). A credential in a convention or a resolution reason is replaced with a placeholder.
 
-A setting that names a person, or that lowers a protection, is left out and typed again by the person at a terminal in the second repository, like any change that weakens a protection. The command prints each one with what to type: signed approvals (`openguildkit profile set approval signed --signers PATH --approver NAME`), a waiver policy, the short lane, a guard below `observe` (the new project starts at `observe`; `openguildkit profile set guard off --by NAME --reason WHY` lowers it), and public research. A norm the first repository declined comes back active, since its decline names who decided: the person declines it again with `openguildkit profile decline ID --by NAME --reason WHY`.
+A setting that names a person, or that lowers a protection, is left out and typed again by the person at a terminal in the second repository, like any change that weakens a protection. The command prints each one with what to type: signed approvals (`openguildkit profile set approval signed --signers PATH --approver NAME`), a waiver policy, the short lane, a guard below `observe` (the new project starts at `observe`; `openguildkit profile set guard off --by INITIALS --reason WHY` lowers it), and public research. A norm the first repository declined comes back active, since its decline names who decided: the person declines it again with `openguildkit profile decline ID --by INITIALS --reason WHY`.
 
 ### When two copies use the same task ID
 
@@ -610,6 +662,8 @@ Then Git says whether the file changed after the most recent decision: after its
 
 The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
 
+For an auditor, `openguildkit evidence export --output DOSSIER` gathers the exported decisions of a period with the state of their seals and signatures, and `evidence verify DOSSIER` checks that no file changed ([compliance](compliance.md#the-evidence-dossier)).
+
 ## Several projects at once
 
 ```bash
@@ -617,6 +671,8 @@ openguildkit projects ~/code                      # each project among the subfo
 openguildkit projects ~/code/*                    # the folders the shell names, one by one
 openguildkit projects ~/code --search "refund"    # briefs, decision reasons and rule IDs that hold the text
 openguildkit projects ~/code --json               # every project and every match, for a program
+openguildkit projects ~/code --surfaces           # also the agent tools and MCP servers of each folder, a project or not
+openguildkit projects ~/code --policy policy.json --strict --format csv > fleet.csv   # gaps to a minimum, one line per folder
 ```
 
 A tech lead or a security officer who looks after several repositories sees where to act without opening each one. `projects` takes folders: a project itself, or a folder whose subfolders are projects (one level down; hidden folders are skipped). Without a folder it reads the current one. It prints one line per project: the guard mode, whether approvals are signed, the tasks by status, the approvals that no longer hold, the open points (the blockers a reviewed task still waits on and the points a task closed with reservations left open), the critical alerts confirmed in the alert register, and whether `openguildkit check` passes, with its last line when it fails. The last line gives the `check` command of the first project that fails it.
@@ -626,6 +682,24 @@ A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuil
 `--search TEXT` finds the text, case aside, in the first line of each task's brief, its decision reason and the rule IDs of its result (`rule:python/follow-python-style (failed)`), in the tasks of each copy and then in the exported records of the tasks it does not hold. Each match names its project. The first 50 are printed; `--json` gives them all.
 
 `projects` writes nothing and registers no project anywhere: it reads each project as its own commands do, runs `check` in the same process, and takes the folders again at each run. The web interface runs it on its own project only, since a path outside the project is refused there.
+
+### Inventory of a fleet (options, off by default)
+
+`--surfaces` adds to each project what `host scan` finds in its folder: the host and the state of its hooks, the agent tools, the MCP servers (how many, how many without a fixed version, how many the registry does not know), the permissive settings, the version that wrote the catalog lock, the commit of the organization catalog it follows and the day of its last decision.
+A folder without a profile is read the same way: where agents already work, it is printed on its own line (`not an OpenGuildKit project; agents at work: cursor`) instead of among the folders that hold nothing. That is the list to read before a deployment.
+
+`--policy FILE` compares each project with the minimum a JSON file describes, and reads the surfaces too. The file is read and never written, and holds any of three fields:
+
+```json
+{"guard": "enforce", "approvals": "signed", "separate_requester": true}
+```
+
+`guard` is the lowest mode accepted (`off`, `observe` or `enforce`), `approvals` asks for signed approvals, `separate_requester` asks for the [requester kept from approving](#requester-and-approver). Each gap is named, with the value found, on the line of the project (`policy gap: guard observe, the policy asks for enforce`) and under `drift` in `--json`.
+A folder where agents work without a profile, and a project that cannot be read, are a gap of the field `project`. Any other field, or a value the policy does not allow, stops the command, so that a typo is not a rule that never fires. `--strict` ends in 1 when a folder falls short; it needs `--policy`.
+
+`--format csv` prints one line per folder under a header that does not change: `path,state,name,guard,approvals,tasks,attention,open_points,critical_alerts,check,host,hooks,lock,catalog_commit,last_decision,tools,mcp_servers,mcp_unpinned,mcp_unlisted,permissive,drift`.
+A cell is empty when its option was not given (`--surfaces` fills `host` to `permissive`, `--policy` fills `drift`, where `none` says that no gap was found), `tools` and `tasks` hold `;`-separated values, and a text that starts with `=`, `+`, `-` or `@` gets a quote before it, so that a spreadsheet shows a project name instead of running it. It does not go with `--json` or `--search`.
+None of this writes in a project: the folders are read as before, and a policy file may sit anywhere.
 
 ## Inspecting a task
 
@@ -656,11 +730,11 @@ No field that holds a person is printed: not the approver, the person who closed
 | List | What it holds | Where it comes from |
 |---|---|---|
 | Rules not applied | The rules and named evidence the result declared `skipped` or `not-applicable`, with the reason recorded; those that `failed`, with the evidence given; a pack declared as a whole; then the packs and evidence the task was not asked, with the reason `relevance.py` gave | `result.checks`, `result.packs` and `result.closing.not_concerned`. An exported record keeps the reason of a rule set aside but only the status of a rule that failed |
-| Committees | The boards convened whose verdict was `proceed`, with no blocker, that neither raised nor received an objection | `consultation.boards`, `review` and the objections that `task respond` recorded or, when it never ran, those the review gives, as `task challenge` shows them |
+| Boards | The boards convened whose verdict was `proceed`, with no blocker, that neither raised nor received an objection | `consultation.boards`, `review` and the objections that `task respond` recorded or, when it never ran, those the review gives, as `task challenge` shows them |
 | Open reservations | The open points of the closing, as it wrote them, most serious first (the skipped and failed rules are only counted: the first list gives them) | `result.closing.open_points` |
 | Blockers waived | Each blocker covered by a waiver rather than cleared: its board, finding, reason, scope and end date | `blocker_resolutions` and `verification_blocker_resolutions`, or `blockers` of an exported record |
 
-Two limits. A rule has no waiver in OpenGuildKit, since a waiver covers a blocker (fourth list), so the first list holds the rules a person set aside or that failed. And a committee is listed only when it said `proceed` and nothing else: one that asked for changes, said it lacked evidence, blocked, or whose advice another board objected to is not, because each did something. The list says nothing about the value of a recommendation's text, only that the committee raised no blocker or objection. An exported record keeps each board's verdict but not the objections between boards, so for a task known only by its record the output says that the committees are not in it, and the full record where the task was closed gives them.
+Two limits. A rule has no waiver in OpenGuildKit, since a waiver covers a blocker (fourth list), so the first list holds the rules a person set aside or that failed. And a board is listed only when it said `proceed` and nothing else: one that asked for changes, said it lacked evidence, blocked, or whose advice another board objected to is not, because each did something. The list says nothing about the value of a recommendation's text, only that the board raised no blocker or objection. An exported record keeps each board's verdict but not the objections between boards, so for a task known only by its record the output says that the boards are not in it, and the full record where the task was closed gives them.
 
 The proposal behind this command also listed the questions that had no effect on routing. That list is not offered: a task record keeps the answers and the reasons each board was selected, never which answer led to which board, and nothing records what routing would have done with another answer. Computing it again would use today's catalog, not the one the task was consulted under, and would say what no record says.
 
@@ -672,10 +746,10 @@ The proposal behind this command also listed the questions that had no effect on
 |---|---|---|
 | A rule skipped or declared not applicable | The same rule or pack answer, the same status and the same reason; case, spacing and a final stop are ignored | For a pack answer, `profile remove pack PACK`, or `profile decline PATTERN` when a single active pattern brings the pack. For one rule set aside in at least 3 tasks, whatever `--min` says, `profile decline rule PACK/RULE` (RFC #447), typed at a terminal; none for a rule the profile requires or already declines, or for a named evidence |
 | A rule that failed | The same rule, whatever the evidence | `profile add required-rule PACK/RULE`, or `PACK` for a pack that failed as a whole |
-| A committee that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
+| A board that brought nothing | The tasks where it was convened and brought nothing, among the tasks that have a task record, with how many tasks that is | `profile remove board BOARD`, only when it brought nothing in every task where it was convened and the profile lists its boards |
 | A reservation | The same wording, ignoring dates, the number of a blocker and the name of a follow-up task. The lines about skipped and failed rules are counted as rules, and the board verdicts, which the closing keeps only as a record, are not counted | `profile remove check 'COMMAND'` for a check command that could not run |
 
-A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by NAME` is the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
+A command is written only when the profile accepts it as of today and it does what the finding asks: a pack that the profile lists and a pattern also brings is stopped by neither command alone, so none is written. A command that stops a pack names the other packs that leave with it. Every command is written and none is run; `--by INITIALS` is the person's to fill in, and a command that lowers a protection stays the person's decision at an interactive terminal, as when they type it unprompted ([profile commands](patterns.md)).
 
 The `--reason` comes filled in with what comes back and the tasks behind it, for example `--reason 'task retro: rule:typescript/strict-type-checking failed in 3 tasks (a2, a3, a4)'`, followed for a rule set aside by the reason the tasks recorded. Once the person runs the command, the profile history (`changes` in `.openguildkit/project.json`) keeps that reason, so the change stays linked to the retrospective. The person can edit it before running the command. It is one line of at most 240 characters: the recorded reason is cut first, then the wording of the finding; past five tasks it names the first five and how many more. It holds no field that names a person, only the task IDs and what the records already say. The reason is quoted like the rest of the command: single quotes for a POSIX shell, and the same with a doubled single quote inside for PowerShell on Windows. `--json` gives it in `proposed_reason` next to `command` (`null` when there is no command), and keeps `tasks` and the other keys as they were.
 
@@ -689,8 +763,8 @@ A reservation that comes back has no profile command: no setting of the profile 
 
 - The file is `FOLDER/retro-draft-YYYY-MM-DD.json`, in the [catalog format](catalog-format.md#packs): the catalog reads it as it is once copied. `FOLDER` is a path inside the project and outside `.openguildkit/`, so no catalog reads the draft where it is written, and an existing file is never overwritten.
 - It is marked draft: its description starts with `DRAFT written by openguildkit task retro`, and each rule's instruction and verification start with `TODO:`, with the reservation as recorded and the tasks behind it. The draft says what came back, never what to do about it: that is for the person to write.
-- It is never active on its own. A profile refuses a pack whose description is still the draft's, whether `profile add pack` adds it or a pattern brings it: the person writes each rule, replaces each `TODO:` and the description, copies the file to `.openguildkit/catalog/packs/`, then runs `openguildkit profile add pack ID --by NAME --reason WHY`.
-- A rule set aside or failed has its profile command instead, and a committee that brought nothing is a question for the team, not a rule: neither is drafted. When no reservation comes back, nothing is written and the output says so. `--json` gives the file, the pack ID and its number of rules under `draft`.
+- It is never active on its own. A profile refuses a pack whose description is still the draft's, whether `profile add pack` adds it or a pattern brings it: the person writes each rule, replaces each `TODO:` and the description, copies the file to `.openguildkit/catalog/packs/`, then runs `openguildkit profile add pack ID --by INITIALS --reason WHY`.
+- A rule set aside or failed has its profile command instead, and a board that brought nothing is a question for the team, not a rule: neither is drafted. When no reservation comes back, nothing is written and the output says so. `--json` gives the file, the pack ID and its number of rules under `draft`.
 
 ### Every month in CI
 
@@ -708,5 +782,7 @@ The job asks for `contents: read` and `issues: write` and nothing else: it write
 |---|---|
 | 0 | Success, also when the reader of the output stops early, as `head` does in a pipe: the command ends without a message |
 | 1 | Validation or state error (message on stderr, prefixed `OpenGuildKit:`). A command refused in the task's status, such as `task pass` on a draft or `task decide` during the consultation, says what it refuses, the status, and the command that runs next in it |
-| 2 | Command-line usage error |
+| 2 | Command-line usage error. Three commands give 2 for another reason: `guard --hook` (an edit is refused), `tools apply` (some tools are connected, others not) and `ci-check` (the evaluation could not run) |
 | 130 | Cancelled with Ctrl+C |
+
+Code 1 also covers a project that does not conform and a command that could not evaluate it; the message tells them apart. [Exit codes](exit-codes.md) lists every command that departs from this table, with its case.

@@ -45,4 +45,84 @@ Issues = "https://github.com/Sandbox-podcast/OpenGuildKit/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-openguildkit = ["registry/*/*.json", "registry/catalog.bundle.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
+openguildkit = ["registry/*.json", "registry/*/*.json", "registry/catalog.bundle.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
+
+# Python lint and types (#501). scripts/lint_ratchet.py runs both tools with the settings below and compares
+# the findings per rule with scripts/lint-baseline.json: a count may go down, never up (docs/testing.md).
+[tool.lint_ratchet]
+# The versions the baseline was measured with. CI installs these two; the script refuses any other.
+ruff = "0.17.6"
+mypy = "2.4.1"
+# The modules of src/ that still have mypy errors. A module not listed here must have none, so a new module is
+# born clean; take a module off the list when its errors are fixed.
+mypy_excluded = [
+  "src/openguildkit/alerts.py",
+  "src/openguildkit/catalog.py",
+  "src/openguildkit/ci.py",
+  "src/openguildkit/cli.py",
+  "src/openguildkit/consultation.py",
+  "src/openguildkit/decisions.py",
+  "src/openguildkit/deliverables.py",
+  "src/openguildkit/delivered_review.py",
+  "src/openguildkit/detect.py",
+  "src/openguildkit/guard.py",
+  "src/openguildkit/hosts.py",
+  "src/openguildkit/lock.py",
+  "src/openguildkit/market.py",
+  "src/openguildkit/mcp_mock.py",
+  "src/openguildkit/mcp_protocol.py",
+  "src/openguildkit/org_catalog.py",
+  "src/openguildkit/org_catalog_cli.py",
+  "src/openguildkit/owners.py",
+  "src/openguildkit/patterns.py",
+  "src/openguildkit/portal_verification.py",
+  "src/openguildkit/project.py",
+  "src/openguildkit/project_checks.py",
+  "src/openguildkit/project_mcp.py",
+  "src/openguildkit/projects_cli.py",
+  "src/openguildkit/prompts.py",
+  "src/openguildkit/publishing.py",
+  "src/openguildkit/questionnaire.py",
+  "src/openguildkit/references.py",
+  "src/openguildkit/relevance.py",
+  "src/openguildkit/results.py",
+  "src/openguildkit/retro.py",
+  "src/openguildkit/routing.py",
+  "src/openguildkit/rule_checks.py",
+  "src/openguildkit/stack_versions.py",
+  "src/openguildkit/storage.py",
+  "src/openguildkit/storybook.py",
+  "src/openguildkit/storybook_extract.py",
+  "src/openguildkit/surfaces.py",
+  "src/openguildkit/tasks.py",
+  "src/openguildkit/tasks_cli.py",
+  "src/openguildkit/terminal.py",
+  "src/openguildkit/tools.py",
+  "src/openguildkit/tools_cli.py",
+  "src/openguildkit/trace_cli.py",
+  "src/openguildkit/webui.py",
+  "src/openguildkit/workflow.py",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+include = ["src/**/*.py", "tests/**/*.py", "scripts/**/*.py", "examples/**/*.py", ".github/scripts/*.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "RUF100", "ISC", "PLW1510", "ARG"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/openguildkit"]
+warn_unused_ignores = true
+warn_return_any = false
+
+# Code coverage of the package, measured by .github/workflows/coverage.yml (scripts/coverage.py measures the catalog).
+# One data file per process, in the ignored build/ folder; the processes the tests start are measured too.
+[tool.coverage.run]
+branch = true
+parallel = true
+source = ["src/openguildkit"]
+patch = ["subprocess"]
+data_file = "build/coverage/.coverage"

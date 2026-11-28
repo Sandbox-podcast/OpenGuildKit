@@ -10,30 +10,61 @@ import re
 import time
 import uuid
 from collections.abc import Iterable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from functools import cache
 from pathlib import Path
 
-from . import clock, delivered_review, light_lane, requester, task_index
-from .decisions import (
-    DECISIONS_DIR, EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload,
-    history_message, reconsult_command, revisions_outside_history, seal, signature_or_history_problem,
-    stale_approval_message, verify_signature,
-)
-from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
-from .relevance import sensitive_area
-from .sensitive import redact_credentials, redact_data
-from .results import (
-    DONE_STATUSES, asked_checks, completion_problems, evidence_fingerprint, evidence_state, merge_results,
-    not_concerned, outcomes, result_warnings, validate_result, waiting_evidence,
-)
-from .storage import file_signature, read_json, write_text
+from . import clock, delivered_review, incident, light_lane, requester, roles, task_index
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_not_found, consult, profile_settings
+from .decisions import (
+    DECISIONS_DIR,
+    EARLIER_SIGNERS,
+    approval_policy,
+    base_commit,
+    check_decision_seal,
+    decision_payload,
+    history_message,
+    reconsult_command,
+    revisions_outside_history,
+    seal,
+    signature_or_history_problem,
+    signing_time_of,
+    stale_approval_message,
+    verify_signature,
+)
+from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .questionnaire import validate_answers
+from .relevance import sensitive_area
+from .results import (
+    DONE_STATUSES,
+    asked_checks,
+    completion_problems,
+    evidence_fingerprint,
+    evidence_state,
+    merge_results,
+    not_concerned,
+    outcomes,
+    result_warnings,
+    validate_result,
+    waiting_evidence,
+)
+from .sensitive import redact_credentials, redact_data
+from .storage import file_signature, read_json, write_text
+from .wording import plural
 from .workflow import (
-    RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, decision_summary, is_decision_task,
-    pending_removals, resolution_field, review_warnings, validate_board_entry, validate_deliberation, validate_review,
+    RESOLUTION_FIELDS,
+    TaskStateError,
+    blocker_list,
+    blocker_resolutions,
+    decision_summary,
+    is_decision_task,
+    pending_removals,
+    resolution_field,
+    review_warnings,
+    validate_board_entry,
+    validate_deliberation,
+    validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -460,11 +491,11 @@ def next_command(task: dict) -> str:
         return f"{'; '.join(steps)}; then {review}" if steps else f"every pass is done: {review}"
     if status == "reviewed":
         decide = (f"the person decides at their terminal: openguildkit task decide {task_id} --approve (or "
-                  "--request-changes) --by NAME --reason TEXT")
+                  "--request-changes) --by INITIALS --reason TEXT")
         blockers = unresolved_blockers(task)
         if blockers:
             return (f"the person clears {', '.join(blockers)} at their terminal (openguildkit task clear {task_id} "
-                    f"BLOCKER --evidence PATH --supports TEXT --by NAME) or requests changes, then {decide}")
+                    f"BLOCKER --evidence PATH --supports TEXT --by INITIALS) or requests changes, then {decide}")
         return decide
     if status == "changes-requested":
         return f"consult again: {reconsult_command(task_id)} (--answers FILE to change the answers)"
@@ -543,7 +574,7 @@ STALE_DAYS = 14
 
 def revoke_command(task_id: str) -> str:
     """The person's command that withdraws an approval, the same in every message that names it."""
-    return f"openguildkit task revoke {task_id} --by NAME --reason TEXT"
+    return f"openguildkit task revoke {task_id} --by INITIALS --reason TEXT"
 
 
 def days_since(moment: str | None) -> int | None:
@@ -553,7 +584,7 @@ def days_since(moment: str | None) -> int | None:
     except (TypeError, ValueError):
         return None
     if then.tzinfo is None:
-        then = then.replace(tzinfo=timezone.utc)
+        then = then.replace(tzinfo=UTC)
     return (clock.real_now() - then).days
 
 
@@ -565,8 +596,8 @@ def _conditions_step(task: dict, profile: dict | None) -> str:
     expired = "".join(f" {expired_waiver_step(task, item)}" for item in expired_waivers(blocker_list(task)))
     if not waiting:
         return expired
-    text = (f" Condition(s) of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
-            f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by NAME.")
+    text = (f" {'Condition' if len(waiting) == 1 else 'Conditions'} of approval still open: {', '.join(waiting)}. The person clears each with its evidence at "
+            f"their terminal: openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS.")
     if profile is not None and not waiver_policy(profile):
         text += (" The project allows no waiver, so the task cannot complete while one is open: if one cannot be met, "
                  f"the person withdraws the approval at their terminal: {revoke_command(task['id'])}.")
@@ -602,7 +633,7 @@ def _approved_step(task: dict) -> str:
         index = int(item["check"].split(":")[1]) - 1 if item["check"].startswith("command:") else None
         what = f" (`{commands[index]}`)" if index is not None and index < len(commands) else ""
         cause = f": {item['message']}" if item.get("message") else ""
-        more = f" and {len(failed) - 1} other check(s)" if len(failed) > 1 else ""
+        more = f" and {plural(len(failed) - 1, 'other check')}" if len(failed) > 1 else ""
         return f"{item['check']}{what} failed{cause}{more}. Fix it, then run task verify {task_id}."
     waiting = result.get("waiting_for", [])
     if waiting:
@@ -638,6 +669,9 @@ def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None
         if completed:
             return {"kind": "earlier-rules", "severity": "note", "message": history_message(task["id"], changes)}
         return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
+    # An approval over the project's limit (incident.py) covers no more work; a completed task is history.
+    if not completed and (expired := incident.expired_problem(task, profile)):
+        return expired
     # A completed task's record is history: a squash merge is expected to take its revision out of the history.
     found = None if completed or root is None else signature_or_history_problem(task, root, profile, payload, outside)
     if not found:
@@ -1241,7 +1275,7 @@ def expired_waiver_step(task: dict, item: dict) -> str:
     if item.get("phase") == "verification":
         return (f"The waiver of {blocker_id} expired on {until}, so the blocker is open again: the person clears it with "
                 f"its evidence (openguildkit task clear {task_id} {blocker_id} --evidence PATH --supports TEXT --by "
-                f"NAME), grants a new waiver (openguildkit task waive {task_id} {blocker_id} --by NAME --reason TEXT "
+                f"NAME), grants a new waiver (openguildkit task waive {task_id} {blocker_id} --by INITIALS --reason TEXT "
                 f"--scope TEXT --until YYYY-MM-DD), or withdraws the approval: {revoke_command(task_id)}.")
     return (f"The waiver of {blocker_id} expired on {until}, and the approval rested on it: the person withdraws the "
             f"approval ({revoke_command(task_id)}), then the task is consulted again and the blocker cleared with its "
@@ -1347,18 +1381,23 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
             _check_clearance_signature(task, blocker_id, entry, policy, root)
+        # The role of the board that raised the blocker (roles.py): the verified signer, or the name typed.
+        if problem := roles.clearance_problem(profile, blocker, by, entry.get("signer")):
+            raise ValueError(problem)
     else:
         policy = waiver_policy(profile)
         if not policy:
             clear = (f"Clear {blocker_id} with its evidence at the person's terminal (openguildkit task clear "
-                     f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by NAME)")
+                     f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by INITIALS)")
             if verification:
                 raise ValueError(f"The project's policy allows no waiver. {clear}; if it cannot be met, the person "
                                  f"withdraws the approval: {revoke_command(task['id'])}.")
             raise ValueError(f"The project's policy allows no waiver. {clear}, or the person requests changes: "
-                             f"openguildkit task decide {task['id']} --request-changes --by NAME --reason TEXT.")
+                             f"openguildkit task decide {task['id']} --request-changes --by INITIALS --reason TEXT.")
         if by not in policy["allowed_by"]:
             raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
+        if problem := roles.clearance_problem(profile, blocker, by, waiver=True):
+            raise ValueError(problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
@@ -1510,9 +1549,10 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
         raise ValueError(
-            f"{len(sensitive['points'])} data protection, security or AI point(s) are skipped, failed or declared not "
+            f"{plural(len(sensitive['points']), 'data protection, security or AI point')} "
+            f"{'is' if len(sensitive['points']) == 1 else 'are'} skipped, failed or declared not "
             "applicable as a pack. A person "
-            f"confirms closing over them: openguildkit task complete {task['id']} --by NAME, at a terminal."
+            f"confirms closing over them: openguildkit task complete {task['id']} --by INITIALS, at a terminal."
         )
     result = {**task.get("result", {}),
               "closing": {"open_points": groups, "not_concerned": not_concerned(task, profile, relevance)}}
@@ -1641,10 +1681,14 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
-    confirmed_removals: list[str] | None = None, separate: bool = False,
+    confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
+    dated: bool = False,
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
-    says that the profile separated the requester from the approver: the approval and its seal record it."""
+    says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
+    when the approver signed a payload that carries it, is recorded and sealed with the approval. dated has a local
+    approval carry the time of its decision as signed_at, under its seal (the audit log, #454); a signed approval
+    keeps the time its signer gave, or none: the signer signs before the decision is dated."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1668,10 +1712,14 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
-        payload = decision_payload(task, by, reason, base_revision, separate=separate)
+        if dated and signature is None and not signed_at:
+            signed_at = signing_time_of(decision["at"])
+        payload = decision_payload(task, by, reason, base_revision, separate=separate, signed_at=signed_at)
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:
             decision["separate_requester"] = True
+        if signed_at:
+            decision["signed_at"] = signed_at
         if signature is not None:
             decision.update(signer=signature["signer"], signature=signature["text"])
         if pending_removals(task):
@@ -1723,7 +1771,7 @@ def stale_review_message(task_id: str) -> str:
     """What a review given under other rules, checks or boards than the profile's waits for: task decide, task list
     and task consult say it in the same words (a project upgraded from 0.16.1 has its reviewed tasks in this state)."""
     return (f"The rules, checks or boards of the project changed since {task_id} was consulted. The person requests "
-            f"changes (openguildkit task decide {task_id} --request-changes --by NAME --reason TEXT), then you consult "
+            f"changes (openguildkit task decide {task_id} --request-changes --by INITIALS --reason TEXT), then you consult "
             "again.")
 
 

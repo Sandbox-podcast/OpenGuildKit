@@ -12,6 +12,9 @@ matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole s
 
 import re
 
+from .doc_links import doc_link
+from .wording import plural
+
 LANE = "light"
 MAX_PATHS = 50
 DOCS_BOARD, TESTS_BOARD, DEFAULT_BOARD = "developer-relations-and-docs", "qa", "engineering"
@@ -27,8 +30,9 @@ _FOLDERS = ((_STATE_FOLDER, "the profile, the catalog and the decisions of the p
 # whole folders where it reads a folder): a test keeps both lists in step.
 _AGENT_FOLDERS = (".claude", ".codex", ".cursor", ".cursorrules", ".windsurf", ".windsurfrules", ".clinerules", ".roo",
                   ".kilocode", ".junie", ".rules", ".gemini", ".vscode/mcp.json", ".mcp.json",
-                  ".github/copilot-instructions.md", ".github/instructions")
-_INSTRUCTION_NAMES = frozenset({"agents.md", "claude.md", "gemini.md", "warp.md"})
+                  ".github/copilot-instructions.md", ".github/instructions", ".goosehints", ".opencode", ".agents/skills",
+                  ".github/prompts", ".github/agents")
+_INSTRUCTION_NAMES = frozenset({"agents.md", "claude.md", "gemini.md", "warp.md", "agents.override.md", "claude.local.md"})
 _MANIFEST_NAMES = frozenset({
     "package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "bun.lock", "bun.lockb", ".npmrc", ".yarnrc", ".yarnrc.yml", "pyproject.toml", "setup.py", "setup.cfg", "pipfile",
@@ -133,8 +137,8 @@ def normalize_entries(values: object, label: str) -> list[str]:
     for entry in entries:
         reason = declared_excluded(entry)
         if reason:
-            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} (docs/workflow.md, "
-                               '"Short lane").')
+            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
+                               f"({doc_link('docs/workflow.md', 'short-lane')}).")
     return entries
 
 
@@ -196,7 +200,8 @@ def outside_message(task_id: str, task_paths: list[str], light_paths: list[str],
     the paths are held to."""
     shown = ", ".join(outside[:10]) + (f" and {len(outside) - 10} more" if len(outside) > 10 else "")
     return (f"Short-lane task {task_id} covers only {', '.join(task_paths)}, within the light_paths of {where} "
-            f"({', '.join(light_paths)}), and {len(outside)} changed file(s) are outside: {shown}. Rules, dependencies, "
+            f"({', '.join(light_paths)}), and {plural(len(outside), 'changed file')} {'is' if len(outside) == 1 else 'are'} outside: {shown}. "
+            f"Rules, dependencies, "
             f"the profile and agent instructions are never in the lane. Move the work to the full path: openguildkit "
             f'task new "BRIEF" --follows {task_id}.')
 
@@ -260,7 +265,7 @@ def board_for(paths: list[str]) -> tuple[str, str]:
 def activation_command(paths: list[str] | tuple[str, ...]) -> str:
     from .shell import shell_command
 
-    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "NAME", "--reason", "WHY"])
+    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "INITIALS", "--reason", "WHY"])
 
 
 def _usable(paths: list[str] | None) -> list[str]:
@@ -345,7 +350,7 @@ def proposed_routing(task: dict, profile: dict, catalog: dict) -> dict | None:
     if board not in set(profile.get("boards") or catalog["boards"]):
         raise ValueError(
             f"The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not "
-            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by NAME "
+            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS "
             f"--reason WHY), or the work takes the full path ({FULL_PATH}).")
     return {board: [reason]}
 
@@ -392,5 +397,5 @@ def scope_line(lane: dict) -> str:
 def next_line(task_id: str, paths: list[str]) -> str:
     return (f"Short lane for {', '.join(paths)}: no questions. Next: openguildkit task consult {task_id} convenes the one "
             f"board its paths call for; run its pass (task pass {task_id} BOARD), submit the entry, record the review "
-            f"(task review {task_id} --summary TEXT), and the person decides, as on the full path (docs/workflow.md, "
-            '"Short lane").')
+            f"(task review {task_id} --summary TEXT), and the person decides, as on the full path "
+            f"({doc_link('docs/workflow.md', 'short-lane')}).")

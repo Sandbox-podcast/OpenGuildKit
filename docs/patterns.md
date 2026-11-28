@@ -1,5 +1,7 @@
 # Work and stack patterns
 
+For: an administrator or a project lead who sets a project's stack, norms and work methods.
+
 A pattern links a recurring project context or team method to versioned rule packs. A Python API with FastAPI and PostgreSQL can reuse instructions for interface compatibility, data access and migrations. A project manager can select Scrum, Kanban or both, as a team that runs Scrumban does.
 
 ## Browse and preview
@@ -47,7 +49,7 @@ Preselected is not imposed. The person keeps or removes each pattern. A norm (a 
 
 ## Change the profile after setup
 
-The agent never edits `.openguildkit/project.json`; the person and the agent change it with `openguildkit profile`. Each command works under the project lock, validates the result as `init` does, rewrites `AGENTS.md` and the catalog lock as `sync` does, records the change with `--by NAME` and `--reason WHY` under `changes`, and lists the open tasks consulted under the previous rules with what to do for each. Before it writes, it names the approved tasks whose approval the change voids.
+The agent never edits `.openguildkit/project.json`; the person and the agent change it with `openguildkit profile`. Each command works under the project lock, validates the result as `init` does, rewrites `AGENTS.md` and the catalog lock as `sync` does, records the change with `--by INITIALS` and `--reason WHY` under `changes`, and lists the open tasks consulted under the previous rules with what to do for each. Before it writes, it names the approved tasks whose approval the change voids.
 
 ```sh
 openguildkit profile adopt gdpr-personal-data --by CM --reason "The sign-up form stores emails"

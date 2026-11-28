@@ -1,5 +1,7 @@
 # Project Storybook and company design system
 
+For: a front-end team that links its Storybook to the company design system.
+
 A team can give its project a Storybook, show the components its company already approved next to its own, let the Design brain cite a story in a precise state, and derive a design system from an application it already has. The OpenGuildKit CLI does not run npm and never opens the network. It writes one configuration file, reads the `index.json` files that Storybook builds, and records the stories the boards can cite. The team runs npm and Storybook.
 
 ## Create the project Storybook

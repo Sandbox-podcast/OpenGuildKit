@@ -1,5 +1,7 @@
 # Reference library
 
+For: a contributor or a reviewer who looks up the source behind a rule.
+
 The library starts from the French SOCLE catalog dated 20 November 2026 (`Socle_Catalogue_References.json`). Each entry keeps its family, category, type, description, applicability notes and public source links. Entries whose source ID did not follow the ID convention were renamed and keep that ID as an alias. The descriptions are in French; an entry whose title is French, or an acronym only, also has an English title in `title_en`, which the CLI and the brain briefs show. The library includes conventions, technical specifications, practices, tools and regulations. Families added since then cover the non-technical disciplines: `people` (human resources), `finance`, `legal`, `support`, `communication`, `delivery` (project management and operations) and `strategy` (leadership and governance). [Browse the family files](../src/openguildkit/registry/references/).
 
 ## Find a reference
@@ -18,7 +20,7 @@ The `work-patterns` family comes from the [pattern catalog](patterns.md). A patt
 
 ## Apply a reference to a project
 
-`openguildkit references` shows material to investigate. `openguildkit catalog` lists the rule packs that can be applied to project instructions. During setup, select the packs that fit your stack and delivery process. For an existing project, run `openguildkit profile add pack ID --by NAME --reason WHY` (or `remove pack`), which rewrites `AGENTS.md`, then `openguildkit check`.
+`openguildkit references` shows material to investigate. `openguildkit catalog` lists the rule packs that can be applied to project instructions. During setup, select the packs that fit your stack and delivery process. For an existing project, run `openguildkit profile add pack ID --by INITIALS --reason WHY` (or `remove pack`), which rewrites `AGENTS.md`, then `openguildkit check`.
 
 | Optional pack | References used | Evidence to keep |
 | --- | --- | --- |
@@ -75,7 +77,7 @@ Before a project activates a requirement, it records four things: the scope (whi
 }
 ```
 
-Then it runs `openguildkit profile add pack team-gdpr --by NAME --reason WHY`, with the person's name and reason, and `openguildkit check`. `AGENTS.md` lists `gdpr` before `team-gdpr`, so the regulation's rules come first and the team's scope, owner and evidence next; `task brief ID --pack PACK` prints either in full. The link runs from the reference (`rgpd`) to the bundled rules (`gdpr`) to the project's checks (`team-gdpr`). `tests/test_references.py` loads this example from a temporary project catalog.
+Then it runs `openguildkit profile add pack team-gdpr --by INITIALS --reason WHY`, with the person's name and reason, and `openguildkit check`. `AGENTS.md` lists `gdpr` before `team-gdpr`, so the regulation's rules come first and the team's scope, owner and evidence next; `task brief ID --pack PACK` prints either in full. The link runs from the reference (`rgpd`) to the bundled rules (`gdpr`) to the project's checks (`team-gdpr`). `tests/test_references.py` loads this example from a temporary project catalog.
 
 ## Add references
 

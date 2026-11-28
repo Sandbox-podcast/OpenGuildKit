@@ -38,8 +38,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openguildkit.clock import today  # noqa: E402
-from openguildkit.references import load_references  # noqa: E402
+from openguildkit.clock import today  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
+from openguildkit.references import load_references  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
 
 STATE = ROOT / "scripts" / "edition-watch.json"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"

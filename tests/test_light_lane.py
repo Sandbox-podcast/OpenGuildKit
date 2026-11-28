@@ -189,7 +189,7 @@ class ActivationTests(ProjectCase):
         before = self.profile()
         _, error = self.run_cli("task", "new", "Fix a typo", "--id", "typo", "--lane", "light", "--paths", "docs/**", code=1)
         self.assertTrue(error.startswith("OpenGuildKit: the short lane is off in this project"), error)
-        self.assertIn("openguildkit profile set light-paths 'docs/**' --by NAME --reason WHY", error)
+        self.assertIn("openguildkit profile set light-paths 'docs/**' --by INITIALS --reason WHY", error)
         self.assertIn("at their terminal", error)
         self.assertIn("without --lane", error)
         self.assertFalse((self.root / ".openguildkit" / "tasks" / "typo.json").exists())
@@ -197,7 +197,7 @@ class ActivationTests(ProjectCase):
 
     def test_the_command_proposed_for_a_path_the_lane_can_never_cover_names_the_usual_folders(self):
         _, error = self.run_cli("task", "new", "Bump", "--id", "bump", "--lane", "light", "--paths", "package.json", code=1)
-        self.assertIn("openguildkit profile set light-paths 'docs/**' 'tests/**' --by NAME --reason WHY", error)
+        self.assertIn("openguildkit profile set light-paths 'docs/**' 'tests/**' --by INITIALS --reason WHY", error)
 
     def test_setup_answers_may_carry_the_lane_like_every_other_setting_and_it_is_checked(self):
         other = tempfile.TemporaryDirectory()
@@ -287,7 +287,7 @@ class ActivationTests(ProjectCase):
         after = {**before, "light_paths": ["docs/**", "tests/**"]}
         on = profile_cli.weakening_changes(before, after, catalog)
         self.assertEqual(len(on), 1)
-        self.assertEqual(on[0][1], ["profile", "set", "light-paths", "docs/**", "tests/**", "--by", "NAME", "--reason", "WHY"])
+        self.assertEqual(on[0][1], ["profile", "set", "light-paths", "docs/**", "tests/**", "--by", "INITIALS", "--reason", "WHY"])
         self.assertEqual(profile_cli.weakening_changes(after, {**after, "light_paths": ["docs/**"]}, catalog), [])
         self.assertEqual(profile_cli.weakening_changes(after, before, catalog), [])
         self.assertEqual(profile_cli.weakening_changes(after, after, catalog), [])
@@ -469,7 +469,7 @@ class ConsultationTests(LaneCase):
         self.new("typo", "docs/**")
         _, error = self.run_cli("task", "consult", "typo", code=1)
         self.assertIn("calls for the developer-relations-and-docs board", error)
-        self.assertIn("openguildkit profile add board developer-relations-and-docs --by NAME --reason WHY", error)
+        self.assertIn("openguildkit profile add board developer-relations-and-docs --by INITIALS --reason WHY", error)
         self.assertIn('openguildkit task new "BRIEF" --id ID', error)
 
     def test_nothing_is_left_to_deliberate_with_one_board(self):
@@ -493,7 +493,7 @@ class ConsultationTests(LaneCase):
         self.run_cli("profile", "set", "light-paths", "none", "--by", "Sam", "--reason", "Closed")
         _, error = self.run_cli("task", "consult", "typo", code=1)
         self.assertIn("Task typo is in the short lane, and the profile no longer names light_paths", error)
-        self.assertIn("openguildkit profile set light-paths docs/** --by NAME --reason WHY", error.replace("'", ""))
+        self.assertIn("openguildkit profile set light-paths docs/** --by INITIALS --reason WHY", error.replace("'", ""))
         self.assertIn('openguildkit task new "BRIEF" --follows typo', error)
         self.enable("docs/**")
         self.run_cli("task", "consult", "typo")
@@ -684,7 +684,7 @@ class HookTests(GuardCase):
         self.approved("typo", "docs/**")
         context = self.context("docs/guide.md")
         self.assertIn("typo (Fix a typo in the guide)", context)
-        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertIn("holds each edit to the paths of the short-lane task (typo (docs/**))", context)
         self.assertNotIn("does not compare", context)
         for outside in ("src/app.py", "README.md", "docs/example/package.json", "docs/AGENTS.md", "package.json",
                         ".github/workflows/ci.yml"):
@@ -723,7 +723,7 @@ class HookTests(GuardCase):
         prompt = json.loads(run_cli(self.root, "guard", "--hook", "prompt", stdin="").stdout)
         context = prompt["hookSpecificOutput"]["additionalContext"]
         self.assertIn("typo", context)
-        self.assertIn("holds each edit to the paths of the short-lane task(s) (typo (docs/**))", context)
+        self.assertIn("holds each edit to the paths of the short-lane task (typo (docs/**))", context)
         self.assertNotIn("does not compare", context)
         text, _ = self.run_cli("guard")
         self.assertIn("typo: Fix a typo in the guide (short lane: docs/**)", text)
@@ -807,7 +807,7 @@ class CiTests(GitCase):
         self.assertEqual(len(result["problems"]), 1, result["problems"])
         problem = result["problems"][0]
         self.assertIn("Short-lane task typo covers only docs/**", problem)
-        self.assertIn("2 changed file(s) are outside: docs/example/package.json, src/app.py", problem)
+        self.assertIn("2 changed files are outside: docs/example/package.json, src/app.py", problem)
         self.assertIn("within the light_paths of the base revision main", problem)
         self.assertIn('openguildkit task new "BRIEF" --follows typo', problem)
         sarif = json.loads(self.ci("--format", "sarif", code=1))
@@ -863,17 +863,17 @@ class CompletionTests(GitCase):
         self.commit_all("The work")
         verified, _ = self.run_cli("task", "verify", "typo")
         self.assertIn("Short-lane task typo covers only docs/**, within the light_paths of this project", verified)
-        self.assertIn("1 changed file(s) are outside: src/app.py", verified)
+        self.assertIn("1 changed file is outside: src/app.py", verified)
         _, error = self.run_cli("task", "complete", "typo", code=1)
         self.assertIn("The task cannot be declared done:", error)
-        self.assertIn("1 changed file(s) are outside: src/app.py", error)
+        self.assertIn("1 changed file is outside: src/app.py", error)
         self.assertEqual(self.task()["status"], "approved")
         # Taking the file out again leaves nothing outside; a new file Git does not track yet counts as well.
         self.git("rm", "-q", "src/app.py")
         self.commit_all("Take it out")
         self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
         self.write("src/new.py", "print('y')\n")
-        self.assertIn("1 changed file(s) are outside: src/new.py", self.run_cli("task", "complete", "typo", code=1)[1])
+        self.assertIn("1 changed file is outside: src/new.py", self.run_cli("task", "complete", "typo", code=1)[1])
         (self.root / "src" / "new.py").unlink()
         self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
 
@@ -1000,6 +1000,10 @@ class BeforeTheShortLaneTests(unittest.TestCase):
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)
+        # The messages give the address of a page at the tag of the installed version: the fixture reads it on main.
+        revision = patch("openguildkit.doc_links._revision", return_value="main")
+        revision.start()
+        self.addCleanup(revision.stop)
 
     def test_every_command_prints_what_it_printed_before_the_lane(self):
         for name, expected in BEFORE["expected"].items():

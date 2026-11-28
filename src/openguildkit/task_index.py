@@ -83,7 +83,8 @@ def entries(state: Path) -> dict[str, dict]:
     except OSError:
         return {}
     known, written = _read_index(directory)
-    current, changed = {}, False
+    current: dict[str, dict] = {}
+    changed = False
     for entry in files:
         try:
             if not entry.is_file():

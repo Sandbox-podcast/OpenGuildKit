@@ -166,7 +166,7 @@ def terminal_command(root: Path, argv: list[str]) -> str:
 
 
 def named_command(message: str) -> list[str] | None:
-    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by NAME, at a terminal."),
+    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by INITIALS, at a terminal."),
     up to the end of its clause, or None when it names none."""
     match = re.search(r"\bopenguildkit (.+)", message)
     if match is None:
@@ -545,7 +545,7 @@ class Handler(BaseHTTPRequestHandler):
     sys_version = ""
     app: "WebApp"
 
-    def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+    def log_message(self, format, *args):  # noqa: A002 - INTENTIONAL(#522): signature of the base class
         if self.app.verbose:
             sys.stderr.write("ui: " + (format % args) + "\n")
 
@@ -574,7 +574,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, status: int, data) -> None:
         extra = {"Cache-Control": "no-store"}
-        body = self._compressed(json.dumps(data, ensure_ascii=False).encode("utf-8"), extra)
+        try:
+            text = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:  # A lone surrogate, from a file name an error repeats: escaped, never a 500 (#528).
+            text = json.dumps(data).encode("ascii")
+        body = self._compressed(text, extra)
         self._send(status, body, "application/json; charset=utf-8", extra)
 
     def _refuse(self, refusal: Refused) -> None:
@@ -583,10 +587,10 @@ class Handler(BaseHTTPRequestHandler):
     def _host_allowed(self) -> bool:
         return (self.headers.get("Host") or "").lower() in self.app.hosts
 
-    def do_HEAD(self):  # noqa: N802 - http.server naming
+    def do_HEAD(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         self.do_GET()
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         address = urlsplit(self.path)
         if (self.headers.get("Host") or "").lower() in self.app.loopback:
             # 127.0.0.1 and localhost are shared by every local server: the session never opens there.
@@ -654,7 +658,7 @@ class Handler(BaseHTTPRequestHandler):
             extra["Content-Encoding"] = "gzip"
         self._send(HTTPStatus.OK, asset.packed if packed else asset.body, asset.kind, extra)
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         try:
             body = self._body()
             self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
@@ -662,7 +666,7 @@ class Handler(BaseHTTPRequestHandler):
             self._refuse(refusal)
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             return  # The browser closed the connection, a tab closed or reloaded: no one is left to answer.
-        except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
+        except Exception as error:  # noqa: BLE001 - INTENTIONAL(#522): report to the page instead of dropping the connection
             self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                  reason="server-error"))

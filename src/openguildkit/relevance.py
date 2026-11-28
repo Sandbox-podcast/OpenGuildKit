@@ -499,7 +499,8 @@ def _structure(origin: dict, task: dict, profile: dict, changed: list[str] | Non
     if kind == "method":
         boards = task.get("consultation", {}).get("boards", [])
         if not [role for role in origin["roles"] if role in boards]:
-            return False, False, (f"method {origin['pattern']} came for the {', '.join(origin['roles'])} role(s), "
+            return False, False, (f"method {origin['pattern']} came for the {', '.join(origin['roles'])} "
+                                  f"{'role' if len(origin['roles']) == 1 else 'roles'}, "
                                   "and no board of those roles reviewed the task")
     if kind == "stack" and origin.get("components"):
         # The task's answers can name its components: the consultation scope then holds only theirs.

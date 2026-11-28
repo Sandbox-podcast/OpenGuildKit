@@ -1,5 +1,7 @@
 # Business deliverables
 
+For: a team that turns an approved task into a business deliverable, and its agent.
+
 An approved task often leads to work outside the code: a campaign brief, a landing page, a release announcement, a support article. A deliverable template gives that work a method, the inputs it needs, the tool actions that need the requester's approval and the checks a reviewer runs.
 
 ```bash
@@ -60,9 +62,9 @@ It starts only from a decision task (answer `kind` set to `decision` at `task co
 | Status | Accepted, with the day of the approval; closed on a day, closed with reservations (`task show ID --closing` lists them, the draft does not copy them), or not closed yet with `task complete ID`; and the task it follows, if any |
 | Context | The brief, then the context and who it affects, as answered at consultation |
 | Options considered | The answer to the `options` question |
-| Decision | The reason the person gave when approving, who approved and on which day, and the summary of the committees' review |
-| Committee advice and disagreements | Each committee's verdict and recommendation; the disagreements the deliberation left open and the decision it said was needed, or the objections no deliberation answered |
-| Conditions | Each blocker a committee set, before or after the decision, with when it clears and whether it was cleared (with the evidence), waived (until when, why, for what scope) or is still open |
+| Decision | The reason the person gave when approving, who approved and on which day, and the summary of the boards' review |
+| Board advice and disagreements | Each board's verdict and recommendation; the disagreements the deliberation left open and the decision it said was needed, or the objections no deliberation answered |
+| Conditions | Each blocker a board set, before or after the decision, with when it clears and whether it was cleared (with the evidence), waived (until when, why, for what scope) or is still open |
 | Consequences | `TODO`: what becomes easier or harder is the person's to write |
 | Decision record | The exported decision record, `.openguildkit/decisions/ID.json`, written by `task export ID`, and the decision seal it carries |
 

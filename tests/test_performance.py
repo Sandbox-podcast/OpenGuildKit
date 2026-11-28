@@ -29,7 +29,6 @@ from openguildkit import catalog, lock, tasks, webui
 from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
@@ -60,6 +59,7 @@ BUDGETS = {
     f"init (monorepo, {bench.PACKAGES} packages)": 11,
     # Three times the highest ratio measured (3.0 to 4.1); 34 with one git show per record on the base (issue #532).
     f"guard --ci ({bench.MERGED} records on the base)": 13,
+    f"projects --surfaces ({bench.FLEET} projects)": 50,
 }
 START_BUDGET = 25  # times a bare interpreter start
 CEILING_SECONDS = 60

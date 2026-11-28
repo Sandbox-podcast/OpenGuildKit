@@ -25,7 +25,6 @@ from openguildkit import clock
 from openguildkit.cli import command_parser
 from openguildkit.decisions import record_digest
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 from tests.test_cli_coverage import _subcommands, command_paths
 
@@ -74,6 +73,7 @@ EXAMPLES = [
     Example("bare", "recommend --answers $example/profile.json"),
     Example("bare", "recommend --answers $example/profile.json --json"),
     Example("bare", "detect"), Example("bare", "detect --json"),
+    Example("bare", "completion bash"), Example("bare", "completion zsh"),
     # Setting up and keeping a project.
     Example("bare", "init --questions"), Example("bare", "init --answers $example/profile.json"),
     Example("init", "sync"), Example("init", "check"), Example("claude", "check --format sarif", code=1),
@@ -84,6 +84,8 @@ EXAMPLES = [
     Example("observed", "guard --hook pre-edit", sends=(EDIT_HOOK,)),
     Example("claude", "host check", code=1), Example("claude", "host check --json", code=1),
     Example("claude", "host apply"),
+    Example("bare", "host managed --host claude-code --os linux"),
+    Example("bare", "host managed --host claude-code --os linux --json", code=1),
     Example("claude", "host scan"), Example("suspect", "host scan --strict", code=1),
     Example("suspect", "host scan --json", code=1),
     Example("init", "integrations --host claude-code"),
@@ -199,7 +201,8 @@ EXAMPLES = [
     Example("reviewed", "task decision-payload request-status --by CM --reason Agreed"),
     Example("reviewed", "task decide request-status --approve --by CM --reason Agreed", typed=TASK),
     Example("approved", "task handoff request-status"),
-    Example("approved", "task show request-status"),
+    Example("approved", "task show request-status"), Example("approved", "task show request-status --json"),
+    Example("approved", "task show request-status --summary"),
     Example("approved", "task checks request-status"), Example("approved", "task checks request-status --json"),
     Example("approved", "task verify request-status"),
     Example("approved", "task result request-status --template"),
@@ -223,6 +226,9 @@ EXAMPLES = [
     Example("recurring", "task retro --all --draft-rules drafts"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
+    # The audit log: the events rebuilt from the records, and a file that is not a log.
+    Example("exported", "audit export"), Example("exported", "audit verify $example/brief.md", code=1),
+    Example("exported", "evidence export --output pack"), Example("evidenced", "evidence verify pack"),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.
     Example("done", "projects $root"), Example("done", "projects $root --json"),
     Example("done", "projects $root --search status"),
@@ -240,6 +246,9 @@ NOT_RUN = {
 # ceiling is the size measured on 25 November 2026 plus 10 %, rounded up to the next 1 000 bytes. A command that grows
 # past its ceiling fails; raise the ceiling in the pull request that makes it grow, with the reason.
 EXCEPTIONS = {
+    "catalog": (12_000, ("One line per pack, board and sector (168 on 27 November 2026), the titles in one column "
+                         "that starts after the longest identifier; it grows with each entry added, `catalog --json` "
+                         "prints all.")),
     "catalog --json": (763_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
@@ -268,6 +277,8 @@ EXCEPTIONS = {
                                               "verdict and evidence, and the objections between boards."),
     "task checks request-status --json": (13_000, "Every check of the task with its status and evidence, for a program "
                                                   "to read; `task checks` prints 5 KB."),
+    "task show request-status --json": (167_000, ("The whole task record as JSON, which `task show` prints too; "
+                                                  "`task show --summary` prints a screen of it in 1 KB.")),
     "task show request-status": (167_000, "The whole task record as JSON, consultation scope included; `task show "
                                           "--closing` prints the open points in 250 bytes, `task brief` the "
                                           "consultation in 5 KB."),
@@ -367,9 +378,10 @@ class Projects:
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
         "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
+        "evidenced": ("exported", "export_evidence"),
         "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci", "exported", "delivered", "org", "replaced"}
+    NEEDS_GIT = {"git", "ci", "exported", "evidenced", "delivered", "org", "replaced"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -596,6 +608,9 @@ class Projects:
         write_json(path, {**record, "record_sha256": record_digest(record)})
         commit_everything(root)
 
+    def export_evidence(self, root: Path) -> None:
+        run_cli(root, "evidence", "export", "--output", "pack")
+
     def deliver_in_git(self, root: Path) -> None:
         """Approved at a commit, then a change committed and its revision recorded by task verify."""
         commit_everything(root)
@@ -711,13 +726,13 @@ class CommandOutputBudgetTests(unittest.TestCase):
             print("y" * 3_999, file=sys.stderr)
             return 0
         with patch("tests.support.main", chatty), patch.object(self, "sizes", {}):
-            with self.assertRaisesRegex(AssertionError, r"openguildkit catalog prints 10001 bytes, over its budget of 10000"):
-                self.check(Example("bare", "catalog"))
+            with self.assertRaisesRegex(AssertionError, r"openguildkit brains prints 10001 bytes, over its budget of 10000"):
+                self.check(Example("bare", "brains"))
 
     def test_a_budget_under_the_size_of_a_real_command_fails_with_its_name(self):
         with patch(f"{__name__}.DEFAULT_BUDGET", 1_000), patch.object(self, "sizes", {}):
-            with self.assertRaisesRegex(AssertionError, r"openguildkit catalog prints \d+ bytes, over its budget of 1000"):
-                self.check(Example("bare", "catalog"))
+            with self.assertRaisesRegex(AssertionError, r"openguildkit brains prints \d+ bytes, over its budget of 1000"):
+                self.check(Example("bare", "brains"))
 
     def test_a_command_added_to_the_cli_without_an_example_fails(self):
         paths = [*command_paths(), ("brand-new",), ("task", "brand-new")]

@@ -10,18 +10,36 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, delivered_review, light_lane, requester
+from . import alerts_cli, audit_log, delivered_review, light_lane, requester, roles
 from .alerts import blocking_alerts, load_register
 from .brains import brief_knowledge, consultation_context
 from .catalog import board_replacements
+from .cli_surface import add_by
 from .clock import today
 from .consultation import board_brief, pack_rules
 from .decisions import (
-    DECISIONS_DIR, EARLIER_SIGNERS, NAMESPACE, approval_policy, decision_payload, exported_records, git_revision,
-    ignored_by_git, payload_text, reconsult_command, record_digest, verify_signature,
+    DECISIONS_DIR,
+    EARLIER_SIGNERS,
+    NAMESPACE,
+    SignerNotCurrent,
+    approval_policy,
+    decision_payload,
+    exported_records,
+    git_revision,
+    ignored_by_git,
+    payload_text,
+    reconsult_command,
+    record_digest,
+    signing_time,
+    verify_signature,
 )
+from .doc_links import doc_link
 from .guard import (
-    changes_since_approval, export_decision, export_withdrawal, exported_decisions, record_of_another_task,
+    changes_since_approval,
+    export_decision,
+    export_withdrawal,
+    exported_decisions,
+    record_of_another_task,
     untracked_files,
 )
 from .hosts import host_controls
@@ -32,36 +50,105 @@ from .project import STATE_DIR, WORK_DIR, Fingerprints, load_profile, task_scope
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .relevance import changed_files, pack_relevance
-from .retro import (
-    DEFAULT_MINIMUM, draft_pack, facts_of_record, facts_of_task, project_summary, render_draft, render_project,
-    render_task, task_retro, write_draft,
-)
 from .results import (
-    DONE_STATUSES, SUPPLY, SUPPLY_OR_NOT_APPLICABLE, answers_to_report, chaosfolk_checks, compare_runs, evidence_state,
-    completion_problems, criteria_summary, decision_changes, decision_revision_message, declared_cannot_run,
-    expected_checks, keep_declarations, missing_scenarios, outcomes, result_template, run_command_checks,
+    DONE_STATUSES,
+    SUPPLY,
+    SUPPLY_OR_NOT_APPLICABLE,
+    answers_to_report,
+    chaosfolk_checks,
+    compare_runs,
+    completion_problems,
+    criteria_summary,
+    decision_changes,
+    decision_revision_message,
+    declared_cannot_run,
+    evidence_state,
+    expected_checks,
+    keep_declarations,
+    missing_scenarios,
+    outcomes,
+    result_template,
+    run_command_checks,
     set_aside_rules,
+)
+from .retro import (
+    DEFAULT_MINIMUM,
+    draft_pack,
+    facts_of_record,
+    facts_of_task,
+    project_summary,
+    render_draft,
+    render_project,
+    render_task,
+    task_retro,
+    write_draft,
 )
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json
 from .tasks import (
-    ACTIONS, SENSITIVE_GROUP, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
-    create_task, decided_message, decision_text, defer_evidence, earlier_sequential_pass, expired_on, last_approval,
+    ACTIONS,
+    SENSITIVE_GROUP,
+    STATUSES,
+    approval_problem,
+    assemble_review,
+    board_brief_problem,
+    cited_evidence,
+    complete_task,
+    create_task,
+    decided_message,
+    decision_text,
+    decision_words,
+    defer_evidence,
+    earlier_sequential_pass,
+    expired_on,
+    last_approval,
     list_tasks,
-    next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
-    record_consultation, record_decision, record_deliberation, record_result, record_review, require_approval,
-    require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
-    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line, write_task,
+    next_step,
+    pass_progress,
+    passes_left,
+    points_left_open,
+    previous_round_line,
+    read_task,
+    record_authorization,
+    record_consultation,
+    record_decision,
+    record_deliberation,
+    record_result,
+    record_review,
+    require_approval,
+    require_blocker_status,
+    require_current_scope,
+    resolve_blocker,
+    revoke_approval,
+    start_pass,
+    state_refusal,
+    submit_pass,
+    task_path,
+    timestamp,
+    verification_blocker_problems,
+    waiting_for,
+    waits_line,
+    write_task,
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
+from .wording import plural
 from .workflow import (
-    RESOLUTION_RULE, TaskStateError, blocker_list, challenge_report, deliberation_request, handoff, is_decision_task,
-    nothing_to_deliberate, pending_removals, review_lines, validate_review, verdict_lines,
+    RESOLUTION_RULE,
+    TaskStateError,
+    blocker_list,
+    challenge_report,
+    deliberation_request,
+    handoff,
+    is_decision_task,
+    nothing_to_deliberate,
+    pending_removals,
+    review_lines,
+    validate_review,
+    verdict_lines,
 )
-
 
 ACTION_HELP = {
     "questions": "Print the task questionnaire as JSON.",
@@ -83,13 +170,13 @@ ACTION_HELP = {
     "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
     "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
     "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-    "show": "Print the task record as JSON.",
+    "show": "Print the task record as JSON, or a short summary with --summary.",
     "checks": "List the checks the approved task must report.",
     "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
     "result": "Record the delivered revision, criteria and check outcomes.",
     "complete": "Close the task: done, or done-with-reservations when points stay open.",
     "runs": "Compare the last two ChaosFolk replays of the task.",
-    "alerts": "Import dependency alerts for the task into the project register and review them.",
+    "alerts": "Shortcut of the alerts commands for one task: import (--import), review (--set) or link (--link) alerts.",
     "export": "Write a shareable decision record to .openguildkit/decisions for the pull request.",
     "authorize": "Record a person's decision on an external action outside the authorized scope.",
 }
@@ -118,7 +205,7 @@ def add_parser(commands) -> None:
                      help="With --lane light: the folders or files the task may change, inside the profile's "
                           "light_paths. Write the brief first.")
     listing = actions.add_parser("list", help="List the project's tasks with their status and next open point.")
-    listing.add_argument("--status", help="Only tasks in this status.")
+    listing.add_argument("--status", choices=list(STATUSES), help="Only tasks in this status.")
     listing.add_argument("--owner", help="Only tasks whose current decision this person took: the approval, the "
                                          "change request or the withdrawal of an approval.")
     listing.add_argument("--since", help="Created on or after YYYY-MM-DD.")
@@ -129,7 +216,7 @@ def add_parser(commands) -> None:
     listing.add_argument("--decisions", action="store_true",
                          help="List the decisions exported to .openguildkit/decisions, teammates' included.")
     retro = actions.add_parser("retro", help="Read what a closed task, or every closed task, left to learn: rules set "
-                                             "aside, committees that said nothing, reservations, waived blockers. "
+                                             "aside, boards that said nothing, reservations, waived blockers. "
                                              "It writes nothing.")
     retro.add_argument("id", nargs="?", help="Task ID of a closed task, or none with --all.")
     retro.add_argument("--all", action="store_true",
@@ -163,9 +250,15 @@ def _follow_ups_option(command) -> None:
                          help="With --answers, print only follow_ups and open_points, not the questionnaire again.")
 
 
-def _closing_option(command) -> None:
-    command.add_argument("--closing", action="store_true",
-                         help="Print only the open points the closing left, with who closed the task.")
+def _show_options(command) -> None:
+    shown = command.add_mutually_exclusive_group()
+    shown.add_argument("--closing", action="store_true",
+                       help="Print only the open points the closing left, with who closed the task.")
+    shown.add_argument("--summary", action="store_true",
+                       help="Print a screen instead of the whole record: status, decision, boards, result, next step.")
+    command.add_argument("--json", action="store_true",
+                         help="Print the record as JSON, which is what show prints without --summary; write it in "
+                              "scripts, so that they keep working if the summary becomes the plain form.")
 
 
 def _reuse_answers_option(command) -> None:
@@ -221,7 +314,7 @@ def _file_option(text: str):
 
 def _blocker_options(command) -> None:
     command.add_argument("blocker", help="Blocker ID such as security:1 (see task blockers).")
-    command.add_argument("--by", required=True, help="Person who resolves the blocker.")
+    add_by(command, required=True)
 
 
 def _clear_options(command) -> None:
@@ -255,8 +348,7 @@ def _result_source_options(command) -> None:
 
 
 def _complete_options(command) -> None:
-    command.add_argument("--by", help="Person who closes the task over skipped sensitive rules or deferred evidence "
-                                      "(needs a terminal).")
+    add_by(command)
     command.add_argument("--defer", action="append", default=[], metavar="EVIDENCE=TASK",
                          help="Hand an awaited named evidence to a follow-up task (with --by).")
 
@@ -271,7 +363,7 @@ def _verify_options(command) -> None:
     command.add_argument("--withdraw", metavar="COMMAND_CHECK",
                          help="Withdraw a declaration that a command cannot run (with --by, at a terminal): the "
                               "command runs and its outcome is recorded.")
-    command.add_argument("--by", help="Person who records or withdraws that the command cannot run.")
+    add_by(command)
     command.add_argument("--reason", help="Why the command cannot run here.")
 
 
@@ -281,7 +373,7 @@ def _alerts_options(command) -> None:
     command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
     command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
     command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
-    command.add_argument("--by", help="Reviewer's name for --set.")
+    add_by(command)
     command.add_argument("--reason", default="", help="Reason, required to dismiss.")
     command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
 
@@ -297,7 +389,7 @@ def _authorize_options(command) -> None:
 
 
 def _decision_reason_options(command) -> None:
-    command.add_argument("--by", required=True, help="Decision owner's name.")
+    add_by(command, required=True)
     command.add_argument("--reason", required=True, help="Reason for the decision.")
 
 
@@ -308,16 +400,22 @@ def _decide_options(command) -> None:
     _decision_reason_options(command)
     command.add_argument("--signature", type=Path, help="SSH signature of task decision-payload (signed projects).")
     command.add_argument("--signer", help="Principal in the allowed signers file (signed projects).")
+    command.add_argument("--signed-at", metavar="TIME", help="The signed_at line of the payload (signed projects), "
+                                                             "UTC as YYYY-MM-DDTHH:MM:SSZ.")
 
 
 def _revoke_options(command) -> None:
-    command.add_argument("--by", required=True, help="Person who withdraws the approval.")
+    add_by(command, required=True)
     command.add_argument("--reason", required=True, help="Why the approval is withdrawn.")
 
 
 def _payload_options(command) -> None:
     _decision_reason_options(command)
     command.add_argument("--output", type=Path, help="Write the exact bytes to sign to this file.")
+    command.add_argument("--signed-at", nargs="?", const="now", metavar="TIME",
+                         help="Add the time you sign at (now, or UTC as YYYY-MM-DDTHH:MM:SSZ): once recorded, the "
+                              "approval is verified at that time, so a key or certificate that expires later voids "
+                              "nothing. Pass the same value to task decide.")
 
 
 # The options of each action, in the order its help lists them.
@@ -325,7 +423,7 @@ ACTION_OPTIONS = {
     "questions": (_answers_option, _follow_ups_option),
     "route": (_answers_option, _board_change_options, _json_option("Print the selection as JSON.")),
     "consult": (_answers_option, _reuse_answers_option, _revised_brief_options, _board_change_options),
-    "show": (_closing_option,),
+    "show": (_show_options,),
     "review": (_review_source_options,),
     "pass": (_pass_options, _mode_option),
     "brief": (_brief_options,),
@@ -455,7 +553,7 @@ def _id_clashes(root: Path, state: Path, tasks: dict | None = None) -> dict[str,
 def _clash_message(task_id: str, path: str) -> str:
     return (f"task {task_id} of this copy and the exported decision {path} are different tasks with the same ID. "
             "Leave the record as it is and open your work under another ID with openguildkit task new \"BRIEF\" --id "
-            "NEW-ID (see docs/workflow.md, \"When two copies use the same task ID\").")
+            f"NEW-ID (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
 def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
@@ -519,6 +617,7 @@ def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
+    audit_log.record(root, "task.revoked", task=args.id, by=args.by)
     print(result["status"])
     print(f"The guard no longer counts {args.id}. Next: {reconsult_command(args.id)}, or close the work in a linked "
           f'task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
@@ -552,6 +651,10 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
+    if args.signed_at and not (args.approve and policy["mode"] == "signed"):
+        raise ValueError("--signed-at goes with approving in a project that requires signed approvals. Nothing was "
+                         "written.")
+    signed_at = signing_time(args.signed_at)
     if args.approve and policy["mode"] == "signed":
         if not args.signature or not args.signer:
             raise ValueError(
@@ -559,16 +662,24 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
                 f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
             )
         text = args.signature.read_text(encoding="utf-8")
-        verify_signature(root, policy, decision_payload(task, args.by, args.reason, base, separate=separate), text,
-                         args.signer)
+        try:
+            # Always at the current time: a key or a certificate that has expired signs no new approval.
+            verify_signature(root, policy, decision_payload(task, args.by, args.reason, base, separate=separate,
+                                                            signed_at=signed_at), text, args.signer)
+        except SignerNotCurrent as error:
+            hint = " If the payload you signed has a signed_at line, pass --signed-at VALUE." if not signed_at else ""
+            raise SignerNotCurrent(f"{error}{hint}") from None
         signature = {"signer": args.signer, "text": text}
+    # The roles of the boards that blocked (roles.py): the verified signer, or the name typed.
+    if args.approve and (outside := roles.approval_problem(task, profile, args.by, args.signer)):
+        raise ValueError(outside)
     register = load_register(state)
     blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
         raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals,
-                             separate=args.approve and separate)
+                             separate=args.approve and separate, signed_at=signed_at, dated=audit_log.is_on(root))
     if args.approve:
         if (signature is None or removals) and not interactive():
             raise ValueError("Approval requires a person at an interactive terminal.")
@@ -595,7 +706,11 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             require_current_scope(task, profile, catalog)
             require_instructions(args, root, state, profile, catalog)
         write_task(task_path(state, args.id), result)
+    if args.approve:
+        audit_log.record(root, "task.approved", task=args.id, by=args.by, signer=args.signer, seal=result["decision"]["seal"])
     print(result["status"])
+    print(f"Next: openguildkit task handoff {args.id} gives the agent the implementation brief." if args.approve
+          else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 
 
 def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]:
@@ -683,7 +798,7 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
     if skipped:
         print(f"Not concerned, no answer needed (openguildkit task checks {task_id} --all asks them):")
         for name, (reason, count) in skipped.items():
-            print(f"  {name} ({count} check(s)): {reason}")
+            print(f"  {name} ({plural(count, 'check')}): {reason}")
 
 
 def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
@@ -706,7 +821,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     if blocking:
         raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
     if args.defer and not args.by:
-        raise ValueError("Name the person who hands the evidence to a follow-up task: --by NAME.")
+        raise ValueError("Name the person who hands the evidence to a follow-up task: --by INITIALS.")
     deferrals = []
     for item in args.defer:
         check_id, _, follow_up = item.rpartition("=")
@@ -718,8 +833,9 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     set_aside = set_aside_rules(current, profile, relevance)
     if set_aside and not (args.by or "").strip():
         raise ValueError(
-            f"{len(set_aside)} data protection, security or AI rule(s) are declared not applicable:\n- "
-            + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by NAME, "
+            f"{plural(len(set_aside), 'data protection, security or AI rule')} "
+            f"{'is' if len(set_aside) == 1 else 'are'} declared not applicable:\n- "
+            + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "
             "at a terminal.")
     if args.by:
         if not interactive():
@@ -749,7 +865,7 @@ def _print_closing(task: dict, listed: bool = False) -> None:
     groups = task["result"]["closing"]["open_points"]
     if groups and listed:
         count = sum(len(group["points"]) for group in groups)
-        print(f"{count} open point(s), listed above and kept for later: openguildkit task show {task['id']} --closing.")
+        print(f"{plural(count, 'open point')}, listed above and kept for later: openguildkit task show {task['id']} --closing.")
         print(f'To follow up, open a task linked to this one: openguildkit task new "BRIEF" --follows {task["id"]}')
     elif groups:
         print("Left open, most serious first:")
@@ -779,7 +895,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
     if check_id not in commands:
         raise ValueError(f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
-        raise ValueError("Name the person with --by NAME.")
+        raise ValueError("Name the person with --by INITIALS.")
     if not interactive():
         raise ValueError("Declaring whether a command can run needs the person at an interactive terminal.")
     return commands
@@ -820,11 +936,10 @@ def _withdraw(args, root: Path, state: Path, task: dict, profile: dict, relevanc
     return ran[0]
 
 
-NO_CHECK_COMMAND = (
-    "No project check command is configured: task verify ran no test. To have it run one: openguildkit profile add "
-    "check \"COMMAND\" --by NAME --reason WHY (docs/workflow.md#project-checks); the change applies to tasks "
-    "consulted after it."
-)
+def _no_check_command() -> str:
+    return ("No project check command is configured: task verify ran no test. To have it run one: openguildkit "
+            f"profile add check \"COMMAND\" --by INITIALS --reason WHY ({doc_link('docs/workflow.md', 'project-checks')}); "
+            "the change applies to tasks consulted after it.")
 
 
 def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Path, state: Path,
@@ -835,20 +950,20 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     job can tell; points that only need answers keep it at 0.
     """
     if args.action == "verify" and not task["consultation"]["scope"].get("checks") and not is_decision_task(task):
-        print(NO_CHECK_COMMAND)
+        print(_no_check_command())
     problems = (completion_problems(task, profile, relevance, changed=changed, root=root)
                 + blocking_alerts(load_register(state), task) + verification_blocker_problems(task, profile, root)
                 + _lane_problems(root, task, profile))
     # Before any report, task verify counts the answers the result file gives rather than one line per rule.
     folded = set(answers_to_report(task, profile, relevance)) if args.action == "verify" else set()
     if folded:
-        print(f"- {len(folded)} rule(s) and named evidence to report: openguildkit task result {args.id} --template "
+        print(f"- {plural(len(folded), 'rule')} and named evidence to report: openguildkit task result {args.id} --template "
               "lists them with the answers each accepts.")
     for problem in problems:
         if problem.split(" ", 1)[0] not in folded:
             print(f"- {problem}")
     if problems:
-        print(f"{len(problems)} point(s) before the task can be done.")
+        print(f"{plural(len(problems), 'point')} before the task can be done.")
     elif held:
         print("Nothing else is missing, but some answers were not recorded (above): fix them, or run task complete "
               "with the answers already recorded.")
@@ -856,7 +971,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
           or set_aside_rules(task, profile, relevance)):
         # task complete refuses these without the person: say so now rather than at the closing.
         print(f"Ready to close with the person at a terminal: a data protection, security or AI point stays open, "
-              f"so they run openguildkit task complete {args.id} --by NAME.")
+              f"so they run openguildkit task complete {args.id} --by INITIALS.")
     else:
         print("Ready: run task complete.")
     failed = [item for item in task["result"]["checks"]
@@ -1105,11 +1220,11 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     for item in result["result"].get("waiting_for", []):
         print(f"Waiting for {item['check']}: {item['title']}, provided by {item['owner']} (required because "
               f"{item['why']}). Ask them for it, or hand it to a follow-up task: task complete {args.id} "
-              f"--defer {item['check']}=FOLLOW-UP --by NAME.")
+              f"--defer {item['check']}=FOLLOW-UP --by INITIALS.")
     if criteria_summary(result["result"]):
         print(criteria_summary(result["result"]))
     for warning in result["result"].get("warnings", []):
-        print(f"Warning: {warning}")
+        print(f"Warning: {warning}", file=sys.stderr)
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 
@@ -1129,7 +1244,7 @@ def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
     else:
         for name, (before, after) in comparison["changed"].items():
             print(f"{name}: {before or 'absent'} -> {after or 'absent'}")
-        print(f"{len(comparison['unchanged'])} scenario(s) unchanged")
+        print(f"{plural(len(comparison['unchanged']), 'scenario')} unchanged")
 
 
 def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1145,13 +1260,15 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     untracked = untracked_files(root) if task["decision"].get("base_revision") else []
     if untracked:
         shown = ", ".join(untracked[:10]) + (f" and {len(untracked) - 10} more" if len(untracked) > 10 else "")
-        print(f"OpenGuildKit: {len(untracked)} new file(s) Git does not track yet are not in the record: {shown}. "
+        print(f"OpenGuildKit: {plural(len(untracked), 'new file')} Git does not track yet "
+              f"{'is' if len(untracked) == 1 else 'are'} not in the record: {shown}. "
               "Add them with git add (or commit the work) and export again, or guard --ci finds them in no record.",
               file=sys.stderr)
     if "completed_at" not in task:
         print(f"OpenGuildKit: task {args.id} is not completed yet and the record says so. It lists the files Git "
               "tracks that changed since the approval, which guard --ci compares with the pull request: export it "
               "again once the work is committed, and after task complete, and commit it.", file=sys.stderr)
+    print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
 def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1335,6 +1452,9 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     if review is not None:
         for warning in tool_evidence_warnings(root, state, result["review"]["boards"]):
             print(f"Warning: {warning}", file=sys.stderr)
+    print(f"Next: openguildkit task deliberate {args.id} lists the objections between boards (skip it and task respond "
+          f"when no board objects), then openguildkit task challenge {args.id} prints the decision brief to show the "
+          "person.", file=sys.stderr)
 
 
 def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1399,7 +1519,8 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
     # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
     print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
     text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root),
-                                         separate=requester.active(profile)))
+                                         separate=requester.active(profile),
+                                         signed_at=signing_time(args.signed_at, now_ok=True)))
     if args.output:
         # Exact UTF-8 bytes with LF line endings: a shell redirect could change the encoding.
         args.output.write_bytes(text.encode("utf-8"))
@@ -1489,7 +1610,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         else:
             _print_decision_rows(rows)
         return
-    read = {}
+    read: dict = {}
     rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
                       root=root, read=read, skip=DONE_STATUSES if args.ready else (), indexed=True)
     if args.ready:
@@ -1506,7 +1627,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         print_json(rows)
     elif not rows:
         shared = len(exported_records(state))
-        print("No task matches." + (f" {shared} exported decision(s) of the repository, teammates' included: "
+        print("No task matches." + (f" {plural(shared, 'exported decision')} of the repository, teammates' included: "
                                     "openguildkit task list --decisions" if shared else ""))
     else:
         for row in rows:
@@ -1611,9 +1732,31 @@ def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         print("\n".join(render_task(retro)))
 
 
+def _summary(task: dict, profile: dict) -> str:
+    """What task show --summary prints: a screen, whatever the size of the record."""
+    decided = decision_words(task)
+    lines = [f"{task['id']} [{task['status']}{', ' + decided if decided else ''}] {task['brief'].splitlines()[0][:100]}",
+             f"  created: {task['created_at'][:10]}"]
+    if task.get("consultation"):
+        lines.append(f"  boards: {', '.join(task['consultation']['boards'])}")
+    result = task.get("result")
+    if result:
+        met = sum(item["status"] == "met" for item in result.get("criteria", []))
+        passed = sum(item["status"] == "passed" for item in result.get("checks", []))
+        lines.append(f"  result: {met} of {len(result.get('criteria', []))} criteria met, "
+                     f"{passed} of {len(result.get('checks', []))} checks passed")
+    lines += [f"  next: {next_step(task, profile)}", f"  all of it: openguildkit task show {task['id']} --json"]
+    return "\n".join(lines)
+
+
 def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
-    """The task record as JSON, or only the open points its closing left."""
-    print_json(_closing_points(task, args.id) if args.closing else task)
+    """The task record as JSON, only the open points its closing left, or a summary."""
+    if args.summary and args.json:
+        raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
+    if args.summary:
+        print(_summary(task, profile))
+    else:
+        print_json(_closing_points(task, args.id) if args.closing else task)
 
 
 # What runs each action on an existing task. new, list and retro come before the task is read.
@@ -1651,6 +1794,9 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
+            if args.summary:
+                raise ValueError(f"Task {args.id} exists here only as the exported record, which has no summary: run "
+                                 f"openguildkit task show {args.id}.")
             _show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
         raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "

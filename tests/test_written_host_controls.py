@@ -156,7 +156,7 @@ class WrittenHookTests(unittest.TestCase):
             run_cli(root, "task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed")
         edit = self.run_hook(root, self.written_command(root, "claude-code", "PreToolUse", "Write"), EDITS["claude-code"])
         self.assertEqual(edit.returncode, 0, edit.stderr)
-        self.assertIn(f"approved task(s) in progress: {TASK}", json.loads(edit.stdout)["hookSpecificOutput"]["additionalContext"])
+        self.assertIn(f"approved work in progress: {TASK}", json.loads(edit.stdout)["hookSpecificOutput"]["additionalContext"])
 
 
 class WrittenDenyRuleTests(unittest.TestCase):

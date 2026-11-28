@@ -53,10 +53,10 @@ class BriefTests(DeliveredReviewCase):
     def test_the_overview_names_the_files_and_one_command_per_board(self):
         self.deliver()
         output, _ = self.run_cli("task", "diff-review", "sx")
-        self.assertIn("1 file(s): status.py (+4 -0)", output)
+        self.assertIn("1 file: status.py (+4 -0)", output)
         for board in self.boards():
             self.assertIn(f"openguildkit task diff-review sx --board {board}   [not reviewed]", output)
-        self.assertIn(f"0 board(s) of {len(self.boards())} reviewed the delivered diff", output)
+        self.assertIn(f"0 boards of {len(self.boards())} reviewed the delivered diff", output)
         status = json.loads(self.run_cli("task", "diff-review", "sx", "--json")[0])
         self.assertEqual(status["files"], ["status.py"])
         self.assertEqual([row["board"] for row in status["boards"]], self.boards())
@@ -131,8 +131,8 @@ class FindingTests(DeliveredReviewCase):
         output, _ = self.submit({"board": "security", "findings": [
             {"file": "status.py", "line": 5, "severity": "blocking", "action": "fix",
              "finding": "Any user's requests are returned."}]})
-        self.assertIn("security: 1 finding(s) recorded.", output)
-        self.assertIn(f"1 board(s) of {len(self.boards())} reviewed the delivered diff; 1 blocking finding(s) "
+        self.assertIn("security: 1 finding recorded.", output)
+        self.assertIn(f"1 board of {len(self.boards())} reviewed the delivered diff; 1 blocking finding "
                       "(security, status.py:5).", output)
         for board in self.boards():
             if board != "security":

@@ -23,6 +23,7 @@ from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_a
 from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data
 from .storage import write_text
+from .wording import plural
 from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
@@ -242,9 +243,40 @@ def _text(value: object, field: str) -> str:
     return value.strip()
 
 
+def _shape(task: dict) -> str:
+    return f"Run openguildkit task result {task['id']} --template for the shape."
+
+
 def _refusal(task: dict, message: str) -> ValueError:
     """A refused result names what is accepted and the template that shows it."""
-    return ValueError(f"{message} Run openguildkit task result {task['id']} --template for the shape.")
+    return ValueError(f"{message} {_shape(task)}")
+
+
+class _Problems:
+    """The defects of one result, each with the entry that holds it: one refusal lists them all (issue #490)."""
+
+    def __init__(self, task: dict):
+        self.task = task
+        self.found: list[tuple[str, ValueError]] = []
+
+    def add(self, path: str, error: ValueError) -> None:
+        self.found.append((path, error))
+
+    def run(self, path: str, function, *args, default=None):
+        """The value of function(*args), or default with its refusal kept under the entry's path."""
+        try:
+            return function(*args)
+        except ValueError as error:
+            self.add(path, error)
+            return default
+
+    def raise_any(self) -> None:
+        """A single defect keeps its own message; several are listed, then the template is named once."""
+        if len(self.found) == 1:
+            raise self.found[0][1]
+        if self.found:
+            lines = [f"{path}: {str(error).removesuffix(' ' + _shape(self.task))}" for path, error in self.found]
+            raise ValueError(f"The result has {len(lines)} problems:\n- " + "\n- ".join(lines) + f"\n{_shape(self.task)}")
 
 
 def decision_changes(root: Path, task: dict) -> list[str]:
@@ -319,32 +351,25 @@ def _criterion(task: dict, item: object, known: dict, root: Path | None) -> dict
     return entry
 
 
-def _pack_answers(task: dict, payload: dict) -> list[dict]:
+def _pack_answer(task: dict, item: object, scope: set) -> dict | None:
     """One answer can cover every rule of a pack: passed or failed with evidence, skipped or not-applicable
     with a reason and the person who owns it. A pack entry left with an empty status is not answered yet."""
-    packs = payload.get("packs", [])
-    scope = {pack["id"] for pack in task["consultation"]["scope"].get("packs", [])}
-    if not isinstance(packs, list):
-        raise _refusal(task, "packs must be a list of objects with pack, status and its evidence or reason and owner.")
-    answers = []
-    for item in packs:
-        if not isinstance(item, dict) or not {"pack", "status"} <= item.keys() <= {
-                "pack", "status", "evidence", "reason", "owner", "rules"}:
-            raise _refusal(task, "Each pack answer has pack, status, and evidence or reason and owner.")
-        if item["status"] == "":
-            continue
-        if item["pack"] not in scope:
-            raise _refusal(task, f"Pack {item['pack']!r} is not in the task's approved scope.")
-        if item["status"] not in RESULT_STATUSES:
-            raise _refusal(task, f"Pack {item['pack']} status is one of {', '.join(RESULT_STATUSES)}, "
-                                 f"not {item['status']!r}.")
-        fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
-        try:
-            answers.append({"pack": item["pack"], "status": item["status"],
-                            **{field: _text(item.get(field), f"{item['pack']} {field}") for field in fields}})
-        except ValueError as error:
-            raise _refusal(task, f"{error} A {item['status']} pack needs {' and '.join(fields)}.") from None
-    return answers
+    if not isinstance(item, dict) or not {"pack", "status"} <= item.keys() <= {
+            "pack", "status", "evidence", "reason", "owner", "rules"}:
+        raise _refusal(task, "Each pack answer has pack, status, and evidence or reason and owner.")
+    if item["status"] == "":
+        return None
+    if item["pack"] not in scope:
+        raise _refusal(task, f"Pack {item['pack']!r} is not in the task's approved scope.")
+    if item["status"] not in RESULT_STATUSES:
+        raise _refusal(task, f"Pack {item['pack']} status is one of {', '.join(RESULT_STATUSES)}, "
+                             f"not {item['status']!r}.")
+    fields = ("evidence",) if item["status"] in ("passed", "failed") else ("reason", "owner")
+    try:
+        return {"pack": item["pack"], "status": item["status"],
+                **{field: _text(item.get(field), f"{item['pack']} {field}") for field in fields}}
+    except ValueError as error:
+        raise _refusal(task, f"{error} A {item['status']} pack needs {' and '.join(fields)}.") from None
 
 
 def validate_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
@@ -367,27 +392,38 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
     if not isinstance(payload, dict) or not payload.keys() <= fields:
         raise _refusal(task, "A result has revision or pull_request, criteria, checks and, optionally, packs.")
     known = {check["id"]: check for check in expected_checks(task, profile, relevance)}
-    result = _revision(task, payload, changed)
+    problems = _Problems(task)
+    result = problems.run("revision", _revision, task, payload, changed, default={})
     if "run" in payload:
         result["runs"] = [payload["run"]]
-    criteria = payload.get("criteria", [])
-    if not isinstance(criteria, list):
-        raise _refusal(task, "criteria must be a list of objects with criterion, status and evidence.")
-    result["criteria"] = [_criterion(task, item, known, root) for item in criteria
-                          if not (isinstance(item, dict) and not item.get("status") and not item.get("evidence"))]
-    result["packs"] = _pack_answers(task, payload)
-    checks = payload.get("checks", [])
-    if not isinstance(checks, list):
-        raise _refusal(task, "checks must be a list of objects with check and status.")
+    lists = {}
+    for name, shape in (("criteria", "criterion, status and evidence"), ("checks", "check and status"),
+                        ("packs", "pack, status and its evidence or reason and owner")):
+        lists[name] = payload.get(name, [])
+        if not isinstance(lists[name], list):
+            problems.add(name, _refusal(task, f"{name} must be a list of objects with {shape}."))
+            lists[name] = []
+    result["criteria"] = [
+        entry for number, item in enumerate(lists["criteria"], 1)
+        if not (isinstance(item, dict) and not item.get("status") and not item.get("evidence"))
+        and (entry := problems.run(f"criteria[{number}]", _criterion, task, item, known, root)) is not None]
+    scope = {pack["id"] for pack in task["consultation"]["scope"].get("packs", [])}
+    result["packs"] = [
+        entry for number, item in enumerate(lists["packs"], 1)
+        if (entry := problems.run(f"packs[{number}]", _pack_answer, task, item, scope)) is not None]
     result["checks"], result["_held"] = [], []
-    for item in checks:
+    for number, item in enumerate(lists["checks"], 1):
         if isinstance(item, dict) and item.get("status") == "":
             continue
-        entry, held = _check_entry(task, item, known, source, root)
+        found = problems.run(f"checks[{number}]", _check_entry, task, item, known, source, root)
+        if found is None:
+            continue
+        entry, held = found
         if held:
             result["_held"].append({"check": entry["check"], "message": held})
         else:
             result["checks"].append(entry)
+    problems.raise_any()
     if not result["packs"] and "packs" not in payload:
         result.pop("packs")
     return result
@@ -499,7 +535,7 @@ def keep_declarations(task: dict, ran: list[dict]) -> tuple[list[dict], list[str
             notes.append(f"{outcome['check']} still cannot run here: {declaration['owner']} declared it "
                          f"({declaration['reason']}). The declaration stays until the command passes or "
                          f"{declaration['owner']} withdraws it with task verify {task['id']} --withdraw "
-                         f"{outcome['check']} --by NAME.")
+                         f"{outcome['check']} --by INITIALS.")
             continue
         if declaration:
             notes.append(f"{outcome['check']} passes now: the declaration by {declaration['owner']} is replaced.")
@@ -730,8 +766,8 @@ def result_warnings(task: dict, profile: dict, relevance: dict | None = None) ->
         if selected and len(names) > 1:
             shown = ", ".join(selected[:5]) + (f" and {len(selected) - 5} more" if len(selected) > 5 else "")
             warnings.append(f"{shown} {'is' if len(selected) == 1 else 'are'} selected by the task's "
-                            f"answers yet declared not applicable with the same reason as {len(names) - 1} other "
-                            "answer(s). Give the reason that applies to each.")
+                            f"answers yet declared not applicable with the same reason as {plural(len(names) - 1, 'other answer')}. "
+                            "Give the reason that applies to each.")
     passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
               and item["status"] == "passed"]
     warnings += _evidence_warnings(passed)

@@ -2,6 +2,9 @@
 release, required and bounded CI jobs, and the entry documents (governance, security, French README) kept true."""
 
 import argparse
+import hashlib
+import importlib.metadata
+import importlib.util
 import json
 import os
 import re
@@ -20,6 +23,7 @@ from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, st
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 CHECK_INSTALLED = ROOT / ".github" / "scripts" / "check-installed-cli.py"
+MAKE_SBOM = ROOT / "scripts" / "make_sbom.py"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
 
 
@@ -129,6 +133,58 @@ class ChangelogTest(unittest.TestCase):
             self.assertIn(change, section)
 
 
+ENTRY_LIMIT = 400
+SHAPE_BASE = ROOT / "docs" / "agents" / "changelog-shape-base.json"
+
+
+def unreleased_entries() -> list[str]:
+    """The entries under `## Unreleased`: a line that starts with "- ", and the lines that follow it up to a blank one."""
+    section = re.search(r"^## Unreleased\s*$(.*?)(?=^## |\Z)", _read("CHANGELOG.md"), re.MULTILINE | re.DOTALL).group(1)
+    return ["\n".join(block) for block in (part.split("\n") for part in re.split(r"\n(?=- )", section.strip()))]
+
+
+def entry_problems(entry: str) -> list[str]:
+    """What keeps an entry from being searchable by issue: it spans lines, passes 400 characters or has no final (#N)."""
+    found = []
+    if "\n" in entry:
+        found.append("spans several lines")
+    if len(entry) > ENTRY_LIMIT:
+        found.append(f"is {len(entry)} characters long")
+    if not re.search(r"\(#\d+\)$", entry):
+        found.append("does not end with its issue (#N)")
+    return found
+
+
+def entry_key(entry: str) -> str:
+    return hashlib.sha256(entry.strip().encode("utf-8")).hexdigest()[:12]
+
+
+class ChangelogShapeTest(unittest.TestCase):
+    """changelog-entry-shape: one line of 400 characters at most that ends with its issue. The entries of
+    `## Unreleased` that predate the rule are listed in docs/agents/changelog-shape-base.json, each with the first 12
+    characters of the SHA-256 of its line. The list can only shrink: shorten an entry and delete its line, the test
+    fails on an entry that complies and is still listed, and on any entry that breaks the shape and is not."""
+
+    def test_an_entry_is_one_line_of_400_characters_that_ends_with_its_issue(self):
+        self.assertEqual(entry_problems("- `task list` shows the period (#380)"), [])
+        self.assertEqual(entry_problems("- " + "x" * (ENTRY_LIMIT - 2 - len(" (#7)")) + " (#7)"), [])
+        self.assertEqual(entry_problems("- " + "x" * (ENTRY_LIMIT - 1 - len(" (#7)")) + " (#7)")[0][:6], "is 401")
+        self.assertEqual(entry_problems("- Shows the period"), ["does not end with its issue (#N)"])
+        self.assertEqual(entry_problems("- Shows the period (#7), see #8"), ["does not end with its issue (#N)"])
+        self.assertEqual(entry_problems("- Shows it\n  and more (#7)"), ["spans several lines"])
+        self.assertTrue(unreleased_entries())
+
+    def test_unreleased_has_no_entry_that_breaks_the_shape_outside_the_base(self):
+        base = json.loads(SHAPE_BASE.read_text(encoding="utf-8"))
+        listed = [item["sha256"] for item in base]
+        self.assertEqual(listed, sorted(listed))
+        breaking = {entry_key(entry): entry for entry in unreleased_entries() if entry_problems(entry)}
+        new = [f"{entry[:70]}... {' and '.join(entry_problems(entry))}" for key, entry in breaking.items() if key not in listed]
+        self.assertEqual(new, [], "Shorten the entry to one line of 400 characters that ends with (#N).")
+        stale = [item["start"] for item in base if item["sha256"] not in breaking]
+        self.assertEqual(stale, [], "These entries were fixed or removed: delete their line from the base.")
+
+
 class PackageMetadataTest(unittest.TestCase):
     def setUp(self):
         self.project = tomllib.loads(_read("pyproject.toml"))["project"]
@@ -180,26 +236,188 @@ class InstallGuideTest(unittest.TestCase):
                 self.assertIn(fact, text)
 
 
+class ReleaseDocsTest(unittest.TestCase):
+    """Issue #503: the pages say what proves a release, how to install it without GitHub, and what is still open."""
+
+    def test_the_install_guide_gives_the_verification_the_offline_install_and_the_mirror(self):
+        """Issue #503: no offline section, no gh attestation verify, curl without --proto."""
+        guide = _read("docs/install.md")
+        self.assertIn("curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh", guide)
+        self.assertNotIn("curl -fsSL", guide)
+        verify = guide.split("## Verify where the files come from", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("gh attestation verify openguildkit-0.17.0-py3-none-any.whl --repo Sandbox-podcast/OpenGuildKit", verify)
+        for fact in ("--signer-workflow", "--source-ref", "workflow", "tag", "does not prove", "SBOM"):
+            self.assertIn(fact, verify)
+        offline = guide.split("## Offline and internal mirror", 1)[1].split("\n## ", 1)[0]
+        for fact in ("python -m pip install --no-index", "SHA256SUMS.txt", "internal", "no runtime dependency",
+                     "openguildkit-0.17.0.cdx.json"):
+            self.assertIn(fact, offline)
+
+    def test_the_governance_steps_name_the_sbom_the_attestation_and_the_second_build(self):
+        """Issue #503: the release steps of GOVERNANCE.md say nothing of what proves the files."""
+        section = _read("GOVERNANCE.md").split("## Releases", 1)[1].split("\n## ", 1)[0]
+        for fact in ("SBOM", "attest", "same SHA-256", "gh attestation verify", "SOURCE_DATE_EPOCH"):
+            self.assertIn(fact, section)
+        self.assertIn("not published on PyPI", _read("GOVERNANCE.md"), "the PyPI decision stays the maintainer's")
+
+    def test_the_build_tools_are_pinned_in_one_file_the_guide_names(self):
+        """Issue #503: build and setuptools floated; the constraints file is the single list of their versions."""
+        constraints = _read(".github/build-constraints.txt")
+        self.assertRegex(constraints, r"(?m)^build==\d+\.\d+\.\d+$")
+        self.assertRegex(constraints, r"(?m)^setuptools==\d+\.\d+\.\d+$")
+        self.assertIn(".github/build-constraints.txt", _read("docs/install.md"))
+
+
+def run_sbom(*arguments: str, env=None) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-I", str(MAKE_SBOM), *arguments], capture_output=True, text=True,
+                          encoding="utf-8", timeout=60, check=False, env={**os.environ, **(env or {})})
+
+
+LOCK = {"lockfileVersion": 3, "packages": {
+    "": {"name": "web", "dependencies": {"react": "^19.0.0", "@scope/font": "^1.0.0"}},
+    "node_modules/react": {"version": "19.3.1", "integrity": "sha512-" + "QUJD" * 21 + "QQ==", "license": "MIT"},
+    "node_modules/@scope/font": {"version": "1.2.3", "integrity": "sha512-" + "QUJD" * 21 + "QQ==",
+                                 "license": "(OFL-1.1 OR MIT)"},
+    "node_modules/react/node_modules/scheduler": {"version": "0.28.0", "optional": True},
+    "node_modules/vite": {"version": "8.0.0", "dev": True, "integrity": "sha512-" + "QUJD" * 21 + "QQ=="},
+    "node_modules/fsevents": {"version": "2.3.3", "dev": True, "optional": True},
+    "node_modules/esbuild-helper": {"version": "1.0.0", "devOptional": True},
+    "node_modules/linked": {"resolved": "../linked", "link": True},
+}}
+
+
+class SbomTest(unittest.TestCase):
+    """Issue #503: the release has no SBOM of the web interface its wheel embeds."""
+
+    def setUp(self):
+        self.temp = Path(tempfile.mkdtemp(prefix="ogk-sbom-"))
+        self.addCleanup(shutil.rmtree, self.temp, True)
+        self.wheel = self.temp / "openguildkit-9.9.9-py3-none-any.whl"
+        self.wheel.write_bytes(b"wheel bytes")
+
+    def sbom(self, lock: dict, **env) -> dict:
+        path = self.temp / "package-lock.json"
+        path.write_text(json.dumps(lock), encoding="utf-8")
+        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel), env=env)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return json.loads(done.stdout)
+
+    def test_lists_the_runtime_packages_with_their_versions_and_leaves_the_development_ones(self):
+        """Issue #503: the SBOM lists react and the other runtime packages, not vite or fsevents."""
+        bom = self.sbom(LOCK)
+        self.assertEqual((bom["bomFormat"], bom["specVersion"]), ("CycloneDX", "1.5"))
+        found = {component["purl"]: component["version"] for component in bom["components"]}
+        self.assertEqual(found, {"pkg:npm/react@19.3.1": "19.3.1", "pkg:npm/%40scope/font@1.2.3": "1.2.3",
+                                 "pkg:npm/scheduler@0.28.0": "0.28.0"})
+
+    def test_a_component_carries_its_group_hash_and_licence(self):
+        font = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "font")
+        self.assertEqual(font["group"], "@scope")
+        self.assertEqual(font["bom-ref"], font["purl"])
+        self.assertEqual(font["hashes"], [{"alg": "SHA-512", "content": (b"ABC" * 21 + b"A").hex()}])
+        self.assertEqual(font["licenses"], [{"expression": "(OFL-1.1 OR MIT)"}])
+        react = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "react")
+        self.assertEqual(react["licenses"], [{"license": {"id": "MIT"}}])
+
+    def test_the_main_component_is_the_wheel_with_its_sha256(self):
+        main = self.sbom(LOCK)["metadata"]["component"]
+        self.assertEqual((main["name"], main["version"]), ("openguildkit", "9.9.9"))
+        self.assertEqual(main["hashes"], [{"alg": "SHA-256", "content": hashlib.sha256(b"wheel bytes").hexdigest()}])
+
+    def test_the_same_inputs_give_the_same_bytes_when_the_date_is_fixed(self):
+        first = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
+        second = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
+        self.assertEqual(first, second)
+        self.assertEqual(first["metadata"]["timestamp"], "2026-11-18T11:06:40Z")
+        self.assertRegex(first["serialNumber"], r"^urn:uuid:[0-9a-f-]{36}$")
+        self.assertNotEqual(first["serialNumber"], self.sbom({**LOCK, "packages": {}}, SOURCE_DATE_EPOCH="1795000000")["serialNumber"])
+
+    def test_a_lock_without_the_packages_table_is_refused(self):
+        path = self.temp / "old-lock.json"
+        path.write_text(json.dumps({"lockfileVersion": 1, "dependencies": {}}), encoding="utf-8")
+        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel))
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("lockfile version 2 or 3", done.stderr)
+
+    def test_the_real_lock_lists_every_runtime_dependency_of_the_web_interface(self):
+        """Issue #503: the acceptance criterion, on web/package-lock.json."""
+        direct = json.loads(_read("web/package.json"))["dependencies"]
+        lock = json.loads(_read("web/package-lock.json"))["packages"]
+        done = run_sbom("--lock", str(ROOT / "web" / "package-lock.json"), "--wheel", str(self.wheel))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        components = {(c.get("group", "") + "/" if c.get("group") else "") + c["name"]: c["version"]
+                      for c in json.loads(done.stdout)["components"]}
+        for name in direct:
+            self.assertEqual(components[name], lock[f"node_modules/{name}"]["version"], name)
+        self.assertIn("react", components)
+        for development in json.loads(_read("web/package.json"))["devDependencies"]:
+            self.assertNotIn(development, components)
+
+
+def setuptools_floor() -> bool:
+    try:
+        return tuple(map(int, importlib.metadata.version("setuptools").split(".")[:2])) >= (77, 0)
+    except (importlib.metadata.PackageNotFoundError, ValueError):
+        return False
+
+
+@unittest.skipUnless(importlib.util.find_spec("setuptools") and setuptools_floor(),
+                     "needs setuptools 77 or later, which the wheel's pyproject.toml asks for (not installed by default)")
+class ReproducibleWheelTest(unittest.TestCase):
+    """Issue #503: two builds of one commit gave two wheels, because of the date of the sources."""
+
+    def build(self, folder: Path, modified: int, **env) -> str:
+        sources = folder / "tree"
+        shutil.copytree(ROOT / "src", sources / "src", ignore=shutil.ignore_patterns("__pycache__", "web_dist"))
+        for name in ("pyproject.toml", "LICENSE"):
+            shutil.copy(ROOT / name, sources / name)
+        (sources / "docs").mkdir()
+        shutil.copy(ROOT / "docs" / "package-description.md", sources / "docs")
+        for path in [*sources.rglob("*")]:
+            os.utime(path, (modified, modified))
+        out = folder / "out"
+        out.mkdir()
+        code = "import setuptools.build_meta as b, sys; print(b.build_wheel(sys.argv[1]))"
+        done = subprocess.run([sys.executable, "-c", code, str(out)], cwd=sources, capture_output=True, text=True,
+                              env={**{k: v for k, v in os.environ.items() if k != "SOURCE_DATE_EPOCH"}, **env},
+                              timeout=300, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr[-2000:])
+        return hashlib.sha256((out / done.stdout.strip().splitlines()[-1]).read_bytes()).hexdigest()
+
+    def test_two_builds_with_source_date_epoch_give_the_same_wheel_whatever_the_dates_of_the_files(self):
+        """Issue #503: the same sources, built a year apart, give one SHA-256 when the date is the commit's."""
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            epoch = {"SOURCE_DATE_EPOCH": "1795000000"}
+            self.assertEqual(self.build(Path(first), 1_700_000_000, **epoch), self.build(Path(second), 1_760_000_000, **epoch))
+
+    def test_without_it_the_dates_of_the_files_change_the_wheel(self):
+        """The control of the test above: the build does depend on the dates, so the date fixes it."""
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            self.assertNotEqual(self.build(Path(first), 1_700_000_000), self.build(Path(second), 1_760_000_000))
+
+
 BUILD_STEPS = ("Build the web interface into the package", "Build the wheel",
                "Check that the wheel holds the web interface and the catalog bundle")
 
 
 def build_steps(job: dict) -> tuple[str, list[dict]]:
-    """The Node version and the steps that build the wheel, as the job runs them."""
-    node = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]["node-version"]
+    """The Node version (typed, or read from the .nvmrc a job names) and the steps that build the wheel."""
+    setup = next(step for step in steps(job) if "setup-node" in str(step.get("uses")))["with"]
+    node = setup.get("node-version") or _read(setup["node-version-file"]).strip()
     return node, [{key: step.get(key) for key in ("name", "working-directory", "run")}
                   for step in steps(job) if step.get("name") in BUILD_STEPS]
 
 
 class WheelBuildTest(unittest.TestCase):
     def setUp(self):
-        self.package = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["package"]
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+        self.wheel, self.package = self.jobs["wheel"], self.jobs["package"]
         self.release = parse(ROOT / ".github" / "workflows" / "release.yml")["jobs"]["build"]
 
-    def test_the_release_builds_the_wheel_as_the_package_job_proves_it(self):
+    def test_the_release_builds_the_wheel_as_the_wheel_job_of_ci_does(self):
         node, release = build_steps(self.release)
         self.assertEqual([step["name"] for step in release], list(BUILD_STEPS))
-        self.assertEqual(build_steps(self.package), (node, release))
+        self.assertEqual(build_steps(self.wheel), (node, release))
 
     def test_the_interface_is_built_before_the_wheel_and_checked_inside_it(self):
         names = [step.get("name") for step in steps(self.release)]
@@ -225,9 +443,9 @@ class WheelBuildTest(unittest.TestCase):
         published = parse(ROOT / ".github" / "workflows" / "release-check.yml")["jobs"]["install"]
         self.assertIn("openguildkit/registry/catalog.bundle.json", run_text(published))
 
-    def test_the_package_job_installs_the_wheel_and_runs_it(self):
+    def test_the_wheel_job_checks_the_metadata_and_the_package_job_installs_the_wheel_and_runs_it(self):
+        self.assertIn("twine check --strict", run_text(self.wheel))
         script = run_text(self.package)
-        self.assertIn("twine check --strict", script)
         self.assertIn("pipx install", script)
         self.assertIn('"$RUNNER_OS" = Windows', script)
         self.assertIn(".github/scripts/check-installed-cli.py", script)
@@ -360,7 +578,7 @@ class CiWorkflowTest(unittest.TestCase):
         self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
 
     def test_every_job_stops_before_the_runner_default_of_six_hours(self):
-        expected = {"test": "30", "package": "20", "web-e2e": "20"}
+        expected = {"test": "30", "package": "20", "wheel": "20", "web-e2e": "20", "changes": "5"}
         for name, job in self.jobs.items():
             self.assertEqual(job.get("timeout-minutes"), expected.get(name, "15"), name)
 
@@ -380,9 +598,11 @@ class CiWorkflowTest(unittest.TestCase):
         self.assertNotIn("once it has passed on main", _read(".github/workflows/ci.yml"))
 
     def test_contributing_names_every_job_contribution_checks_requires(self):
-        named = {"test": "test matrix", "performance": "performance tests", "package": "wheel build",
-                 "ci-coordinator": "CI coordinator", "web": "checks and journeys of the web interface",
-                 "web-e2e": "checks and journeys of the web interface"}
+        named = {"changes": "list of the changed files", "test": "test matrix", "performance": "performance tests",
+                 "wheel": "wheel build", "package": "installation of the wheel", "ci-coordinator": "CI coordinator",
+                 "web": "checks and journeys of the web interface",
+                 "web-e2e": "checks and journeys of the web interface", "lint": "lint ratchet",
+                 "conventions": "conventions for agents"}
         self.assertEqual(set(named), set(self.jobs["contribution-checks"]["needs"]))
         paragraph = next(block for block in _read("CONTRIBUTING.md").split("\n\n") if "`contribution-checks` status" in block)
         for job, words in named.items():

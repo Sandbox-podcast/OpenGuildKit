@@ -18,6 +18,6 @@ os.environ.update(GIT_ENVIRONMENT)
 # The suite types at a terminal by patching sys.stdin.isatty (support.run_cli, typed=). On Windows the product also
 # asks the system whether the handle of standard input is a console, which a CI runner's is not: the suite answers
 # yes for every descriptor. tests/test_terminal.py checks the real answer for the NUL device on Windows.
-from openguildkit import terminal  # noqa: E402
+from openguildkit import terminal  # noqa: E402 - INTENTIONAL(#522): after the environment set above
 
 terminal.console = lambda descriptor: True

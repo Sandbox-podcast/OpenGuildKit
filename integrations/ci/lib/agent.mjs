@@ -1,6 +1,6 @@
 import { readFileSync, mkdirSync, rmSync, rmdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { describeRule } from '../prototype/demo/check.mjs';
+import { describeRule } from './rule.mjs';
 import { committedFile, gitSha, parseProfile, readRule, sha256 } from './check.mjs';
 import { sameRepositoryUrl } from './github-identifiers.mjs';
 import { parseJsonObject } from './json.mjs';

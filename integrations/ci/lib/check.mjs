@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { evaluate, isCatalogVersion } from '../prototype/demo/check.mjs';
+import { evaluate, isCatalogVersion } from './rule.mjs';
 import { parseJsonObject } from './json.mjs';
 
 // SHA-1 and SHA-256 repositories, in full lowercase, as accepted by openguildkit ci-check.

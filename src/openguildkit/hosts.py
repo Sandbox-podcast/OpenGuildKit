@@ -12,6 +12,8 @@ import shutil
 import tomllib
 from pathlib import Path
 
+from . import audit_log
+from .doc_links import doc_link
 from .storage import write_text
 
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
@@ -67,6 +69,36 @@ PROTECTED_PATHS = (
 )
 CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
 OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
+
+
+def restricted_paths(profile: dict) -> list[str]:
+    """The path patterns that `restricted_paths` of .openguildkit/project.json closes to the agent; none when it is
+    absent. Refused, with the file named, when it is not a list of {"paths": [project paths]} (a "class" text and a list
+    of "boards" may come with each): a path is relative to the project, without .. and without parentheses."""
+    entries = profile.get("restricted_paths")
+    if entries is None:
+        return []
+    shape = ('restricted_paths in .openguildkit/project.json must be a list of objects such as {"paths": '
+             '["data/customers/**"], "class": "restricted", "boards": ["security"]}: paths are project paths without a '
+             'leading / or .., and without parentheses.')
+    paths = []
+    for entry in entries if isinstance(entries, list) else [None]:
+        listed = entry.get("paths") if isinstance(entry, dict) else None
+        if (not isinstance(entry, dict) or set(entry) - {"paths", "class", "boards"} or not isinstance(listed, list)
+                or not listed or any(not isinstance(item, str) or not item.strip() or item.startswith(("/", "\\"))
+                                     or ".." in item.split("/") or any(char in item for char in "()\r\n")
+                                     for item in listed)
+                or not isinstance(entry.get("class", ""), str)
+                or (not isinstance(entry.get("boards", []), list)
+                    or any(not isinstance(item, str) for item in entry.get("boards", [])))):
+            raise ValueError(shape)
+        paths += [item.strip() for item in listed]
+    return list(dict.fromkeys(paths))
+
+
+def restricted_rules(profile: dict) -> list[str]:
+    """The Claude Code rules for those paths: its file tools may neither read nor edit them."""
+    return [f"{tool}(/{path})" for path in restricted_paths(profile) for tool in ("Read", "Edit")]
 
 
 def signers_rule(profile: dict) -> str | None:
@@ -231,6 +263,20 @@ def _guard_hooks(host: str) -> dict:
     }
 
 
+def guard_hooks(host: str, command: str = "openguildkit", block_on_failure: bool = False) -> dict:
+    """The two guard hooks of a host, running `command` instead of the name on the PATH (a managed file gives its full
+    path). block_on_failure adds Claude Code's onFailure: block to the edit hook."""
+    hooks = json.loads(json.dumps(_guard_hooks(host)))
+    for groups in hooks.values():
+        for group in groups:
+            for handler in group["hooks"]:
+                edit = handler["command"] == GUARD_EDIT
+                handler["command"] = command + handler["command"].removeprefix("openguildkit")
+                if edit and block_on_failure and host == "claude-code":
+                    handler["onFailure"] = "block"
+    return hooks
+
+
 def _claude_hooks_present(hooks: object) -> bool:
     if not isinstance(hooks, dict):
         return False
@@ -373,6 +419,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
     """Whether the guard hooks are installed, protect the files they rely on, and can run on this workstation."""
     title = "The board is consulted before each change"
     shell = " Shell commands (sed -i, echo > file) do not go through the hook."
+    only = None
     if host == "claude-code":
         settings = _claude_settings(root)
         missing = [rule for rule in CLAUDE_PROTECTED_RULES if rule not in _claude_denied(root)]
@@ -388,6 +435,11 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
                      if unblocked else "")
                   + (" The settings lack \"disableAllHooks\": false, so a user setting can turn the hooks off."
                      if switchable else "") + shell)
+        from .managed import only_managed_hooks  # Here, not on top: managed.py imports this module.
+
+        only = only_managed_hooks()
+        if only:  # allowManagedHooksOnly: the hooks of the project do not run, only the managed ones do.
+            present, detail = only[1], only[0] + shell
     elif host == "codex":
         present = _claude_hooks_present(_codex_hooks(root).get("hooks", {}))
         detail = (f"{CODEX_HOOKS_FILE.as_posix()} runs openguildkit guard on each request and before patches. "
@@ -397,7 +449,7 @@ def _board_control(root: Path, host: str, guard: str) -> dict:
     else:
         return _control("board", title, "instruction",
                         "This host has no known hook: AGENTS.md tells the agent to open a task, and CI checks decisions.")
-    if present and shutil.which("openguildkit") is None:
+    if present and not only and shutil.which("openguildkit") is None:
         return _control("board", title, "missing", f"The hooks are installed, but {OFF_PATH}", cause="path")
     return _control("board", title, "enforced" if present else "missing", detail)
 
@@ -413,8 +465,8 @@ def approval_warning(profile: dict) -> str | None:
         return None
     return ("OpenGuildKit: guard is enforce but approvals are not signed: a local seal only detects accidental edits, "
             "and an agent that can write files could forge one. A person requires signed approvals at their terminal: "
-            "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME --reason WHY "
-            "(docs/workflow.md#signed-approvals).")
+            "openguildkit profile set approval signed --signers PATH --approver NAME --by INITIALS --reason WHY "
+            f"({doc_link('docs/workflow.md', 'signed-approvals')}).")
 
 
 def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
@@ -488,6 +540,22 @@ def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[d
             "approval", approval_title, "instruction",
             "The approval asks for a typed confirmation at a terminal. A person keeps the command for themself.",
         ))
+    paths = restricted_paths(profile)
+    if paths and host == "claude-code":
+        missing = [rule for rule in restricted_rules(profile) if rule not in _claude_denied(root)]
+        controls.append(_control(
+            "restricted-paths", "Paths the team closes to the agent are denied to its file tools",
+            "missing" if missing else "enforced",
+            f"{CLAUDE_SETTINGS_FILE.as_posix()} denies Read and Edit on {', '.join(paths)}"
+            + (f"; missing: {', '.join(missing)}" if missing else ".")
+            + " Those rules apply to Claude Code's file tools: a shell command (cat, sed, a script) is not covered by "
+              "them (à vérifier: the permissions page was not read again for this check)."))
+    elif paths:
+        controls.append(_control(
+            "restricted-paths", "Paths the team closes to the agent are denied to its file tools", "instruction",
+            f"Nothing enforces {', '.join(paths)} for the host {host}: no setting of this host that refuses a read was "
+            "read (à vérifier), and OpenGuildKit does not write these paths into AGENTS.md yet, so name them in your own "
+            "instructions. The CI check (guard --ci) is the only barrier."))
     guard = profile.get("guard", "off")
     if guard != "off":
         controls.append(_board_control(root, host, guard))
@@ -523,6 +591,7 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
             wanted.append(signers_rule(profile))
         if profile.get("guard", "off") != "off":
             wanted += CLAUDE_PROTECTED_RULES
+        wanted += restricted_rules(profile)
         deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES]
         deny.extend(rule for rule in wanted if rule not in deny)
         if not local_only:
@@ -567,4 +636,6 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
                 )
             write_text(path, updated)
             written.append(CODEX_CONFIG_FILE.as_posix())
+    if written:
+        audit_log.record(root, "host.applied", host=host, paths=written)
     return written

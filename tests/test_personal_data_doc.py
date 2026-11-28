@@ -145,7 +145,7 @@ class ExampleTests(unittest.TestCase):
 
     def test_the_check_tells_initials_from_full_names(self):
         self.assertEqual(full_names('task decide x --approve --by CM --reason "Agreed"'), [])
-        self.assertEqual(full_names("task decide x --approve --by NAME --reason WHY"), [])
+        self.assertEqual(full_names("task decide x --approve --by INITIALS --reason WHY"), [])
         self.assertEqual(len(full_names('task decide x --approve --by "Camille Martin" --reason R')), 1)
         self.assertEqual(len(full_names("--signer camille@example.org")), 1)
         self.assertEqual(full_names('"owner": "@security"'), [])

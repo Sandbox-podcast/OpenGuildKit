@@ -1,6 +1,6 @@
 """What closed tasks leave to learn, read from the records that already exist and counted, never kept.
 
-`task retro ID` says what one closed task set aside, which committees brought nothing, what it left open and which
+`task retro ID` says what one closed task set aside, which boards brought nothing, what it left open and which
 blockers it waived. `task retro --all` counts what comes back in several closed tasks and, for some findings, names the
 profile command a person could type. Everything is a count taken from a task record (`.openguildkit/tasks/`) or from an
 exported decision record (`.openguildkit/decisions/`): no model, no estimate, no field that holds a person, and no file
@@ -17,6 +17,7 @@ from .project import DRAFT_MARK, resolved_profile
 from .shell import shell_command
 from .storage import write_json
 from .tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
+from .wording import plural
 from .workflow import exported_blockers, objections
 
 DEFAULT_MINIMUM = 3
@@ -205,7 +206,7 @@ def facts_of_task(task: dict) -> dict:
 
 def facts_of_record(record: dict) -> dict:
     """What an exported decision record says of a task it holds as completed. It carries no objections between
-    boards, so it cannot say which committee brought nothing."""
+    boards, so it cannot say which board brought nothing."""
     if not isinstance(record.get("task"), str):
         raise ValueError("An exported record names its task: this one does not.")
     if record.get("completed") is not True or record.get("status") not in DONE:
@@ -224,12 +225,12 @@ def task_retro(facts: dict) -> dict:
     """The retrospective of one task, as `task retro ID --json` prints it."""
     not_recorded = []
     if facts["committees"] is None and facts["source"] == "record":
-        not_recorded.append("committees: an exported record keeps each board's verdict but not the objections between "
-                            "boards, so it cannot say which committee brought nothing; read the task record where the "
+        not_recorded.append("boards: an exported record keeps each board's verdict but not the objections between "
+                            "boards, so it cannot say which board brought nothing; read the task record where the "
                             "task was closed")
     elif facts["committees"] is None:
-        not_recorded.append("committees: the review of this task record cannot be read, so it cannot say which "
-                            "committee brought nothing")
+        not_recorded.append("boards: the review of this task record cannot be read, so it cannot say which "
+                            "board brought nothing")
     return {"task": facts["id"], "status": facts["status"],
             "source": "task record" if facts["source"] == "task" else "exported record",
             **{key: facts[key] for key in ("rules", "not_concerned", "committees", "reservations", "waivers")},
@@ -343,7 +344,7 @@ def proposed_reason(item: dict) -> str:
 
 def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powershell: bool | None) -> dict:
     """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force.
-    The command carries a prefilled reason that names the tasks; --by NAME stays the person's to fill in."""
+    The command carries a prefilled reason that names the tasks; --by INITIALS stays the person's to fill in."""
     for action, field, value, pack in _candidates(item, profile, catalog):
         try:
             updated, weakens = check_proposal(profile, catalog, action, field, value)
@@ -356,7 +357,7 @@ def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powers
         if item["kind"] == "committee" and item["board"] in after["boards"]:
             continue  # the last board removed leaves every board advising
         reason = proposed_reason(item)
-        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "NAME", "--reason",
+        words = ["openguildkit", "profile", action, *([field] if field else []), value, "--by", "INITIALS", "--reason",
                  reason]
         return {"command": shell_command(words, powershell), "needs_terminal": bool(weakens),
                 "also_drops": sorted(dropped - {pack}) if pack is not None else [], "proposed_reason": reason}
@@ -387,10 +388,6 @@ def _clip(text: str) -> str:
     return text if len(text) <= MAX_TEXT else text[:MAX_TEXT - 3] + "..."
 
 
-def _plural(count: int, word: str) -> str:
-    return f"{count} {word}{'' if count == 1 else 's'}"
-
-
 def _examples(names: list[str], limit: int = MAX_EXAMPLES) -> str:
     return ", ".join(names[:limit]) + (f", {len(names) - limit} more" if len(names) > limit else "")
 
@@ -408,7 +405,7 @@ def _grouped(items: list[dict], status: str, noun: str) -> list[str]:
     for members in sorted(groups.values(), key=lambda group: (-len(group), group[0]["reason"])):
         names = [member.get("check") or member.get("pack") for member in members]
         reason = f": {_clip(members[0]['reason'])}" if members[0]["reason"] else ""
-        lines.append(f"  {_plural(len(members), noun)} {status}{reason} ({_examples(names)})")
+        lines.append(f"  {plural(len(members), noun)} {status}{reason} ({_examples(names)})")
     return lines
 
 
@@ -440,14 +437,14 @@ def render_task(retro: dict) -> list[str]:
         lines += _capped(entries, more)
     committees = retro["committees"]
     if committees is None:
-        lines.append("Committees: not in the exported record (it carries no objections between boards)."
+        lines.append("Boards: not in the exported record (it carries no objections between boards)."
                      if retro["source"] == "exported record" else
-                     "Committees: not read (the review of this task record cannot be read).")
+                     "Boards: not read (the review of this task record cannot be read).")
     elif committees["without"]:
-        lines.append(f"Committees: {len(committees['convened'])} convened; without a blocker or an objection, and "
+        lines.append(f"Boards: {len(committees['convened'])} convened; without a blocker or an objection, and "
                      f"proceeding: {', '.join(committees['without'])}.")
     else:
-        lines.append(f"Committees: {len(committees['convened'])} convened; none without a blocker or an objection.")
+        lines.append(f"Boards: {len(committees['convened'])} convened; none without a blocker or an objection.")
     groups = retro["reservations"]
     if groups:
         points = sum(len(group["points"]) for group in groups)
@@ -528,24 +525,24 @@ def render_project(summary: dict) -> list[str]:
     notes = []
     if ignored["unreadable_task_records"]:
         count = ignored["unreadable_task_records"]
-        notes.append(f"{_plural(count, 'task record')} unreadable and left out: openguildkit task list names "
+        notes.append(f"{plural(count, 'task record')} unreadable and left out: openguildkit task list names "
                      f"{'it' if count == 1 else 'them'}.")
     if ignored["exported_records_not_holding"]:
         count = ignored["exported_records_not_holding"]
-        notes.append(f"{_plural(count, 'exported record')} {'does' if count == 1 else 'do'} not match "
+        notes.append(f"{plural(count, 'exported record')} {'does' if count == 1 else 'do'} not match "
                      f"{'its' if count == 1 else 'their'} digest and {'is' if count == 1 else 'are'} left out: "
                      "openguildkit check names the file.")
     if not tasks["read"]:
         return ["No closed task to count: a retrospective reads the tasks that are done or done with reservations. "
                 "List the tasks with openguildkit task list.", *notes]
-    lines = [f"Retrospective of the project: {_plural(tasks['read'], 'closed task')} read "
-             f"({_plural(tasks['from_task_records'], 'task record')}, "
-             f"{_plural(tasks['from_exported_records'], 'exported record')}). A finding counts once per task and is "
+    lines = [f"Retrospective of the project: {plural(tasks['read'], 'closed task')} read "
+             f"({plural(tasks['from_task_records'], 'task record')}, "
+             f"{plural(tasks['from_exported_records'], 'exported record')}). A finding counts once per task and is "
              f"shown when it comes back in at least {minimum} (--min N changes that). "
              f"{'It writes only the draft named below.' if summary.get('draft') else 'It writes nothing.'}", *notes]
     found = summary["recurrences"]
     if not found and minimum == 1:
-        return [*lines, "Nothing to count: no closed task set a rule aside, left a reservation open or had a committee "
+        return [*lines, "Nothing to count: no closed task set a rule aside, left a reservation open or had a board "
                         "that brought nothing."]
     if not found:
         return [*lines, f"Nothing comes back in {minimum} tasks or more. Try a lower minimum: openguildkit task retro "
@@ -556,7 +553,7 @@ def render_project(summary: dict) -> list[str]:
                    *_command_lines(item)] for item in found if item["kind"] == "committee"]
     reservations = [[_point_line(item), *_command_lines(item)] for item in found if item["kind"] == "reservation"]
     lines += _section("Rules set aside or failed again:", rules)
-    lines += _section("Committees without a blocker or an objection (task records only):", committees)
+    lines += _section("Boards without a blocker or an objection (task records only):", committees)
     lines += _section("Reservations that come back:", reservations)
     lines.append("None of these commands was run. A command that lowers a protection is the person's decision, typed "
                  "at an interactive terminal; --by is theirs to fill in, and --reason, which names the tasks, theirs "
@@ -617,6 +614,6 @@ def render_draft(draft: dict | None, minimum: int) -> list[str]:
     if draft is None:
         return [f"No draft written: no reservation comes back in {minimum} tasks or more, and a rule set aside or "
                 "failed has its profile command above."]
-    return [f"Draft rule pack written: {draft['path']} ({_plural(draft['rules'], 'rule')} to write, not active). Next: "
+    return [f"Draft rule pack written: {draft['path']} ({plural(draft['rules'], 'rule')} to write, not active). Next: "
             "write each rule and replace each TODO and the description, copy the file to .openguildkit/catalog/packs/, "
-            f"then openguildkit profile add pack {draft['pack']} --by NAME --reason WHY."]
+            f"then openguildkit profile add pack {draft['pack']} --by INITIALS --reason WHY."]

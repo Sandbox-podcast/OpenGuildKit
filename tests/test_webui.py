@@ -157,13 +157,13 @@ class WebInterfaceTests(unittest.TestCase):
         received = []
 
         class Recorder(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802 - http.server naming
+            def do_GET(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
                 received.append(str(self.headers))
                 self.send_response(200)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
 
-            def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+            def log_message(self, format, *args):  # noqa: A002 - INTENTIONAL(#522): signature of the base class
                 pass
 
         other = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)
@@ -565,7 +565,7 @@ class WebInterfaceTests(unittest.TestCase):
         status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, "guard": "enforce"})})
         self.assertEqual((status, json.loads(body)["code"]), (200, 0))
         saved = json.loads(profile.read_text(encoding="utf-8"))
-        for change, command in (({"guard": "off"}, "profile set guard off --by NAME --reason WHY"),
+        for change, command in (({"guard": "off"}, "profile set guard off --by INITIALS --reason WHY"),
                                 ({"guard": "enforce", "research": "public-sources"},
                                  "profile set research public-sources")):
             with self.subTest(change=change):
@@ -684,7 +684,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(weakening_changes(self.root, before, {"patterns": [regulation]}), [])
         changes = weakening_changes(self.root, before, {"patterns": [{"id": method}]})
         self.assertEqual(changes, [(f"regulation {regulation} no longer active",
-                                    ["profile", "decline", regulation, "--by", "NAME", "--reason", "WHY"])])
+                                    ["profile", "decline", regulation, "--by", "INITIALS", "--reason", "WHY"])])
         declined = weakening_changes(self.root, {"patterns": []}, {"declined": [{"id": regulation, "by": "A"}]})
         self.assertEqual(declined[0][1][:3], ["profile", "decline", regulation])
 
@@ -862,14 +862,14 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertNotIn("high", webui.REFUSALS["alert-status-at-terminal"])
 
     def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
-        message = ("OpenGuildKit: 1 data protection, security or AI point(s) are skipped, failed or declared not "
+        message = ("OpenGuildKit: 1 data protection, security or AI point is skipped, failed or declared not "
                    "applicable as a pack. A person confirms closing over them: openguildkit task complete "
-                   "request-history --by NAME, at a terminal.")
+                   "request-history --by INITIALS, at a terminal.")
         with patch("openguildkit.cli.main", side_effect=lambda argv: print(message, file=__import__("sys").stderr) or 1):
             status, result = self.run_in_page("task", "complete", "request-history")
         self.assertEqual((status, result["code"], result["reason"]), (200, 1, "complete-at-terminal"))
         self.assertTrue(result["command"].startswith("openguildkit --project "), result["command"])
-        self.assertTrue(result["command"].endswith(" task complete request-history --by NAME"), result["command"])
+        self.assertTrue(result["command"].endswith(" task complete request-history --by INITIALS"), result["command"])
         batch = self.request("/api/run", {"batch": {"close": ["task", "complete", "request-history", "--by", "Camille"]}})
         closing = json.loads(batch[2])["results"]["close"]
         self.assertEqual(closing["reason"], "complete-at-terminal")
@@ -878,10 +878,10 @@ class WebInterfaceTests(unittest.TestCase):
     def test_the_named_command_keeps_its_words_and_stops_at_the_end_of_the_sentence(self):
         from openguildkit.webui import named_command
 
-        self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by NAME, "
-                                       "at a terminal."), ["task", "complete", "t1", "--by", "NAME"])
-        self.assertEqual(named_command("Run openguildkit task revoke t1 --by NAME --reason WHY."),
-                         ["task", "revoke", "t1", "--by", "NAME", "--reason", "WHY"])
+        self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by INITIALS, "
+                                       "at a terminal."), ["task", "complete", "t1", "--by", "INITIALS"])
+        self.assertEqual(named_command("Run openguildkit task revoke t1 --by INITIALS --reason WHY."),
+                         ["task", "revoke", "t1", "--by", "INITIALS", "--reason", "WHY"])
         self.assertIsNone(named_command("To dismiss X, a person runs the command at an interactive terminal."))
 
     def test_every_refusal_carries_a_stable_code(self):

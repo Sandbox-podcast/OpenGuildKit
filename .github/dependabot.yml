@@ -1,0 +1,34 @@
+# One grouped pull request a week for each ecosystem, so that no pinned action or npm package falls several
+# major versions behind (#473). A pin stays a commit with the day and tag of its release in a comment that ends
+# with the tag: Dependabot rewrites the commit and the tag, not the day. For github-actions, Dependabot reads
+# .github/workflows from "/" and the *.yml files directly in any other directory.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+      - "/integrations/github"
+      - "/integrations/ci/pilot"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The packages of the web interface; a new major version comes in a pull request of its own.
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  # The package has no runtime dependency: this follows the build requirement of pyproject.toml.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]

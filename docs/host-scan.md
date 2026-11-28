@@ -1,11 +1,14 @@
 # Scan what an agent reads, and list what could act
 
+For: a security reviewer or an administrator who checks what an agent reads and which tools it can act through.
+
 An agent reads `AGENTS.md`, the agents, Skills and commands of `.claude/`, the rules of Cursor and the instructions of Copilot as orders, without questioning them. A character nobody sees, or a sentence that tells it to drop its rules, passes a human review. `openguildkit check` verifies that the instructions match the profile and `sensitive.py` looks for credentials; neither reads the rest of these files. And a repository can hold the files of agent tools that the guard does not cover, MCP servers that fetch the latest version of a package at every start, and settings that take every permission prompt away, without anyone seeing them. `openguildkit host scan` does both: it reads the files, and it lists these tools, servers and settings.
 
 ```bash
 openguildkit host scan                 # a few lines: the tools, the servers, one line per code, the command for the rest
 openguildkit host scan --json          # the whole inventory and every finding with its path, line and excerpt
 openguildkit host scan --strict        # exit 1 on any finding, not only on an error
+openguildkit host scan --allow allow.json   # an error for each MCP server, model or provider address the list does not name
 ```
 
 The command works offline and in read-only mode. It opens no network connection, starts no process, writes no file and runs nothing it reads. It needs no initialized project; with one, it reads the guard and the host from the profile.
@@ -16,9 +19,16 @@ The command works offline and in read-only mode. It opens no network connection,
 |---|---|
 | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `WARP.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `.github/copilot-instructions.md` | `hidden-character`, `instruction-override`, `remote-execution` |
 | `.claude/agents/`, `.claude/skills/`, `.claude/commands/`, `.cursor/rules/`, `.github/instructions/`, `.windsurf/rules/`, `.roo/`, `.kilocode/`, `.junie/`, `.clinerules` (a file or a folder) | the same three codes, every file under the folder |
+| `.goosehints`, `.claude/CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.override.md`, and the folders `.opencode/`, `.claude/rules/`, `.agents/skills/`, `.gemini/commands/`, `.github/prompts/`, `.github/agents/`, `.cursor/commands/`, `.windsurf/workflows/` | the same three codes (the places the tool table below already knew, added by issue #523) |
+| `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` in any subfolder | the same three codes |
 | `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.claude/settings.json`, `.claude/settings.local.json` | `remote-execution` only |
 
-Only the files at these places are read: an `AGENTS.md` in a subfolder is not. The reading is bounded like the machine checks of the rule packs (`rule_checks.py`):
+Only the files at these places are read.
+The subfolders are searched by a walk of the project that starts no process and follows no link, so a folder that Git ignores is searched too.
+The walk stops after 5,000 folders and says so in `scanned.skipped`.
+Whether each tool reads each of these places comes from that tool's own documentation, which was not re-read for issue #523: à vérifier.
+
+The reading is bounded like the machine checks of the rule packs (`rule_checks.py`):
 
 - a file larger than 1 MB is not read, and neither are the files past the 200th or past 20 MB in all;
 - a symbolic link that leaves the project is not followed, and a link that stays in the project is read once, under the first name in alphabetical order (`CLAUDE.md` linked to `AGENTS.md` is `AGENTS.md`);
@@ -69,6 +79,31 @@ The scan reads `.mcp.json` (key `mcpServers`), `.cursor/mcp.json` (`mcpServers`)
 - `mcp-unpinned` (warning): `npx`, `bunx`, `pnpm dlx`, `uvx` or `pipx run` with a package that has no version, the tag `latest` or any tag or range that is not one fixed version; `docker run` with an image that has no tag, the tag `latest` and no digest. A launch by any other command (`node server.js`) names no package to pin and is not judged.
 - `mcp-insecure-transport` (error): an address that starts with `http://` and does not point at `localhost`, `127.0.0.1` or `[::1]`.
 
+### The allow list
+
+`--allow FILE` reads a list that a person keeps, in a policy repository or in the project, and turns what it does not name into an error.
+Without the option nothing changes: the output and the exit code of a project are those of a scan with no list, and the scan reads no other file than the ones above.
+The file is a JSON object with three lists, alone or under the key `allow`, so that a future organization policy can hold it:
+
+```json
+{"allow": {
+  "mcp_servers": ["npm:@playwright/mcp@1.2.3", "pypi:mailchimp-mcp", "docker:ghcr.io/github/github-mcp-server", "https://mcp.example.com/mcp", "command:basecamp"],
+  "models": ["claude-sonnet-4-5"],
+  "endpoints": ["https://gateway.company.example"]
+}}
+```
+
+An axis that the file does not have is not restricted, and an empty list allows nothing.
+
+- `mcp_servers`: a server that runs a package is named by `npm:PACKAGE`, `pypi:PACKAGE` or `docker:IMAGE`, which allows every version, or with a version (`npm:PACKAGE@1.2.3`, `pypi:PACKAGE==2.0`, `docker:IMAGE:1.0`), which allows that one only. A remote server is named by its address, without its query.
+  A server that runs another command (`node server.js`) is named by `command:PROGRAM`, which allows every use of that program. `mcp-not-allowed` is an error with the name of the server, its file and its line.
+- `models`: the `model` of `.claude/settings.json` and `.claude/settings.local.json`, and the `model` of `.codex/config.toml`, compared as written. `model-not-allowed` is an error.
+- `endpoints`: `env.ANTHROPIC_BASE_URL` of the Claude Code settings, and the `base_url` of each `model_providers` table of `.codex/config.toml`. An address is allowed when the list names it or an address above it (`https://gateway.company.example` allows `https://gateway.company.example/v1`); the query and the case do not count.
+  `endpoint-not-allowed` is an error that names the host and never the rest of the address.
+
+The two settings findings name the key and the value that was refused (a model, a host) and carry no excerpt: no other value of an `env` section reaches the output. The key names read in `.codex/config.toml` (`model`, `model_providers.*.base_url`) and the absence of any key read in `.gemini/settings.json` are à vérifier: no page of either host was read for this command.
+`host managed` does not yet write the allow list as the locks of the hosts (`allowedMcpServers` and `availableModels` of Claude Code, a list of `requirements.toml` for Codex, `admin.mcp.config` for Gemini CLI): the exact form of each was not read, and `tools apply` does not refuse a server outside the list.
+
 ### Permissive settings
 
 `permissive-setting` (warning): in `.claude/settings.json` or `.claude/settings.local.json`, `permissions.defaultMode` set to `bypassPermissions`, `"Bash"` or `"Bash(*)"` in `permissions.allow`, or `enableAllProjectMcpServers` set to `true`; in `.codex/config.toml`, `approval_policy = "never"` together with `sandbox_mode = "danger-full-access"`. The key names are the ones of the issue that asked for this command; they are not read from each tool's documentation.
@@ -86,6 +121,9 @@ Each finding has a `code`, a `level` (`error`, `warning` or `note`), a `message`
 | `mcp-unpinned` | warning | An MCP server starts a package or an image without one fixed version (above). |
 | `mcp-insecure-transport` | error | An MCP server is reached over `http://` outside the machine. |
 | `permissive-setting` | warning | A setting hands the agent every shell command or takes away its prompts or its sandbox (above). |
+| `mcp-not-allowed` | error | With `--allow`: an MCP server that the allow list does not name (above). |
+| `model-not-allowed` | error | With `--allow`: a model that the allow list does not name. |
+| `endpoint-not-allowed` | error | With `--allow`: a provider address that the allow list does not name. |
 | `surface-uncovered` | note, or warning with `"guard": "enforce"` | A tool is present and no hook of OpenGuildKit blocks an edit made through it (above). |
 
 What is never a `hidden-character`: a no-break space (U+00A0), a narrow no-break space (U+202F), a thin space (U+2009), accents, curly quotes, a byte order mark at the start of a file, a zero width joiner in an emoji such as a family or a flag, and the three flag sequences of England, Scotland and Wales.
@@ -120,14 +158,14 @@ The exit code is 1 when a finding is an `error`, and with `--strict` when there 
 
 ## SARIF
 
-`openguildkit host scan --format sarif` prints the findings as a SARIF 2.1.0 document for code scanning, under the seven codes of the table above, one rule each. The document is the one [`check` and `guard --ci` write](sarif.md): the same bytes at every run, paths relative to the project, no folder of the machine, and a stable fingerprint per finding. The exit code is the one of the text form. It does not go with `--json`, and it is for `host scan` only. [The upload to GitHub](sarif.md#upload-to-github-code-scanning) is described there.
+`openguildkit host scan --format sarif` prints the findings as a SARIF 2.1.0 document for code scanning, under the ten codes of the table above, one rule each. The document is the one [`check` and `guard --ci` write](sarif.md): the same bytes at every run, paths relative to the project, no folder of the machine, and a stable fingerprint per finding. The exit code is the one of the text form. It does not go with `--json`, and it is for `host scan` only. [The upload to GitHub](sarif.md#upload-to-github-code-scanning) is described there.
 
 ## What it does not prove
 
 - It blocks nothing. No hook of any agent runs it: a person runs it, or CI does. A clean scan says that these patterns are absent from these files, not that the files are safe; for any tool but Claude Code, Codex and Gemini CLI, no hook blocks an edit and the CI check (`guard --ci`) is the only barrier.
 - It does not detect every injection. Matching is by a short list of words in English and French, in the order and the distance the list names; a sentence in another language, another wording, a text split over lines or an instruction hidden in an image passes. Hidden characters outside the list above (soft hyphen, variation selectors, invisible mathematical operators) are not flagged. A `bash <(curl ...)` or `sh -c "$(curl ...)"` is not detected as `remote-execution`.
 - It reads files, not what an agent does with them. It does not check that a command a file asks for is safe, only that a line has this shape.
-- It does not read what a person puts elsewhere: `README.md`, source code, the files of a subfolder, the user-level settings of an agent in the home folder, a Codex profile (`[profiles.*]`) or a setting that another tool reads from an environment variable.
+- It does not read what a person puts elsewhere: `README.md`, source code, any subfolder file but `AGENTS.md`, `CLAUDE.md` and `GEMINI.md`, the user-level settings of an agent in the home folder, a Codex profile (`[profiles.*]`) or a setting that another tool reads from an environment variable.
 - A settings file is read as text, line by line, for `remote-execution`: it does not read hooks as structured data.
 - The inventory shows the files that exist, not which tool a person runs. A `.cursor` folder is present whether or not anyone uses Cursor, and a tool that leaves no file in the repository is not listed. The registry check recognises a server by what it runs: a server that the registry does not name, or that runs a fork, is shown as not in the registry, which is no verdict on it.
 - It never checks a package, an image or an address on the network: "version not fixed" says the launch does not name one version, not that the latest version is unsafe.

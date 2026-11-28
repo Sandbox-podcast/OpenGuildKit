@@ -376,10 +376,10 @@ class ResultTests(ResultCase):
         output, _ = self.run_cli("task", "verify", TASK)
         listed = json.loads(self.run_cli("task", "checks", TASK, "--json")[0])
         rules = [item for item in listed if item["kind"] in ("rule", "evidence") and item["concerned"]]
-        self.assertIn(f"- {len(rules)} rule(s) and named evidence to report: openguildkit task result {TASK} "
+        self.assertIn(f"- {len(rules)} rules and named evidence to report: openguildkit task result {TASK} "
                       "--template lists them", output)
         self.assertNotIn("is not reported", output)
-        self.assertIn(f"{len(rules)} point(s) before the task can be done.", output)
+        self.assertIn(f"{len(rules)} points before the task can be done.", output)
         # Issue 291: the README's order runs task verify before task result; its output stays short.
         self.assertLess(len(output.encode("utf-8")), 1500, output)
         # Once a report answered some rules, task verify lists the ones still missing, one by one.
@@ -397,10 +397,11 @@ class ResultTests(ResultCase):
         self.assertGreaterEqual(len(packs), 3)
         passed = [{"check": item["id"], "status": "passed", "evidence": "src/total.test.ts"} for item in rules]
         criteria = [{"criterion": "Users only see their own requests.", "status": "met", "evidence": "tests/x.py"}]
-        output, _ = self.report(*passed, criteria=criteria)
+        output, warned = self.report(*passed, criteria=criteria)
         warning = (f"The same evidence src/total.test.ts is cited for {len(rules)} passed rules of {len(packs)} packs "
                    f"({', '.join(sorted(packs))})")
-        self.assertIn(f"Warning: {warning}", output)
+        self.assertIn(f"Warning: {warning}", warned)
+        self.assertNotIn("Warning:", output)
         output, notes = self.run_cli("task", "complete", TASK)
         self.assertEqual(output.splitlines()[0], "done-with-reservations")
         self.assertIn("Warnings on the result:", output)
@@ -515,7 +516,7 @@ class ProportionateResultTests(ResultCase):
 
         self.run_cli("task", "new", "Update the record of processing.", "--id", "privacy-record", "--follows", TASK)
         _, error = self.run_cli("task", "complete", TASK, "--defer", f"{GDPR_RECORD}=privacy-record", code=1)
-        self.assertIn("--by NAME", error)
+        self.assertIn("--by INITIALS", error)
         with patch("sys.stdin.isatty", return_value=False):
             _, error = self.run_cli("task", "complete", TASK, "--defer", f"{GDPR_RECORD}=privacy-record",
                                     "--defer", f"{GDPR_DPIA}=privacy-record", "--by", "Camille", code=1)
@@ -532,19 +533,19 @@ class ProportionateResultTests(ResultCase):
         self.gdpr_task()
         record, dpia = self.documents()
         (self.root / "Dockerfile").write_text("FROM python:3.12\n", encoding="utf-8")
-        output, _ = self.file(*self.answers(), {**record, "evidence": "Dockerfile"}, {**dpia, "evidence": "Dockerfile"},
+        output, warned = self.file(*self.answers(), {**record, "evidence": "Dockerfile"}, {**dpia, "evidence": "Dockerfile"},
                               criteria=[{"criterion": "403 for another user's request.", "status": "met",
                                          "evidence": "Read from code only, NOT executed."}])
-        self.assertIn("looks like configuration, code or an image", output)
-        self.assertIn("The same file is cited for 2 different named evidences", output)
-        self.assertIn("says it was not run", output)
+        self.assertIn("looks like configuration, code or an image", warned)
+        self.assertIn("The same file is cited for 2 different named evidences", warned)
+        self.assertIn("says it was not run", warned)
         self.assertIn("Criteria met: 0 tied to a check or a test, 1 declared only", output)
-        output, _ = self.file(*self.answers(), record, dpia, criteria=[
+        output, warned = self.file(*self.answers(), record, dpia, criteria=[
             {"criterion": "403 for another user's request.", "status": "met", "evidence": "Test run.",
              "verified_by": "command:1"},
             {"criterion": "The list loads.", "status": "met", "evidence": "Tried by hand."}])
         self.assertIn("Criteria met: 1 tied to a check or a test, 1 declared only (The list loads.)", output)
-        self.assertNotIn("Warning", output)
+        self.assertNotIn("Warning", output + warned)
         output, notes = self.run_cli("task", "complete", TASK, "--by", "CM", typed=TASK)
         self.assertEqual(output.strip(), "done")
         self.assertIn("did not read the documents. Confirmed by: Dana (DPO)", notes)
@@ -576,14 +577,14 @@ class ProportionateResultTests(ResultCase):
     def test_one_answer_covers_a_pack_but_a_sensitive_pack_needs_the_person(self):
         self.gdpr_task()
         rules = [item for item in self.answers() if not item["check"].startswith("rule:gdpr/")]
-        output, _ = self.file(*rules, *self.documents(), packs=[
+        output, warned = self.file(*rules, *self.documents(), packs=[
             {"pack": "gdpr", "status": "not-applicable", "reason": "Not in scope.", "owner": "Camille"}])
         self.assertIn("Pack gdpr was declared not applicable as a whole by Camille, although the task's answers "
-                      "select it", output)
+                      "select it", warned)
         self.assertIn("Ready to close with the person at a terminal", output)
         # An owner written in the file is not a person's confirmation: closing needs them at a terminal.
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn("--by NAME", error)
+        self.assertIn("--by INITIALS", error)
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             output, notes = self.run_cli("task", "complete", TASK, "--by", "Camille")
         self.assertEqual(output.splitlines()[0], "done-with-reservations")
@@ -611,7 +612,7 @@ class ProportionateResultTests(ResultCase):
                  "owner": "Camille"} for item in template["packs"]]
 
     def points(self, output):
-        return int(re.search(r"(\d+) point\(s\) before the task can be done", output).group(1))
+        return int(re.search(r"(\d+) points? before the task can be done", output).group(1))
 
     def assert_verify_keeps_the_pack_answers(self):
         self.run_cli("task", "verify", TASK)
@@ -652,15 +653,15 @@ class ProportionateResultTests(ResultCase):
         """Issue 288: nine GDPR rules declared not applicable closed the task without a question."""
         self.gdpr_task()
         output, _ = self.file(*self.answers(), *self.documents())
-        self.assertIn(f"openguildkit task complete {TASK} --by NAME", output)
+        self.assertIn(f"openguildkit task complete {TASK} --by INITIALS", output)
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn("data protection, security or AI rule(s) are declared not applicable", error)
+        self.assertIn("data protection, security or AI rules are declared not applicable", error)
         self.assertIn("- rule:gdpr/confirm-lawful-basis is not-applicable: Nothing in this change touches "
                       "rule:gdpr/confirm-lawful-basis. (Camille) [data protection]", error)
         self.assertIn("rule:gdpr/apply-retention-period", error)
         # A rule of a pack the answers do not select is not asked again: the python pack is no sensitive area.
         self.assertNotIn("rule:python/", error)
-        self.assertIn(f"openguildkit task complete {TASK} --by NAME, at a terminal.", error)
+        self.assertIn(f"openguildkit task complete {TASK} --by INITIALS, at a terminal.", error)
         self.assertEqual(self.record()["status"], "approved")
         _, error = self.run_cli("task", "complete", TASK, "--by", "CM", typed="another-task", code=1)
         self.assertIn("Closing cancelled.", error)
@@ -674,9 +675,9 @@ class ProportionateResultTests(ResultCase):
 
     def test_rules_the_answers_select_declared_not_applicable_with_a_shared_reason_are_flagged(self):
         self.gdpr_task()
-        output, _ = self.file(*self.answers(reason="Not relevant."), *self.documents())
-        self.assertIn("rule:gdpr/confirm-lawful-basis", output)
-        self.assertIn("with the same reason as", output)
+        output, warned = self.file(*self.answers(reason="Not relevant."), *self.documents())
+        self.assertIn("rule:gdpr/confirm-lawful-basis", warned)
+        self.assertIn("with the same reason as", warned)
 
     def test_closing_over_a_skipped_sensitive_rule_needs_the_person_and_lists_open_points_by_nature(self):
         self.gdpr_task()
@@ -685,16 +686,16 @@ class ProportionateResultTests(ResultCase):
         # The result does not say plain Ready when task complete needs the person.
         self.assertNotIn("Ready: run task complete.", output)
         self.assertIn(f"Ready to close with the person at a terminal", output)
-        self.assertIn(f"openguildkit task complete {TASK} --by NAME", output)
+        self.assertIn(f"openguildkit task complete {TASK} --by INITIALS", output)
         _, error = self.run_cli("task", "complete", TASK, code=1)
-        self.assertIn("data protection, security or AI point(s) are skipped", error)
-        self.assertIn("--by NAME", error)
+        self.assertIn("data protection, security or AI point is skipped", error)
+        self.assertIn("--by INITIALS", error)
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             output, notes = self.run_cli("task", "complete", TASK, "--by", "Camille")
         # The person read the open points at the prompt: they are printed once.
         self.assertEqual(notes.count("  - rule:gdpr/confirm-lawful-basis is skipped"), 1)
         self.assertNotIn("rule:gdpr/confirm-lawful-basis", output)
-        self.assertIn("open point(s), listed above", output)
+        self.assertIn("open points, listed above", output)
         self.assertEqual(output.splitlines()[0], "done-with-reservations")
         self.assertIn("--follows request-status", output)
         lines = notes.splitlines()
@@ -721,7 +722,7 @@ class ProportionateResultTests(ResultCase):
         self.assertIn(f"record the results: task verify {TASK} and task result {TASK}", next_step())
         output = self.run_cli("task", "verify", TASK, code=1)[0]
         self.assertIn("- command:1 is mandatory and failed", output)
-        self.assertIn(f"rule(s) and named evidence to report: openguildkit task result {TASK} --template", output)
+        self.assertIn(f"rules and named evidence to report: openguildkit task result {TASK} --template", output)
         step = next_step()
         self.assertTrue(step.startswith("command:1 (`"), step)
         self.assertIn(f"failed: ", step)
@@ -806,6 +807,32 @@ class ProportionateResultTests(ResultCase):
         listing = self.run_cli("task", "list")[0]
         self.assertIn(f"{TASK} [done, approved by Camille]", listing)
         self.assertNotIn("closed by", listing)
+
+
+class ResultProblemsTests(ResultCase):
+    def test_a_result_with_three_defects_is_refused_once_with_the_three_of_them(self):
+        """Issue #490: task result --file named one defect per call, where task submit lists them all."""
+        self.approved()
+        rules = self.rule_outcomes()
+        del rules[0]["owner"]
+        del rules[1]["owner"]
+        write_json(self.root / "result.json", {
+            "revision": "abc1234", "checks": rules,
+            "criteria": [{"criterion": "Customers see the status", "status": "maybe", "evidence": "tests/test_access.py"}]})
+        _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
+        self.assertIn("The result has 3 problems:", error)
+        self.assertIn("criteria[1]: A criterion status is met or not-met, not 'maybe'.", error)
+        for index in (1, 2):
+            self.assertIn(f"checks[{index}]: {rules[index - 1]['check']} owner must contain text.", error)
+        self.assertEqual(error.count("Run openguildkit task result"), 1)
+
+    def test_a_result_with_one_defect_keeps_its_message(self):
+        self.approved()
+        write_json(self.root / "result.json", {"revision": "abc1234", "checks": self.rule_outcomes(), "criteria": [
+            {"criterion": "x", "status": "maybe", "evidence": "y"}]})
+        _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
+        self.assertIn("A criterion status is met or not-met, not 'maybe'. Run openguildkit task result", error)
+        self.assertNotIn("problems:", error)
 
 
 if __name__ == "__main__":

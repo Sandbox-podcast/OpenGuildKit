@@ -382,7 +382,7 @@ def due_issue(dossier_id: str, source: dict, research: str = "public-sources") -
             "body": (f"The watched source {source['url']} of market dossier `{dossier_id}` is due for review "
                      f"(last checked: {source.get('last_checked', 'never')}).\n\n"
                      f"Research is local-only: no agent opens the page. A person reviews it, then records it:\n\n"
-                     f"- `openguildkit market provided {dossier_id} --url {source['url']} --by NAME`\n"
+                     f"- `openguildkit market provided {dossier_id} --url {source['url']} --by INITIALS`\n"
                      f"- then, for a change to keep: `openguildkit market change {dossier_id} --competitor "
                      f"{source['competitor']} --what TEXT --source {source['url']} --date YYYY-MM-DD "
                      f"--verified-by NAME`\n"),

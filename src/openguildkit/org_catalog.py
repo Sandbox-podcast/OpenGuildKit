@@ -5,13 +5,20 @@ patterns, brains and sectors, in the format of a project catalog, add to the bun
 records come last and may replace one of them, which `check` shows until a person accepts it. OpenGuildKit never
 fetches: it reads the files at the pinned commit with `git ls-tree` and `git cat-file`, and the person keeps the copy
 up to date with `git fetch`. A project whose lock has no "organization" entry runs no Git command here.
+
+The lock names the catalog (`name`) or, in the first format, the path of a copy (`repo`). A name carries no path: each
+machine finds its copy in OPENGUILDKIT_ORG_CATALOG_NAME, and `guard --ci` in `--org-catalog NAME=PATH`. The stops and
+the pins stay in `organization_history`.
 """
 
 import hashlib
 import os
 import re
 import subprocess
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
+from typing import NoReturn
 
 from .shell import shell_word
 
@@ -19,9 +26,16 @@ COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 LOCK_NAME = ".openguildkit/catalog.lock.json"
-SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by NAME --reason WHY"
-PIN_FIELDS = {"repo", "commit", "fingerprint", "pinned", "exceptions"}
+SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY"
+PIN_FIELDS = {"repo", "name", "commit", "fingerprint", "pinned", "exceptions"}
 PERSON_FIELDS = {"by", "reason", "on"}
+NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
+HISTORY_FIELDS = {"action", "commit", "by", "reason", "on"}
+MIGRATE_COMMAND = "openguildkit org-catalog set --name NAME --repo PATH --commit SHA --by INITIALS --reason WHY"
+
+# Where the copies are looked for while a catalog is loaded from a folder that is not the project: guard --ci extracts
+# the base revision to a temporary folder, so a relative path must be read from the real root. (root, NAME -> folder.)
+_PLACE: ContextVar[tuple[Path, dict[str, str]] | None] = ContextVar("org_catalog_place", default=None)
 
 # Files already read in this process, by copy and commit: a commit's files cannot change.
 _READ: dict[tuple[str, str], dict] = {}
@@ -54,6 +68,40 @@ def repo_folder(repo: str, root: Path) -> Path:
     """The copy's folder: a relative path is read from the project root."""
     path = Path(repo)
     return path if path.is_absolute() else root / path
+
+
+def variable_name(name: str) -> str:
+    return "OPENGUILDKIT_ORG_CATALOG_" + name.upper().replace("-", "_")
+
+
+def parse_copies(items: list[str] | None) -> dict[str, str]:
+    """`--org-catalog NAME=PATH` as a mapping from name to the absolute folder."""
+    copies = {}
+    for item in items or []:
+        name, _, path = item.partition("=")
+        if not NAME.fullmatch(name) or not path:
+            raise ValueError(f"--org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}.")
+        copies[name] = str(Path(path).resolve())
+    return copies
+
+
+@contextmanager
+def copies_read_from(root: Path, named: dict[str, str] | None = None):
+    """Inside it, organization_in reads a relative path of a copy from root, and the copy of a name from `named`."""
+    token = _PLACE.set((root, named or {}))
+    try:
+        yield
+    finally:
+        _PLACE.reset(token)
+
+
+def _named_folder(name: str, named: dict[str, str]) -> Path:
+    """The copy of the catalog a lock names: the folder given for guard --ci, else the variable of this machine."""
+    given = named.get(name) or os.environ.get(variable_name(name))
+    if not given:
+        raise ValueError(f"This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to "
+                         f"your Git copy of it (guard --ci: --org-catalog {name}=PATH).")
+    return Path(given).resolve()
 
 
 def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
@@ -98,24 +146,27 @@ def fingerprint(files: dict[str, list[tuple[str, bytes]]]) -> str:
     return "sha256:" + digest.hexdigest()
 
 
-def read_files(repo: str, commit: str, root: Path) -> dict:
+def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -> dict:
     """The record files of the organization catalog at the commit, with their fingerprint. Raises with the command
-    that fixes it when the copy or the commit is missing."""
+    that fixes it when the copy or the commit is missing. repo is what the lock calls the copy (its path, or its name
+    with the folder given as `folder`)."""
     if not FULL_COMMIT.fullmatch(commit):
         raise ValueError(f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
                          f"{shell_word(repo)} rev-parse COMMIT prints it.")
-    folder = repo_folder(repo, root)
+    named = folder is not None
+    folder = folder or repo_folder(repo, root)
     key = (str(folder.resolve()) if folder.is_dir() else str(folder), commit)
     if key in _READ and folder.is_dir():
         return _READ[key]
+    shown = repo if str(folder) == repo else f"{repo} ({'the copy at' if named else 'resolved to'} {folder.resolve()})"
     if not _is_repository(folder):
-        raise ValueError(f"The organization catalog {repo} is not a Git repository on this machine. Clone it at that "
+        raise ValueError(f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
                          f"path, or point the project at your copy at a terminal: {SET_COMMAND}.")
     found = _git(folder, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if found.returncode or found.stdout.strip() != commit.encode("ascii"):
-        raise ValueError(f"Commit {commit[:12]} of the organization catalog is not in {repo}: run git -C "
-                         f"{shell_word(repo)} fetch, then the command again, or pin a commit the copy has at a "
-                         f"terminal: {SET_COMMAND}.")
+        raise ValueError(f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
+                         f"{shell_word(str(folder) if named else repo)} fetch, then the command again, or "
+                         f"pin a commit the copy has at a terminal: {SET_COMMAND}.")
     listed = _listed_files(folder, commit)
     files: dict[str, list[tuple[str, bytes]]] = {}
     for (path, _), data in zip(listed, _contents(folder, [obj for _, obj in listed])):
@@ -129,14 +180,17 @@ def read_files(repo: str, commit: str, root: Path) -> dict:
 
 def validate_pin(pin: object, where: str) -> None:
     """The "organization" entry of a catalog lock."""
-    def refuse(problem: str):
+    def refuse(problem: str) -> NoReturn:
         raise ValueError(f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
                          f"catalog again at a terminal: {SET_COMMAND}.")
 
-    if not isinstance(pin, dict) or not {"repo", "commit", "fingerprint", "pinned"} <= pin.keys() <= PIN_FIELDS:
-        refuse(f"must hold {', '.join(sorted(PIN_FIELDS - {'exceptions'}))} and may hold exceptions")
-    if not isinstance(pin["repo"], str) or not pin["repo"].strip():
+    if not isinstance(pin, dict) or not {"commit", "fingerprint", "pinned"} <= pin.keys() <= PIN_FIELDS \
+            or ("repo" in pin) == ("name" in pin):
+        refuse("must hold commit, fingerprint and pinned, a name or a repo (not both), and may hold exceptions")
+    if "repo" in pin and (not isinstance(pin["repo"], str) or not pin["repo"].strip()):
         refuse("repo must be the path of a local Git copy")
+    if "name" in pin and (not isinstance(pin["name"], str) or not NAME.fullmatch(pin["name"])):
+        refuse("name must be lowercase letters, digits, - and _")
     if not isinstance(pin["commit"], str) or not FULL_COMMIT.fullmatch(pin["commit"]):
         refuse("commit must be a full commit SHA")
     if not isinstance(pin["fingerprint"], str) or not FINGERPRINT.fullmatch(pin["fingerprint"]):
@@ -150,12 +204,26 @@ def validate_pin(pin: object, where: str) -> None:
         refuse("exceptions must name the record and its digest")
 
 
+def validate_history(history: object, where: str) -> None:
+    """The `organization_history` of a catalog lock: each pin and each stop, with who, when, why and the commit."""
+    if not isinstance(history, list) or not all(
+            isinstance(item, dict) and item.keys() == HISTORY_FIELDS and item["action"] in ("pinned", "stopped")
+            and all(isinstance(item[key], str) for key in HISTORY_FIELDS) for item in history):
+        raise ValueError(f"{where}: organization_history must list pinned and stopped entries with action, commit, "
+                         f"by, reason and on. Restore the file from Git.")
+
+
 def organization_in(lock: dict | None, state: Path) -> dict | None:
     """The organization catalog's files at the commit the lock pins; None when the project follows none."""
     pin = (lock or {}).get("organization")
     if pin is None:
         return None
-    read = read_files(pin["repo"], pin["commit"], state.parent)
+    place = _PLACE.get()
+    root = place[0] if place else state.parent
+    if "name" in pin:
+        read = read_files(pin["name"], pin["commit"], root, _named_folder(pin["name"], place[1] if place else {}))
+    else:
+        read = read_files(pin["repo"], pin["commit"], root)
     if read["fingerprint"] != pin["fingerprint"]:
         raise ValueError(f"The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint "
                          f"pinned in {LOCK_NAME}. Restore the lock from Git, or review the commit and pin it again "
@@ -201,5 +269,5 @@ def unaccepted_replacements(catalog: dict, lock: dict | None) -> dict[str, str]:
     """The line check prints for each replacement no person accepted, by collection/id."""
     return {row["record"]: (f"the project catalog replaces {row['record']} of the organization catalog "
                             f"(.openguildkit/catalog/{row['record']}.json). If a person agrees, openguildkit "
-                            f"org-catalog accept {row['record']} --by NAME --reason WHY at a terminal.")
+                            f"org-catalog accept {row['record']} --by INITIALS --reason WHY at a terminal.")
             for row in replacements(catalog, lock) if row["accepted"] is None}
