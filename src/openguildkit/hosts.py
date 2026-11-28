@@ -171,7 +171,7 @@ def _codex_config(root: Path) -> dict:
     try:
         return tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
+        raise OgkError("OGK-HOST-011", f"{path.as_posix()} is not valid TOML: {error}") from error
 
 
 def _top_level_positions(text: str) -> list[int]:
@@ -214,7 +214,7 @@ def _codex_lift_web_search(path: Path, current: str, config: dict) -> str | None
         return None
     updated = "".join(kept)
     if not _parses_as(updated, {key: value for key, value in config.items() if key != "web_search"}):
-        raise ValueError(f"Could not remove the OpenGuildKit web_search line from {path.as_posix()} safely. Remove it yourself.")
+        raise OgkError("OGK-HOST-012", f"Could not remove the OpenGuildKit web_search line from {path.as_posix()} safely. Remove it yourself.")
     return updated
 
 
@@ -611,10 +611,10 @@ def _apply_claude(root: Path, profile: Profile, local_only: bool, host: str) -> 
     settings = _claude_settings(root)
     permissions = settings.setdefault("permissions", {})
     if not isinstance(permissions, dict):
-        raise ValueError(f"{path.as_posix()}: permissions must be a JSON object.")
+        raise OgkError("OGK-HOST-013", f"{path.as_posix()}: permissions must be a JSON object.")
     deny = permissions.setdefault("deny", [])
     if not isinstance(deny, list):
-        raise ValueError(f"{path.as_posix()}: permissions.deny must be a list.")
+        raise OgkError("OGK-HOST-014", f"{path.as_posix()}: permissions.deny must be a list.")
     wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
     if signers_rule(profile):
         wanted.append(signers_rule(profile))
@@ -655,7 +655,7 @@ def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> l
             raise OgkError("OGK-HOST-007", f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
         sandbox = config.get("sandbox_workspace_write", {})
         if isinstance(sandbox, dict) and sandbox.get("network_access") is True:
-            raise ValueError(f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
+            raise OgkError("OGK-HOST-015", f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
         if "web_search" not in config:
             write_text(path, _codex_disable_web_search(path, current, config))
             written.append(CODEX_CONFIG_FILE.as_posix())

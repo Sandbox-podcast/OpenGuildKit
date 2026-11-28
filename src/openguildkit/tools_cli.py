@@ -104,11 +104,11 @@ def _pairs(values: list[str], separator: str, label: str) -> dict:
     for value in values:
         left, equals, right = value.partition("=")
         if not equals or not left or not right:
-            raise ValueError(f"Write {label}.")
+            raise OgkError("OGK-TOOLS-028", f"Write {label}.")
         if separator:
             tool, dot, name = left.partition(separator)
             if not dot or not tool or not name:
-                raise ValueError(f"Write {label}.")
+                raise OgkError("OGK-TOOLS-029", f"Write {label}.")
             parsed.setdefault(tool.casefold(), {})[name] = right
         else:
             parsed[left.casefold()] = right
@@ -308,7 +308,7 @@ def _call(args, mock_dir: Path) -> int:
     try:
         answer = call_tool(mock, args.name, arguments)
     except MockError as error:
-        raise ValueError(f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
+        raise OgkError("OGK-TOOLS-030", f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
     tool = next(item for item in mock["tools"] if item["name"] == args.name)
     print(answer["content"][0]["text"])
     if not tool.get("read_only") and not answer["isError"]:
@@ -323,7 +323,7 @@ def _call(args, mock_dir: Path) -> int:
 def _list(args, tools: dict, mocks: set, catalog: Catalog) -> int:
     """tools list: the registry, filtered by category, brain or mock."""
     if args.brain and args.brain not in catalog["boards"]:
-        raise ValueError(f"Unknown brain: {args.brain}. Run openguildkit brains.")
+        raise OgkError("OGK-TOOLS-031", f"Unknown brain: {args.brain}. Run openguildkit brains.")
     entries = [
         tool for tool in tools.values()
         if (not args.category or tool["category"] == args.category)

@@ -220,9 +220,12 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### hosts.py
 
-- `_apply_codex`: OGK-HOST-007, OGK-HOST-008
+- `_apply_claude`: OGK-HOST-013, OGK-HOST-014
+- `_apply_codex`: OGK-HOST-007, OGK-HOST-008, OGK-HOST-015
 - `_check_hook_groups`: OGK-HOST-004
+- `_codex_config`: OGK-HOST-011
 - `_codex_disable_web_search`: OGK-HOST-005
+- `_codex_lift_web_search`: OGK-HOST-012
 - `_gemini_hooks_config`: OGK-HOST-006
 - `_read_settings`: OGK-HOST-002, OGK-HOST-003
 
@@ -611,10 +614,13 @@ The register holds the message of each code as the code writes it and the tests 
 ### tool_connections.py
 
 - `_host_entries`: OGK-TOOLS-005
-- `_mcp_file`: OGK-TOOLS-001
-- `_write_host`: OGK-TOOLS-002
+- `_mcp_file`: OGK-TOOLS-001, OGK-TOOLS-035
+- `_split_codex`: OGK-TOOLS-034
+- `_write_host`: OGK-TOOLS-002, OGK-TOOLS-036
 - `apply_connections`: OGK-TOOLS-004
 - `check_settings`: OGK-TOOLS-003
+- `read_manifest`: OGK-TOOLS-032, OGK-TOOLS-033
+- `remove_connections`: OGK-TOOLS-037
 
 ### tool_registry.py
 
@@ -640,17 +646,21 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### tools.py
 
-- `_plan_options`: OGK-TOOLS-010, OGK-TOOLS-011, OGK-TOOLS-012
+- `_live_connection`: OGK-TOOLS-027
+- `_plan_options`: OGK-TOOLS-010, OGK-TOOLS-011, OGK-TOOLS-012, OGK-TOOLS-026
 - `_settings`: OGK-TOOLS-008, OGK-TOOLS-009
-- `choose_server`: OGK-TOOLS-007
-- `load_mock`: OGK-TOOLS-020
+- `choose_server`: OGK-TOOLS-007, OGK-TOOLS-025
+- `load_mock`: OGK-TOOLS-020, OGK-TOOLS-023, OGK-TOOLS-024
+- `read_scenario`: OGK-TOOLS-021, OGK-TOOLS-022
 - `resolve_tool`: OGK-TOOLS-006
 
 ### tools_cli.py
 
-- `_call`: OGK-TOOLS-018, OGK-TOOLS-019
+- `_call`: OGK-TOOLS-018, OGK-TOOLS-019, OGK-TOOLS-030
 - `_confirm_live`: OGK-TOOLS-014, OGK-TOOLS-015
 - `_host`: OGK-TOOLS-013
+- `_list`: OGK-TOOLS-031
+- `_pairs`: OGK-TOOLS-028, OGK-TOOLS-029
 - `_scenario`: OGK-TOOLS-016, OGK-TOOLS-017
 
 ### trace_cli.py

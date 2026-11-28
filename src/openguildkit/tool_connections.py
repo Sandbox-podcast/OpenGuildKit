@@ -42,7 +42,7 @@ def read_manifest(state: Path) -> dict:
         return {"schema_version": 1, "connections": []}
     manifest = read_json(path)
     if not isinstance(manifest.get("connections"), list):
-        raise ValueError(f"{path} is damaged: connections must be a list.")
+        raise OgkError("OGK-TOOLS-032", f"{path} is damaged: connections must be a list.")
     if "unconnected_mocks" in manifest:
         manifest.setdefault(UNCONNECTED, manifest.pop("unconnected_mocks"))
     unconnected = manifest.get(UNCONNECTED, [])
@@ -50,7 +50,7 @@ def read_manifest(state: Path) -> dict:
         not isinstance(item, dict) or any(not isinstance(item.get(field), str) for field in ("host", "tool", "reason"))
         or item["host"] not in HOSTS or item.get("mode", "mock") not in ("mock", "live") for item in unconnected
     ):
-        raise ValueError(f"{path} is damaged: {UNCONNECTED} must contain a host, tool, mode and reason per request.")
+        raise OgkError("OGK-TOOLS-033", f"{path} is damaged: {UNCONNECTED} must contain a host, tool, mode and reason per request.")
     return manifest
 
 
@@ -72,7 +72,7 @@ def _split_codex(text: str, path: Path) -> tuple[str, str]:
     """The person's own configuration, before and after the managed block."""
     start, end = text.find(CODEX_BLOCK_START), text.find(CODEX_BLOCK_END)
     if (start == -1) != (end == -1) or end < start:
-        raise ValueError(f"{path}: the OpenGuildKit tools block is damaged. Remove its marker lines and apply again.")
+        raise OgkError("OGK-TOOLS-034", f"{path}: the OpenGuildKit tools block is damaged. Remove its marker lines and apply again.")
     if start == -1:
         return text, ""
     return text[:start], text[end + len(CODEX_BLOCK_END):]
@@ -86,7 +86,7 @@ def _mcp_file(path: Path) -> dict:
     except ValueError as error:
         raise OgkError("OGK-TOOLS-001", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
-        raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
+        raise OgkError("OGK-TOOLS-035", f"{path.as_posix()} must hold a JSON object with mcpServers.")
     return data
 
 
@@ -110,7 +110,7 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     try:
         own = tomllib.loads(before + after)
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
+        raise OgkError("OGK-TOOLS-036", f"{path.as_posix()} is not valid TOML: {error}") from error
     taken = own.get("mcp_servers", {}) if isinstance(own.get("mcp_servers", {}), dict) else {}
     clash = sorted(set(managed) & set(taken))
     if clash:
@@ -183,7 +183,7 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
     unconnected = manifest.get(UNCONNECTED, [])
     forgotten = {item["tool"] for item in unconnected if item["host"] == host and item["tool"] in wanted}
     if not removed and not forgotten:
-        raise ValueError(f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
+        raise OgkError("OGK-TOOLS-037", f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
     if forgotten:
         kept = [item for item in unconnected if not (item["host"] == host and item["tool"] in forgotten)]
         if kept:
