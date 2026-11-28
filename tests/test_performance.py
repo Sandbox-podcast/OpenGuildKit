@@ -407,6 +407,29 @@ class ClosedTaskReadTests(unittest.TestCase):
                 self.assertEqual(json.loads(text), tasks.read_task(self.root / ".openguildkit", task_id))
 
 
+# Counts the expressions the package compiles while the statements run, whatever the standard library compiles on
+# its own: json, fnmatch or urllib compile some at import, more of them under Python 3.11 than 3.15 (#539).
+COUNT_PACKAGE_EXPRESSIONS = """import sys
+import re._compiler as compiler
+calls = []
+original = compiler.compile
+
+
+def counted(*args):
+    frame = sys._getframe(1)
+    while frame is not None and frame.f_globals.get("__name__", "").partition(".")[0] == "re":
+        frame = frame.f_back
+    if frame is not None and frame.f_globals.get("__name__", "").partition(".")[0] == "openguildkit":
+        calls.append(args)
+    return original(*args)
+
+
+compiler.compile = counted
+{statements}
+print(len(calls))
+"""
+
+
 def python(*arguments, stdin=""):
     """Run a fresh interpreter on the source tree, as an installed command or a host hook starts."""
     environment = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"),
@@ -553,15 +576,50 @@ class StartupTests(unittest.TestCase):
 
     def test_importing_the_cli_compiles_fewer_than_30_expressions(self):
         """Issue #539: importing the CLI compiled 123 to 138 regular expressions, 10 ms before any command ran."""
-        count = ("import re._compiler as compiler\n"
-                 "calls = []\n"
-                 "original = compiler.compile\n"
-                 "compiler.compile = lambda *args: calls.append(args) or original(*args)\n"
-                 "import openguildkit.cli\n"
-                 "print(len(calls))\n")
-        result = python("-c", count)
+        result = python("-c", COUNT_PACKAGE_EXPRESSIONS.format(statements="import openguildkit.cli"))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertLess(int(result.stdout), 30)
+
+    def test_issue_539_the_count_leaves_out_the_expressions_the_standard_library_compiles(self):
+        """Issue #539: Python 3.11 counted 38 expressions, 3.15 23: the standard library compiles its own at import."""
+        outside = "import openguildkit.lazy_re\nimport re\nfor number in range(40):\n    re.compile(f'x{number}')"
+        inside = "from openguildkit import lazy_re\nfor number in range(3):\n    lazy_re.compile(f'y{number}').match('y')"
+        for statements, expected in ((outside, 0), (inside, 3)):
+            with self.subTest(statements=statements):
+                result = python("-c", COUNT_PACKAGE_EXPRESSIONS.format(statements=statements))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(int(result.stdout), expected)
+
+    def test_issue_539_the_version_is_the_one_importlib_metadata_gave_installed_or_not(self):
+        """Issue #539: package_version reads the dist-info folders itself; it must give what importlib.metadata gave,
+        the installed version, or the source version with +source in a checkout that is not installed."""
+        compare = ("import tomllib\nfrom importlib import metadata\nfrom openguildkit.startup import package_version\n"
+                   "try:\n    before = metadata.version('openguildkit')\nexcept metadata.PackageNotFoundError:\n"
+                   "    before = tomllib.load(open('pyproject.toml', 'rb'))['project']['version'] + '+source'\n"
+                   "print(before, package_version())\n")
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        site = Path(folder.name)
+        (site / "dist" / "openguildkit-9.8.7.dist-info").mkdir(parents=True)
+        (site / "dist" / "openguildkit-9.8.7.dist-info" / "METADATA").write_text(
+            "Metadata-Version: 2.4\nName: openguildkit\nVersion: 9.8.7\n\nVersion: 0.0.1 in the description\n",
+            encoding="utf-8")
+        (site / "egg" / "openguildkit.egg-info").mkdir(parents=True)
+        (site / "egg" / "openguildkit.egg-info" / "PKG-INFO").write_text(
+            "Metadata-Version: 2.1\nName: openguildkit\nVersion: 9.8.6\n", encoding="utf-8")
+        source = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+        for extra, expected in ((None, None), ("dist", "9.8.7"), ("egg", "9.8.6")):
+            with self.subTest(path=extra):
+                path = [str(REPO / "src"), str(site / extra) if extra else "", os.environ.get("PYTHONPATH", "")]
+                result = subprocess.run([sys.executable, "-c", compare], cwd=REPO, capture_output=True, text=True,
+                                        env={**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, path))}, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                before, now = result.stdout.split()
+                self.assertEqual(now, before)
+                if expected:
+                    self.assertEqual(now, expected)
+                else:
+                    self.assertIn(now, (f"{source}+source", source))
 
     def test_the_installed_command_starts_from_the_same_entry_point_as_python_m(self):
         project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))

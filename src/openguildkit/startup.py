@@ -14,24 +14,40 @@ MODES = ("off", "observe", "enforce")
 UNKNOWN_MODE = "unknown"
 
 
+def _metadata_header(folder: Path, name: str) -> str | None:
+    """The header of the metadata file of a dist-info or egg-info entry named for openguildkit, as importlib.metadata
+    finds them: METADATA, or PKG-INFO in a folder or in the .egg-info file itself."""
+    lowered = name.lower()
+    files: tuple[str, ...] = ("METADATA",)
+    if lowered.endswith(".egg-info"):
+        files = ("PKG-INFO", "")
+    elif not lowered.endswith(".dist-info"):
+        return None
+    if lowered.rpartition(".")[0].partition("-")[0] != "openguildkit":
+        return None
+    for file in files:
+        try:
+            return (folder / name / file).read_text(encoding="utf-8").partition("\n\n")[0]
+        except OSError:
+            continue
+    return None
+
+
 def package_version() -> str:
     """The installed version, or the version of the source checkout the CLI runs from.
 
-    The dist-info folders on the import path are read first, as importlib.metadata finds them: importing that module
-    and its search cost more than the interpreter's start (#539), so it only serves a package installed otherwise."""
+    The dist-info and egg-info entries on the import path are read first, in the order importlib.metadata reads them:
+    importing that module and its search cost more than the interpreter's start (#539), so it only serves a package
+    installed otherwise. A checkout that is not installed answers the version of its pyproject.toml with +source."""
     for entry in sys.path:
         folder = Path(entry or ".")
         try:
-            names = [name for name in os.listdir(folder)
-                     if name.lower().startswith("openguildkit-") and name.endswith(".dist-info")]
+            names = sorted(os.listdir(folder))
         except OSError:
             continue
         for name in names:
-            try:
-                header = (folder / name / "METADATA").read_text(encoding="utf-8").partition("\n\n")[0]
-            except OSError:
-                continue
-            for line in header.splitlines():
+            header = _metadata_header(folder, name)
+            for line in (header or "").splitlines():
                 if line.startswith("Version:"):
                     return line.partition(":")[2].strip()
     pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
