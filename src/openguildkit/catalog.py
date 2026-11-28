@@ -549,7 +549,7 @@ def replaced_boards(catalog: dict) -> dict[str, str]:
     """The line board_replacements prints, by the ID of the brain it is about."""
     from .wording import plural
 
-    bundled = _validated_bundled(_registry())["boards"]
+    bundled = validated_bundle(registry_folder())["boards"]
     lines = {}
     for board_id in sorted(overlaid_boards(catalog)):
         before, after = bundled.get(board_id), catalog["boards"].get(board_id)
@@ -598,7 +598,7 @@ def package_file(*parts: str):
     return files("openguildkit").joinpath(*parts)
 
 
-def _registry():
+def registry_folder():
     return package_file("registry")
 
 
@@ -672,7 +672,7 @@ _MERGED: dict[tuple, dict[str, dict[str, dict[str, Any]]]] = {}
 _MERGED_KEPT = 8
 
 
-def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+def validated_bundle(builtin) -> dict[str, dict[str, dict[str, Any]]]:
     """The validated bundled records, read once per process. Callers that change them work on a copy."""
     key = str(builtin)
     if key not in _BUNDLED:
@@ -683,7 +683,7 @@ def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
 
 def bundled_ids() -> dict[str, set[str]]:
     """The IDs of the records that ship with OpenGuildKit, by collection, without copying the records."""
-    bundled = _validated_bundled(_registry())
+    bundled = validated_bundle(registry_folder())
     return {collection: set(bundled[collection]) for collection in COLLECTION_FIELDS}
 
 
@@ -750,7 +750,7 @@ def _merged_records(builtin, project: Path | None, organization: dict | None = N
     """The bundled records with the organization's, if the project follows one, then the project's, each validated,
     ordered by ID. A project record that replaces or completes an organization record is listed as replaced.
     Without project or organization records, nothing changes the bundled ones: load_catalog copies what it hands out."""
-    bundled = _validated_bundled(builtin)
+    bundled = validated_bundle(builtin)
     if project is not None or organization is not None:
         bundled = json_copy(bundled)
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
@@ -810,8 +810,8 @@ def load_catalog(
     organization, from org_catalog.read_files, holds the files read at a pinned commit; without it (the
     default) nothing changes. The catalog then carries an "organization" entry: the IDs it provides and the
     project records that replace one of them."""
-    builtin = _registry()
-    _validated_bundled(builtin)
+    builtin = registry_folder()
+    validated_bundle(builtin)
     if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
         raise CatalogError(f"{extra_dir} must be a directory")
     project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
