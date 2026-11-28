@@ -3,7 +3,8 @@ name: Release assets
 # Builds the web interface, the wheel that ships it and the Node archive from the tagged commit, copies the
 # one-line installers (scripts/install.sh and scripts/install.ps1), writes the CycloneDX SBOM of the web
 # interface and SHA256SUMS.txt, attests the build provenance of the six files and attaches them to the release
-# of the tag. A maintainer reviews and publishes the release.
+# of the tag. A maintainer reviews and publishes the release. Two jobs publish the attested wheel elsewhere, each
+# off until the maintainer sets its repository variable: PyPI (PYPI_PUBLISH) and ghcr.io (GHCR_PUBLISH).
 on:
   push:
     tags: ["v*"]
@@ -107,7 +108,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # The only job that can mint an identity token. It runs no project code: it downloads the files the build job
+      # The same wheel alone, for the PyPI and image jobs below.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
+        with:
+          name: wheel
+          path: release/openguildkit-*-py3-none-any.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  # The only job that can sign attestations. It runs no project code: it downloads the files the build job
   # made and signs their digests, so the signature names this workflow and the tag it ran for.
   # `gh attestation verify FILE --repo Sandbox-podcast/OpenGuildKit` checks it (docs/install.md).
   attest:
@@ -157,3 +166,62 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" \
             "openguildkit-$VERSION-py3-none-any.whl" "openguildkit-$VERSION.tgz" "openguildkit-$VERSION.cdx.json" \
             install.sh install.ps1 SHA256SUMS.txt
+
+  # Off until the maintainer sets the repository variable PYPI_PUBLISH to "true", after adding this workflow as a
+  # trusted publisher of the project on PyPI with the environment "pypi" (GOVERNANCE.md#releases). It uploads the
+  # wheel the build job made and the attest job signed, by OIDC: no token or secret, and no command of its own.
+  pypi:
+    name: Publish the wheel to PyPI
+    needs: [build, attest]
+    if: vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/openguildkit/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 2026-10-07 v8.0.2
+        with:
+          name: wheel
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # 2026-10-20 v1.14.3
+        with:
+          packages-dir: dist/
+
+  # Off until the maintainer sets the repository variable GHCR_PUBLISH to "true". It builds the Dockerfile around
+  # the attested wheel, starts the image once, then pushes it to ghcr.io with the token of the run.
+  image:
+    name: Push the container image to ghcr.io
+    needs: [build, attest]
+    if: vars.GHCR_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 2026-10-07 v8.0.2
+        with:
+          name: wheel
+          path: dist
+
+      - name: Build the image from the wheel and start it
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME#v}"
+          docker build --file Dockerfile --tag "$image" dist
+          test "$(docker run --rm "$image" --version)" = "openguildkit ${GITHUB_REF_NAME#v}"
+
+      - name: Push the image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME#v}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$image"

@@ -427,10 +427,12 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.jobs = self.workflow["jobs"]
 
     def test_only_the_attest_job_can_mint_an_identity_token(self):
-        """Issue #503: no attestation of the build; the identity token belongs to one job without project code."""
+        """Issue #503: no attestation of the build; the identity token belongs to the jobs without project code
+        (the PyPI job only uploads the wheel the build job made, see ReleaseChannelsTest)."""
+        expected = {"attest": {"id-token", "attestations"}, "pypi": {"id-token"}}
         for name, job in self.jobs.items():
             granted = set(job["permissions"]) & {"id-token", "attestations"}
-            self.assertEqual(granted, {"id-token", "attestations"} if name == "attest" else set(), name)
+            self.assertEqual(granted, expected.get(name, set()), name)
         attest = self.jobs["attest"]
         self.assertEqual(attest["permissions"], {"contents": "read", "id-token": "write", "attestations": "write"})
         self.assertEqual(attest["needs"], "build")
@@ -496,6 +498,70 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertIn('--pattern "openguildkit-$VERSION.cdx.json"', path.read_text(encoding="utf-8"))
         manual = parse(path)["on"]["workflow_dispatch"]["inputs"]["attestations"]
         self.assertEqual(manual["default"], "true", "a manual run of a release that predates attestations says so")
+
+
+class ReleaseChannelsTest(unittest.TestCase):
+    """Issue #503: PyPI, the container image, Homebrew and winget are ready for the maintainer and off until set up."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "release.yml")["jobs"]
+
+    def test_each_publishing_job_runs_only_when_its_repository_variable_says_true(self):
+        """Issue #503: publishing needs an account only the maintainer can create; nothing runs before that."""
+        self.assertEqual(self.jobs["pypi"]["if"], "vars.PYPI_PUBLISH == 'true'")
+        self.assertEqual(self.jobs["image"]["if"], "vars.GHCR_PUBLISH == 'true'")
+        for name in ("build", "attest", "publish"):
+            self.assertNotIn("if", self.jobs[name], name)
+        for name in ("pypi", "image"):
+            self.assertEqual(self.jobs[name]["needs"], ["build", "attest"], f"{name}: only attested files go out")
+            self.assertIn("timeout-minutes", self.jobs[name])
+
+    def test_pypi_uploads_the_attested_wheel_by_trusted_publishing_without_a_secret(self):
+        """Issue #503: PyPI by OIDC, with the wheel the build job attested, not a wheel built again."""
+        pypi = self.jobs["pypi"]
+        self.assertEqual(pypi["permissions"], {"id-token": "write"})
+        self.assertEqual(pypi["environment"]["name"], "pypi")
+        self.assertEqual(run_text(pypi).strip(), "", "the job that holds the identity token runs no command")
+        fetched, publish = steps(pypi)
+        self.assertTrue(str(fetched["uses"]).startswith("actions/download-artifact@"))
+        self.assertEqual((fetched["with"]["name"], fetched["with"]["path"]), ("wheel", "dist"))
+        self.assertTrue(str(publish["uses"]).startswith("pypa/gh-action-pypi-publish@"))
+        self.assertEqual(publish["with"], {"packages-dir": "dist/"})
+        upload = next(step for step in steps(self.jobs["build"])
+                      if "upload-artifact@" in str(step.get("uses")) and step["with"]["name"] == "wheel")
+        self.assertEqual(upload["with"]["path"], "release/openguildkit-*-py3-none-any.whl")
+        text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertNotIn("secrets.", text, "trusted publishing needs no token")
+
+    def test_the_image_installs_the_attested_wheel_runs_as_a_user_and_pushes_to_ghcr(self):
+        """Issue #503: no container image; the job pushes with the token of the run and the image runs as a user."""
+        image = self.jobs["image"]
+        self.assertEqual(image["permissions"], {"contents": "read", "packages": "write"})
+        build, push = (step for step in steps(image) if "run" in step)
+        self.assertIn("docker build", build["run"])
+        self.assertIn("--version", build["run"], "the image starts before it is pushed")
+        self.assertNotIn("env", build, "the build and the smoke test run without the token")
+        self.assertEqual(push["env"]["GH_TOKEN"], "${{ github.token }}")
+        self.assertIn("--password-stdin", push["run"])
+        self.assertIn("ghcr.io/", push["run"])
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self.assertRegex(dockerfile, r"(?m)^FROM python:3\.\d+-slim@sha256:[0-9a-f]{64}$")
+        self.assertRegex(dockerfile, r"(?m)^# \d{4}-\d{2}-\d{2} ", "date the digest of the base image")
+        self.assertIn("--no-index", dockerfile)
+        self.assertRegex(dockerfile, r"(?m)^USER (?!root)\w+$")
+        self.assertIn('ENTRYPOINT ["openguildkit"]', dockerfile)
+
+    def test_the_release_steps_and_the_install_guide_say_the_channels_are_ready_and_not_published(self):
+        """Issue #503: the maintainer needs the one step that turns each channel on, and a user what exists today."""
+        section = (ROOT / "GOVERNANCE.md").read_text(encoding="utf-8").split("## Releases", 1)[1].split("\n## ", 1)[0]
+        for fact in ("PYPI_PUBLISH", "GHCR_PUBLISH", "environment `pypi`", "scripts/release_manifests.py",
+                     "packaging/homebrew/openguildkit.rb", "packaging/winget/", "read 2026-11-28"):
+            self.assertIn(fact, section)
+        guide = (ROOT / "docs" / "install.md").read_text(encoding="utf-8")
+        channels = guide.split("## Package managers", 1)[1].split("\n## ", 1)[0]
+        for fact in ("none of them is published yet", "PYPI_PUBLISH", "GHCR_PUBLISH", "Dockerfile",
+                     "scripts/release_manifests.py", "winget installs an executable"):
+            self.assertIn(fact, channels)
 
 
 class PackageJobTest(unittest.TestCase):

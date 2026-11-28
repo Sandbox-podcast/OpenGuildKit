@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
+# Template: scripts/release_manifests.py fills it from the SHA256SUMS.txt of a release (docs/install.md).
+PackageIdentifier: SandboxPodcast.OpenGuildKit
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: OpenGuildKit contributors
+PublisherUrl: https://github.com/@REPOSITORY@
+PackageName: OpenGuildKit
+PackageUrl: https://github.com/@REPOSITORY@
+License: MIT
+LicenseUrl: https://github.com/@REPOSITORY@/blob/v@VERSION@/LICENSE
+ShortDescription: Project rules and specialist reviews for AI-assisted work.
+ReleaseNotesUrl: https://github.com/@REPOSITORY@/releases/tag/v@VERSION@
+Moniker: openguildkit
+ManifestType: defaultLocale
+ManifestVersion: 1.28.0
