@@ -531,6 +531,22 @@ def validate_proposals(data: dict) -> dict:
     if not isinstance(data, dict) or data.get("schema_version") != 1 or not all(
             isinstance(data.get(field), list) for field in ("components", "variants", "tokens")):
         raise ValueError("Proposals need schema_version 1 and lists of components, variants and tokens.")
+    _check_proposal_items(data)
+    for item in data["components"]:
+        _check_proposed_component(item)
+    components = {item["key"] for item in data["components"]}
+    for item in data["variants"]:
+        if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
+                isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
+                for prop, value in item["props"].items()):
+            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
+    _check_proposed_tokens(data["tokens"])
+    return data
+
+
+def _check_proposal_items(data: dict) -> None:
+    """Each item of the proposals has a unique key, a status and a name; one seen only in a preview stays a
+    hypothesis."""
     keys = set()
     for field in ("components", "variants", "tokens"):
         for item in data[field]:
@@ -542,33 +558,70 @@ def validate_proposals(data: dict) -> dict:
             item["name"] = _check_name(item.get("name"), item["key"])
             if item.get("basis") == "preview":
                 item["confidence"] = "hypothesis"
-    for item in data["components"]:
-        if item.get("export", "named") not in ("named", "default") or not (
-                "public" not in item or (isinstance(item["public"], str) and JS_IDENTIFIER.fullmatch(item["public"])
-                                         and item["public"] != "default")):
-            raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
-                             "the component is exported under.")
-        if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
-            raise ValueError(f"{item['key']}: args and sample_args must be objects.")
-        callbacks = item.get("callback_props", [])
-        if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
-            raise ValueError(f"{item['key']}: callback_props lists prop names.")
-    components = {item["key"] for item in data["components"]}
-    for item in data["variants"]:
-        if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
-                isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
-                for prop, value in item["props"].items()):
-            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
-    for item in data["tokens"]:
+
+
+def _check_proposed_component(item: dict) -> None:
+    """A proposed component's export and public name, its args and sample args, its callback props."""
+    if item.get("export", "named") not in ("named", "default") or not (
+            "public" not in item or (isinstance(item["public"], str) and JS_IDENTIFIER.fullmatch(item["public"])
+                                     and item["public"] != "default")):
+        raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
+                         "the component is exported under.")
+    if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
+        raise ValueError(f"{item['key']}: args and sample_args must be objects.")
+    callbacks = item.get("callback_props", [])
+    if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
+        raise ValueError(f"{item['key']}: callback_props lists prop names.")
+
+
+def _check_proposed_tokens(tokens: list) -> None:
+    """Each token name is a dotted path; a validated name is used once and is not also a group."""
+    for item in tokens:
         segments = item["name"].split(".")
         if any(not segment or segment.startswith("$") or "{" in segment or "}" in segment for segment in segments):
             raise ValueError(f"{item['key']}: a token name is a dotted path whose parts do not start with $ "
                              "and contain no braces.")
-    validated = [item["name"] for item in data["tokens"] if item["status"] == "validated"]
+    validated = [item["name"] for item in tokens if item["status"] == "validated"]
     for name in validated:
         if validated.count(name) > 1 or any(other.startswith(name + ".") for other in validated):
             raise ValueError(f"Validated token {name} is used twice or is also a group.")
-    return data
+
+
+def _proposed_component(item: dict) -> dict:
+    """The proposal of a component of the inventory, with the props a story needs filled."""
+    return {
+        "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
+        "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
+        "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
+        "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
+        "text_props": [prop["name"] for prop in item["props"]
+                       if "default" not in prop and "sample" not in prop
+                       and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
+        "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
+        "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
+        "callback_props": [prop["name"] for prop in item["props"] if prop.get("callback")],
+    }
+
+
+def _merged_items(fresh: list[dict], previous: list[dict], counts: dict) -> list[dict]:
+    """The fresh proposals with the decisions and names already in the file kept, then the earlier ones no longer
+    observed; counts receives how many are new, kept and not observed."""
+    decided = ("status", "name", "props", "args", "note")
+    earlier = {item["key"]: item for item in previous}
+    items = []
+    for item in fresh:
+        if item["key"] in earlier:
+            counts["kept"] += 1
+            item.update({key: earlier[item["key"]][key] for key in decided if key in earlier[item["key"]]})
+        else:
+            counts["new"] += 1
+        items.append(item)
+    seen = {item["key"] for item in items}
+    for key, item in earlier.items():
+        if key not in seen:
+            counts["not_observed"] += 1
+            items.append({**item, "observed": False})
+    return items
 
 
 def propose(root: Path, state: Path, inventory_path: Path | None = None, proposals_path: Path | None = None) -> dict:
@@ -585,18 +638,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
     token_names = {item["key"]: name if short.count(name) == 1 else _token_name(item, short=False)
                    for item, name in zip(inventory["tokens"], short)}
     fresh = {
-        "components": [{
-            "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
-            "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
-            "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
-            "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
-            "text_props": [prop["name"] for prop in item["props"]
-                           if "default" not in prop and "sample" not in prop
-                           and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
-            "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
-            "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
-            "callback_props": [prop["name"] for prop in item["props"] if prop.get("callback")],
-        } for item in inventory["components"]],
+        "components": [_proposed_component(item) for item in inventory["components"]],
         "variants": [{
             "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
             "name": story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
@@ -610,26 +652,11 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
             "origins": item["origins"],
         } for item in inventory["tokens"]],
     }
-    decided = ("status", "name", "props", "args", "note")
     result = {"schema_version": 1, "inventory": {
         "path": committed_path(root, inventory_path), "sha256": file_sha256(inventory_path)}}
     counts = {"new": 0, "kept": 0, "not_observed": 0}
     for field in ("components", "variants", "tokens"):
-        earlier = {item["key"]: item for item in previous[field]}
-        items = []
-        for item in fresh[field]:
-            if item["key"] in earlier:
-                counts["kept"] += 1
-                item.update({key: earlier[item["key"]][key] for key in decided if key in earlier[item["key"]]})
-            else:
-                counts["new"] += 1
-            items.append(item)
-        seen = {item["key"] for item in items}
-        for key, item in earlier.items():
-            if key not in seen:
-                counts["not_observed"] += 1
-                items.append({**item, "observed": False})
-        result[field] = items
+        result[field] = _merged_items(fresh[field], previous[field], counts)
     validate_proposals(result)
     with project_lock(state):
         write_json(proposals_path, result)
