@@ -610,7 +610,8 @@ class StartupTests(unittest.TestCase):
         source = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
         for extra, expected in ((None, None), ("dist", "9.8.7"), ("egg", "9.8.6")):
             with self.subTest(path=extra):
-                path = [str(REPO / "src"), str(site / extra) if extra else "", os.environ.get("PYTHONPATH", "")]
+                # The fake package comes first: an editable install (CI) leaves openguildkit.egg-info in src/.
+                path = [str(site / extra) if extra else "", str(REPO / "src"), os.environ.get("PYTHONPATH", "")]
                 result = subprocess.run([sys.executable, "-c", compare], cwd=REPO, capture_output=True, text=True,
                                         env={**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, path))}, check=False)
                 self.assertEqual(result.returncode, 0, result.stderr)
