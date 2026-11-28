@@ -86,14 +86,14 @@ def _validate_text(check: dict, label: str) -> None:
     _validate_paths(check, label)
     literals = check["contains"]
     if not isinstance(literals, list) or not literals or len(literals) > MAX_LITERALS:
-        raise ValueError(f"{label}.contains must list 1 to {MAX_LITERALS} literal texts")
+        raise OgkError("OGK-RULE-015", f"{label}.contains must list 1 to {MAX_LITERALS} literal texts")
     for literal in literals:
         if not isinstance(literal, str) or not literal.strip() or len(literal) > MAX_LITERAL_LENGTH:
             raise OgkError("OGK-RULE-009", f"{label}.contains holds literal texts of 1 to {MAX_LITERAL_LENGTH} characters")
     if check["expect"] not in ("present", "absent"):
-        raise ValueError(f"{label}.expect must be present or absent")
+        raise OgkError("OGK-RULE-016", f"{label}.expect must be present or absent")
     if "ignore_case" in check and type(check["ignore_case"]) is not bool:
-        raise ValueError(f"{label}.ignore_case must be true or false")
+        raise OgkError("OGK-RULE-017", f"{label}.ignore_case must be true or false")
     if "each" in check and (check["each"] is not True or check["expect"] != "present"):
         raise OgkError("OGK-RULE-010", f"{label}.each must be true, with expect present; omit it otherwise")
 
@@ -110,32 +110,32 @@ def _validate_field(check: dict, label: str) -> None:
     _fields(check, label, {"path", "field"}, set(FIELD_OPERATORS))
     _validate_check_path(check["path"], f"{label}.path", pattern=False)
     if Path(check["path"]).suffix not in FIELD_FORMATS:
-        raise ValueError(f"{label}.path must name a .json or .toml file")
+        raise OgkError("OGK-RULE-018", f"{label}.path must name a .json or .toml file")
     field = check["field"]
     if not isinstance(field, str) or not all(part.strip() for part in field.split(".")):
-        raise ValueError(f"{label}.field must be a dotted path such as tool.package.name")
+        raise OgkError("OGK-RULE-019", f"{label}.field must be a dotted path such as tool.package.name")
     operators = check.keys() & set(FIELD_OPERATORS)
     if not operators:
-        raise ValueError(f"{label} needs one of {', '.join(FIELD_OPERATORS)}")
+        raise OgkError("OGK-RULE-020", f"{label} needs one of {', '.join(FIELD_OPERATORS)}")
     if "integer" in check and check["integer"] is not True:
         raise OgkError("OGK-RULE-012", f"{label}.integer must be true; omit it otherwise")
     for bound in ("min", "max"):
         if bound in check and not (_is_number(check[bound]) and math.isfinite(check[bound])):
-            raise ValueError(f"{label}.{bound} must be a number")
+            raise OgkError("OGK-RULE-021", f"{label}.{bound} must be a number")
     if "min" in check and "max" in check and check["min"] > check["max"]:
-        raise ValueError(f"{label}.min is above {label}.max")
+        raise OgkError("OGK-RULE-022", f"{label}.min is above {label}.max")
     if "equals" in check and not _is_scalar(check["equals"]):
-        raise ValueError(f"{label}.equals must be a text, a number, true, false or null")
+        raise OgkError("OGK-RULE-023", f"{label}.equals must be a text, a number, true, false or null")
     if "one_of" in check:
         values = check["one_of"]
         if not isinstance(values, list) or not values or not all(_is_scalar(value) for value in values):
-            raise ValueError(f"{label}.one_of must list texts, numbers, true, false or null")
+            raise OgkError("OGK-RULE-024", f"{label}.one_of must list texts, numbers, true, false or null")
 
 
 def validate_check(check: object, label: str, *, allow_command: bool) -> None:
     """Refuse a malformed check, and a command check outside the project's own catalog."""
     if not isinstance(check, dict):
-        raise ValueError(f"{label} must be a JSON object")
+        raise OgkError("OGK-RULE-025", f"{label} must be a JSON object")
     kind = check.get("kind")
     if kind not in CHECK_KINDS:
         raise OgkError("OGK-RULE-013", f"{label}.kind must be one of {', '.join(CHECK_KINDS)}")
@@ -155,7 +155,7 @@ def validate_check(check: object, label: str, *, allow_command: bool) -> None:
             )
         _fields(check, label, {"command"}, set())
         if not isinstance(check["command"], str) or not check["command"].strip():
-            raise ValueError(f"{label}.command must be a non-empty string")
+            raise OgkError("OGK-RULE-026", f"{label}.command must be a non-empty string")
 
 
 def _show(value: object) -> str:
@@ -200,7 +200,7 @@ def parse_fields(content: bytes, path: str) -> dict:
     try:
         return tomllib.loads(content.decode("utf-8-sig"))
     except (UnicodeError, tomllib.TOMLDecodeError) as error:
-        raise ValueError(f"Invalid TOML in {path}: {error}") from error
+        raise OgkError("OGK-RULE-027", f"Invalid TOML in {path}: {error}") from error
 
 
 def _lookup(data: dict, field: str) -> tuple[bool, object]:

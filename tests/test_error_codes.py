@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import mcp_mock, project, tasks_decide_cli
+from openguildkit import mcp_mock, project, rule_checks, tasks_decide_cli
 from openguildkit.catalog import load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
@@ -24,7 +24,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 247
+UNCODED_CEILING = 234
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -222,6 +222,33 @@ class MockErrorTests(CodedRefusals):
             ("OGK-MCP-027", mock([{**answer, "responses": [{"when": [], "result": {}}]}])),
             ("OGK-MCP-028", mock([{**answer, "responses": [{"when": {"id": "a"}, "result": {}}]}])),
             ("OGK-MCP-029", lambda: mcp_mock.apply_scenario({"tool": "crm"}, [], "scenario.json")),
+        ])
+
+
+class RuleCheckErrorTests(CodedRefusals):
+    """Issue #487: each part of a rule check that is wrong is refused with its own code."""
+
+    def test_issue_487_each_wrong_part_of_a_check_has_its_code(self):
+        text = {"kind": "text", "paths": ["README.md"], "contains": ["x"], "expect": "present"}
+        field = {"kind": "field", "path": "package.json", "field": "name", "equals": "x"}
+
+        def check(base, allow_command=False, **fields):
+            return lambda: rule_checks.validate_check({**base, **fields}, "check", allow_command=allow_command)
+
+        self.assertCodes([
+            ("OGK-RULE-015", check(text, contains=[])),
+            ("OGK-RULE-016", check(text, expect="maybe")),
+            ("OGK-RULE-017", check(text, ignore_case="yes")),
+            ("OGK-RULE-018", check(field, path="setup.cfg")),
+            ("OGK-RULE-019", check(field, field="tool..name")),
+            ("OGK-RULE-020", check({key: value for key, value in field.items() if key != "equals"})),
+            ("OGK-RULE-021", check(field, min="1")),
+            ("OGK-RULE-022", check(field, min=2, max=1)),
+            ("OGK-RULE-023", check(field, equals=[1])),
+            ("OGK-RULE-024", check(field, one_of=[])),
+            ("OGK-RULE-025", lambda: rule_checks.validate_check([], "check", allow_command=False)),
+            ("OGK-RULE-026", check({"kind": "command"}, allow_command=True, command=" ")),
+            ("OGK-RULE-027", lambda: rule_checks.parse_fields(b"name = ", "pyproject.toml")),
         ])
 
 
