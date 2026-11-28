@@ -173,6 +173,27 @@ class SupportTests(unittest.TestCase):
         self.assertIn("docs/support.md", read(REPO / "SECURITY.md"))
 
 
+    def test_the_proposed_policy_is_marked_and_says_what_the_kept_names_do(self):
+        """Issue #477: docs/support.md named no support window and no deprecation rule."""
+        page = read(DOCS / "support.md")
+        proposed = page.split("## Proposed policy", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Proposed, to be confirmed by the maintainers.", proposed)
+        self.assertRegex(proposed, r"for 30 days after the next minor version")
+        self.assertRegex(proposed, r"at least 2 minor versions and at least 60 days")
+        # The names the page says are kept without a warning are accepted, and print none.
+        self.assertIn("storybook generate --out", proposed)
+        self.assertIn("task show --summary", proposed)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            run_cli(root, "init", "--answers", REPO / "examples" / "request-status" / "profile.json")
+            run_cli(root, "task", "new", "Show customers their request status", "--id", "status")
+            shown = run_cli(root, "task", "show", "status", "--summary")
+            self.assertEqual(shown.stdout, run_cli(root, "task", "show", "status").stdout)
+            self.assertNotIn("Warning", shown.stderr)
+        source = read(REPO / "src" / "openguildkit" / "storybook_cli.py")
+        self.assertRegex(source, r'add_argument\("--out", dest="out", type=Path, help=argparse.SUPPRESS\)')
+        self.assertNotRegex(source, r"--out[^\n]*Warning|Warning[^\n]*--out")
+
 class ThreatModelTests(unittest.TestCase):
     def test_each_residual_risk_cites_a_sentence_that_the_cited_page_holds(self):
         """Issue #477: a residual risk of the model must lead to the sentence or the test that establishes it."""

@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Support policy: `docs/support.md` proposes, to be confirmed by the maintainers, security fixes for the previous minor version for 30 days and a deprecation notice of at least 2 minor versions and 60 days with a `Warning:` line, and says that `storybook generate --out` and `task show --summary` print no warning yet (#477)
 - Contributing: `.git-blame-ignore-revs` lists the two squashes of 523 and 387 files so that `git blame` skips them (`git config blame.ignoreRevsFile .git-blame-ignore-revs`), and `GOVERNANCE.md` says how a pull request of several issues is squashed, one line `#N symptom (file:function)` per issue (#483)
 - `task show ID` prints a summary by default (status, decision, boards, result counts, next step, under 5 KB); `--full` prints the whole record as JSON as it did until 0.17, `--json` still prints the record for scripts, `--summary` stays accepted, and the web page asks for `--json` (#498)
 - JSON output: `check`, `task verify`, `task decide` and `task export` take `--json`; under `--json` an error is JSON on standard output (`schema_version`, `error.code`, `error.message`, `error.next`) with the same exit code; `OPENGUILDKIT_JSON_ENVELOPE=1` puts every `--json` answer in `{schema_version, command, data}`, off by default to keep the shape scripts and the web page read (#484)
