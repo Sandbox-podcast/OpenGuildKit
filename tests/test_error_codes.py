@@ -1,15 +1,17 @@
 """Stable error codes (#487): each error a person reads from the task commands carries a code raised from one place,
 listed in docs/errors.md and docs/agents/errors.json with its function and the tests that cite it."""
 
+import argparse
 import ast
 import importlib.util
 import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from openguildkit import market, mcp_mock, project, rule_checks, storybook, tasks_decide_cli
-from openguildkit.catalog import load_catalog
+from openguildkit import alerts, controls, lock, market, mcp_mock, project, rule_checks, storybook, tasks_decide_cli
+from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
 from openguildkit.tasks import create_task
@@ -24,7 +26,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 190
+UNCODED_CEILING = 168
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -344,6 +346,69 @@ class StorybookErrorTests(CodedRefusals):
                 ("OGK-STORY-034", proposed(components=[{**item, "args": []}])),
                 ("OGK-STORY-035", proposed(components=[{**item, "callback_props": [""]}])),
                 ("OGK-STORY-036", lambda: storybook.propose(root, root, root / "inventory.json")),
+            ])
+
+
+class RegistryErrorTests(CodedRefusals):
+    """Issue #487: a wrong controls registry, alert register or catalog lock is refused with its own code."""
+
+    def test_issue_487_each_wrong_control_has_its_code(self):
+        data = controls.load()
+        item = data["controls"][0]
+
+        def registry(**fields):
+            return lambda: controls.validate({**data, **fields})
+
+        def control(**fields):
+            return registry(controls=[{**item, **fields}])
+
+        self.assertCodes([
+            ("OGK-CONTROL-014", control(maps_to=["eu-ai-act"])),
+            ("OGK-CONTROL-015", registry(frameworks=["no-such-framework"])),
+            ("OGK-CONTROL-016", registry(schema_version=2)),
+            ("OGK-CONTROL-017", registry(controls=[{"id": "x"}])),
+            ("OGK-CONTROL-018", control(commands="check")),
+            ("OGK-CONTROL-019", control(code=[])),
+            ("OGK-CONTROL-020", control(maps_to={})),
+            ("OGK-CONTROL-021", lambda: controls.update_page("No markers.", data)),
+        ])
+
+    def test_issue_487_each_wrong_alert_input_has_its_code(self):
+        alert = {"id": "npm:left-pad:ghsa-1", "ecosystem": "npm", "package": "left-pad", "severity": "high"}
+        register = {"schema_version": 1, "imports": [], "alerts": [{**alert, "status": "resolved"}]}
+        with tempfile.TemporaryDirectory() as folder:
+            write_json(Path(folder) / alerts.REGISTER_FILE, {"schema_version": 2})
+            self.assertCodes([("OGK-ALERTS-013", lambda: alerts.load_register(Path(folder)))])
+        self.assertCodes([
+            ("OGK-ALERTS-010", lambda: alerts.read_report(b"{", "report.json")),
+            ("OGK-ALERTS-011", lambda: alerts.read_report(b" ", "report.json")),
+            ("OGK-ALERTS-012", lambda: alerts.read_report(b'{"vulnerabilities": {"a": 1}}', "report.json")),
+            ("OGK-ALERTS-014", lambda: alerts.set_status(register, alert["id"], "confirmed", "Sam")),
+            ("OGK-ALERTS-015", lambda: alerts.set_severity(register, alert["id"], "huge", "Sam", "CVSS 9.")),
+            ("OGK-ALERTS-016", lambda: alerts.set_severity(register, alert["id"], "low", " ", "CVSS 2.")),
+            ("OGK-ALERTS-017", lambda: alerts.accept_alert(register, alert["id"], "Sam", "Accepted.")),
+        ])
+
+    def test_issue_487_each_wrong_catalog_lock_has_its_code(self):
+        catalog = load_catalog()
+        pack = catalog["packs"]["agent-workflow"]
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "catalog.lock.json"
+
+            def locked(records, version=1):
+                def read():
+                    write_json(path, {"schema_version": version, "records": records})
+                    return lock._validated_lock(path)
+                return read
+
+            with patch("openguildkit.lock.validate_dependencies", side_effect=CatalogError("loop")):
+                self.assertCodes([("OGK-CORE-020", lambda: lock.apply_lock(catalog, {"records": {"packs": {}}}))])
+            self.assertCodes([
+                ("OGK-CORE-015", locked({}, version=2)),
+                ("OGK-CORE-016", locked({"widgets": {}})),
+                ("OGK-CORE-017", locked({"packs": {"x": {"id": "x"}}})),
+                ("OGK-CORE-018", locked({"packs": {"other": pack}})),
+                ("OGK-CORE-019", lambda: lock.central_policy(argparse.Namespace(policy_repo="repo", policy_commit=None))),
             ])
 
 

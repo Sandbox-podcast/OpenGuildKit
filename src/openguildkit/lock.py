@@ -60,11 +60,11 @@ def read_lock(state: Path) -> dict | None:
 def _validated_lock(path: Path) -> dict:
     lock = read_json(path)
     if lock.get("schema_version") != 1 or not isinstance(lock.get("records"), dict):
-        raise ValueError(f"Unsupported catalog lock: {path}. Run openguildkit update --apply.")
+        raise OgkError("OGK-CORE-015", f"Unsupported catalog lock: {path}. Run openguildkit update --apply.")
     records = lock["records"]
     for collection, entries in records.items():
         if collection not in COLLECTIONS or not isinstance(entries, dict):
-            raise ValueError(f"Unknown collection {collection!r} in {path}.")
+            raise OgkError("OGK-CORE-016", f"Unknown collection {collection!r} in {path}.")
         for record_id, record in entries.items():
             if not isinstance(record, dict):
                 raise OgkError("OGK-CORE-004", f"{path}: {collection}/{record_id} is not an object. Restore the file from Git, or delete it and "
@@ -72,9 +72,9 @@ def _validated_lock(path: Path) -> dict:
             try:
                 validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
             except CatalogError as error:
-                raise ValueError(f"{path}: {collection}/{record_id}: {error}") from error
+                raise OgkError("OGK-CORE-017", f"{path}: {collection}/{record_id}: {error}") from error
             if record.get("id") != record_id:
-                raise ValueError(f"{path}: {collection}/{record_id} has a different id.")
+                raise OgkError("OGK-CORE-018", f"{path}: {collection}/{record_id} has a different id.")
     if "organization" in lock:
         validate_pin(lock["organization"], str(path))
     if "organization_history" in lock:
@@ -87,7 +87,7 @@ def central_policy(args) -> tuple[str, dict] | None:
     and for a caller without command-line arguments (args None), such as the web page."""
     repo, commit = (args.policy_repo, args.policy_commit) if args is not None else (None, None)
     if (repo is None) != (commit is None):
-        raise ValueError("Supply --policy-repo and --policy-commit together.")
+        raise OgkError("OGK-CORE-019", "Supply --policy-repo and --policy-commit together.")
     from .ci import read_policy_pack  # Not for the edit hook, which reads the lock (#539).
 
     return None if repo is None else (commit, read_policy_pack(repo, commit))
@@ -157,7 +157,7 @@ def apply_lock(catalog: Catalog, lock: dict | None) -> Catalog:
     try:
         validate_dependencies(effective["packs"])
     except CatalogError as error:
-        raise ValueError(f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
+        raise OgkError("OGK-CORE-020", f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
     return effective
 
 

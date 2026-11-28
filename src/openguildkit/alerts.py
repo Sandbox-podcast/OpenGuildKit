@@ -213,9 +213,9 @@ def read_report(content: bytes, label: str) -> dict:
     try:
         values = _json_documents(text)
     except (ValueError, RecursionError) as error:
-        raise ValueError(f"Invalid JSON in {label}: {error}") from error
+        raise OgkError("OGK-ALERTS-010", f"Invalid JSON in {label}: {error}") from error
     if not values:
-        raise ValueError(f"{label} is empty: give the scanner's JSON report.")
+        raise OgkError("OGK-ALERTS-011", f"{label} is empty: give the scanner's JSON report.")
     data = values[0]
     try:
         dependabot = _dependabot_pages(values)
@@ -232,7 +232,7 @@ def read_report(content: bytes, label: str) -> dict:
         if isinstance(data, dict) and isinstance(data.get("results"), list):
             return {"tool": "OSV-Scanner", "alerts": _osv(data), "analyzed": _osv_analyzed(data)}
     except (KeyError, TypeError, AttributeError) as error:
-        raise ValueError(f"{label} looks like a scanner report but a field is missing: {error}") from error
+        raise OgkError("OGK-ALERTS-012", f"{label} looks like a scanner report but a field is missing: {error}") from error
     raise OgkError("OGK-ALERTS-004", f"{label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
 
 
@@ -256,7 +256,7 @@ def load_register(state: Path) -> dict:
         return {"schema_version": 1, "alerts": [], "imports": []}
     register = read_json(path)
     if register.get("schema_version") != 1 or not isinstance(register.get("alerts"), list):
-        raise ValueError(f"Unsupported alert register: {path.as_posix()}. Restore it from git.")
+        raise OgkError("OGK-ALERTS-013", f"Unsupported alert register: {path.as_posix()}. Restore it from git.")
     return register
 
 
@@ -472,7 +472,7 @@ def set_status(register: dict, alert_id: str, status: str, by: str, reason: str 
     if not by.strip():
         raise OgkError("OGK-ALERTS-008", "Name the person who reviewed the alert with --by.")
     if _status(alert) == "resolved":
-        raise ValueError(f"{alert['id']} is resolved: no scanner lists it anymore.")
+        raise OgkError("OGK-ALERTS-014", f"{alert['id']} is resolved: no scanner lists it anymore.")
     updated = {key: value for key, value in alert.items() if key not in ("reason", "accepted")}
     updated.update(status=status, by=by.strip(), decided_at=_now())
     if reason.strip():
@@ -483,9 +483,9 @@ def set_status(register: dict, alert_id: str, status: str, by: str, reason: str 
 def set_severity(register: dict, alert_id: str, severity: str, by: str, reason: str) -> dict:
     """Record the severity a person gives an alert, such as one pip-audit reports without any, with who and why."""
     if severity not in SEVERITIES:
-        raise ValueError(f"Choose the severity from {', '.join(SEVERITIES)}.")
+        raise OgkError("OGK-ALERTS-015", f"Choose the severity from {', '.join(SEVERITIES)}.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Name the person with --by and say why with --reason, such as the advisory's CVSS score.")
+        raise OgkError("OGK-ALERTS-016", "Name the person with --by and say why with --reason, such as the advisory's CVSS score.")
     alert = find_alert(register, alert_id)
     record = {"from": alert["severity"], "by": by.strip(), "reason": reason.strip(), "at": _now()}
     return _replace(register, {**alert, "severity": severity, "severity_set": record})
@@ -495,7 +495,7 @@ def accept_alert(register: dict, alert_id: str, by: str, reason: str) -> dict:
     """Record why a person accepts a confirmed alert, so it stops blocking its tasks."""
     alert = find_alert(register, alert_id)
     if _status(alert) != "confirmed":
-        raise ValueError(f"{alert['id']} is {_status(alert)}: only a confirmed alert is accepted.")
+        raise OgkError("OGK-ALERTS-017", f"{alert['id']} is {_status(alert)}: only a confirmed alert is accepted.")
     if not by.strip() or not reason.strip():
         raise OgkError("OGK-ALERTS-009", "Name the person with --by and say why the risk is accepted with --reason.")
     return _replace(register, {**alert, "accepted": {"by": by.strip(), "reason": reason.strip(), "at": _now()}})

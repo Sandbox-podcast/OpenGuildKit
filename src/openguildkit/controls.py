@@ -56,7 +56,7 @@ def _require_line(value: object, where: str) -> None:
 def _mapping(entry: object, where: str, frameworks: list) -> None:
     """One clause read from a framework: its reference in the catalog and on the page, the clause, the source, the day."""
     if not isinstance(entry, dict):
-        raise ValueError(f"{where}: an entry of maps_to is an object.")
+        raise OgkError("OGK-CONTROL-014", f"{where}: an entry of maps_to is an object.")
     for key in entry:
         if key not in MAPPING_FIELDS and key != "gap":
             raise OgkError("OGK-CONTROL-002", f"{where}: unknown field {key} in maps_to.")
@@ -98,7 +98,7 @@ def _frameworks(data: dict) -> list:
     frameworks = data["frameworks"]
     unknown = [item for item in frameworks if item not in _references()]
     if unknown or len(set(frameworks)) != len(frameworks):
-        raise ValueError(f"frameworks lists each reference of the catalog once: {', '.join(map(str, unknown)) or 'duplicate'}.")
+        raise OgkError("OGK-CONTROL-015", f"frameworks lists each reference of the catalog once: {', '.join(map(str, unknown)) or 'duplicate'}.")
     notes = data["framework_notes"]
     if not isinstance(notes, dict) or list(notes) != frameworks:
         raise OgkError("OGK-CONTROL-012", "framework_notes holds one note per framework, in the order of frameworks: how it was read, or "
@@ -112,12 +112,12 @@ def validate(data: dict) -> None:
     """Refuse a registry that names an unknown framework, a control twice, or a clause without its source and its day."""
     if not isinstance(data, dict) or data.keys() != {"schema_version", "frameworks", "framework_notes", "controls"} \
             or data["schema_version"] != 1:
-        raise ValueError("controls.json holds schema_version 1, frameworks, framework_notes and controls.")
+        raise OgkError("OGK-CONTROL-016", "controls.json holds schema_version 1, frameworks, framework_notes and controls.")
     frameworks = _frameworks(data)
     seen = set()
     for item in data["controls"]:
         if not isinstance(item, dict) or item.keys() != FIELDS or not ID.fullmatch(str(item["id"])):
-            raise ValueError(f"A control holds {', '.join(sorted(FIELDS))}, and an ID of lowercase words.")
+            raise OgkError("OGK-CONTROL-017", f"A control holds {', '.join(sorted(FIELDS))}, and an ID of lowercase words.")
         where = item["id"]
         if where in seen:
             raise OgkError("OGK-CONTROL-013", f"The control {where} is listed twice.")
@@ -126,12 +126,12 @@ def validate(data: dict) -> None:
             _require_line(item[key], f"{where}: {key}")
         for key in ("commands", "in_dossier"):
             if not isinstance(item[key], list) or not all(isinstance(value, str) for value in item[key]):
-                raise ValueError(f"{where}: {key} is a list of text.")
+                raise OgkError("OGK-CONTROL-018", f"{where}: {key} is a list of text.")
         if not item["code"] or not all(isinstance(place, dict) and place.keys() == {"file", "symbol", "line"}
                                        and isinstance(place["line"], int) for place in item["code"]):
-            raise ValueError(f"{where}: code names at least one file, symbol and line.")
+            raise OgkError("OGK-CONTROL-019", f"{where}: code names at least one file, symbol and line.")
         if not isinstance(item["maps_to"], list):
-            raise ValueError(f"{where}: maps_to is a list.")
+            raise OgkError("OGK-CONTROL-020", f"{where}: maps_to is a list.")
         for entry in item["maps_to"]:
             _mapping(entry, where, frameworks)
 
@@ -184,6 +184,6 @@ def render(data: dict) -> str:
 def update_page(text: str, data: dict) -> str:
     """The page with the generated part, between its two markers, replaced by the tables of the registry."""
     if START not in text or END not in text or text.index(START) > text.index(END):
-        raise ValueError(f"The page needs {START} and {END} around the generated tables.")
+        raise OgkError("OGK-CONTROL-021", f"The page needs {START} and {END} around the generated tables.")
     head, rest = text.split(START, 1)
     return f"{head}{START}\n{render(data)}\n{END}{rest.split(END, 1)[1]}"
