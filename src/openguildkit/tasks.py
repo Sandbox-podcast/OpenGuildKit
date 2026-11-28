@@ -22,6 +22,7 @@ from typing import Any, cast
 from . import task_index
 from .approval_check import DONE_STATUSES, approval_problem
 from .decisions import base_commit, check_decision_seal, revisions_outside_history
+from .errors import OgkError
 from .project_rules import Fingerprints
 from .records import Catalog, Profile, Task
 from .storage import write_text
@@ -61,12 +62,12 @@ def dependencies(state: Path, task_id: str, after: list[str]) -> dict[str, str]:
     found = {}
     for name in dict.fromkeys(after):
         if name == task_id:
-            raise ValueError(f"A task cannot wait for itself: {task_id}.")
+            raise OgkError("OGK-TASK-001", f"A task cannot wait for itself: {task_id}.")
         found[name] = read_task(state, name)["status"]
     cycle = _dependency_cycle(state, task_id, list(found))
     if cycle:
-        raise ValueError(f"Task {task_id} cannot wait for {cycle[1]}: that would close a cycle "
-                         f"({' -> '.join(cycle)}). Remove that --after.")
+        raise OgkError("OGK-TASK-002", f"Task {task_id} cannot wait for {cycle[1]}: that would close a cycle "
+                                        f"({' -> '.join(cycle)}). Remove that --after.")
     return found
 
 
@@ -87,11 +88,11 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
                 lane: dict | None = None, after: list[str] | None = None, requested_by: str | None = None) -> str:
     brief = validate_brief(brief)
     if task_id is not None and not task_id.strip():
-        raise ValueError("The task ID is empty. Omit --id to generate one.")
+        raise OgkError("OGK-TASK-003", "The task ID is empty. Omit --id to generate one.")
     task_id = task_id or f"task-{uuid.uuid4().hex[:12]}"
     path = task_path(state, task_id)
     if path.exists():
-        raise ValueError(f"Task already exists: {task_id}")
+        raise OgkError("OGK-TASK-004", f"Task already exists: {task_id}")
     record = cast(Task, {  # lane, when given, adds the short lane and its paths.
         "schema_version": 1,
         "id": task_id,
@@ -108,7 +109,7 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
     if follows is not None:
         previous = read_task(state, follows)
         if "decision" not in previous:
-            raise ValueError(f"Task {follows} has no recorded decision to follow.")
+            raise OgkError("OGK-TASK-005", f"Task {follows} has no recorded decision to follow.")
         record["follows"] = {
             "task": follows,
             "brief": previous["brief"],
@@ -128,7 +129,7 @@ def _period_day(value: str | None, option: str) -> str | None:
             raise ValueError
         return date.fromisoformat(value).isoformat()
     except ValueError:
-        raise ValueError(f"{option}: {value!r} is not a real date. Write it YYYY-MM-DD.") from None
+        raise OgkError("OGK-TASK-006", f"{option}: {value!r} is not a real date. Write it YYYY-MM-DD.") from None
 
 
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,

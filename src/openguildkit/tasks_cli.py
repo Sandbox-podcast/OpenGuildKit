@@ -23,6 +23,7 @@ from .approval_check import approval_problem
 from .cli_surface import add_by
 from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
+from .errors import OgkError
 from .lock import require_instructions
 from .project import WORK_DIR
 from .records import Catalog, Profile
@@ -371,7 +372,7 @@ ACTION_OPTIONS = {
 def _new(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """Create a task draft and print its ID; the next step goes to the agent on standard error."""
     if (args.brief is None) == (args.file is None):
-        raise ValueError("Supply either a task brief or --file PATH.")
+        raise OgkError("OGK-TASK-007", "Supply either a task brief or --file PATH.")
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = short_lane.declare(args.lane, args.paths, profile)
@@ -379,9 +380,9 @@ def _new(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> N
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
-            raise ValueError(f"Task ID {args.id} is already used by the exported decision "
-                             f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
-                             f"with openguildkit task show {args.id}, and choose another ID.")
+            raise OgkError("OGK-TASK-008", f"Task ID {args.id} is already used by the exported decision "
+                           f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
+                           f"with openguildkit task show {args.id}, and choose another ID.")
         task_id = create_task(state, brief, args.id, args.follows, lane, args.after, requested_by)
         statuses = {name: read_task(state, name)["status"] for name in dict.fromkeys(args.after or [])}
     print(task_id)
@@ -450,7 +451,7 @@ def run(command: Command) -> int | None:
         return _run(args, root, state, profile, catalog)
     except TaskStateError as error:
         task = read_task(state, args.id)
-        raise ValueError(state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
+        raise OgkError("OGK-TASK-009", state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
 
 
 def _run(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int | None:
@@ -468,23 +469,23 @@ def _run(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> i
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
             if args.summary:
-                raise ValueError(f"Task {args.id} exists here only as the exported record, which has no summary: run "
-                                 f"openguildkit task show {args.id}.")
+                raise OgkError("OGK-TASK-010", f"Task {args.id} exists here only as the exported record, which has "
+                                               f"no summary: run openguildkit task show {args.id}.")
             show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
-        raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "
-                         f"a teammate's task or an earlier one: read it with openguildkit task show {args.id} or "
-                         "openguildkit task list --decisions.")
+        raise OgkError("OGK-TASK-011", f"Task {args.id} exists here only as the exported record "
+                                       f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: "
+                                       f"read it with openguildkit task show {args.id} or openguildkit task list "
+                                       "--decisions.")
     task = read_task(state, args.id)
     if action in READ_APPROVAL:
         # One answer for every reader: an error stops the action; a note (a completed task's history) is shown.
         problem = approval_problem(task, profile, catalog, root)
-        if problem and problem["severity"] == "error" and action not in ("show", "checks"):
-            raise ValueError(problem["message"])
         # An approval verified by the signers of the revision it was signed at holds: every reader says so.
-        if problem and (action in ("show", "checks", "export") or problem["kind"] == EARLIER_SIGNERS):
+        shown = problem and (action in ("show", "checks", "export") or problem["kind"] == EARLIER_SIGNERS)
+        if problem and (problem["severity"] == "error" and action not in ("show", "checks") or not shown):
+            raise OgkError("OGK-TASK-012", problem["message"])
+        if problem:
             print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
-        elif problem:
-            raise ValueError(problem["message"])
     handler = run_result_template if action == "result" and args.template else HANDLERS[action]
     return handler(TaskCommand(args, root, state, profile, catalog, task))

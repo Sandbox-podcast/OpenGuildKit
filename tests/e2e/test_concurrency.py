@@ -224,7 +224,7 @@ class ParallelWriteTests(ConcurrencyTestCase):
         self.assertEqual(codes, [0, 1])
         winner = next(brief for brief, (code, _, _) in zip(briefs, outcomes) if code == 0)
         loser_error = next(stderr for code, _, stderr in outcomes if code == 1)
-        self.assertEqual(loser_error.strip(), "OpenGuildKit: Task already exists: twin")
+        self.assertEqual(loser_error.strip(), "OpenGuildKit [OGK-TASK-004]: Task already exists: twin")
         self.assertEqual(self.task_record_of("twin")["brief"], winner)
 
     def test_guards_and_writers_together_leave_a_whole_status_index(self):

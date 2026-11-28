@@ -5,7 +5,7 @@ import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
 import { toast } from '@/shared/ui/toast';
 import { isSafeUrl } from '@/shared/text';
-import { ApiError, cliMessage, type CliResult } from './api';
+import { ApiError, CLI_PREFIX, cliMessage, type CliResult } from './api';
 import { errorText } from './refusals';
 import { offPath, onlyTasksFail } from './data';
 import type { TaskListItem } from './types';
@@ -177,7 +177,7 @@ export function TouchedNotice() {
  * while tasks fail it, an approval that no longer holds or an unreadable record, which only a person can fix.
  */
 export function CheckNotice({ result, tasks }: { result: CliResult; tasks: TaskListItem[] }) {
-  const notes = result.stderr.replace(/^OpenGuildKit:\s*/gm, '').trim();
+  const notes = result.stderr.replace(CLI_PREFIX, '').trim();
   if (result.code === 0)
     return (
       <Notice tone="success">

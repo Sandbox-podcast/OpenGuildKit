@@ -141,9 +141,9 @@ class RebaseTests(ApprovalCase):
         self.assertIn(f"rb: {message}", self.run_cli("check", code=1)[1])
         for action in ("verify", "handoff", "export", "complete"):
             with self.subTest(action=action):
-                self.assertEqual(self.run_cli("task", action, "rb", code=1)[1], f"OpenGuildKit: {message}\n")
+                self.assertEqual(self.run_cli("task", action, "rb", code=1)[1], f"OpenGuildKit [OGK-TASK-012]: {message}\n")
         _, error = self.run_cli("task", "result", "rb", "--file", self.root / "answers.json", code=1)
-        self.assertEqual(error, f"OpenGuildKit: {message}\n")
+        self.assertEqual(error, f"OpenGuildKit [OGK-TASK-012]: {message}\n")
         _, error = self.run_cli("task", "decide", "rb", "--request-changes", "--by", "Camille", "--reason", "x", code=1)
         self.assertIn(f"the approval no longer holds. {message}", error)
         self.assertEqual(self.covered(), [])

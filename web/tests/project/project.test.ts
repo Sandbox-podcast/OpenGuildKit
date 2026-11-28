@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectPath, quoteFor } from '@/project/api';
+import { cliMessage, projectPath, quoteFor } from '@/project/api';
 import { shortcutFor } from '@/shared/shortcuts';
 import { REFUSAL_FR, errorText, refusalText } from '@/project/refusals';
 import { ApiError } from '@/project/api';
@@ -14,6 +14,11 @@ import type { CliResult } from '@/project/api';
 const ok = (json: unknown): CliResult => ({ code: 0, stdout: JSON.stringify(json), stderr: '', json });
 
 describe('wording of the CLI', () => {
+  it('drops the name of the tool and the code of the error before the message (#487)', () => {
+    const failed = (stderr: string): CliResult => ({ code: 1, stdout: '', stderr, json: null });
+    expect(cliMessage(failed('OpenGuildKit [OGK-TASK-004]: Task already exists: twin\n'))).toBe('Task already exists: twin');
+    expect(cliMessage(failed('OpenGuildKit: Unknown task: x.\n'))).toBe('Unknown task: x.');
+  });
   it('translates every next step the CLI prints', () => {
     expect(nextLabel('Answer the questionnaire and consult the boards.')).toBe('Répondre au questionnaire et consulter les cerveaux.');
     expect(nextLabel('Board reviews pending: marketing, security.')).toBe('Avis attendus : marketing, security.');

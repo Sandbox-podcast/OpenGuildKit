@@ -16,6 +16,7 @@ import io
 import json
 import os
 import random
+import re
 import tempfile
 import traceback
 import unittest
@@ -26,6 +27,8 @@ from openguildkit.cli import main
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"
+# The line of an error: the tool's name, then the stable code of the error when it has one (#487).
+PREFIX = re.compile(r"OpenGuildKit(?: \[OGK-[A-Z]+-\d{3}\])?: ")
 SEED = int(os.environ.get("OPENGUILDKIT_FUZZ_SEED", "20261121"))
 SAMPLES = 24
 
@@ -149,7 +152,7 @@ class FuzzTestCase(unittest.TestCase):
                 continue
             if code not in (0, 1, 2):
                 self.crashes.append(f"{context}: exit code {code}")
-            elif code == 1 and not stderr.startswith("OpenGuildKit: "):
+            elif code == 1 and not PREFIX.match(stderr):
                 self.crashes.append(f"{context}: error without the OpenGuildKit prefix: {stderr[:200]!r}")
             if check:
                 check(context)
@@ -273,7 +276,7 @@ class StateFileTests(FuzzTestCase):
                     code, stdout, stderr = self.cli(*command)
                     if code not in (0, 1):
                         return code, stdout, stderr
-                    if code == 1 and not stderr.startswith("OpenGuildKit: "):
+                    if code == 1 and not PREFIX.match(stderr):
                         return code, stdout, stderr
                 return 0, "", ""
             finally:
@@ -293,7 +296,7 @@ class StateFileTests(FuzzTestCase):
                 for command in (("task", "list", "--json"), ("task", "show", TASK), ("task", "progress", TASK),
                                 ("task", "challenge", TASK), ("guard", "--json")):
                     code, stdout, stderr = self.cli(*command)
-                    if code not in (0, 1) or (code == 1 and not stderr.startswith("OpenGuildKit: ")):
+                    if code not in (0, 1) or (code == 1 and not PREFIX.match(stderr)):
                         return code, stdout, stderr
                 return 0, "", ""
             finally:
@@ -352,7 +355,7 @@ class CommandSequenceTests(FuzzTestCase):
         self.expect("task", "new", "Draft only.", "--id", "draft")
         code, _, stderr = self.cli("task", "pass", "draft", "security")
         self.assertEqual(code, 1)
-        self.assertIn("OpenGuildKit: Board passes can only run while the task is being consulted.", stderr)
+        self.assertIn("OpenGuildKit [OGK-TASK-009]: Board passes can only run while the task is being consulted.", stderr)
         self.assertIn("openguildkit task consult draft --answers FILE", stderr)
 
     def step(self, action, task_id, entries):

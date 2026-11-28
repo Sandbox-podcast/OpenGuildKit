@@ -1,0 +1,15 @@
+[
+  {"code": "OGK-TASK-001", "module": "src/openguildkit/tasks.py", "function": "dependencies", "message": "A task cannot wait for itself: {task_id}.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-002", "module": "src/openguildkit/tasks.py", "function": "dependencies", "message": "Task {task_id} cannot wait for {cycle[1]}: that would close a cycle ({' -> '.join(cycle)}). Remove that --after.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-003", "module": "src/openguildkit/tasks.py", "function": "create_task", "message": "The task ID is empty. Omit --id to generate one.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-004", "module": "src/openguildkit/tasks.py", "function": "create_task", "message": "Task already exists: {task_id}", "tests": ["tests/e2e/test_concurrency.py", "tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-005", "module": "src/openguildkit/tasks.py", "function": "create_task", "message": "Task {follows} has no recorded decision to follow.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-006", "module": "src/openguildkit/tasks.py", "function": "_period_day", "message": "{option}: {value!r} is not a real date. Write it YYYY-MM-DD.", "tests": ["tests/test_error_codes.py", "tests/test_task_list.py"]},
+  {"code": "OGK-TASK-007", "module": "src/openguildkit/tasks_cli.py", "function": "_new", "message": "Supply either a task brief or --file PATH.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-008", "module": "src/openguildkit/tasks_cli.py", "function": "_new", "message": "Task ID {args.id} is already used by the exported decision {record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it with openguildkit task show {args.id}, and choose another ID.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-009", "module": "src/openguildkit/tasks_cli.py", "function": "run", "message": "{state_refusal(task, str(error), approval_problem(task, profile, catalog, root))}", "tests": ["tests/test_error_codes.py", "tests/test_robustness.py"]},
+  {"code": "OGK-TASK-010", "module": "src/openguildkit/tasks_cli.py", "function": "_run", "message": "Task {args.id} exists here only as the exported record, which has no summary: run openguildkit task show {args.id}.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-011", "module": "src/openguildkit/tasks_cli.py", "function": "_run", "message": "Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it with openguildkit task show {args.id} or openguildkit task list --decisions.", "tests": ["tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-012", "module": "src/openguildkit/tasks_cli.py", "function": "_run", "message": "{problem['message']}", "tests": ["tests/test_approval_lifecycle.py", "tests/test_error_codes.py"]},
+  {"code": "OGK-TASK-013", "module": "src/openguildkit/tasks_decide_cli.py", "function": "_save_decided", "message": "The task changed while you were deciding. Review it and retry.", "tests": ["tests/test_error_codes.py"]}
+]

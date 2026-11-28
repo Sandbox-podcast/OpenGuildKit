@@ -36,6 +36,7 @@ from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_changes, task_files
+from .errors import error_line
 from .lock import package_version
 from .storage import write_text
 from .web_requests import (
@@ -193,7 +194,7 @@ class CliRunner:
                         function()
                     except (OSError, ValueError) as error:
                         failure = error
-                        print(f"OpenGuildKit: {error}", file=sys.stderr)
+                        print(error_line(error, str(error)), file=sys.stderr)
             finally:
                 sys.stdin = saved
         return {"code": 1 if failure else 0, "stdout": out.getvalue(), "stderr": err.getvalue(), "json": None}, failure

@@ -24,6 +24,7 @@ from .decisions import (
     signing_time,
     verify_signature,
 )
+from .errors import OgkError
 from .handoff import review_lines
 from .lock import project_catalog, require_instructions
 from .project import load_profile
@@ -45,7 +46,7 @@ def _save_decided(state: Path, task: Task, result: Task, still_holds=None) -> No
     """Write what the person decided, under the lock, unless the task changed while they read and typed."""
     with project_lock(state):
         if read_task(state, task["id"]) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
+            raise OgkError("OGK-TASK-013", "The task changed while you were deciding. Review it and retry.")
         if still_holds:
             still_holds()
         write_task(task_path(state, task["id"]), result)

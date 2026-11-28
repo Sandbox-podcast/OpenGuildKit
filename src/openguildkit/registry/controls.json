@@ -29,7 +29,7 @@
         {
           "file": "src/openguildkit/tasks_decide_cli.py",
           "symbol": "run_decide",
-          "line": 92
+          "line": 93
         },
         {
           "file": "src/openguildkit/terminal.py",

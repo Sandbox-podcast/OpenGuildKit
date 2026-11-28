@@ -83,7 +83,7 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `detect_manifest.py` | A component that detection proposes, and the bounded read of the manifest it comes from. |
 | `doc_links.py` | The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout). |
 | `docs_cli.py` | The `deliverable` and `docs` commands: drafts from approved tasks, documentation export and its shares. |
-| `errors.py` | The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them. |
+| `errors.py` | The one-line forms of the errors a person reads: a file that cannot be opened, in words, an unknown identifier with the command that lists them, and the stable code of an error (`OpenGuildKit [OGK-TASK-004]: ...`). |
 | `evidence_cli.py` | The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of SHA-256, `verify` recomputes it. Reads the project and states no conformity. |
 | `features.py` | The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |

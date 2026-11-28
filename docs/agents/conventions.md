@@ -154,7 +154,7 @@ A code is found by one search and returns one line.
 
 **Check.** A test that walks the AST of `src/openguildkit`, requires a code for each error shown, uniqueness, an entry in the register and a test that cites the code.
 
-**Today.** No code; only the web page has refusal codes (`REFUSALS` in `webui.py`).
+**Today.** `errors.OgkError` carries the code, `cli.main` prints `OpenGuildKit [OGK-TASK-004]: ...`, and `scripts/build_errors.py` writes [`errors.json`](errors.json) and `docs/errors.md`; `tests/test_error_codes.py` refuses a code raised twice or cited by no test, a `ValueError` without code in `tasks.py` and `tasks_cli.py`, and a rise of the 717 left elsewhere.
 Issue #487.
 
 ### `json-envelope`

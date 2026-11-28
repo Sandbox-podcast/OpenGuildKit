@@ -21,6 +21,7 @@ from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
 from .cli_errors import error_message, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .command import Command
+from .errors import error_line
 from .hosts import HOSTS
 from .terminal import reader_closed, utf8_streams, warn
 
@@ -231,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        warn(error_message(error, parser, args))
+        print(error_line(error, error_message(error, parser, args)), file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print(file=sys.stderr)

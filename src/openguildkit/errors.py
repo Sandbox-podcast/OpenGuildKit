@@ -1,9 +1,25 @@
-"""The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier
-with the command that lists them.
+"""The one-line forms of the errors a person reads: a file that cannot be opened, in words, an unknown identifier
+with the command that lists them, and the stable code of an error (`OpenGuildKit [OGK-TASK-004]: ...`).
 
-Entry: os_error_message, unknown
-Tests: tests/test_error_forms.py
+docs/errors.md lists each code with its module, function and test (scripts/build_errors.py writes it).
+
+Entry: os_error_message, unknown, OgkError, error_line
+Tests: tests/test_error_forms.py, tests/test_error_codes.py
 """
+
+
+class OgkError(ValueError):
+    """An error a person reads, with its stable code: `raise OgkError("OGK-TASK-004", f"Task already exists: {x}")`.
+    The message is unchanged (`str(error)`); the CLI prints the code before it, and in `error.code` under --json."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+def error_line(error: BaseException, text: str) -> str:
+    """The one line the CLI prints for an error: its code first when it has one."""
+    return f"OpenGuildKit [{error.code}]: {text}" if isinstance(error, OgkError) else f"OpenGuildKit: {text}"
 
 
 def os_error_message(error: OSError) -> str:
