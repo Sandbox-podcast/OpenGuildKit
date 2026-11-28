@@ -41,7 +41,13 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 |---|---|
 | `__init__.py` | Marks the package; it holds nothing else. |
 | `__main__.py` | Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI. |
-| `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
+| `cli.py` | Parses commands and runs each one through one table, `COMMANDS`: the module whose `run(command)` runs it, imported for that command only, and what is read before it runs. |
+| `command.py` | `Command`, what every command module's `run` receives: the arguments, and the project's root, state, catalog and profile, each read once, on first use. |
+| `init_cli.py` | The `init` command, with its questions at a terminal, and `sync`. |
+| `catalog_cli.py` | The commands that read the catalog in force: `catalog`, `references`, `patterns`, `brains`, `detect`, `preview`, `recommend` and `update`. |
+| `check_cli.py` | The `check`, `guard` and `host` commands: the project against its profile, the approvals that cover an edit, the host settings. |
+| `docs_cli.py` | The `deliverable` and `docs` commands: drafts from approved tasks, documentation export and its shares. |
+| `connect_cli.py` | The `integrations`, `mcp`, `ui` and `ci-check` commands, which connect a project to other tools. |
 | `cli_surface.py` | What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed. |
 | `cli_errors.py` | What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file. |
 | `completion_cli.py` | The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh. |

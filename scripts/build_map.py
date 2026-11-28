@@ -191,9 +191,12 @@ def command_entries() -> list[dict]:
         return modules[name]
 
     entries = []
-    for words in terminal_commands():
-        cli = module("cli.py")
-        found = cli.branch("_run", words[0], 0) or cli.branch("_project_command", words[0], 0)
+    terminal = terminal_commands()  # Puts src on the path.
+    from openguildkit.cli import COMMANDS
+
+    for words in terminal:
+        name = f"{COMMANDS[words[0]][0]}.py"
+        found = module(name).branch("run", words[0]) or (name, "run", 0)
         if found and len(words) > 1:
             found = module(found[0]).branch(found[1], words[1]) or found
         if found is None:

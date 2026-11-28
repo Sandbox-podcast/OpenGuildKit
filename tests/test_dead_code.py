@@ -71,12 +71,14 @@ def read_names(trees: dict[Path, ast.Module], modules: set[str]) -> Counter:
                 if isinstance(node, ast.For) and isinstance(node.target, ast.Name) and isinstance(node.iter, ast.Tuple):
                     loops[node.target.id] = [whole[item.id] for item in node.iter.elts
                                              if isinstance(item, ast.Name) and item.id in whole]
-            # _on_first_call("surfaces", name) for name in ("scan_report", ...): a module named by a string, and its
-            # names as strings in the same statement.
+            # A module named by a string, and its names as strings in the same statement.
             texts = {node.value for node in ast.walk(statement) if isinstance(node, ast.Constant) and isinstance(node.value, str)}
             # cli_surface.add_module_parsers(commands, left_out, ("tools_cli", ...)) reads the add_parser of each module.
             if any(isinstance(node, ast.Attribute) and node.attr == "add_module_parsers" for node in ast.walk(statement)):
                 texts.add("add_parser")
+            # COMMANDS = {"catalog": ("catalog_cli", "catalog"), ...}: cli._run calls the run of each module it names.
+            if module == "openguildkit.cli" and "COMMANDS" in defines:
+                texts.add("run")
             for named in (f"openguildkit.{text}" for text in texts if f"openguildkit.{text}" in modules):
                 for text in texts:
                     found[(named, text)] += 1

@@ -6,78 +6,12 @@ from functools import cache
 from importlib import import_module
 from pathlib import Path
 
-from . import (
-    audit_cli,
-    cli_surface,
-    completion_cli,
-    evidence_cli,
-    features_cli,
-    host_coverage,
-    managed,
-    org_catalog_cli,
-    org_policy_cli,
-    profile_cli,
-    projects_cli,
-    tasks_cli,
-    trace_cli,
-)
-from .catalog_cli import (
-    new_brain,
-    print_brains,
-    print_catalog,
-    print_detection,
-    print_patterns,
-    print_references,
-    update_catalog,
-)
-from .check_cli import check, guard, guard_hook, host, host_scan, require_sarif_options
-from .ci import check_export
+from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
 from .cli_errors import error_message, print_trace, reader_closed
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
-from .detect import detect_stack
-from .docs_cli import deliverable, docs
+from .command import Command
 from .hosts import HOSTS
-from .init_cli import init, setup_questions, sync
-from .integrations import OTHER_HOST_NOTE, install_agent_files
-from .lock import package_version, project_catalog
-from .patterns import patterns_to_review
-from .project import (
-    complete_answers,
-    load_profile,
-    profile_recommendations,
-    project_root,
-    rule_plan,
-    setup_profile,
-    state_path,
-)
-from .rule_plan_text import print_recommendations, print_rule_plan
-from .storage import print_json, read_json
 
-
-def _on_first_call(module: str, name: str):
-    """A function of a module that few commands use, imported when it is first called, so that the other commands
-    start without that module (the web server alone added about 30 ms to every command, the edit hook included)."""
-    def call(*args, **kwargs):
-        return getattr(import_module(f"{__package__}.{module}"), name)(*args, **kwargs)
-
-    call.__name__ = call.__qualname__ = name
-    return call
-
-
-draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link = (
-    _on_first_call("deliverables", name)
-    for name in ("draft_problems", "launch_notice", "load_deliverables", "new_draft", "project_path", "utm_link"))
-add_share, export_docs, project_overview, revoke_share, same_access, share_status, shared_addresses, space_neighbours = (
-    _on_first_call("publishing", name)
-    for name in ("add_share", "export_docs", "project_overview", "revoke_share", "same_access", "share_status",
-                 "shared_addresses", "space_neighbours"))
-render_scan, scan_exit_code, scan_report, scan_sarif = (
-    _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report", "scan_sarif"))
-alerts_run, market_run, storybook_run, tools_run = (_on_first_call(module, "run")
-                                                   for module in ("alerts_cli", "market_cli", "storybook_cli", "tools_cli"))
-english_title, find_references, load_references, with_pattern_references = (
-    _on_first_call("references", name)
-    for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
 # same number (tests/test_performance.py compares the help with it).
 UI_PORT = 7311
@@ -220,118 +154,45 @@ def _host_parser(commands) -> None:
     host_coverage.add_options(host)
 
 
+# Each command, the module whose run(command) runs it, and what is read before it runs (command.NEEDS): the module
+# is imported only for its command, so that the others, the help and the edit hook start without it.
+COMMANDS = {
+    "completion": ("completion_cli", "args"),  # A script to load is asked for anywhere, before the project.
+    "guard": ("check_cli", "args"),  # guard --hook reads its own project.
+    "host": ("check_cli", "args"),  # Its options are checked before the project.
+    "mcp": ("connect_cli", "args"),  # --project is required before the project.
+    "trace": ("trace_cli", "root"),
+    "projects": ("projects_cli", "root"),
+    "audit": ("audit_cli", "root"),
+    "org-catalog": ("org_catalog_cli", "root"),  # Before the catalog in force, which an unreadable copy stops.
+    "evidence": ("evidence_cli", "root"),
+    "ui": ("connect_cli", "root"),
+    **dict.fromkeys(("references", "patterns", "brains", "detect", "preview", "recommend", "catalog", "update"),
+                    ("catalog_cli", "catalog")),
+    "integrations": ("connect_cli", "catalog"),
+    "profile": ("profile_cli", "catalog"),
+    "tools": ("tools_cli", "catalog"),
+    "features": ("features_cli", "catalog"),
+    "alerts": ("alerts_cli", "catalog"),
+    "init": ("init_cli", "catalog"),
+    "sync": ("init_cli", "catalog"),
+    "deliverable": ("docs_cli", "profile"),
+    "docs": ("docs_cli", "profile"),
+    "market": ("market_cli", "profile"),
+    "storybook": ("storybook_cli", "profile"),
+    "check": ("check_cli", "profile"),
+    "ci-check": ("connect_cli", "profile"),
+    "task": ("tasks_cli", "profile"),
+}
+
+
 def _run(args) -> int | None:
-    if args.command == "completion":  # Before the project: a script to load is asked for anywhere.
-        completion_cli.run(args)
-        return None
-    require_sarif_options(args)
-    if args.command == "guard" and args.hook:
-        return guard_hook(args)
-    if args.command == "host" and (args.strict and args.mode != "scan" or args.allow and args.mode not in ("scan", "managed")):
-        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
-    if args.command == "mcp" and args.project is None:
-        raise ValueError("Supply --project PATH to open a project MCP server.")
-    root = project_root(args.project)
-    state = state_path(root)
-    if args.command in ("trace", "projects"):
-        return trace_cli.run(args, root, state) if args.command == "trace" else projects_cli.run(args)
-    if args.command == "audit":
-        return audit_cli.run(args, root)
-    if args.command == "org-catalog":  # Before the catalog in force, which an unreadable organization copy stops.
-        return org_catalog_cli.run(args, root, state)
-    if args.command == "evidence":
-        return evidence_cli.run(args, root, state)
-    if args.command == "mcp":
-        if args.policy_repo is not None or args.policy_commit is not None:
-            raise ValueError("The MCP server reads the project catalog in force without policy overrides.")
-        from .project_mcp import serve_project
-
-        return serve_project(state)
-    if args.command == "guard":
-        return guard(args, root, state)
-    if args.command == "ui":
-        from . import webui  # Only this command serves pages; every other one starts without the web server.
-
-        return webui.serve(root, args.port, args.static, not args.no_browser, stable_address=args.stable_address)
-    if args.command == "host" and args.matrix:  # The coverage of every host, from the tables of the code: no project.
-        return host_coverage.run(args)
-    if args.command == "host" and args.mode in ("scan", "managed"):  # managed needs no project: an administrator's machine
-        return managed.run(args) if args.mode == "managed" else host_scan(args, root, state)
-    catalog = project_catalog(args, state)
-    if args.command == "references":
-        print_references(args, state, catalog)
-    elif args.command == "patterns":
-        print_patterns(args, catalog["patterns"])
-    elif args.command == "brains":
-        if args.new:
-            return new_brain(args, state, catalog)
-        families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
-        return print_brains(args, catalog, families)
-    elif args.command == "integrations":
-        base = Path.home() if args.user else root
-        for item in install_agent_files(base, args.host, args.force):
-            print(f"{Path(item['file']).as_posix()}: {item['action']} (openguildkit {package_version()})")
-        if args.host == "other":
-            print(OTHER_HOST_NOTE)
-    elif args.command == "detect":
-        print_detection(detect_stack(root), args.json)
-    elif args.command == "preview":
-        if args.answers:
-            profile = setup_profile(read_json(args.answers), catalog, setup_questions(root, state, catalog)[0])[0]
-        else:
-            profile = load_profile(state, catalog)
-        print_rule_plan(rule_plan(profile, catalog), args.json)
-    elif args.command == "recommend":
-        if args.answers:
-            questions = setup_questions(root, state, catalog)[0]
-            plan = profile_recommendations(complete_answers(read_json(args.answers), questions, catalog)[0], catalog)
-        else:
-            profile = load_profile(state, catalog)
-            plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
-        print_recommendations(plan, args.json)
-    elif args.command == "catalog":
-        print_catalog(catalog, args.json)
-    elif args.command == "profile":
-        return profile_cli.run(args, root, state)
-    elif args.command == "tools":
-        return tools_run(args, root, state, catalog)
-    elif args.command == "features":
-        return features_cli.run(args, root, state, catalog)
-    elif args.command == "alerts":
-        return alerts_run(args, state)
-    elif args.command == "init":
-        init(args, root, state, catalog)
-    elif args.command == "update":
-        update_catalog(args, root, state)
-    elif args.command == "sync":
-        sync(args, root, state)
-    else:
-        return _project_command(args, root, state, catalog)
-    return None
-
-
-def _project_command(args, root: Path, state: Path, catalog: dict) -> int | None:
-    """The commands that need the project's profile."""
-    profile = load_profile(state, catalog)
-    if args.command == "deliverable":
-        return deliverable(args, root, state, profile, catalog)
-    if args.command == "docs":
-        return docs(args, root, state, profile, catalog)
-    if args.command == "market":
-        return market_run(args, state, profile)
-    if args.command == "storybook":
-        return storybook_run(args, root, state)
-    if args.command == "host":
-        return host(args, root, profile)
-    if args.command == "check":
-        return check(args, root, state, profile, catalog)
-    if args.command == "ci-check":
-        result = check_export(profile, catalog, args.target_repo, args.commit)
-        print_json(result)
-        return 0 if result["status"] == "success" else 1
-    if args.command == "task":
-        return tasks_cli.run(args, root, state, profile, catalog)
-    return None
+    module, needs = COMMANDS[args.command]
+    command = Command(args)
+    command.read(needs)
+    if module == "tasks_cli":  # Its run takes the five values until the split of tasks_cli gives it run(command).
+        return tasks_cli.run(args, command.root, command.state, command.profile, command.catalog)
+    return import_module(f"{__package__}.{module}").run(command)
 
 
 def main(argv: list[str] | None = None) -> int:

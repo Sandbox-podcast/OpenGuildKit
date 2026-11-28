@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- CLI: every command runs through one table in `cli.py`, which imports its module only for that command, and every command module's `run` takes one `Command` (arguments, root, state, catalog, profile read once); `cli.py` falls from 1,484 to under 250 lines, its code split into `init_cli`, `catalog_cli`, `check_cli`, `docs_cli` and `connect_cli`. Outputs are unchanged (#462)
 - JSON files of a project: a file nested too deeply (200 000 `[`) in the tools, deliverables or tool mocks of the catalog, or in `.claude/settings.json`, is refused in one line `OpenGuildKit: <path>: JSON nested too deeply` instead of a Python traceback; in `.mcp.json` or `package.json` it is left aside like any invalid file (#460)
 - `task verify`: a check that runs past its time limit keeps what it printed as text in its log, accents and line breaks included, instead of `b'...'` (#510)
 - `trace`: decisions are ordered by the time of their approval, not by its day and then the task ID, and changes are counted from the decision that holds and comes latest in the history, so two approvals of one day no longer report "no decision covers this change" (#525)

@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 from . import git
+from .command import Command
 from .decisions import exported_records
 from .guard import exported_decisions
 from .lock import project_catalog
@@ -26,7 +27,8 @@ def add_parser(commands) -> None:
     trace.add_argument("--json", action="store_true", help="Print every decision with its checks and evidence as JSON.")
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(command: Command) -> int:
+    args, root, state = command.args, command.root, command.state
     catalog = project_catalog(args, state)
     profile = load_profile(state, catalog)
     relative = project_file(root, args.path)

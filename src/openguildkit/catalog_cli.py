@@ -1,12 +1,15 @@
-"""The commands that read the catalog in force: catalog, references, patterns, brains, detect and update.
+"""The commands that read the catalog in force: catalog, references, patterns, brains, detect, preview, recommend
+and update.
 
-Entry: print_catalog, print_references, print_patterns, print_brains, new_brain, print_detection, update_catalog.
+Entry: run.
 Tests: tests/test_upgrades.py, tests/test_references.py, tests/test_brain_knowledge.py.
 """
 
 from pathlib import Path
 
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
+from .command import Command
+from .detect import detect_stack
 from .errors import unknown
 from .lock import (
     apply_lock,
@@ -19,11 +22,20 @@ from .lock import (
     update_target,
     write_lock,
 )
-from .patterns import role_choices
+from .patterns import patterns_to_review, role_choices
 from .profile_cli import print_touched
-from .project import load_profile, rule_conflicts, sync_instructions
+from .project import (
+    complete_answers,
+    load_profile,
+    profile_recommendations,
+    rule_conflicts,
+    rule_plan,
+    setup_profile,
+    sync_instructions,
+)
 from .references import english_title, find_references, load_references, with_pattern_references
-from .storage import print_json, project_lock
+from .rule_plan_text import print_recommendations, print_rule_plan
+from .storage import print_json, project_lock, read_json
 from .tasks import tasks_touched
 from .tools import load_tools
 from .wording import plural
@@ -307,3 +319,55 @@ def new_brain(args, state: Path, catalog: dict) -> int:
     if not stale:
         print(f"No task was reviewed under the previous board. New tasks will be routed to {args.new} by its triggers.")
     return 0
+
+
+def _brains(command: Command) -> int:
+    args, state, catalog = command.args, command.state, command.catalog
+    if args.new:
+        return new_brain(args, state, catalog)
+    families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
+    return print_brains(args, catalog, families)
+
+
+def _setup_questions(command: Command) -> list[dict]:
+    """The questions of init for this repository, which --answers completes: init_cli and the detection it walks the
+    repository with are imported for those two options only, not for every command of this module (25 ms)."""
+    from .init_cli import setup_questions
+
+    return setup_questions(command.root, command.state, command.catalog)[0]
+
+
+def _preview(command: Command) -> None:
+    args, catalog = command.args, command.catalog
+    if args.answers:
+        profile = setup_profile(read_json(args.answers), catalog, _setup_questions(command))[0]
+    else:
+        profile = command.profile
+    print_rule_plan(rule_plan(profile, catalog), args.json)
+
+
+def _recommend(command: Command) -> None:
+    args, catalog = command.args, command.catalog
+    if args.answers:
+        questions = _setup_questions(command)
+        plan = profile_recommendations(complete_answers(read_json(args.answers), questions, catalog)[0], catalog)
+    else:
+        profile = command.profile
+        plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
+    print_recommendations(plan, args.json)
+
+
+HANDLERS = {
+    "catalog": lambda command: print_catalog(command.catalog, command.args.json),
+    "references": lambda command: print_references(command.args, command.state, command.catalog),
+    "patterns": lambda command: print_patterns(command.args, command.catalog["patterns"]),
+    "brains": _brains,
+    "detect": lambda command: print_detection(detect_stack(command.root), command.args.json),
+    "preview": _preview,
+    "recommend": _recommend,
+    "update": lambda command: update_catalog(command.args, command.root, command.state),
+}
+
+
+def run(command: Command) -> int | None:
+    return HANDLERS[command.args.command](command)

@@ -1,6 +1,6 @@
 """The commands that set a project up: init, with its questions at a terminal, and sync.
 
-Entry: init, sync, setup_questions.
+Entry: run, setup_questions.
 Tests: tests/test_setup_questionnaire.py, tests/test_first_run.py, tests/test_proportionate_setup.py.
 """
 
@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .check_cli import pending_catalog_changes, warn_unsigned
+from .command import Command
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
 from .hosts import HOOK_HOSTS
@@ -385,3 +386,13 @@ def sync(args, root: Path, state: Path) -> None:
               file=sys.stderr)
     for item in patterns_to_review(profile, catalog):
         print(f"OpenGuildKit: review pattern {item['id']}: {'; '.join(item['reasons'])}", file=sys.stderr)
+
+
+HANDLERS = {
+    "init": lambda command: init(command.args, command.root, command.state, command.catalog),
+    "sync": lambda command: sync(command.args, command.root, command.state),
+}
+
+
+def run(command: Command) -> None:
+    HANDLERS[command.args.command](command)

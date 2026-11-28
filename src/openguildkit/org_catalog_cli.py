@@ -14,6 +14,7 @@ from . import audit_log, org_policy_cli
 from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
+from .command import Command
 from .lock import (
     COLLECTIONS,
     apply_lock,
@@ -297,7 +298,8 @@ def _off(args, root: Path, state: Path) -> int:
     return 0
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(command: Command) -> int:
+    args, root, state = command.args, command.root, command.state
     if args.org_action == "show":
         return _show(args, root, state)
     if args.org_action == "set":

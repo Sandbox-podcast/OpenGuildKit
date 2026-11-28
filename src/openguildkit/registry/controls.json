@@ -199,7 +199,7 @@
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 58
+          "line": 60
         }
       ],
       "in_dossier": [
@@ -229,7 +229,7 @@
         {
           "file": "src/openguildkit/check_cli.py",
           "symbol": "check",
-          "line": 173
+          "line": 236
         }
       ],
       "in_dossier": [
@@ -249,12 +249,12 @@
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "write_change",
-          "line": 641
+          "line": 642
         },
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "weakening_changes",
-          "line": 151
+          "line": 152
         },
         {
           "file": "src/openguildkit/project.py",
@@ -327,7 +327,7 @@
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 176
+          "line": 178
         }
       ],
       "in_dossier": [],

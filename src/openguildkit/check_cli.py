@@ -1,16 +1,15 @@
 """The commands that check a project against its profile: check, guard and host.
 
-Entry: check, guard, guard_hook, host, host_scan, require_sarif_options, warn_unsigned, pending_catalog_changes,
-undated_project_sources.
+Entry: run, check, warn_unsigned, pending_catalog_changes.
 Tests: tests/test_guard.py, tests/test_sarif_commands.py, tests/test_hosts.py, tests/test_host_scan.py.
 """
 
 import sys
 from pathlib import Path
 
-from . import org_catalog_cli, org_policy_cli
+from . import host_coverage, managed, org_catalog_cli, org_policy_cli
 from .catalog import replaced_boards, undated_sources
-from .deliverables import load_deliverables
+from .command import Command
 from .doc_links import doc_link
 from .guard import (
     NO_TASK,
@@ -37,7 +36,6 @@ from .lock import (
 from .project import STATE_DIR, Fingerprints, RuleError, load_profile
 from .references import load_references
 from .storage import print_json
-from .surfaces import render_scan, scan_exit_code, scan_report, scan_sarif
 from .tasks import list_tasks
 from .tasks_cli import sharing_issues
 from .tools import load_tools
@@ -67,6 +65,8 @@ def pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundle
 def undated_project_sources(state: Path, live: dict) -> list[str]:
     """Project records that cite a source without a checked date; bundled sources always carry one. The project's
     references are read with the catalog it uses, so a pack or a brain they name that does not exist stops check."""
+    from .deliverables import load_deliverables  # Kept off the start of sync and init, which import this module.
+
     project = state / "catalog"
     in_use = apply_lock(live, read_lock(state))
     references = {
@@ -86,7 +86,7 @@ def warn_unsigned(profile: dict, report=None) -> None:
             report.add("approvals-not-signed", "warning", warning.removeprefix("OpenGuildKit: "))
 
 
-def guard_hook(args) -> int:
+def _guard_hook(args) -> int:
     """Run as a host hook: in enforce mode, an edit the guard cannot check is refused.
 
     Hosts reach guard.hook_command through __main__ without this module; this path serves --policy-repo and the
@@ -103,7 +103,7 @@ def _print_guard_sarif(root: Path, found: list[dict], mode: str) -> None:
     print(report.text(root), end="")
 
 
-def require_sarif_options(args) -> None:
+def _require_sarif_options(args) -> None:
     """--format sarif belongs to check, to guard --ci and to host scan, and it does not go with --json: both print on
     the standard output, so say which one to type."""
     if args.command == "host" and args.format == "sarif":
@@ -123,7 +123,12 @@ def require_sarif_options(args) -> None:
                              "--json for a program.")
 
 
-def guard(args, root: Path, state: Path) -> int:
+def _guard(command: Command) -> int:
+    args = command.args
+    _require_sarif_options(args)
+    if args.hook:
+        return _guard_hook(args)
+    root, state = command.root, command.state
     if args.ci:
         found: list[dict] = []
         result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
@@ -169,8 +174,19 @@ def guard(args, root: Path, state: Path) -> int:
     return 0
 
 
-def host(args, root: Path, profile: dict) -> int:
-    """Report the rules the host agent enforces (host check), or write its settings and hooks (host apply)."""
+def _host(command: Command) -> int:
+    """Report the rules the host agent enforces (host check), or write its settings and hooks (host apply); scan,
+    managed and --matrix go to their own functions."""
+    args = command.args
+    _require_sarif_options(args)
+    if args.strict and args.mode != "scan" or args.allow and args.mode not in ("scan", "managed"):
+        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
+    root, state = command.root, command.state
+    if args.matrix:  # The coverage of every host, from the tables of the code: no project.
+        return host_coverage.run(args)
+    if args.mode in ("scan", "managed"):  # managed needs no project: an administrator's machine
+        return managed.run(args) if args.mode == "managed" else _host_scan(args, root, state)
+    profile = command.profile
     if args.mode == "check":
         warn_unsigned(profile)
     controls = host_controls(root, profile)
@@ -201,9 +217,11 @@ def host(args, root: Path, profile: dict) -> int:
     return 1 if missing or wrote_nothing else 0
 
 
-def host_scan(args, root: Path, state: Path) -> int:
+def _host_scan(args, root: Path, state: Path) -> int:
     """Read the instruction files and settings of the project, list its agent tools and MCP servers, and report what
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
+    from .surfaces import render_scan, scan_exit_code, scan_report, scan_sarif  # 11 ms that only host scan needs.
+
     profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
     result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
@@ -301,3 +319,14 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
         raise RuleError(f"The instructions match the project profile, but {len(failing)} "
                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
                         "each line above gives the command to run.", None)
+
+
+HANDLERS = {
+    "guard": _guard,
+    "host": _host,
+    "check": lambda command: check(command.args, command.root, command.state, command.profile, command.catalog),
+}
+
+
+def run(command: Command) -> int:
+    return HANDLERS[command.args.command](command)

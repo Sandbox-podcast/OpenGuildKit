@@ -21,6 +21,7 @@ from functools import cache
 from pathlib import Path
 
 from .alerts import LEGACY_STATUSES, load_register
+from .command import Command
 from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
@@ -60,7 +61,8 @@ def add_parser(commands) -> None:
                           help="csv prints one line per folder under a fixed header, for a spreadsheet.")
 
 
-def run(args) -> int:
+def run(command: Command) -> int:
+    args = command.args
     policy = read_policy(args.policy) if args.policy is not None else None
     if args.strict and policy is None:
         raise ValueError("--strict compares each project with a policy: add --policy FILE.")
@@ -236,7 +238,7 @@ def _check(root: Path, read: dict) -> dict:
     """openguildkit check on the project, in this process, its output kept: whether it passes and, when it fails,
     the last line it printed. It is given the task records the project's line read, so that it reads none again;
     the rest runs as cli.main runs the command: its own options, catalog and profile, the same error line."""
-    from . import cli  # The CLI imports this module: its entry point is reached when the command runs.
+    from . import check_cli, cli  # The CLI reaches this module through its table: its parser is read here.
 
     out, err = io.StringIO(), io.StringIO()
     args = cli.command_parser().parse_args(["--project", str(root), "check"])
@@ -244,7 +246,7 @@ def _check(root: Path, read: dict) -> dict:
         try:
             state = state_path(root)
             catalog = project_catalog(args, state)
-            code = cli.check(args, root, state, load_profile(state, catalog), catalog, read)
+            code = check_cli.check(args, root, state, load_profile(state, catalog), catalog, read)
         except (OSError, ValueError, EOFError) as error:
             print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
             code = 1

@@ -1,6 +1,6 @@
 """The commands that take a task's work to readers: deliverable, and docs export and share.
 
-Entry: deliverable, docs.
+Entry: run.
 Tests: tests/test_deliverables.py, tests/test_publishing.py.
 """
 
@@ -8,6 +8,7 @@ import re
 import sys
 from pathlib import Path
 
+from .command import Command
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link
 from .errors import unknown
 from .publishing import (
@@ -208,3 +209,13 @@ def _print_share_row(row: dict) -> None:
         print(f"  keep {recipient}: share {other['share']} gives the same space until {other['until']}")
     if row["remove"]:
         print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by INITIALS")
+
+
+HANDLERS = {
+    "deliverable": lambda command: deliverable(command.args, command.root, command.state, command.profile, command.catalog),
+    "docs": lambda command: docs(command.args, command.root, command.state, command.profile, command.catalog),
+}
+
+
+def run(command: Command) -> int:
+    return HANDLERS[command.args.command](command)

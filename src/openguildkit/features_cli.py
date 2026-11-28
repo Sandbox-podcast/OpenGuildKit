@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import profile_cli
 from .cli_surface import add_by
+from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
@@ -108,7 +109,8 @@ def _print_still_connected(root: Path, state: Path, targets: list[str], tools: d
               f"access to {titles}. To remove the connection: openguildkit tools remove {item['key']}{host}.")
 
 
-def run(args, root: Path, state: Path, catalog: dict) -> int:
+def run(command: Command) -> int:
+    args, root, state, catalog = command.args, command.root, command.state, command.catalog
     tools = load_tools(state / "catalog" / "tools")
     features = load_features(tools)
     if args.features_action == "list":

@@ -10,6 +10,7 @@ from .alerts import (
     task_brief, unhandled_alerts,
 )
 from .cli_surface import add_by
+from .command import Command
 from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
@@ -150,7 +151,8 @@ def _alert_tasks(args, state: Path) -> None:
         print("Open them with openguildkit alerts tasks --open, then consult each task.")
 
 
-def run(args, state: Path) -> None:
+def run(command: Command) -> None:
+    args, state = command.args, command.state
     action = args.alerts_action
     if action == "tasks":
         _alert_tasks(args, state)

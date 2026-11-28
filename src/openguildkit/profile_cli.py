@@ -15,6 +15,7 @@ from pathlib import Path
 from . import audit_log, incident, light_lane, org_policy, requester
 from .cli_surface import add_by
 from .clock import today
+from .command import Command
 from .doc_links import doc_link
 from .hosts import HOSTS, LIFTED
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
@@ -811,8 +812,9 @@ def export(args, state: Path) -> int:
     return 0
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(command: Command) -> int:
     """Apply one profile command, rewrite the instructions and the catalog lock, and say what follows."""
+    args, root, state = command.args, command.root, command.state
     if args.profile_action == "export":
         return export(args, state)
     target = _target(args)

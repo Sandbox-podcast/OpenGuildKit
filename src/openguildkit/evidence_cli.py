@@ -18,6 +18,7 @@ from pathlib import Path
 from . import clock, git
 from .alerts import load_register
 from .catalog import package_file
+from .command import Command
 from .decisions import approval_policy, exported_records, git_revision, record_digest, seal, verify_recorded_signature
 from .guard import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
@@ -45,7 +46,8 @@ def add_parser(commands) -> None:
     verify.add_argument("dossier", type=Path, help="The folder `evidence export` wrote, from the project root unless absolute.")
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(command: Command) -> int:
+    args, root, state = command.args, command.root, command.state
     if args.evidence_action == "verify":
         return _verify(args.dossier if args.dossier.is_absolute() else root / args.dossier)
     since, until = _day(args.since, "--since"), _day(args.until, "--until")

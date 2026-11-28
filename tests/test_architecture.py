@@ -56,14 +56,34 @@ class ModuleShapeTests(unittest.TestCase):
 
     def test_each_command_module_adds_its_parser_and_runs_without_functions_of_the_cli(self):
         # The same pair everywhere: add_parser(commands), then run(args, ...) with paths and loaded records only.
-        allowed = {"args", "root", "state", "profile", "catalog"}
         for module in (alerts_cli, market_cli, profile_cli, projects_cli, storybook_cli, tasks_cli, tools_cli, trace_cli):
             with self.subTest(module=module.__name__):
                 self.assertEqual(list(inspect.signature(module.add_parser).parameters), ["commands"])
-                parameters = list(inspect.signature(module.run).parameters)
-                self.assertEqual(parameters[0], "args")
-                self.assertLessEqual(set(parameters), allowed)
         self.assertNotIn("cli", imported_modules(parsed(PACKAGE / "profile_cli.py"), top_level=True))
+
+    def test_issue_462_every_command_runs_through_one_table_and_one_signature(self):
+        """Issue #462: six signatures of run for ten command modules, a chain of 37 tests on args.command, and 22
+        functions bound by their name in a string."""
+        from importlib import import_module
+
+        from openguildkit.cli import COMMANDS, command_parser
+        from openguildkit.command import NEEDS
+
+        parser_commands = set(command_parser()._subparsers._group_actions[0].choices)
+        self.assertEqual(set(COMMANDS), parser_commands)
+        for name, (module, needs) in sorted(COMMANDS.items()):
+            with self.subTest(command=name):
+                self.assertIn(needs, NEEDS)
+                if module != "tasks_cli":  # Left to the split of tasks_cli, which is under way apart.
+                    run = import_module(f"openguildkit.{module}").run
+                    self.assertEqual(list(inspect.signature(run).parameters), ["command"])
+        text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
+        self.assertNotIn("_on_first_call", text)
+        self.assertEqual(text.count("args.command =="), 2)  # The exit code 2 of ci-check, in main.
+        for path in [PACKAGE / "cli.py", *(PACKAGE / f"{module}.py" for module in ("init_cli", "catalog_cli",
+                                                                                  "check_cli", "docs_cli"))]:
+            with self.subTest(module=path.name):
+                self.assertLess(len(path.read_text(encoding="utf-8").splitlines()), 400)
 
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.
