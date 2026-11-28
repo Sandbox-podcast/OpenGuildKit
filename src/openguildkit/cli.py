@@ -9,19 +9,16 @@ from importlib import import_module
 from pathlib import Path
 
 from . import (
-    alerts_cli,
     audit_cli,
+    cli_surface,
     completion_cli,
     evidence_cli,
     features_cli,
     managed,
-    market_cli,
     org_catalog_cli,
     profile_cli,
     projects_cli,
-    storybook_cli,
     tasks_cli,
-    tools_cli,
     trace_cli,
 )
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
@@ -114,6 +111,8 @@ add_share, export_docs, project_overview, revoke_share, same_access, share_statu
                  "shared_addresses", "space_neighbours"))
 render_scan, scan_exit_code, scan_report, scan_sarif = (
     _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report", "scan_sarif"))
+alerts_run, market_run, storybook_run, tools_run = (_on_first_call(f"{name}_cli", "run")
+                                                   for name in ("alerts", "market", "storybook", "tools"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -123,9 +122,10 @@ UI_PORT = 7311
 
 
 @cache
-def command_parser() -> argparse.ArgumentParser:
+def command_parser(left_out: frozenset[str] = frozenset()) -> argparse.ArgumentParser:
     """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
-    web server parses one command after another."""
+    web server parses one command after another. The commands of the modules left_out (cli_surface.deferred_modules)
+    get their line of the root's help and no options."""
     # No abbreviations: Python 3.11 read `projects --policy` as an ambiguous prefix of --policy-repo (#479).
     parser = argparse.ArgumentParser(
         prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.", allow_abbrev=False
@@ -216,9 +216,8 @@ def command_parser() -> argparse.ArgumentParser:
                        help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
-    for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
-                   org_catalog_cli, audit_cli, evidence_cli, completion_cli):
-        module.add_parser(commands)
+    cli_surface.add_module_parsers(commands, left_out, ("tools_cli", "features_cli", "profile_cli", "alerts_cli", "market_cli",
+        "storybook_cli", "trace_cli", "projects_cli", "org_catalog_cli", "audit_cli", "evidence_cli", "completion_cli"))
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
@@ -1401,11 +1400,11 @@ def _run(args) -> int | None:
     elif args.command == "profile":
         return profile_cli.run(args, root, state)
     elif args.command == "tools":
-        return tools_cli.run(args, root, state, catalog)
+        return tools_run(args, root, state, catalog)
     elif args.command == "features":
         return features_cli.run(args, root, state, catalog)
     elif args.command == "alerts":
-        return alerts_cli.run(args, state)
+        return alerts_run(args, state)
     elif args.command == "init":
         _init(args, root, state, catalog)
     elif args.command == "update":
@@ -1425,9 +1424,9 @@ def _project_command(args, root: Path, state: Path, catalog: dict) -> int | None
     if args.command == "docs":
         return _docs(args, root, state, profile, catalog)
     if args.command == "market":
-        return market_cli.run(args, state, profile)
+        return market_run(args, state, profile)
     if args.command == "storybook":
-        return storybook_cli.run(args, root, state)
+        return storybook_run(args, root, state)
     if args.command == "host":
         return _host(args, root, profile)
     if args.command == "check":
@@ -1464,11 +1463,12 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
     argv = hoist_global_options(sys.argv[1:] if argv is None else argv)
+    parser = command_parser(cli_surface.deferred_modules(argv))
     if not argv:
-        command_parser().print_help()
+        parser.print_help()
         return 0
     take_by_warning()  # A line left by a parse that failed in this process is not this run's.
-    args = command_parser().parse_args(argv)
+    args = parser.parse_args(argv)
     by_warning = take_by_warning()
     if getattr(args, "project", None) is not None and not args.project.is_dir():
         what = "is not a folder" if args.project.exists() else "does not exist"
@@ -1485,7 +1485,7 @@ def main(argv: list[str] | None = None) -> int:
         return _reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        print(f"OpenGuildKit: {error_message(error, command_parser(), args)}", file=sys.stderr)
+        print(f"OpenGuildKit: {error_message(error, parser, args)}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)

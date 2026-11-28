@@ -9,6 +9,8 @@ from ipaddress import ip_address
 import re
 from urllib.parse import parse_qsl, urlsplit
 
+from . import lazy_re
+
 # A value written in place of a secret, not the secret: a variable (${X}, $X, %X%, {{ x }}), a placeholder (<x>,
 # [credential], YOUR_TOKEN) or an ellipsis.
 _NOT_A_VALUE = r"""(?![\[$<{%]|(?-i:[A-Z_]+)(?![A-Za-z0-9])|[^\s,;"']*(?:\.\.\.|…))"""
@@ -39,74 +41,74 @@ _ARGUMENT_VALUE = (rf"""(?:"{_NOT_A_VALUE}[^"\r\n]+"|'{_NOT_A_VALUE}[^'\r\n]+'""
                    rf"""|{_NOT_A_VALUE}(?=[^\s'"]*\d)[^\s'"]{{4,}})""")
 # Each shape: its name in messages, the pattern, and the replacement that keeps the surrounding words.
 CREDENTIAL_SHAPES = (
-    ("a cloud access key ID", re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
+    ("a cloud access key ID", lazy_re.compile(r"(?<![A-Za-z0-9_])(?:AKIA|ASIA)[A-Za-z0-9]{16}(?![A-Za-z0-9_])"),
      "[credential]"),
-    ("a Stripe secret key", re.compile(r"(?<![A-Za-z0-9_])[sr]k_(?:live|test)_[A-Za-z0-9]{8,}"), "[credential]"),
-    ("a GitHub token", re.compile(r"(?<![A-Za-z0-9_])(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,})"),
+    ("a Stripe secret key", lazy_re.compile(r"(?<![A-Za-z0-9_])[sr]k_(?:live|test)_[A-Za-z0-9]{8,}"), "[credential]"),
+    ("a GitHub token", lazy_re.compile(r"(?<![A-Za-z0-9_])(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,})"),
      "[credential]"),
-    ("a Slack token", re.compile(r"(?<![A-Za-z0-9_])xox[abposre]-[A-Za-z0-9-]{8,}"), "[credential]"),
-    ("a GitLab token", re.compile(r"(?<![A-Za-z0-9_])glpat-[A-Za-z0-9_-]{20,}"), "[credential]"),
-    ("a Google API key", re.compile(r"(?<![A-Za-z0-9_])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])"), "[credential]"),
-    ("an Anthropic API key", re.compile(r"(?<![A-Za-z0-9_])sk-ant-[A-Za-z0-9_-]{20,}"), "[credential]"),
-    ("an OpenAI API key", re.compile(r"(?<![A-Za-z0-9_-])sk-(?:proj-|svcacct-|admin-)?(?=[A-Za-z0-9_-]*\d)"
+    ("a Slack token", lazy_re.compile(r"(?<![A-Za-z0-9_])xox[abposre]-[A-Za-z0-9-]{8,}"), "[credential]"),
+    ("a GitLab token", lazy_re.compile(r"(?<![A-Za-z0-9_])glpat-[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("a Google API key", lazy_re.compile(r"(?<![A-Za-z0-9_])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])"), "[credential]"),
+    ("an Anthropic API key", lazy_re.compile(r"(?<![A-Za-z0-9_])sk-ant-[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("an OpenAI API key", lazy_re.compile(r"(?<![A-Za-z0-9_-])sk-(?:proj-|svcacct-|admin-)?(?=[A-Za-z0-9_-]*\d)"
                                      r"[A-Za-z0-9_-]{20,}"), "[credential]"),
-    ("an npm token", re.compile(r"(?<![A-Za-z0-9_])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9_])"), "[credential]"),
-    ("a PyPI token", re.compile(r"(?<![A-Za-z0-9_-])pypi-AgE[A-Za-z0-9_-]{40,}"), "[credential]"),
-    ("a Hugging Face token", re.compile(r"(?<![A-Za-z0-9_])hf_[A-Za-z0-9]{30,}(?![A-Za-z0-9_])"), "[credential]"),
-    ("an Atlassian API token", re.compile(r"(?<![A-Za-z0-9_])ATATT3[A-Za-z0-9_=-]{20,}"), "[credential]"),
-    ("a Linear API key", re.compile(r"(?<![A-Za-z0-9_])lin_(?:api|oauth)_[A-Za-z0-9]{32,}"), "[credential]"),
-    ("a Notion token", re.compile(r"(?<![A-Za-z0-9_])ntn_[A-Za-z0-9]{40,}"), "[credential]"),
-    ("a Sentry token", re.compile(r"(?<![A-Za-z0-9_])sntry[su]_[A-Za-z0-9+/=_-]{30,}"), "[credential]"),
-    ("a Figma token", re.compile(r"(?<![A-Za-z0-9_])figd_[A-Za-z0-9_-]{30,}"), "[credential]"),
-    ("a Google OAuth access token", re.compile(r"(?<![A-Za-z0-9_])ya29\.[A-Za-z0-9_-]{20,}"), "[credential]"),
-    ("a Slack app token", re.compile(r"(?<![A-Za-z0-9_])xapp-\d+-[A-Za-z0-9-]{16,}"), "[credential]"),
-    ("a Stripe webhook secret", re.compile(r"(?<![A-Za-z0-9_])whsec_[A-Za-z0-9]{20,}"), "[credential]"),
-    ("a DigitalOcean token", re.compile(r"(?<![A-Za-z0-9_])do[opr]_v1_[A-Za-z0-9]{32,}"), "[credential]"),
-    ("a Shopify token", re.compile(r"(?<![A-Za-z0-9_])shp(?:at|ca|pa|ss)_[A-Za-z0-9]{20,}"), "[credential]"),
-    ("a Slack webhook link", re.compile(r"(https://hooks\.slack\.com/(?:services|workflows|triggers)/)"
+    ("an npm token", lazy_re.compile(r"(?<![A-Za-z0-9_])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9_])"), "[credential]"),
+    ("a PyPI token", lazy_re.compile(r"(?<![A-Za-z0-9_-])pypi-AgE[A-Za-z0-9_-]{40,}"), "[credential]"),
+    ("a Hugging Face token", lazy_re.compile(r"(?<![A-Za-z0-9_])hf_[A-Za-z0-9]{30,}(?![A-Za-z0-9_])"), "[credential]"),
+    ("an Atlassian API token", lazy_re.compile(r"(?<![A-Za-z0-9_])ATATT3[A-Za-z0-9_=-]{20,}"), "[credential]"),
+    ("a Linear API key", lazy_re.compile(r"(?<![A-Za-z0-9_])lin_(?:api|oauth)_[A-Za-z0-9]{32,}"), "[credential]"),
+    ("a Notion token", lazy_re.compile(r"(?<![A-Za-z0-9_])ntn_[A-Za-z0-9]{40,}"), "[credential]"),
+    ("a Sentry token", lazy_re.compile(r"(?<![A-Za-z0-9_])sntry[su]_[A-Za-z0-9+/=_-]{30,}"), "[credential]"),
+    ("a Figma token", lazy_re.compile(r"(?<![A-Za-z0-9_])figd_[A-Za-z0-9_-]{30,}"), "[credential]"),
+    ("a Google OAuth access token", lazy_re.compile(r"(?<![A-Za-z0-9_])ya29\.[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("a Slack app token", lazy_re.compile(r"(?<![A-Za-z0-9_])xapp-\d+-[A-Za-z0-9-]{16,}"), "[credential]"),
+    ("a Stripe webhook secret", lazy_re.compile(r"(?<![A-Za-z0-9_])whsec_[A-Za-z0-9]{20,}"), "[credential]"),
+    ("a DigitalOcean token", lazy_re.compile(r"(?<![A-Za-z0-9_])do[opr]_v1_[A-Za-z0-9]{32,}"), "[credential]"),
+    ("a Shopify token", lazy_re.compile(r"(?<![A-Za-z0-9_])shp(?:at|ca|pa|ss)_[A-Za-z0-9]{20,}"), "[credential]"),
+    ("a Slack webhook link", lazy_re.compile(r"(https://hooks\.slack\.com/(?:services|workflows|triggers)/)"
                                         r"[A-Za-z0-9_/-]{20,}"), r"\1[credential]"),
-    ("a Discord webhook link", re.compile(r"(https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/)"
+    ("a Discord webhook link", lazy_re.compile(r"(https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/)"
                                           r"\d+/[A-Za-z0-9_-]{20,}"), r"\1[credential]"),
-    ("a Google OAuth client secret", re.compile(r"(?<![A-Za-z0-9_-])GOCSPX-[A-Za-z0-9_-]{20,}"), "[credential]"),
-    ("a SendGrid API key", re.compile(r"(?<![A-Za-z0-9_-])SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{30,}"), "[credential]"),
-    ("an Azure storage key", re.compile(r"(?i)(\b(?:Account|SharedAccess)Key=)(?![\[$<{%])[A-Za-z0-9+/=]{20,}"),
+    ("a Google OAuth client secret", lazy_re.compile(r"(?<![A-Za-z0-9_-])GOCSPX-[A-Za-z0-9_-]{20,}"), "[credential]"),
+    ("a SendGrid API key", lazy_re.compile(r"(?<![A-Za-z0-9_-])SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{30,}"), "[credential]"),
+    ("an Azure storage key", lazy_re.compile(r"(?i)(\b(?:Account|SharedAccess)Key=)(?![\[$<{%])[A-Za-z0-9+/=]{20,}"),
      r"\1[credential]"),
-    ("a JSON Web Token", re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    ("a JSON Web Token", lazy_re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
      "[credential]"),
-    ("a private key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"
+    ("a private key", lazy_re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"
                                  r"(?:.*?-----END (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----)?", re.DOTALL), "[private key]"),
-    ("a link with a password", re.compile(r"(?i)(\b[a-z][a-z0-9+.-]{0,31}://[^\s/:@]*:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
-    ("a secret in a query string", re.compile(
+    ("a link with a password", lazy_re.compile(r"(?i)(\b[a-z][a-z0-9+.-]{0,31}://[^\s/:@]*:)(?!\[)[^\s/@]+@"), r"\1[password]@"),
+    ("a secret in a query string", lazy_re.compile(
         r"(?i)([?&;](?:[a-z0-9_.-]*[_-])?(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|signature|sig)=)"
         r"(?![\[$<{])[^&#\s\"']+"), r"\1[credential]"),
-    ("a password", re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?!{_PASSWORD_PROSE}(?![\w'-]))"""
+    ("a password", lazy_re.compile(rf"""(?i)({_PASSWORD_KEY}["']?\s*[:=]\s*)(?![\[$<{{%])(?!{_PASSWORD_PROSE}(?![\w'-]))"""
                               r"""(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]*[^\s,;.!?)])"""), r"\1[password]"),
     # mysql -pSECRET, mysqldump -pSECRET: the value follows -p without a space; -p alone asks for it. Elsewhere the value
     # follows --password, --pass or the -p of sshpass and of a login, after a space.
-    ("a password on a command line", re.compile(
+    ("a password on a command line", lazy_re.compile(
         rf"({_MYSQL}(?:(?!{_MYSQL})[^\n])*?\s-p)(?![\[$<{{%])[^\s'\"]{{4,}}"
         rf"|((?<![\w-])--pass(?:word|wd|phrase)?[ \t]+|\b(?:sshpass|login)\b[^\n]{{0,200}}?[ \t]-p[ \t]+){_ARGUMENT_VALUE}"),
      r"\1\2[password]"),
-    ("an authorization header", re.compile(
+    ("an authorization header", lazy_re.compile(
         r"""(?i)(\bauthorization["']?\s*[:=]\s*["']?(?:bearer|basic|token)\s+)"""
         rf"""{_NOT_A_VALUE}[A-Za-z0-9._~+/=-]{{8,}}"""), r"\1[credential]"),
     # api_key: …, token=…, client_secret = "…", AWS_SECRET_ACCESS_KEY=…; a query string has its own shape above.
-    ("a secret in a setting", re.compile(rf"""(?i)(?<![?&;/=\w-])({_SECRET_KEY}["']?\s*[:=]\s*){_SETTING_VALUE}"""),
+    ("a secret in a setting", lazy_re.compile(rf"""(?i)(?<![?&;/=\w-])({_SECRET_KEY}["']?\s*[:=]\s*){_SETTING_VALUE}"""),
      r"\1[credential]"),
 )
 PERSONAL_SHAPES = (
-    ("an email address", re.compile(r"(?<![a-z0-9.!#$%&'*+/=?^_\x60{|}~-])[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@"
+    ("an email address", lazy_re.compile(r"(?<![a-z0-9.!#$%&'*+/=?^_\x60{|}~-])[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@"
                                     r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", re.IGNORECASE | re.ASCII)),
-    ("a phone number", re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?\d(?:[ .-]?\d){7,12}|0\d(?:[ .-]?\d{2}){4})(?!\w)")),
-    ("a bank account number", re.compile(r"\b[A-Z]{2}\d{2} ?(?:[A-Z0-9]{4} ?){2,7}[A-Z0-9]{1,4}\b")),
+    ("a phone number", lazy_re.compile(r"(?<![\w+])(?:\+\d{1,3}[ .-]?\d(?:[ .-]?\d){7,12}|0\d(?:[ .-]?\d{2}){4})(?!\w)")),
+    ("a bank account number", lazy_re.compile(r"\b[A-Z]{2}\d{2} ?(?:[A-Z0-9]{4} ?){2,7}[A-Z0-9]{1,4}\b")),
 )
 WHERE = "a credential belongs in each person's environment or in the tool's own vault"
-_QUERY_CREDENTIAL = re.compile(
+_QUERY_CREDENTIAL = lazy_re.compile(
     r"(?:^|[_-])(?:token|secret|password|passwd|api[_-]?key|access[_-]?key|credential|signature|bearer)(?:$|[_-])",
     re.IGNORECASE,
 )
 _PRIVATE_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa", ".test", ".example", ".invalid", ".onion")
-_DOMAIN = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", re.ASCII)
+_DOMAIN = lazy_re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", re.ASCII)
 
 
 def credential_kind(value: str) -> str | None:

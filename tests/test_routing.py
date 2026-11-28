@@ -287,6 +287,41 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(normalized, normalize_text(sample))
                 self.assertEqual(len(offsets), len(normalized))
 
+    def test_the_ascii_path_of_the_offsets_gives_what_the_general_path_gives(self):
+        """Issue #540: normalize_with_offsets folded each character with two expression substitutions, 0.6 ms for
+        the texts of one task review, where an ASCII text needs none."""
+        import unicodedata
+
+        from openguildkit.routing import _APOSTROPHES, _SEPARATORS
+
+        def general(value):
+            """The character by character path, which every text took before."""
+            pieces = [(_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", piece)), index)
+                      for index, character in enumerate(value)
+                      for piece in unicodedata.normalize("NFKD", character).casefold()
+                      if not unicodedata.combining(piece)]
+            characters, offsets = [], []
+            for piece, index in pieces:
+                if piece.isspace():
+                    if characters and characters[-1] != " ":
+                        characters.append(" ")
+                        offsets.append(index)
+                    continue
+                characters.append(piece)
+                offsets.append(index)
+            if characters and characters[-1] == " ":
+                characters.pop()
+                offsets.pop()
+            return "".join(characters), offsets
+
+        cases = json.loads((Path(__file__).parent / "routing_cases.json").read_text(encoding="utf-8"))
+        samples = [case["brief"] for case in cases] + [
+            "Sécurité  DES Données", "l`appel/d_offres | Export", " a\n\tB\x0b\x1fc ", "CSV/JSON_export"]
+        self.assertTrue(any(sample.isascii() for sample in samples))
+        for sample in samples:
+            with self.subTest(sample=sample):
+                self.assertEqual(normalize_with_offsets(sample), general(sample))
+
     def test_a_declared_role_that_the_task_serves_is_proposed(self):
         profile = {"personal_data": "no", "name": "Support tools", "sector": "general", "packs": [], "boards": [],
                    "roles": ["support", "customer-success", "communication"]}

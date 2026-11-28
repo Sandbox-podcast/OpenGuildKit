@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 
+from . import lazy_re
 from .detect import MAX_DEPTH, walk
 from .storage import load_json
 
@@ -152,8 +153,8 @@ def propose_checks(root: Path, detected: dict, listings: dict[str, set[str]] | N
     return proposals
 
 
-NOT_FOUND = re.compile(r"command not found|is not recognized as an internal or external command", re.I)
-MISSING_DEPENDENCY = re.compile(
+NOT_FOUND = lazy_re.compile(r"command not found|is not recognized as an internal or external command", re.I)
+MISSING_DEPENDENCY = lazy_re.compile(
     r"ModuleNotFoundError|No module named|Cannot find module|ERR_MODULE_NOT_FOUND|could not resolve dependencies"
     r"|Could not resolve host|getaddrinfo|ENOTFOUND|EAI_AGAIN|Network is unreachable",
     re.I,
@@ -162,7 +163,7 @@ TAIL_LINES = 3
 
 
 # A line that names the error, as test runners and interpreters print it.
-ERROR_LINE = re.compile(r"error|cannot find|can't find|not found|no module|exception|failed|traceback", re.IGNORECASE)
+ERROR_LINE = lazy_re.compile(r"error|cannot find|can't find|not found|no module|exception|failed|traceback", re.IGNORECASE)
 
 
 def _telling_lines(output: str) -> list[str]:

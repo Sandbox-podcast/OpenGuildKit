@@ -9,14 +9,14 @@ import os
 import re
 import time
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
 from functools import cache
 from pathlib import Path
 
 from . import clock, delivered_review, incident, light_lane, requester, roles, task_index
 from .alerts import resolution_line, resolved_by_import
-from .consultation import code_not_found, consult, profile_settings
+from .consultation import code_lookup, consult, profile_settings
 from .decisions import (
     DECISIONS_DIR,
     EARLIER_SIGNERS,
@@ -199,6 +199,7 @@ _SCOPE = {
     "open_points?": [str],
     "checks?": [str],
     "code_not_found?": [str],
+    "code_not_searched?": [str],
     "packs?": [{"id": str, "rules": [_RULE]}],
     "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict]},
     "tools?": [{"id": str}],
@@ -745,7 +746,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
             entries.append((None, {"id": path.stem, "status": "unreadable", "next": str(error)}))
             continue
         if "stamp" in known and (known.get("checked"), known.get("status")) != (True, task["status"]):
-            index[path.name], learnt = {"status": task["status"], "stamp": known["stamp"], "checked": True}, True
+            index[path.name], learnt = {"status": task["status"], "approved": task_index.latest_approval_at(task),
+                                        "stamp": known["stamp"], "checked": True}, True
         statuses[task["id"]] = task["status"]
         if read is not None:
             read[task["id"]] = task
@@ -950,7 +952,7 @@ def cited_evidence(task: dict) -> list[str]:
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
-    knowledge: dict | None = None, tools: list[dict] | None = None, root: Path | None = None,
+    knowledge: Mapping[str, dict] | None = None, tools: list[dict] | None = None, root: Path | None = None,
     brief: str | None = None,
 ) -> dict:
     """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.
@@ -983,15 +985,15 @@ def record_consultation(
     result = {**task, "answers": validated, "rounds": rounds}
     if brief is not None:
         result["brief"] = validate_brief(brief)
-    missing = None
+    missing, not_searched = None, None
     if root is not None and validated["kind"] == "bug":
-        missing = code_not_found(" ".join([result["brief"], validated.get("context", "")]), root)
+        missing, not_searched = code_lookup(" ".join([result["brief"], validated.get("context", "")]), root)
     result.update(
         status="consulting",
         consultation=consult(
             task_scope_profile(profile, catalog, validated.get("components", [])),
             catalog, result, selection, host_controls, market, storybook,
-            knowledge, tools, missing,
+            knowledge, tools, missing, not_searched,
         ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
@@ -1063,18 +1065,43 @@ def previous_round_line(task: dict) -> str | None:
 
 def last_approval(state: Path) -> dict | None:
     """The project's most recent approval, earlier rounds included: its task, when, and the check commands it was
-    given with. The decision brief compares the commands of the task to decide with these."""
+    given with. The decision brief compares the commands of the task to decide with these.
+
+    The status index gives each record's latest approval date, so only the record that holds the most recent one is
+    read; when the index cannot say, or the record read does not hold the date its entry gives, every record is."""
+    index = task_index.entries(state)
+    if all("approved" in entry and "stamp" in entry for entry in index.values()):
+        at, name = None, ""
+        for file_name, entry in index.items():
+            if isinstance(entry["approved"], str) and (at is None or entry["approved"] > at):
+                at, name = entry["approved"], file_name
+        if at is None:
+            return None
+        try:
+            latest = _latest_approval(read_task(state, name[:-5]))
+        except ValueError:
+            latest = None
+        if latest is not None and latest["at"] == at:
+            return latest
     latest = None
     for path in sorted((state / "tasks").glob("*.json")) if (state / "tasks").is_dir() else []:
         try:
-            task = read_task(state, path.stem)
+            found = _latest_approval(read_task(state, path.stem))
         except ValueError:
             continue
-        for entry in [*task["rounds"], task]:
-            decision = entry.get("decision") or {}
-            if decision.get("outcome") == "approved" and (latest is None or decision["at"] > latest["at"]):
-                latest = {"task": task["id"], "at": decision["at"],
-                          "checks": entry.get("consultation", {}).get("scope", {}).get("checks", [])}
+        if found is not None and (latest is None or found["at"] > latest["at"]):
+            latest = found
+    return latest
+
+
+def _latest_approval(task: dict) -> dict | None:
+    """The task's most recent approval, earlier rounds included, as last_approval gives it."""
+    latest = None
+    for entry in [*task["rounds"], task]:
+        decision = entry.get("decision") or {}
+        if decision.get("outcome") == "approved" and (latest is None or decision["at"] > latest["at"]):
+            latest = {"task": task["id"], "at": decision["at"],
+                      "checks": entry.get("consultation", {}).get("scope", {}).get("checks", [])}
     return latest
 
 

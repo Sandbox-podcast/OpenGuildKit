@@ -13,24 +13,23 @@ the pins stay in `organization_history`.
 
 import hashlib
 import os
-import re
 import subprocess
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 from typing import NoReturn
 
-from . import git
+from . import git, lazy_re
 from .shell import shell_word
 
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
-FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
-FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
+FULL_COMMIT = lazy_re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+FINGERPRINT = lazy_re.compile(r"sha256:[0-9a-f]{64}")
 LOCK_NAME = ".openguildkit/catalog.lock.json"
 SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY"
 PIN_FIELDS = {"repo", "name", "commit", "fingerprint", "pinned", "exceptions"}
 PERSON_FIELDS = {"by", "reason", "on"}
-NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
+NAME = lazy_re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
 HISTORY_FIELDS = {"action", "commit", "by", "reason", "on"}
 MIGRATE_COMMAND = "openguildkit org-catalog set --name NAME --repo PATH --commit SHA --by INITIALS --reason WHY"
 

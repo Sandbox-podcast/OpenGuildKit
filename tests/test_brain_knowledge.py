@@ -1,4 +1,5 @@
 import contextlib
+import json
 import io
 import tempfile
 import unittest
@@ -126,3 +127,49 @@ class BrainKnowledgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConsultKnowledgeTests(unittest.TestCase):
+    """task consult works out the knowledge of the boards it convenes, not of every board of the catalog."""
+
+    EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
+
+    def consulted(self, root: Path, every_board: bool) -> tuple[bytes, list[str]]:
+        """The task record task consult writes with a fixed consultation ID, and the boards whose knowledge it worked
+        out; every_board works it out for each board of the catalog first, as task consult did before."""
+        from unittest.mock import patch
+
+        from openguildkit import brains, tasks_cli
+        from tests.support import run_cli
+
+        computed = []
+        original = brains.brief_knowledge
+
+        def counted(board_id, *args, **kwargs):
+            computed.append(board_id)
+            return original(board_id, *args, **kwargs)
+
+        def eager(catalog, *args):
+            knowledge = brains.BriefKnowledge(catalog, *args)
+            return {board_id: knowledge[board_id] for board_id in catalog["boards"]}
+
+        run_cli(root, "init", "--answers", self.EXAMPLE / "profile.json")
+        run_cli(root, "task", "new", "--file", self.EXAMPLE / "brief.md", "--id", "status")
+        with patch("openguildkit.brains.brief_knowledge", counted), \
+                patch("openguildkit.consultation.uuid4", return_value=type("Id", (), {"hex": "0" * 32})()), \
+                patch.object(tasks_cli, "BriefKnowledge", eager if every_board else brains.BriefKnowledge):
+            run_cli(root, "task", "consult", "status", "--answers", self.EXAMPLE / "answers.json")
+        record = json.loads((root / ".openguildkit" / "tasks" / "status.json").read_text(encoding="utf-8"))
+        for moment in ("created_at", "updated_at"):
+            record.pop(moment, None)
+        return json.dumps(record, sort_keys=True).encode("utf-8"), computed
+
+    def test_only_the_convened_boards_get_their_knowledge_and_the_consultation_is_the_same(self):
+        """Issue #541: task consult ranked the references of all 27 boards when routing convened 7."""
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            lazy, computed = self.consulted(Path(first), every_board=False)
+            eager, every = self.consulted(Path(second), every_board=True)
+        record = json.loads(lazy)
+        self.assertEqual(sorted(computed), sorted(record["consultation"]["boards"]))
+        self.assertLess(len(computed), len(every))
+        self.assertEqual(lazy, eager)

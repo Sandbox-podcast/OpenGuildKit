@@ -5,7 +5,7 @@ from pathlib import Path
 
 from . import requester
 from .alerts import (
-    REVIEW_STATUSES, SEVERITIES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
+    SEVERITIES, STATUS_CHOICES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
     load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
     task_brief, unhandled_alerts,
 )
@@ -15,8 +15,6 @@ from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
 from .terminal import interactive
 from .wording import plural
-
-STATUS_CHOICES = (*REVIEW_STATUSES, "to-verify")
 
 
 def add_parser(commands) -> None:

@@ -10,9 +10,10 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, audit_log, delivered_review, light_lane, requester, roles
+from . import audit_log, delivered_review, light_lane, requester, roles
+from .alerts import STATUS_CHOICES as ALERT_STATUSES
 from .alerts import blocking_alerts, load_register
-from .brains import brief_knowledge, consultation_context
+from .brains import BriefKnowledge, consultation_context
 from .catalog import board_replacements
 from .cli_surface import add_by
 from .clock import today
@@ -372,7 +373,7 @@ def _alerts_options(command) -> None:
                          help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
     command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
     command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
-    command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
+    command.add_argument("--status", choices=ALERT_STATUSES, help="Review status for --set.")
     add_by(command)
     command.add_argument("--reason", default="", help="Reason, required to dismiss.")
     command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
@@ -1230,7 +1231,9 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
 
 def _alerts(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The task's dependency alerts: import, link and review them."""
-    alerts_cli.task_command(args, state, task)
+    from .alerts_cli import task_command  # Not imported by the other task commands (#539).
+
+    task_command(args, state, task)
 
 
 def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1330,6 +1333,7 @@ def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: di
 def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Record the answers and prepare the consultation of the boards, under the project lock."""
     # Only a consultation reads the reference library and the Storybook record: the other commands start without.
+    from .alerts_cli import consultation_task
     from .references import load_references, with_pattern_references
     from .storybook import scope_entry as storybook_scope_entry
 
@@ -1371,14 +1375,10 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
         active = set(scoped_profile["packs"])
         context = consultation_context(current_task, answers, scoped_profile, catalog)
-        knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
-                     for board_id in catalog["boards"]}
         registry = load_tools(state / "catalog" / "tools")
-        for board_id in catalog["boards"]:
-            usable = connected_tools(state, registry, board_id)
-            if usable:
-                knowledge[board_id]["tools"] = usable
-        result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
+        knowledge = BriefKnowledge(catalog, families, active, context,
+                                   lambda board_id: connected_tools(state, registry, board_id))
+        result = record_consultation(consultation_task(state, current_task), answers, profile, catalog,
                                      _selection(args), controls, market, storybook_scope_entry(state), knowledge,
                                      connected_tools(state, registry), root,
                                      args.revised_brief)

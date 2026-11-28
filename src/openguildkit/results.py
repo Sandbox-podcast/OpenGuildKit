@@ -15,6 +15,7 @@ import time
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
+from . import lazy_re
 from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR, rule_text
@@ -701,7 +702,7 @@ OTHER_TYPE_NAMES = {"dockerfile", "makefile", "package.json", "package-lock.json
 OTHER_TYPE_SUFFIXES = {".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rb", ".php", ".cs", ".sh", ".sql",
                        ".css", ".html", ".toml", ".yml", ".yaml", ".ini", ".cfg", ".lock", ".png", ".jpg", ".jpeg",
                        ".gif", ".svg", ".webp", ".log"}
-NOT_RUN = re.compile(r"\b(not|never|non|pas|without)\s+(been\s+)?(executed|run|ran|exécutée?s?|lancée?s?)\b"
+NOT_RUN = lazy_re.compile(r"\b(not|never|non|pas|without)\s+(been\s+)?(executed|run|ran|exécutée?s?|lancée?s?)\b"
                      r"|read from (the )?code|lu dans le code", re.IGNORECASE)
 
 

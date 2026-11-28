@@ -11,6 +11,7 @@ return dicts; reading the records is the command's part (tasks_cli.py).
 import re
 from pathlib import Path
 
+from . import lazy_re
 from .patterns import pattern_selection
 from .profile_cli import check_proposal
 from .project import DRAFT_MARK, resolved_profile
@@ -35,10 +36,10 @@ MAX_LINES, MAX_TEXT, MAX_IDS, MAX_EXAMPLES = 8, 160, 5, 3
 # The reason written into a proposed command, which the profile history keeps: one line, at most this many characters.
 MAX_REASON = 240
 REASON_PREFIX = "task retro: "
-_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-_BLOCKER = re.compile(r"\bblocker ([a-z0-9-]+):\d+")
-_HANDED = re.compile(r"\bis handed to task [a-z0-9-]+")
-_COMMAND_POINT = re.compile(r"^command:(\d+) could not run: (.*)$", re.DOTALL)
+_DATE = lazy_re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_BLOCKER = lazy_re.compile(r"\bblocker ([a-z0-9-]+):\d+")
+_HANDED = lazy_re.compile(r"\bis handed to task [a-z0-9-]+")
+_COMMAND_POINT = lazy_re.compile(r"^command:(\d+) could not run: (.*)$", re.DOTALL)
 
 
 def _dict(value: object) -> dict:

@@ -13,11 +13,10 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path, PurePosixPath
 
-from . import git, incident, light_lane, requester, roles
+from . import git, incident, lazy_re, light_lane, requester, roles
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -47,6 +46,8 @@ from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import copies_read_from, organization_in, parse_copies
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
+from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
+from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import (
@@ -64,10 +65,7 @@ from .wording import plural
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 from .workstation import no_profile_answer
 
-MODES = ("off", "observe", "enforce")
-# The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
-UNKNOWN_MODE = "unknown"
-_PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
+_PATCH_FILE = lazy_re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
 # Files the CLI writes through its own commands and the host settings the guard relies on.
 PROTECTED = (
     f"{STATE_DIR}/tasks/", f"{STATE_DIR}/{DECISIONS_DIR}/", f"{STATE_DIR}/project.json", f"{STATE_DIR}/{LOCK_FILE}",
@@ -350,20 +348,6 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     return hook_answer(event, mode, "outside")
 
 
-def _declared_mode(project: Path | None) -> str:
-    """The guard mode written in the profile, read without validation; unknown when it cannot be read."""
-    try:
-        start = project.resolve() if project is not None else Path.cwd().resolve()
-        roots = [start] if project is not None else [start, *start.parents]
-        state = next((root / STATE_DIR for root in roots if (root / STATE_DIR).is_dir()), None)
-        if state is None:
-            return "off"
-        mode = read_json(state / "project.json").get("guard", "off")
-    except Exception:
-        return UNKNOWN_MODE
-    return mode if mode in MODES else UNKNOWN_MODE
-
-
 def _one_line(error: BaseException) -> str:
     text = str(error) if isinstance(error, ValueError) else f"{type(error).__name__}: {error}"
     return " ".join(text.split()) or type(error).__name__
@@ -385,7 +369,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
     load() returns the project root, state, profile and catalog; it may raise. A profile that declares the guard
     off ends the hook before load(): whatever the catalog and the profile say, the answer is to let the edit through.
     """
-    if _declared_mode(project) == "off":
+    if declared_mode(project) == "off":
         return no_profile_answer(event, project) or hook_answer(event, "off", "outside")
     mode, dialect = None, "claude"
     try:
@@ -400,7 +384,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
         dialect = hook_dialect(hook_input)
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.
-        return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error), dialect)
+        return hook_answer(event, mode or declared_mode(project), "unchecked", _one_line(error), dialect)
 
 
 def project_loader(project: Path | None, catalog_in_force=None):
@@ -713,7 +697,7 @@ def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, 
     return "invalid-record", message, code
 
 
-_COMMIT = re.compile(r"[0-9a-f]{7,64}")
+_COMMIT = lazy_re.compile(r"[0-9a-f]{7,64}")
 
 
 def in_history(history: Path, commit: object) -> bool:
@@ -811,9 +795,9 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     return None
 
 
-_CONFLICT_START = re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
-_CONFLICT_END = re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
-_APPROVER = re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_CONFLICT_START = lazy_re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
+_CONFLICT_END = lazy_re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
+_APPROVER = lazy_re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
 
 def conflict_message(path: Path, relative: str) -> str | None:
@@ -999,7 +983,7 @@ def _no_base_profile(root: Path) -> str:
                 "Run openguildkit init to add one.")
     expected = ("The base revision has no OpenGuildKit profile: nothing is enforced, which is expected for the pull "
                 "request that adds it.")
-    mode = _declared_mode(root)
+    mode = declared_mode(root)
     if mode == UNKNOWN_MODE:
         return f"{expected} The profile of this change cannot be read: fix it before it is merged."
     return (f"{expected} The guard reads its mode from the base revision, so once the profile is merged the next pull "
@@ -1167,6 +1151,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     notes = [_workflow_note(running)] if running else []
     for path in running:
         flag("guard-workflow-edited", notes[0], path, "note")
+    import tempfile  # guard --ci only: the edit hook starts without it (#539).
+
     with tempfile.TemporaryDirectory() as directory:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)

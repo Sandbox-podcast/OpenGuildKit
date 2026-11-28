@@ -14,13 +14,15 @@ import json
 import re
 from pathlib import Path
 
-from . import clock
+from . import clock, lazy_re
 from .errors import unknown
 from .storage import read_json, write_json
 
 REGISTER_FILE = "alerts.json"
 STATUSES = ("open", "confirmed", "dismissed", "resolved")
 REVIEW_STATUSES = ("open", "confirmed", "dismissed")
+# The statuses `alerts review --set` and `task alerts --set` accept.
+STATUS_CHOICES = (*REVIEW_STATUSES, "to-verify")
 ACTIVE = ("open", "confirmed")
 LEGACY_STATUSES = {"to-verify": "open"}
 SEVERITY_RANK = {"unknown": 0, "low": 1, "moderate": 2, "medium": 2, "high": 3, "critical": 4}
@@ -32,8 +34,8 @@ _ECOSYSTEMS = {
     "composer": "packagist", "packagist": "packagist", "pub": "pub", "swift": "swifturl", "swifturl": "swifturl",
     "actions": "github-actions", "github actions": "github-actions",
 }
-_PRIMARY = (re.compile(r"GHSA-[a-z0-9-]+", re.IGNORECASE), re.compile(r"CVE-\d+-\d+", re.IGNORECASE))
-_SCOPE = re.compile(r"[a-z0-9](?:[a-z0-9./-]{0,62}[a-z0-9])?")
+_PRIMARY = (lazy_re.compile(r"GHSA-[a-z0-9-]+", re.IGNORECASE), lazy_re.compile(r"CVE-\d+-\d+", re.IGNORECASE))
+_SCOPE = lazy_re.compile(r"[a-z0-9](?:[a-z0-9./-]{0,62}[a-z0-9])?")
 
 
 def check_scope(scope: str | None) -> str | None:
