@@ -45,6 +45,7 @@ class RuleChangeTests(SharingCase):
             self.assertIn(message, self.run_cli("task", action, TASK, code=1)[1])
         error = self.run_cli("check", code=1)[1]
         self.assertIn(f"{TASK}: {message}", error)
+        # OGK-CHECK-015
         self.assertTrue(error.endswith("but 1 approval no longer holds: each line above gives the command to run.\n"))
         self.assertNotIn("instructions match", self.run_cli("check", code=1)[0])
         self.assertIn(message, self.run_cli("task", "checks", TASK)[1])

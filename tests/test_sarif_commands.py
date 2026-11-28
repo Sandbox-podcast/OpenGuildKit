@@ -105,6 +105,7 @@ class CheckSarifTests(SarifProject):
         # The command ends as it did: same exit code, same line on the standard error.
         text = self.cli("check", code=1)
         self.assertEqual(result.stderr, text.stderr)
+        # OGK-PROJECT-077
         self.assertIn("OpenGuildKit instructions are out of date. Run openguildkit sync.", result.stderr)
 
     def test_a_block_edited_by_hand_has_its_own_rule(self):
@@ -126,6 +127,7 @@ class CheckSarifTests(SarifProject):
                                                 ("instructions-drift", "error", "CLAUDE.md")])
 
     def test_instructions_that_follow_a_newer_catalog_say_update_not_sync(self):
+        # OGK-CORE-022
         self.init()
         lock_path = self.root / ".openguildkit" / "catalog.lock.json"
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -143,6 +145,7 @@ class CheckSarifTests(SarifProject):
         self.assertEqual(result.stderr, self.cli("check", code=1).stderr)
 
     def test_a_catalog_lock_that_does_not_match_the_profile_has_its_rule(self):
+        # OGK-CHECK-014
         self.init()
         lock_path = self.root / ".openguildkit" / "catalog.lock.json"
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -219,6 +222,7 @@ class CheckSarifTests(SarifProject):
         self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-PROJECT-026]: "), result.stderr)
 
     def test_the_exit_code_of_each_failure_is_the_one_of_the_text_form(self):
+        # OGK-CHECK-013
         self.init(host="claude-code")
         self.assertEqual(self.cli("check", code=1).returncode, self.cli("check", "--format", "sarif", code=1).returncode)
 

@@ -63,6 +63,9 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-CHECK-010` | `sarif.py:_prepared` |
 | `OGK-CHECK-011` | `sarif.py:_prepared` |
 | `OGK-CHECK-012` | `sarif.py:_rule` |
+| `OGK-CHECK-013` | `check_cli.py:_check_project` |
+| `OGK-CHECK-014` | `check_cli.py:_check_project` |
+| `OGK-CHECK-015` | `check_cli.py:_check_project` |
 | `OGK-CI-001` | `ci.py:_committed_bytes` |
 | `OGK-CI-002` | `ci.py:_committed_file` |
 | `OGK-CI-003` | `ci.py:_committed_file` |
@@ -110,6 +113,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-CORE-019` | `lock.py:central_policy` |
 | `OGK-CORE-020` | `lock.py:apply_lock` |
 | `OGK-CORE-021` | `storage.py:_loads` |
+| `OGK-CORE-022` | `lock.py:require_instructions` |
 | `OGK-DECISION-001` | `decisions.py:signing_time` |
 | `OGK-DECISION-002` | `decisions.py:signing_time` |
 | `OGK-DECISION-003` | `decisions.py:verify_time` |
@@ -248,6 +252,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-ORG-009` | `org_policy.py:refuse` |
 | `OGK-ORG-010` | `org_policy.py:refuse_lowering` |
 | `OGK-ORG-011` | `org_policy_cli.py:ci_copy` |
+| `OGK-ORG-012` | `org_policy_cli.py:check_policy` |
 | `OGK-PORTAL-001` | `portal_verification.py:redirect_request` |
 | `OGK-PORTAL-002` | `portal_verification.py:verify_portal` |
 | `OGK-PORTAL-003` | `portal_verification.py:verify_portal` |
@@ -362,6 +367,8 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-PROJECT-073` | `project.py:_add_options` |
 | `OGK-PROJECT-074` | `project.py:_add_options` |
 | `OGK-PROJECT-075` | `project.py:_add_options` |
+| `OGK-PROJECT-076` | `project_instructions.py:check_instructions` |
+| `OGK-PROJECT-077` | `project_instructions.py:check_instructions` |
 | `OGK-PUBLISH-001` | `publishing.py:_exported_files` |
 | `OGK-PUBLISH-002` | `publishing.py:export_docs` |
 | `OGK-PUBLISH-003` | `publishing.py:export_docs` |

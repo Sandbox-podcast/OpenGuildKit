@@ -321,6 +321,7 @@ class ProjectSetupTests(CliTestCase):
         self.assertNotIn("Sector: Outdated", repaired)
 
     def test_task_new_refuses_stale_instructions(self):
+        # OGK-PROJECT-076
         self.init_example()
         agents_path = self.project / "AGENTS.md"
         agents_path.write_text(agents_path.read_text(encoding="utf-8").replace("Stack:", "Stack: COBOL,"), encoding="utf-8")

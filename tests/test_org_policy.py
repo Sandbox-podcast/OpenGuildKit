@@ -78,6 +78,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_481_an_organization_freeze_stops_every_change(self):
         """Issue #481: no freeze at the level of the organization; only each repository could freeze itself."""
+        # OGK-ORG-012
         commit = self.policy(frozen={"by": "SEC", "reason": "Compromised model", "since": "2026-11-28"})
         self.commit_project()
         sarif = json.loads(self.cli("guard", "--ci", "--base", "main", "--format", "sarif", "--org-policy", self.org,

@@ -64,7 +64,7 @@ def check_policy(state: Path, profile: Profile, catalog: Catalog, report) -> Non
         print(f"OpenGuildKit: {message[0].upper()}{message[1:]}", file=sys.stderr)
         report.add(code, "error", message, PROFILE)
     if found:
-        raise RuleError("The project does not meet the organization policy: each line above says what it requires.",
+        raise RuleError("OGK-ORG-012", "The project does not meet the organization policy: each line above says what it requires.",
                         None)
 
 

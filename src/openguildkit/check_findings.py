@@ -142,9 +142,9 @@ class Report:
 
     def blocked(self, error: RuleError) -> None:
         """The problem that stopped `check`: an error on each file it names, or on the profile when it names none."""
-        if error.code is not None:
+        if error.rule is not None:
             for path in error.files or (None,):
-                self.add(error.code, "error", str(error), path)
+                self.add(error.rule, "error", str(error), path)
 
     def guard(self, items: list[dict], mode: str) -> None:
         """The findings of `ci_guard`. A problem stops the job only when the guard of the base revision enforces; in
