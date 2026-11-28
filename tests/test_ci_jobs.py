@@ -346,6 +346,12 @@ class ConventionsJobTest(unittest.TestCase):
         self.assertIn("GITHUB_ENV", script)
         self.assertEqual(job["permissions"]["pull-requests"], "read")
 
+    def test_a_dependabot_pull_request_is_not_asked_for_the_text_a_person_writes(self):
+        """Issue #522: Dependabot writes no `## Not verified` section, so each of its pull requests failed the job."""
+        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["conventions"]
+        step = next(step for step in job["steps"] if step.get("name") == "Pull request text")
+        self.assertIn("github.event.pull_request.user.login != 'dependabot[bot]'", step["if"])
+
 
 if __name__ == "__main__":
     unittest.main()
