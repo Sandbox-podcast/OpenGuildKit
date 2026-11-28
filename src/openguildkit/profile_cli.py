@@ -14,17 +14,8 @@ from .cli_surface import add_by
 from .command import Command
 from .doc_links import doc_link
 from .lock import project_catalog
-from .profile_changes import (
-    LIST_FIELDS,
-    SET_FIELDS,
-    Weakening,
-    changed_profile,
-    export_answers,
-    report_change,
-    rule_argument,
-    voided_note,
-    write_change,
-)
+from .profile_changes import Weakening, export_answers, report_change, voided_note, write_change
+from .profile_edits import LIST_FIELDS, SET_FIELDS, changed_profile, rule_argument
 from .project import load_profile
 from .shell import shell_word
 from .storage import print_json
