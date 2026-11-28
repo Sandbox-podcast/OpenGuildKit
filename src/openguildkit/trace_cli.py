@@ -59,7 +59,7 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
     """The decisions whose record lists the file, most recent first, the records that cannot be read, and the
     commits on the file after the last decision."""
     rows = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}
-    decisions, unreadable = [], []
+    decisions, unreadable, moments = [], [], {}
     for path, record in exported_records(state):
         shown = path.relative_to(root).as_posix()
         row = rows.get(shown) or {"status": "unreadable", "problem": None}
@@ -68,7 +68,7 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
         # git.unquote: a record exported before names were read with -z holds Git's quoted form (issue #458).
         if listed and relative not in {git.unquote(item) for item in files}:
             continue
-        if not listed or not isinstance(record.get("decision"), dict):
+        if not listed or not isinstance(record, dict) or not isinstance(record.get("decision"), dict):
             # A file that is not a record, or a record without its file list: it may cover this file or not.
             if record is None or files is not None:
                 message = row["problem"]["message"] if row.get("problem") else "it is not a decision record"
@@ -77,10 +77,14 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
                 unreadable.append({"record": shown, "message": message})
             continue
         decisions.append(_decision(root, shown, record, row))
-    decisions.sort(key=lambda item: (item["date"] or "", item["task"]), reverse=True)
+        moments[shown] = (str(record["decision"].get("at", "")), str(record.get("completed_at", "")))
+    decisions.sort(key=lambda item: (moments[item["record"]], item["task"]), reverse=True)
     result = {"path": relative, "decisions": decisions, "unreadable": unreadable, "changed_since": None, "note": None}
     if decisions:
-        result["changed_since"], result["note"] = _changed_since(root, relative, decisions[0])
+        # Changes are counted from the decision that holds and comes latest in the history, whatever its date says.
+        holding = [item for item in decisions if item["holds"]] or decisions[:1]
+        found = [_changed_since(root, relative, item) for item in holding]
+        result["changed_since"], result["note"] = min(found, key=lambda pair: len(pair[0]["commits"]) if pair[0] else 1e9)
         # task show prints the exported record of a task this copy does not hold, so the command fits both.
         result["next"] = f"openguildkit task show {decisions[0]['task']}"
     else:

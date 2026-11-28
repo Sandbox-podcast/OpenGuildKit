@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `trace`: decisions are ordered by the time of their approval, not by its day and then the task ID, and changes are counted from the decision that holds and comes latest in the history, so two approvals of one day no longer report "no decision covers this change" (#525)
 - `task export`, `trace`, `guard --ci` and the rules a closing asks: a file named with an accent, a space or a quote is read as it is on disk, not as Git quotes it (`"docs/r\303\251sum\303\251.md"`), so `trace` names the task that delivered it and a pack limited to a component is still asked; a record exported before keeps covering its files (#458)
 - Git: one module, `git.py`, runs Git for every command, with the same options everywhere (no optional locks, no password prompt, no network when reading evidence or an organization catalog) and file names read with `-z`; `guard --ci` without Git says so in one line instead of `[Errno 2]` (#459)
 - Catalog loading: an installed package reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, validated when the wheel is built, instead of reading and validating 289 files in every process; `task list` loads the catalog and reads the lock once, and commands copy the catalog less. A checkout without the bundle reads the record files as before (#533)
