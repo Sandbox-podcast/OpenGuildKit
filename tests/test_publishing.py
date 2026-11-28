@@ -431,7 +431,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn(f"{workflow['title']} (agent-workflow, version {workflow['version']})", page)
         self.assertIn(workflow["rules"][0]["instruction"], page)
         self.assertIn("Marketing and market research", page)
-        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        task = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         consulted = {entry["id"] for entry in task["review"]["boards"]}
         listed = set(re.findall(r"\(([a-z-]+)\)$", page.split("## Boards consulted", 1)[1], re.M))
         self.assertEqual(listed, consulted)
@@ -518,7 +518,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
     def test_the_export_summary_is_honest_and_says_each_thing_once(self):
         site = self.exported_site()
         reference = (site / "reference" / f"{TASK}.md").read_text(encoding="utf-8")
-        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        task = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         checks = task["result"]["checks"]
         passed = sum(item["status"] == "passed" for item in checks)
         skipped = sum(item["status"] == "not-applicable" for item in checks)
@@ -534,7 +534,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.done_task()
         self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "1.4.0", "--sections", "project")
         page = (self.root / "docs-site" / "project" / "overview.md").read_text(encoding="utf-8")
-        consulted = json.loads(self.run_cli("task", "show", TASK)[0])["consultation"]["boards"]
+        consulted = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["consultation"]["boards"]
         listed = page.split("## Boards consulted", 1)[1]
         boards = load_catalog()["boards"]
         for board_id in boards:

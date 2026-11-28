@@ -218,7 +218,7 @@ class ProjectConnectionTests(unittest.TestCase):
         (self.project / "answers.json").write_text(json.dumps(answers), encoding="utf-8")
         brief = cli(self.project, "task", "consult", "export", "--answers", self.project / "answers.json").stdout
         self.assertIn("Jira (server jira, mock data)", brief)
-        record = json.loads(cli(self.project, "task", "show", "export").stdout)
+        record = json.loads(cli(self.project, "task", "show", "export", "--json").stdout)
         self.assertEqual([item["id"] for item in record["consultation"]["scope"]["tools"]], ["jira", "snyk"])
         board = record["consultation"]["boards"][0]
         entry = next(item for item in record["consultation"]["review_template"]["boards"] if item["id"] == board)

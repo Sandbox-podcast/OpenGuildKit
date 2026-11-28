@@ -237,7 +237,7 @@ class CleanErrorTests(unittest.TestCase):
             error = self.refusal("task", "review", TASK, "--file", path)
             self.assertIn(message, error)
             self.assertIn(path.as_posix(), error)
-        self.assertEqual(json.loads(self.output("task", "show", TASK))["status"], "consulting")
+        self.assertEqual(json.loads(self.output("task", "show", TASK, "--json"))["status"], "consulting")
         (self.root / "src").mkdir()
         (self.root / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
         cited = json.loads(json.dumps(review))
@@ -255,7 +255,7 @@ class CleanErrorTests(unittest.TestCase):
         warning = self.run_cli("task", "new", "--file", brief, "--id", TASK, code=0)
         self.assertIn("replaced a possible credential", warning)
         self.assertIn("contains an email address", warning)
-        saved = json.loads(self.output("task", "show", TASK))["brief"]
+        saved = json.loads(self.output("task", "show", TASK, "--json"))["brief"]
         self.assertEqual(saved, f"Publish with [credential] and password=[password]. Contact {email}.")
         for value in (credential, email, password):
             self.assertNotIn(value, warning)
@@ -370,7 +370,7 @@ class CleanErrorTests(unittest.TestCase):
             output = self.output("task", "complete", "choice", "--by", "Camille")
         self.assertIn("done-with-reservations", output)
         # The open points were shown at the confirmation prompt; the record keeps them.
-        record = json.loads(self.output("task", "show", "choice"))
+        record = json.loads(self.output("task", "show", "choice", "--json"))
         self.assertIn("Disagreements between boards left open", json.dumps(record["result"]["closing"]["open_points"]))
         self.assertIn('openguildkit task new "BRIEF" --follows choice', output)
         self.run_cli("task", "new", "Add the portal page.", "--id", "page", "--follows", "choice", code=0)

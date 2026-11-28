@@ -64,7 +64,7 @@ def fingerprint(root: Path, task: str | None = None, answers: Path | None = None
             route = route.replace(spelling, "<answers>")
         out["route"] = sorted(line.split(":", 1)[0] for line in route.splitlines() if ":" in line and not line.startswith(" "))
         out["route text"] = digest(route)
-    record = cli(root, "task", "show", task)
+    record = cli(root, "task", "show", task, "--json")
     try:
         consultation = json.loads(record).get("consultation", {})
     except ValueError:

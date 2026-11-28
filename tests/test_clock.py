@@ -121,7 +121,7 @@ class ClockTests(unittest.TestCase):
         root = self.project()
         with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": EPOCH}), patch.object(clock, "_announced", set()):
             _, notice = self.cli(root, "task", "new", "Show request status.", "--id", "status")
-            self.assertEqual(json.loads(self.cli(root, "task", "show", "status")[0])["created_at"], "2025-11-20T12:00:00+00:00")
+            self.assertEqual(json.loads(self.cli(root, "task", "show", "status", "--json")[0])["created_at"], "2025-11-20T12:00:00+00:00")
         self.assertIn("SOURCE_DATE_EPOCH is set: this command dates what it writes 2025-11-20T12:00:00+00:00, not now", notice)
         with patch.dict(os.environ, {}), patch.object(clock, "_announced", set()):
             os.environ.pop("SOURCE_DATE_EPOCH", None)

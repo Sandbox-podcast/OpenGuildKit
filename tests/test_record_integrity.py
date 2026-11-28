@@ -138,7 +138,7 @@ class RecordIntegrityTests(SharingCase):
         write_json(self.record_path(), read_json(FIXTURE)["record"])
         row, = json.loads(self.run_cli("task", "list", "--decisions", "--json")[0])
         self.assertIn(row["problem"]["kind"], ("earlier-record", "earlier-rules"))
-        self.assertEqual(json.loads(self.run_cli("task", "show", TASK)[0])["task"], TASK)
+        self.assertEqual(json.loads(self.run_cli("task", "show", TASK, "--json")[0])["task"], TASK)
 
     def test_the_record_lists_each_blocker_with_its_phase_and_how_it_was_cleared(self):
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)

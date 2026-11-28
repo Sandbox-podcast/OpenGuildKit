@@ -287,7 +287,7 @@ export function QuestSheet({ id }: { id: string }) {
 }
 
 function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
-  const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template', 'scope'] });
+  const record = useCli<TaskRecord>(['task', 'show', id, '--json'], { omit: ['markdown', 'review_template', 'scope'] });
   const list = useTasks();
   const brains = useBrainTitles();
   const [followUp, setFollowUp] = useState(false);
@@ -541,7 +541,7 @@ function QuestRecord({ id, item }: { id: string; item?: TaskListItem }) {
                 ))}
               </Panel>
             )}
-            <JsonDetails data={t} label="Voir l’enregistrement (task show, sans le texte de la consultation)" />
+            <JsonDetails data={t} label="Voir l’enregistrement (task show --json, sans le texte de la consultation)" />
             <NewQuestDialog open={followUp} onClose={() => setFollowUp(false)} follows={t.id} />
           </div>
         );

@@ -73,7 +73,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         output, _ = self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", "plan.md")
         self.assertIn("Draft written to plan.md", output)
         self.assertNotIn("tool:", (self.root / "plan.md").read_text(encoding="utf-8"))
-        self.assertNotIn("tool", json.loads(self.run_cli("task", "show", "launch")[0])["deliverables"][0])
+        self.assertNotIn("tool", json.loads(self.run_cli("task", "show", "launch", "--json")[0])["deliverables"][0])
 
     def test_bundled_templates_link_a_method_inputs_approvals_and_checks(self):
         templates = load_deliverables(load_catalog())
@@ -96,7 +96,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         # The draft may go to a client: the approval stays in the task record.
         for internal in ("approved_by", "decision_reason", "Camille Martin", "Launch agreed"):
             self.assertNotIn(internal, draft)
-        self.assertEqual(json.loads(self.run_cli("task", "show", "launch")[0])["deliverables"][0]["tool"], "Brevo")
+        self.assertEqual(json.loads(self.run_cli("task", "show", "launch", "--json")[0])["deliverables"][0]["tool"], "Brevo")
 
         problems, _ = self.run_cli("deliverable", "check", "brief.md", code=1)
         self.assertIn("placeholder", problems)
@@ -128,7 +128,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
                 _, error = self.run_cli("deliverable", "new", "social-media-plan", "--task", "launch", "--output", output, code=1)
                 self.assertIn(reason, error)
                 self.assertFalse((self.root / output).exists())
-        record = json.loads(self.run_cli("task", "show", "launch")[0])
+        record = json.loads(self.run_cli("task", "show", "launch", "--json")[0])
         self.assertFalse(record.get("deliverables"))
 
     def filled(self, draft):

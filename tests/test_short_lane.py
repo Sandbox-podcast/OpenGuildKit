@@ -338,7 +338,7 @@ class LaneCase(ProjectCase):
                             code=code)
 
     def task(self, task_id="typo") -> dict:
-        return json.loads(self.run_cli("task", "show", task_id)[0])
+        return json.loads(self.run_cli("task", "show", task_id, "--json")[0])
 
     def review(self, task_id="typo", verdict="proceed", blockers=None):
         template = json.loads(self.run_cli("task", "template", task_id)[0])
@@ -920,7 +920,7 @@ class LaneRun:
                  "docs/", "docs/**")
         self.cli("task", "new", "Fix a typo in the guide", "--id", "two", "--lane", "light", "--paths", "docs/**", "tests/**")
         for task_id in ("one", "two"):
-            record = json.loads(self.cli("task", "show", task_id))
+            record = json.loads(self.cli("task", "show", task_id, "--json"))
             outputs[f"{task_id} lane"] = json.dumps([record["lane"], record["paths"]])
         outputs["task list"] = self.cli("task", "list")
         consultation = self.cli("task", "consult", "one")
@@ -1069,7 +1069,7 @@ class BeforeTheShortLaneTests(unittest.TestCase):
         write_json(answers, {"kind": "bug", "surface": ["service"], "data": "none", "research": "local",
                              "concerns": ["none"], "context": "A typo in the export help text."})
         run_cli(self.root, "task", "consult", "typo", "--answers", answers)
-        record = json.loads(run_cli(self.root, "task", "show", "typo").stdout)
+        record = json.loads(run_cli(self.root, "task", "show", "typo", "--json").stdout)
         self.assertNotIn("lane", record)
         self.assertNotIn("paths", record)
         self.assertEqual(record["consultation"]["boards"], ["engineering"])

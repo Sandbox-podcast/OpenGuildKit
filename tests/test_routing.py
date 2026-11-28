@@ -530,7 +530,7 @@ class ComponentTaskTests(ProjectCase):
                       "react, typescript", route)
         self.assertNotRegex(route, r"(?m)^backend:")
         self.cli("task", "consult", "price-label", "--answers", self.root / "price.json")
-        scope = json.loads(self.cli("task", "show", "price-label"))["consultation"]["scope"]
+        scope = json.loads(self.cli("task", "show", "price-label", "--json"))["consultation"]["scope"]
         self.assertEqual(scope["checks"], ["cd apps/web && npm test", "cd apps/web/e2e && npx playwright test",
                                            "make lint"])
         self.approve("price-label")

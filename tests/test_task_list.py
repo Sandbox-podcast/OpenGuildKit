@@ -58,7 +58,7 @@ class TaskListTests(CapturedCli, unittest.TestCase):
 
     def test_the_period_bounds_are_inclusive_days(self):
         self.run_cli("task", "new", "Show the request history.", "--id", "history")
-        created = json.loads(self.run_cli("task", "show", "history"))["created_at"][:10]
+        created = json.loads(self.run_cli("task", "show", "history", "--json"))["created_at"][:10]
         day = date.fromisoformat(created)
 
         def listed(*period):
@@ -76,7 +76,7 @@ class TaskListTests(CapturedCli, unittest.TestCase):
         self.approved("request-status")
         self.run_cli("task", "new", "Add request history to the portal.", "--id", "history", "--follows", "request-status")
         self.run_cli("task", "consult", "history", "--answers", EXAMPLE / "answers.json")
-        record = json.loads(self.run_cli("task", "show", "history"))
+        record = json.loads(self.run_cli("task", "show", "history", "--json"))
         self.assertEqual(record["consultation"]["scope"]["follows"]["decision"]["by"], "Camille Martin")
         self.assertEqual(json.loads(self.run_cli("task", "list", "--json"))[0]["follows"], "request-status")
         self.run_cli("task", "new", "x", "--id", "orphan", "--follows", "history", code=1)

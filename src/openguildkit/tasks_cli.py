@@ -93,7 +93,7 @@ ACTION_HELP = {
     "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
     "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
     "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-    "show": "Print the task record as JSON, or a short summary with --summary.",
+    "show": "Print a summary of the task: status, decision, boards, result, next step; --full or --json for the record.",
     "checks": "List the checks the approved task must report.",
     "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
     "result": "Record the delivered revision, criteria and check outcomes.",
@@ -178,10 +178,12 @@ def _show_options(command) -> None:
     shown.add_argument("--closing", action="store_true",
                        help="Print only the open points the closing left, with who closed the task.")
     shown.add_argument("--summary", action="store_true",
-                       help="Print a screen instead of the whole record: status, decision, boards, result, next step.")
+                       help="Print the summary, which show prints by default: kept for the scripts that pass it.")
+    shown.add_argument("--full", action="store_true",
+                       help="Print the whole record as JSON, which show printed by default until 0.17.")
     command.add_argument("--json", action="store_true",
-                         help="Print the record as JSON, which is what show prints without --summary; write it in "
-                              "scripts, so that they keep working if the summary becomes the plain form.")
+                         help="Print the whole record as JSON, the form scripts read (in the envelope when "
+                              "OPENGUILDKIT_JSON_ENVELOPE is 1).")
 
 
 def _reuse_answers_option(command) -> None:
@@ -478,7 +480,7 @@ def _run(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> i
         if action == "show":
             if args.summary:
                 raise OgkError("OGK-TASK-010", f"Task {args.id} exists here only as the exported record, which has "
-                                               f"no summary: run openguildkit task show {args.id}.")
+                                               f"no summary: run openguildkit task show {args.id} --full.")
             show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
         raise OgkError("OGK-TASK-011", f"Task {args.id} exists here only as the exported record "

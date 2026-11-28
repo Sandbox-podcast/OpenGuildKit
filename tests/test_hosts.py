@@ -138,7 +138,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="status"):
             self.run_cli(*common, "--target", "api.example.com", "--allow")
         self.run_cli(*common, "--target", "tracker.example.com", "--deny")
-        record = json.loads(self.run_cli("task", "show", "status")[0])
+        record = json.loads(self.run_cli("task", "show", "status", "--json")[0])
         self.assertEqual([item["decision"] for item in record["authorizations"]], ["allow", "deny"])
         self.assertEqual(record["authorizations"][0]["target"], "api.example.com")
 

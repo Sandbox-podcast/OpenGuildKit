@@ -78,8 +78,10 @@ Each page below holds one part of the path, read when the task needs it:
 
 ## Inspecting a task
 
-`task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds.
-For a task that exists here only as an exported record, it prints that record and says so on stderr.
+`task show ID` prints a screen: the status and decision, the first line of the brief, the boards, the result counts and the next step.
+`task show ID --full` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds; `--json` prints the same record, in the envelope when `OPENGUILDKIT_JSON_ENVELOPE` is 1, and is the form for scripts.
+Until 0.17 the record was what `task show ID` printed; `--summary` is still accepted and prints the summary.
+For a task that exists here only as an exported record, `task show ID` prints that record, which has no summary, and says so on stderr.
 `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.
 
 ## Exit codes

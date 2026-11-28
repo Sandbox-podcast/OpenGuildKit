@@ -293,7 +293,7 @@ class PersonDecideTests(KitTestCase):
         code, shown = load("person_decide").decide(project, "request-status", "approve", "Camille Martin", "Agreed", [])
         self.assertEqual(code, 0, shown)
         self.assertIn("request-status", shown)
-        self.assertEqual(json.loads(field.cli(project, "task", "show", "request-status").stdout)["status"], "approved")
+        self.assertEqual(json.loads(field.cli(project, "task", "show", "request-status", "--json").stdout)["status"], "approved")
 
     def test_the_person_clears_a_condition_of_approval_through_its_own_stand_in(self):
         project = self.out / "project"

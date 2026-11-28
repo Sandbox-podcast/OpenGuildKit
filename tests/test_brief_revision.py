@@ -45,7 +45,7 @@ class BriefRevisionTests(CapturedCli, unittest.TestCase):
         self.run_cli("task", "decide", TASK, "--request-changes", "--by", "Dana Legal", "--reason", "No grade in an email")
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", "--brief", "   ", code=1)
         self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json", "--brief", REVISED)
-        task = json.loads(self.run_cli("task", "show", TASK)[0])
+        task = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         self.assertEqual(task["brief"], REVISED)
         self.assertEqual(task["consultation"]["scope"]["brief"], REVISED)
         self.assertEqual(task["rounds"][0]["brief"], BRIEF)

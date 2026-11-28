@@ -91,7 +91,7 @@ class MarketDossierTests(unittest.TestCase):
                                          "supports": "A direct competitor shows a status and a response date."}
             write_json(root / "review.json", review)
             run_cli(root, "task", "review", "status", "--file", root / "review.json")
-            record = json.loads(run_cli(root, "task", "show", "status").stdout)
+            record = json.loads(run_cli(root, "task", "show", "status", "--json").stdout)
             self.assertEqual(record["status"], "reviewed")
 
 

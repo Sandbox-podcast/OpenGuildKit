@@ -19,7 +19,7 @@ openguildkit catalog --json prints 495296 bytes, over its budget of 10000 bytes.
   Each state is reached with the commands of the CLI, not by writing records.
 - **Exceptions.** `EXCEPTIONS` in the test lists what prints more than the budget today: the command as its example writes it, a ceiling and the reason its output is large.
   The ceiling is the size measured, plus 10 %, rounded up to the next 1 000 bytes, so growth fails long before the output doubles.
-  Today they are the `--json` forms of `catalog`, `references`, `patterns`, `brains`, `tools list`, `features list`, `storybook extract` and `task checks`, and `init --questions`, `tools list`, `brains --id`, `task show`, `task brief --scope` and `task challenge`.
+  Today they are the `--json` forms of `catalog`, `references`, `patterns`, `brains`, `tools list`, `features list`, `storybook extract` and `task checks`, and `init --questions`, `tools list`, `brains --id`, `task show --full`, `task brief --scope` and `task challenge`.
   `NOT_RUN` lists the commands no example runs, each with its reason: `ui`, which serves until it is stopped, and `docs share verify`, which asks a password at a terminal and opens a session on a portal.
   A mode that a positional argument selects (`market resume`, `docs share add`) is a command here too, as in `tests/test_cli_coverage.py`.
 - **SARIF.** `check --format sarif` and `guard --ci --format sarif` have an example each: `check` on a project with one problem (about 1.6 KB) and `guard --ci` on a change with none (about 0.4 KB).

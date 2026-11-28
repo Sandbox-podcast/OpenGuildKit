@@ -844,12 +844,13 @@ Print the exact decision an approver signs in a project that requires signed app
 
 ### task show
 
-Print the task record as JSON, or a short summary with --summary.
+Print a summary of the task: status, decision, boards, result, next step; --full or --json for the record.
 
 - `ID`: Task ID.
 - `--closing`: Print only the open points the closing left, with who closed the task.
-- `--summary`: Print a screen instead of the whole record: status, decision, boards, result, next step.
-- `--json`: Print the record as JSON, which is what show prints without --summary; write it in scripts, so that they keep working if the summary becomes the plain form.
+- `--summary`: Print the summary, which show prints by default: kept for the scripts that pass it.
+- `--full`: Print the whole record as JSON, which show printed by default until 0.17.
+- `--json`: Print the whole record as JSON, the form scripts read (in the envelope when OPENGUILDKIT_JSON_ENVELOPE is 1).
 
 ### task checks
 

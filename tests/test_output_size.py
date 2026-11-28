@@ -61,7 +61,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         write_json(self.root / "answers.json", answers)
         sizes = {"consultation": len(self.run_cli("task", "consult", task_id, "--answers", self.root / "answers.json")
                                      .encode("utf-8"))}
-        record = json.loads(self.run_cli("task", "show", task_id))
+        record = json.loads(self.run_cli("task", "show", task_id, "--json"))
         for board in record["consultation"]["boards"]:
             sizes[f"pass {board}"] = len(self.run_cli("task", "pass", task_id, board).encode("utf-8"))
         review = {"consultation_id": record["consultation"]["id"], **json.loads((EXAMPLE / "review.json").read_text())}
@@ -122,7 +122,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
             "concerns": ["none"],
             "outcome": "A customer sees their own past orders.", "affected": "Signed-in customers.",
         })
-        packs = len(json.loads(self.run_cli("task", "show", "order-history"))["consultation"]["scope"]["packs"])
+        packs = len(json.loads(self.run_cli("task", "show", "order-history", "--json"))["consultation"]["scope"]["packs"])
         self.assertGreater(packs, 25, "the fixture must carry as many packs as the field projects")
         self.assertGreater(len([name for name in sizes if name.startswith("pass ")]), 6)
         self.assert_budgets(sizes, BUDGETS["pass"])
@@ -201,7 +201,7 @@ class OutputSizeTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("(web-performance@", rules)
         self.assertIn(f"- Components: {api['id']} ({api['path']})", engineering)
         named = rules[rules.index("openguildkit task brief orders --pack"):] if "--pack" in rules else ""
-        pack = json.loads(self.run_cli("task", "show", "orders"))["consultation"]["scope"]["packs"][0]
+        pack = json.loads(self.run_cli("task", "show", "orders", "--json"))["consultation"]["scope"]["packs"][0]
         printed = self.run_cli("task", "brief", "orders", "--pack", pack["id"])
         self.assertIn(pack["rules"][0]["id"], printed)
         self.assertLess(len(printed.encode("utf-8")), 10_000)

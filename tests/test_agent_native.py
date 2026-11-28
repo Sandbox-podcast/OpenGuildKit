@@ -654,7 +654,7 @@ class BudgetTests(CapturedCli, unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "profile.json")
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "request-status")
         self.run_cli("task", "consult", "request-status", "--answers", EXAMPLE / "answers.json")
-        record = json.loads(self.run_cli("task", "show", "request-status"))
+        record = json.loads(self.run_cli("task", "show", "request-status", "--json"))
         board = record["consultation"]["boards"][0]
         self.assertIn(BUDGET, self.run_cli("task", "pass", "request-status", board))
         self.assertIn("Read only the files named in this brief, then stop.", inspect.getsource(board_brief))

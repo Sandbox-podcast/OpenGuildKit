@@ -193,12 +193,12 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
                                           "concerns": ["none"]})
         self.assertIn("GHSA-H5C8-RQWP-CP95", self.cli("task", "consult", "upgrade", "--answers", self.root / "a.json"))
         # A subagent gets one board's pass and nothing else: the pass carries the task's alerts too.
-        boards = json.loads(self.cli("task", "show", "upgrade"))["consultation"]["boards"]
+        boards = json.loads(self.cli("task", "show", "upgrade", "--json"))["consultation"]["boards"]
         self.assertTrue(boards)
         for board in boards:
             self.assertIn(f"- Dependency alert {JINJA} (GHSA-H5C8-RQWP-CP95)",
                           self.cli("task", "brief", "upgrade", "--board", board))
-        record = json.loads(self.cli("task", "show", "upgrade"))
+        record = json.loads(self.cli("task", "show", "upgrade", "--json"))
         self.assertNotIn("dependency_alerts", record)
         self.cli("task", "new", "Upgrade Jinja again.", "--id", "again")
         self.cli("alerts", "link", JINJA, "--task", "again")
@@ -482,7 +482,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertIn(f"issue create --title OpenGuildKit task {task_id}: dependency alert {CRITICAL} --body", calls)
         self.assertIn(f"openguildkit task new \"Fix dependency alert {CRITICAL}", calls)
         self.assertEqual(find_alert(load_register(self.root / ".openguildkit"), CRITICAL)["tasks"], [task_id])
-        self.assertEqual(json.loads(self.cli("task", "show", task_id))["status"], "draft")
+        self.assertEqual(json.loads(self.cli("task", "show", task_id, "--json"))["status"], "draft")
         self.assertIn(f"`{task_id}` for `{CRITICAL}`", step("Propose the register in a pull request") and
                       (self.root / "body.md").read_text(encoding="utf-8"))
         (self.root / "known.txt").write_text(f"OpenGuildKit task {task_id}: dependency alert {CRITICAL}\n",
@@ -504,7 +504,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertFalse((self.root / ".openguildkit" / "tasks" / "dep-form-parser-ghsa-xxxx-yyyy-zzzz.json").exists())
         opened = json.loads(self.cli("alerts", "tasks", "--open", "--json"))
         self.assertEqual([row["task"] for row in opened], ["dep-form-parser-ghsa-xxxx-yyyy-zzzz"])
-        task = json.loads(self.cli("task", "show", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
+        task = json.loads(self.cli("task", "show", "dep-form-parser-ghsa-xxxx-yyyy-zzzz", "--json"))
         self.assertIn(f"Fix dependency alert {CRITICAL}", task["brief"])
         self.assertEqual(json.loads(self.cli("alerts", "tasks", "--json")), [])
         self.assertIn(CRITICAL, self.cli("alerts", "list", "--task", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
@@ -539,12 +539,12 @@ class AlertAndDossierTests(CapturedCli, unittest.TestCase):
         write_json(market / "storage.json", dossier)
         output, _ = self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "storage")
         self.assertEqual(sum("shares no word with the task brief" in line for line in output.splitlines()), 1)
-        scope = json.loads(self.cli("task", "show", "status")[0])["consultation"]["scope"]
+        scope = json.loads(self.cli("task", "show", "status", "--json")[0])["consultation"]["scope"]
         self.assertIn("shares no word with the task brief", scope["market"]["relevance"])
         write_json(market / "support-portals.json", json.loads(
             (EXAMPLE.parent / "market-dossier" / "support-portals.json").read_text(encoding="utf-8")))
         self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals")
-        scope = json.loads(self.cli("task", "show", "status")[0])["consultation"]["scope"]
+        scope = json.loads(self.cli("task", "show", "status", "--json")[0])["consultation"]["scope"]
         self.assertNotIn("relevance", scope["market"])
 
 

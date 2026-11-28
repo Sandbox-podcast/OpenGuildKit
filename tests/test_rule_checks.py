@@ -359,7 +359,7 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
         return self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=code)
 
     def checks(self):
-        return {item["check"]: item for item in json.loads(self.run_cli("task", "show", TASK)[0])["result"]["checks"]}
+        return {item["check"]: item for item in json.loads(self.run_cli("task", "show", TASK, "--json")[0])["result"]["checks"]}
 
     def test_task_verify_evaluates_each_declared_check_and_records_what_it_found(self):
         command = f'"{sys.executable}" -c "print(\'linted\')"'

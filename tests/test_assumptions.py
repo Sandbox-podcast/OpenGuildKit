@@ -77,7 +77,7 @@ class AssumptionFlowTests(CapturedCli, unittest.TestCase):
         consultation = self.consult(ASSUMED)
         self.assertIn("Assumptions not confirmed (2)", consultation)
         self.assertIn("1. Requests are linked to accounts by the customer ID.", consultation)
-        board = json.loads(self.run_cli("task", "show", TASK)[0])["consultation"]["boards"][0]
+        board = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["consultation"]["boards"][0]
         brief = self.run_cli("task", "pass", TASK, board)[0]
         self.assertIn("2. Support agents keep their current view.", brief)
         self.assertIn('"contested_assumptions"', brief)
@@ -89,7 +89,7 @@ class AssumptionFlowTests(CapturedCli, unittest.TestCase):
             review["boards"][0]["contested_assumptions"] = [
                 {"assumption": 2, "reason": "The support team asked for a new view in the brief."}]
         self.review(contest)
-        contester = json.loads(self.run_cli("task", "show", TASK)[0])["review"]["boards"][0]["id"]
+        contester = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["review"]["boards"][0]["id"]
         brief = self.run_cli("task", "challenge", TASK)[0]
         self.assertIn("Assumptions not confirmed (2)", brief)
         contested = brief.index(f"Assumption 2, contested by {contester}: Support agents keep their current view.")

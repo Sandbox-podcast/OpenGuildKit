@@ -107,7 +107,7 @@ test('lists every task by state and opens a new one', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Ouvrir la quête' }).click();
   await expect(page).toHaveURL(/#\/conseil\/request-pdf/);
   await expect(page.getByRole('heading', { name: /Cadrage : le questionnaire/ })).toBeVisible();
-  const record = await cli<{ follows: { task: string }; brief: string }>(page, ['task', 'show', 'request-pdf']);
+  const record = await cli<{ follows: { task: string }; brief: string }>(page, ['task', 'show', 'request-pdf', '--json']);
   expect(record.json.follows.task).toBe('request-status');
   expect(record.json.brief).toContain('Keep the layout of the portal.');
 });
@@ -203,7 +203,7 @@ test('frames a draft and gathers the council', async ({ page }) => {
   await expect(page.getByText('Consultation préparée')).toBeVisible();
   await expect(page.locator('.board-seat').first()).toBeVisible();
   await expect(page.getByText(/0\/\d+ avis déposés/)).toBeVisible();
-  const record = await cli<{ answers: { concerns: string[] }; consultation: { boards: string[] } }>(page, ['task', 'show', 'dark-theme']);
+  const record = await cli<{ answers: { concerns: string[] }; consultation: { boards: string[] } }>(page, ['task', 'show', 'dark-theme', '--json']);
   expect(record.json.answers.concerns).toEqual(['money', 'ai']);
   expect(record.json.consultation.boards).toContain('finance');
 });
@@ -348,7 +348,7 @@ test('runs the checks, records the results and completes a task in the forge', a
   await expect(page.getByLabel('Révision', { exact: true })).toHaveValue('abc1234');
   await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
   await expect(page.getByText('Résultats enregistrés')).toBeVisible();
-  const saved = await cli<{ result: { revision?: string; pull_request?: string } }>(page, ['task', 'show', 'request-history']);
+  const saved = await cli<{ result: { revision?: string; pull_request?: string } }>(page, ['task', 'show', 'request-history', '--json']);
   expect(saved.json.result).toMatchObject({ revision: 'abc1234' });
   expect(saved.json.result.pull_request).toBeUndefined();
   await page.getByLabel('Livraison').selectOption('pull_request');
@@ -444,7 +444,7 @@ test('records the GDPR named evidence with who provided it and completes a task 
   );
   await page.getByRole('button', { name: 'Terminer la tâche' }).click();
   await expect(page.getByText('Tâche terminée', { exact: true })).toBeVisible();
-  const done = await cli<{ status: string }>(page, ['task', 'show', 'data-export']);
+  const done = await cli<{ status: string }>(page, ['task', 'show', 'data-export', '--json']);
   expect(done.json.status).toMatch(/^done/);
 });
 

@@ -191,7 +191,7 @@ class FailureTests(ProjectTests):
     def test_a_passing_check_carries_no_failure_message(self):
         self.approved("print('ok')")
         self.run_cli("task", "verify", TASK)
-        record = json.loads(self.run_cli("task", "show", TASK)[0])
+        record = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         self.assertNotIn("message", record["result"]["checks"][0])
 
 

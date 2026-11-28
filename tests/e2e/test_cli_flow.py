@@ -78,7 +78,7 @@ class CliTestCase(unittest.TestCase):
         self.run_cli("task", "consult", TASK_ID, "--answers", EXAMPLE / "answers.json")
 
     def task_record(self):
-        return json.loads(self.run_cli("task", "show", TASK_ID).stdout)
+        return json.loads(self.run_cli("task", "show", TASK_ID, "--json").stdout)
 
     def write_json(self, name, data):
         path = self.project / name
@@ -453,7 +453,7 @@ class TaskFlowTests(CliTestCase):
         self.assertNotIn("security", routing)
 
     def task_record_for(self, task_id):
-        return json.loads(self.run_cli("task", "show", task_id).stdout)
+        return json.loads(self.run_cli("task", "show", task_id, "--json").stdout)
 
     def test_usage_errors_exit_with_code_2(self):
         result = subprocess.run(

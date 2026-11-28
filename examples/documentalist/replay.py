@@ -119,10 +119,10 @@ def main() -> None:
         if any(project.iterdir()):
             sys.exit(f"{project} is not empty. Pick an empty folder.")
         review(project)
-    task = json.loads(cli(project, "task", "show", TASK_ID, capture=True))
+    task = json.loads(cli(project, "task", "show", TASK_ID, "--json", capture=True))
     if task["status"] not in ("approved", "done") and not decide(project):
         return
-    task = json.loads(cli(project, "task", "show", TASK_ID, capture=True))
+    task = json.loads(cli(project, "task", "show", TASK_ID, "--json", capture=True))
     if task["status"] == "approved":
         deliver(project, task["decision"]["by"])
     cli(project, "docs", "export", "--tasks", TASK_ID, "--output", "docs-site", "--version", VERSION, "--sections", SECTIONS)

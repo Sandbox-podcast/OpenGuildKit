@@ -54,7 +54,7 @@ class UpgradeTestCase(CliTestCase):
         """Consulting the old approval again keeps it in the task's rounds and leaves check clean."""
         answers = Path(__file__).resolve().parents[1] / "examples" / "request-status" / "answers.json"
         self.run_cli("task", "consult", self.approved, "--answers", answers)
-        record = json.loads(self.run_cli("task", "show", self.approved).stdout)
+        record = json.loads(self.run_cli("task", "show", self.approved, "--json").stdout)
         self.assertEqual(record["status"], "consulting")
         self.assertIn("has no seal", record["rounds"][-1]["reopened"])
         self.assertEqual(self.run_cli("check").stderr, "")
@@ -63,7 +63,7 @@ class UpgradeTestCase(CliTestCase):
         rows = {row["id"]: row for row in json.loads(self.run_cli("task", "list", "--json").stdout)}
         self.assertEqual(rows[self.approved]["status"], "approved")
         self.assertEqual(rows["open-draft"]["status"], "draft")
-        self.assertEqual(self.run_cli("task", "show", self.approved).stdout.count('"status": "approved"'), 1)
+        self.assertEqual(self.run_cli("task", "show", self.approved, "--json").stdout.count('"status": "approved"'), 1)
         handoff = self.run_cli("task", "handoff", self.approved, expect=1)
         self.assertEqual(handoff.stderr.strip(), self.old_approval_line().replace(f"OpenGuildKit: {self.approved}: ",
                                                                                    "OpenGuildKit [OGK-TASK-012]: ", 1))
@@ -107,7 +107,7 @@ class PreviousReleaseTests(UpgradeTestCase):
         self.run_cli("sync")
         result = self.run_cli("task", "consult", self.approved, "--reuse-answers")
         self.assertIn("have no concerns", result.stderr)
-        record = json.loads(self.run_cli("task", "show", self.approved).stdout)
+        record = json.loads(self.run_cli("task", "show", self.approved, "--json").stdout)
         self.assertEqual((record["status"], record["answers"]["concerns"]), ("consulting", ["unsure"]))
         self.assertNotIn("passes", record)
         self.assertEqual(self.run_cli("check").stderr, "")
@@ -120,7 +120,7 @@ class PreviousReleaseTests(UpgradeTestCase):
         with device_that_is_not_a_console():
             result = self.run_cli("task", "consult", self.approved, "--reuse-answers", stdin_text=None)
         self.assertIn("have no concerns", result.stderr)
-        record = json.loads(self.run_cli("task", "show", self.approved).stdout)
+        record = json.loads(self.run_cli("task", "show", self.approved, "--json").stdout)
         self.assertEqual((record["status"], record["answers"]["concerns"]), ("consulting", ["unsure"]))
 
 

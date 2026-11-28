@@ -63,7 +63,7 @@ class ResultCase(CapturedCli, unittest.TestCase):
         ]
 
     def record(self):
-        return json.loads(self.run_cli("task", "show", TASK)[0])
+        return json.loads(self.run_cli("task", "show", TASK, "--json")[0])
 
     def report(self, *checks, criteria=(), code=0):
         write_json(self.root / "result.json", {"revision": "abc1234", "criteria": list(criteria), "checks": list(checks)})
@@ -136,7 +136,7 @@ class ResultTests(ResultCase):
         self.approved()
         output, _ = self.run_cli("task", "verify", TASK)
         self.assertIn("command:1: passed", output)
-        record = json.loads(self.run_cli("task", "show", TASK)[0])
+        record = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         log = self.root / record["result"]["checks"][0]["evidence"]
         self.assertIn("checked", log.read_text(encoding="utf-8"))
         _, error = self.run_cli("task", "complete", TASK, code=1)
@@ -148,7 +148,7 @@ class ResultTests(ResultCase):
         })
         self.run_cli("task", "result", TASK, "--file", self.root / "result.json")
         self.assertEqual(self.run_cli("task", "complete", TASK)[0].strip(), "done")
-        record = json.loads(self.run_cli("task", "show", TASK)[0])
+        record = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         self.assertEqual(record["status"], "done")
         # The handoff of a closed task speaks of its checks in the past.
         handoff = self.run_cli("task", "handoff", TASK)[0]
