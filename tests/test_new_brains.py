@@ -9,9 +9,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from openguildkit.board_brief import board_brief
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
 from openguildkit.catalog import CatalogError, board_replacements, load_catalog
-from openguildkit.consultation import board_brief, consult
+from openguildkit.consultation import consult
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.routing import trigger_matches

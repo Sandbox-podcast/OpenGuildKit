@@ -6,15 +6,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock, lazy_re
-from .consultation import (
-    CHOICES,
-    CONTEST_ITEM,
-    EVIDENCE_SOURCES,
-    market_references,
-    one_based,
-    storybook_references,
-    tool_references,
-)
+from .board_brief import CONTEST_ITEM
+from .consultation import CHOICES, EVIDENCE_SOURCES, market_references, one_based, storybook_references, tool_references
 from .questionnaire import ASSUMPTIONS
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 

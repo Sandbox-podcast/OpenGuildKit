@@ -5,10 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from openguildkit.board_brief import board_brief
 from openguildkit.brains import brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
-from openguildkit.consultation import board_brief, consult
+from openguildkit.consultation import consult
 from openguildkit.project_rules import resolved_profile
 from openguildkit.references import load_references, with_pattern_references
 

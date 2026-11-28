@@ -257,7 +257,7 @@ class WordingTests(unittest.TestCase):
 
     def test_the_packs_line_of_a_pass_agrees_with_its_count(self):
         """Issue #527: "1 other packs are in force for other boards"."""
-        from openguildkit.consultation import _other_packs_line
+        from openguildkit.board_brief import _other_packs_line
 
         self.assertIn("1 other pack is in force", _other_packs_line(1, "t"))
         self.assertIn("2 other packs are in force", _other_packs_line(2, "t"))

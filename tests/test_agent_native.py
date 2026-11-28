@@ -16,7 +16,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from openguildkit.consultation import board_brief
+from openguildkit.board_brief import board_brief
 from openguildkit.integrations import packaged_file
 from openguildkit.storage import write_json
 from tests.support import CapturedCli

@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.board_brief import pack_rules
 from openguildkit.catalog import load_catalog
-from openguildkit.consultation import pack_rules
 from openguildkit.project import load_profile
 from openguildkit.relevance import pack_relevance
 from openguildkit.storage import write_json
