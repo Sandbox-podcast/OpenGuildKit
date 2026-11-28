@@ -236,6 +236,13 @@ class ModuleShapeTests(unittest.TestCase):
         self.assertNotIn("cli.main", projects)
         self.assertNotIn("redirect_stderr", projects)
 
+    def test_issue_530_each_task_action_runs_in_the_function_named_after_it(self):
+        """Issue #530: task verify, result and complete ran in _outcome, clear and waive in _resolve, submit in _pass:
+        a search for the action's name found no function."""
+        for action, handler in tasks_cli.HANDLERS.items():
+            with self.subTest(action=action):
+                self.assertEqual(handler.__name__, "run_" + action.replace("-", "_"))
+
     def test_issue_530_a_function_name_leads_to_one_function(self):
         """Issue #530: 68 function names were defined in several modules, with different contracts (_git five
         times), so a search by name found the wrong one."""
