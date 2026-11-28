@@ -8,11 +8,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from openguildkit import storybook, storybook_cli
+from openguildkit import storybook, storybook_cli, storybook_stories
 from openguildkit.cli import main
 from openguildkit.storage import read_json, write_json
-from openguildkit.storybook import PROPOSALS, generate, propose, validate_proposals
+from openguildkit.storybook import PROPOSALS, propose, validate_proposals
 from openguildkit.storybook_extract import _strip_js_comments, extract, normalize_color
+from openguildkit.storybook_stories import generate
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
@@ -438,7 +439,7 @@ class GeneratedCodeTests(unittest.TestCase):
         self.assertIn("disabled: true", (out / "Button.stories.tsx").read_text(encoding="utf-8"))
         self.assertFalse((self.root / "node_modules").exists())
         write_json(self.root / "package.json", {"devDependencies": {"@storybook/react-webpack5": "8.4.0", "storybook": "8.4.0"}})
-        self.assertEqual(storybook.detect_framework(self.root), "@storybook/react-webpack5")
+        self.assertEqual(storybook_stories.detect_framework(self.root), "@storybook/react-webpack5")
         self.assertEqual(generate(self.root, state, framework="@storybook/react-vite")["framework"], "@storybook/react-vite")
 
     def test_a_state_named_like_its_component_is_its_default_story(self):
