@@ -2,15 +2,18 @@
 
 For: an administrator or a developer who reads or checks `.openguildkit/project.json`, and the agent that edits a profile through the commands.
 
-`openguildkit init` writes the profile of a project in `.openguildkit/project.json`. Every command reads it through the same validation (`validate_profile` in `project.py`), which refuses a field it does not know and names the one it refuses.
+`openguildkit init` writes the profile of a project in `.openguildkit/project.json`.
+Every command reads it through the same validation (`validate_profile` in `project.py`), which refuses a field it does not know and names the one it refuses.
 [`project.schema.json`](project.schema.json) is the same shape as a JSON Schema, for an editor or a CI job; it checks the shape of each field, and the validation of OpenGuildKit also checks the values against the catalog (a pack ID, a pattern ID, a board ID).
 
-Change a profile with `openguildkit profile`, which records who, when and why under `changes` and rewrites `AGENTS.md` ([change the profile after setup](patterns.md#change-the-profile-after-setup)). A change to the rules, the checks or the boards voids the approvals made before it ([task workflow](workflow.md)).
+Change a profile with `openguildkit profile`, which records who, when and why under `changes` and rewrites `AGENTS.md` ([change the profile after setup](patterns.md#change-the-profile-after-setup)).
+A change to the rules, the checks or the boards voids the approvals made before it ([task workflow](workflow.md)).
 `openguildkit profile export` prints the setup answers that give another repository the same profile ([reuse the profile](workflow/following-the-work.md#reuse-the-profile-in-another-repository)).
 
 ## The 30 fields
 
-A field marked "absent when empty" is written only when it holds something. Dates are written `YYYY-MM-DD`, and a text that records a person is one line.
+A field marked "absent when empty" is written only when it holds something.
+Dates are written `YYYY-MM-DD`, and a text that records a person is one line.
 
 | Field | Type and values | Default | Changed with |
 |---|---|---|---|
@@ -51,7 +54,8 @@ A field marked "absent when empty" is written only when it holds something. Date
 openguildkit check
 ```
 
-`check` fails when the instructions, the host settings, the catalog lock or an approval no longer match the profile. A profile with a field outside the table is refused with `Unknown profile fields:` and the names.
+`check` fails when the instructions, the host settings, the catalog lock or an approval no longer match the profile.
+A profile with a field outside the table is refused with `Unknown profile fields:` and the names.
 
 To check the shape in an editor, point it at the schema, for example in the settings of VS Code:
 
@@ -59,4 +63,5 @@ To check the shape in an editor, point it at the schema, for example in the sett
 {"json.schemas": [{"fileMatch": [".openguildkit/project.json"], "url": "./docs/project.schema.json"}]}
 ```
 
-The schema describes the file as OpenGuildKit writes it. It does not replace `openguildkit check`, which also reads the catalog.
+The schema describes the file as OpenGuildKit writes it.
+It does not replace `openguildkit check`, which also reads the catalog.

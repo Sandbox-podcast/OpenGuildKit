@@ -3,16 +3,32 @@
 For: a developer who runs the timed tests or changes a timed path.
 A part of the [testing guide](../testing.md).
 
-Run the timed tests with `OPENGUILDKIT_PERF=1 PYTHONPATH=src python -m unittest tests.test_performance.PerformanceTests`. On Windows PowerShell, set `$env:OPENGUILDKIT_PERF = "1"` before running the test command.
+Run the timed tests with `OPENGUILDKIT_PERF=1 PYTHONPATH=src python -m unittest tests.test_performance.PerformanceTests`.
+On Windows PowerShell, set `$env:OPENGUILDKIT_PERF = "1"` before running the test command.
 
-One test reads the network: `RegistryPackagesExistTests` in `tests/test_tool_registry.py` checks that every Docker image and npm or PyPI package of the tool registry exists. It is skipped unless `OPENGUILDKIT_NETWORK_TESTS=1`, and CI does not set it.
+One test reads the network: `RegistryPackagesExistTests` in `tests/test_tool_registry.py` checks that every Docker image and npm or PyPI package of the tool registry exists.
+It is skipped unless `OPENGUILDKIT_NETWORK_TESTS=1`, and CI does not set it.
 
-On 22 November 2026 (Windows, Python 3.12.7, with `PYTHONDONTWRITEBYTECODE=1` in the calling environment), the 26 tests in `tests.e2e.test_cli_flow` ran in 9.316 s, down from 50.281 s at `ac33f9f`. Both runs skipped the two POSIX terminal cases. These are single runs of that module on the Windows workstation. The full standard Windows run took 404.551 s for 1,198 tests, with 30 skipped. The full-suite time on the reference macOS machine is under [Kinds of tests](../testing.md#kinds-of-tests).
+On 22 November 2026 (Windows, Python 3.12.7, with `PYTHONDONTWRITEBYTECODE=1` in the calling environment), the 26 tests in `tests.e2e.test_cli_flow` ran in 9.316 s, down from 50.281 s at `ac33f9f`.
+Both runs skipped the two POSIX terminal cases.
+These are single runs of that module on the Windows workstation.
+The full standard Windows run took 404.551 s for 1,198 tests, with 30 skipped.
+The full-suite time on the reference macOS machine is under [Kinds of tests](../testing.md#kinds-of-tests).
 
-`python scripts/bench.py` prints the times as a table and as JSON (`--json` for JSON only, `--repeat N` for more runs). Each command is a real process; the figure is the median of five runs after one warm-up. "x start" divides by `openguildkit --version` in the same run. The project with 500 tasks has 5 approved ones, so the hooks find tasks that cover the edit. The `guard --ci` scenario checks a change of one file and its record against a base revision that holds 200 decision records: 5.07 s at `3975a41`, which started one `git show` per record, and 0.46 to 0.51 s (x start 3.0 to 4.1) with one `git cat-file --batch` (#532, 27 November 2026, Apple M1 Pro, load average 11 to 38). Python caches the bytecode in the benchmark's temporary folder, as it does for an installed package, even when `PYTHONDONTWRITEBYTECODE` is set.
+`python scripts/bench.py` prints the times as a table and as JSON (`--json` for JSON only, `--repeat N` for more runs).
+Each command is a real process; the figure is the median of five runs after one warm-up.
+"x start" divides by `openguildkit --version` in the same run.
+The project with 500 tasks has 5 approved ones, so the hooks find tasks that cover the edit.
+The `guard --ci` scenario checks a change of one file and its record against a base revision that holds 200 decision records: 5.07 s at `3975a41`, which started one `git show` per record, and 0.46 to 0.51 s (x start 3.0 to 4.1) with one `git cat-file --batch` (#532, 27 November 2026, Apple M1 Pro, load average 11 to 38).
+Python caches the bytecode in the benchmark's temporary folder, as it does for an installed package, even when `PYTHONDONTWRITEBYTECODE` is set.
 The project of 500 closed tasks holds the records the normal path leaves: one task taken the whole way, then copies of it under other IDs, each sealed for its ID and exported (#534).
 
-The budgets of `tests/test_performance.py` come from the table below (#538): two runs of `python scripts/bench.py --repeat 5 --dependencies 500` on 28 November 2026 (Apple M1 Pro, Python 3.15.2, load average 10 to 15 from other agents, bundled catalog read from its record files), each figure the median of a run's five measures, low to high. Each budget is about 2.5 times the highest ratio and at most three times it, so a command twice as slow fails, where the earlier budgets let the start grow fourfold; a run over budget is measured once more before the test fails. The edit hook is held to "x python", its time over a bare interpreter start, so that a slower `--version` does not loosen it, and `--version` itself to 4 times a bare start. `BudgetTableTests` checks the budgets against this table without a clock. The project of closed tasks also holds one reviewed task, whose decision brief (`task challenge`) reads only the record of the last approval (#535), and the hook runs with the payloads of Claude Code, Codex and Gemini CLI. The git processes of `guard --ci` and the record reads of the commands on closed tasks are counted without a clock in `tests/test_guard.py` and `tests/test_performance.py`.
+The budgets of `tests/test_performance.py` come from the table below (#538): two runs of `python scripts/bench.py --repeat 5 --dependencies 500` on 28 November 2026 (Apple M1 Pro, Python 3.15.2, load average 10 to 15 from other agents, bundled catalog read from its record files), each figure the median of a run's five measures, low to high.
+Each budget is about 2.5 times the highest ratio and at most three times it, so a command twice as slow fails, where the earlier budgets let the start grow fourfold; a run over budget is measured once more before the test fails.
+The edit hook is held to "x python", its time over a bare interpreter start, so that a slower `--version` does not loosen it, and `--version` itself to 4 times a bare start.
+`BudgetTableTests` checks the budgets against this table without a clock.
+The project of closed tasks also holds one reviewed task, whose decision brief (`task challenge`) reads only the record of the last approval (#535), and the hook runs with the payloads of Claude Code, Codex and Gemini CLI.
+The git processes of `guard --ci` and the record reads of the commands on closed tasks are counted without a clock in `tests/test_guard.py` and `tests/test_performance.py`.
 
 | Command | median s | x start | x python |
 | --- | --- | --- | --- |
@@ -39,7 +55,9 @@ The budgets of `tests/test_performance.py` come from the table below (#538): two
 | `guard --ci (200 records on the base)` | 0.510 to 0.515 | 14.2 to 15.4 | 20.8 to 22.6 |
 | `projects --surfaces (30 projects)` | 1.419 to 1.499 | 39.2 to 45.2 | 61.0 to 62.2 |
 
-Measured on 22 November 2026 on the laptop of the suite timing above (Apple M1 Pro, macOS 26, Python 3.15.2), at a load average of 4 to 5.5 from other applications: two runs of the script after the web interface was added to the CLI (#199) and the CLI split into modules (issue 31 of the second audit). Each figure is the median of a run's five measures; the columns give the lowest and the highest of the two runs. The column of 21 November is the table of #135, at a load average of about 8.
+Measured on 22 November 2026 on the laptop of the suite timing above (Apple M1 Pro, macOS 26, Python 3.15.2), at a load average of 4 to 5.5 from other applications: two runs of the script after the web interface was added to the CLI (#199) and the CLI split into modules (issue 31 of the second audit).
+Each figure is the median of a run's five measures; the columns give the lowest and the highest of the two runs.
+The column of 21 November is the table of #135, at a load average of about 8.
 
 | Command | 21 November (s) | 22 November (s) | x start, 22 November |
 | --- | --- | --- | --- |
@@ -57,14 +75,23 @@ Measured on 22 November 2026 on the laptop of the suite timing above (Apple M1 P
 | `detect`, monorepo of 200 packages | 0.324 | 0.290 to 0.297 | 2.8 |
 | `init`, monorepo of 200 packages | 0.356 | 0.398 to 0.409 | 3.9 |
 
-Every command that reads the catalog is 60 to 150 ms slower than on 21 November, the edit hook included (0.29 to 0.34 s against 0.18), and `task list` on 500 tasks nearly doubled; `--version` and `detect`, which do not read the catalog, did not move. The ratios stay inside the budgets. This page measures the difference; it does not explain it.
+Every command that reads the catalog is 60 to 150 ms slower than on 21 November, the edit hook included (0.29 to 0.34 s against 0.18), and `task list` on 500 tasks nearly doubled; `--version` and `detect`, which do not read the catalog, did not move.
+The ratios stay inside the budgets.
+This page measures the difference; it does not explain it.
 
 Until 28 November 2026, each budget was at least three times the highest ratio seen and at most ten times the lowest, so only a tenfold slowdown failed, and `--version` could take 25 times a bare `python -c pass`; the budgets now follow the table of 28 November above (#538).
 
 Where the time went in #135, and what changed:
 
-- Every command validated the bundled catalog twice, and `init`, `sync`, `check` and `task decide` four times, at about 50 ms each (more under load), most of it checking each character of each text for control characters. The bundled records are now validated once per process (they ship with the code that runs, so they cannot change during a command; project records are read again on every load), and text that `str.isprintable()` accepts skips the character-by-character check, which gives the same answer. `tests/test_performance.py` counts the reads per command.
-- `guard --hook pre-edit` and `--hook prompt` parsed every task record to find the approved ones. A status index in `.openguildkit/tasks/.status-index` (git-ignored and refused to agent edits like the records) now says which records cannot cover an edit; each entry holds the record file's size, times and inode, and is used only while the file still matches, so a record changed by any means is read again. The index only skips records: approved tasks are read and checked in full, and a missing, stale, corrupt or unwritable index costs time, not a decision (`tests/test_task_index.py`, and a concurrency test with hooks and writers at once).
+- Every command validated the bundled catalog twice, and `init`, `sync`, `check` and `task decide` four times, at about 50 ms each (more under load), most of it checking each character of each text for control characters.
+  The bundled records are now validated once per process (they ship with the code that runs, so they cannot change during a command; project records are read again on every load), and text that `str.isprintable()` accepts skips the character-by-character check, which gives the same answer.
+  `tests/test_performance.py` counts the reads per command.
+- `guard --hook pre-edit` and `--hook prompt` parsed every task record to find the approved ones.
+  A status index in `.openguildkit/tasks/.status-index` (git-ignored and refused to agent edits like the records) now says which records cannot cover an edit; each entry holds the record file's size, times and inode, and is used only while the file still matches, so a record changed by any means is read again.
+  The index only skips records: approved tasks are read and checked in full, and a missing, stale, corrupt or unwritable index costs time, not a decision (`tests/test_task_index.py`, and a concurrency test with hooks and writers at once).
 - `--version` no longer reads the package metadata for every command, and the catalog, the tool registry, references, deliverables and agent files are found next to the package instead of through `importlib.resources`, whose import cost every command about 14 ms.
 
-What is left: an installed wheel reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the build (#533): `load_catalog()` takes 8 ms in a new process instead of 91 (27 November 2026), and the CI `performance` job builds that file before it times the commands. A checkout without it still reads and validates the 289 record files in each process. Importing the CLI takes about 53 ms with cached bytecode (22 November 2026, `python -X importtime`): `argparse` on Python 3.15 alone takes 5 ms and imports `shutil`, and the `tools`, `market`, `alerts` and `storybook` modules are imported to build their sub-commands. In a Git repository, each approved task also runs `git merge-base` to check that its approved revision is still in the history.
+What is left: an installed wheel reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the build (#533): `load_catalog()` takes 8 ms in a new process instead of 91 (27 November 2026), and the CI `performance` job builds that file before it times the commands.
+A checkout without it still reads and validates the 289 record files in each process.
+Importing the CLI takes about 53 ms with cached bytecode (22 November 2026, `python -X importtime`): `argparse` on Python 3.15 alone takes 5 ms and imports `shutil`, and the `tools`, `market`, `alerts` and `storybook` modules are imported to build their sub-commands.
+In a Git repository, each approved task also runs `git merge-base` to check that its approved revision is still in the history.

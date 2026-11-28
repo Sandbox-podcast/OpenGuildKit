@@ -2,11 +2,15 @@
 
 For: a developer who makes a first contribution: a lens, a reference or a pattern.
 
-This walk-through adds one specialist lens to a brain, then shows the same steps for a reference entry and a pattern. You need a GitHub account, Git and Python 3.11 or later; no other tool.
+This walk-through adds one specialist lens to a brain, then shows the same steps for a reference entry and a pattern.
+You need a GitHub account, Git and Python 3.11 or later; no other tool.
 
 ## 1. Agree on the scope
 
-Open an issue with the template that matches your idea (new pattern, new pack, new board, new sector, or a bug). Say who would use it, the situation it covers and the source you rely on. A maintainer or the domain steward answers in the issue. Small fixes can start directly with a pull request.
+Open an issue with the template that matches your idea (new pattern, new pack, new board, new sector, or a bug).
+Say who would use it, the situation it covers and the source you rely on.
+A maintainer or the domain steward answers in the issue.
+Small fixes can start directly with a pull request.
 
 ## 2. Fork, clone and check the baseline
 
@@ -18,11 +22,14 @@ python -m pip install -e .
 python -m unittest discover -s tests
 ```
 
-The tests pass before you change anything. If they do not, say so in the issue.
+The tests pass before you change anything.
+If they do not, say so in the issue.
 
 ## 3. Make the change
 
-Example: the HR brain has lenses for hiring, onboarding, workforce planning, people data, pay, employment law and performance, but none for health and safety at work. Check with `openguildkit brains --id hr`, which lists each lens. In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`, with the `checks` an expert of that lens makes, as every bundled lens has:
+Example: the HR brain has lenses for hiring, onboarding, workforce planning, people data, pay, employment law and performance, but none for health and safety at work.
+Check with `openguildkit brains --id hr`, which lists each lens.
+In `src/openguildkit/registry/boards/hr.json`, add a specialist under `review.specialists`, with the `checks` an expert of that lens makes, as every bundled lens has:
 
 ```json
 {
@@ -36,7 +43,8 @@ Example: the HR brain has lenses for hiring, onboarding, workforce planning, peo
 }
 ```
 
-Keep the record's other lists in step: add the evidence this lens needs to `review.evidence`, a challenge question to `review.challenge` and, if the lens changes the verdict, a decision criterion. Add a source to `sources` only if you have read it: an official text or a recognized body, over HTTPS, without tracking parameters.
+Keep the record's other lists in step: add the evidence this lens needs to `review.evidence`, a challenge question to `review.challenge` and, if the lens changes the verdict, a decision criterion.
+Add a source to `sources` only if you have read it: an official text or a recognized body, over HTTPS, without tracking parameters.
 
 The same steps apply to:
 
@@ -54,7 +62,8 @@ openguildkit brains --id hr
 python -m unittest discover -s tests
 ```
 
-Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gaps.`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
+Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gaps.`, `brains --id hr` lists your lens, and the tests pass.
+A refused record names the file and the field.
 
 If you changed triggers, add a brief that must and one that must not select the brain to `tests/routing_cases.json`.
 
@@ -66,8 +75,12 @@ git push -u origin brain/hr-health-and-safety
 gh pr create --fill
 ```
 
-Fill the template: what changes, the issue (`Closes #123` if the pull request resolves it, `Refs #123` otherwise), the effect on projects that use the catalog, and what you verified. GitHub labels the pull request from the files it changes.
+Fill the template: what changes, the issue (`Closes #123` if the pull request resolves it, `Refs #123` otherwise), the effect on projects that use the catalog, and what you verified.
+GitHub labels the pull request from the files it changes.
 
 ## 6. Follow the checks
 
-The pull request page shows `contribution-checks`, which combines the test matrix on Linux, macOS and Windows, the wheel build and the CI coordinator tests. Open "Details" next to a failed job to read the log, fix, and push again on the same branch. A job cancelled before any step ran never got a runner: `contribution-checks` names it under `These jobs never started`, and rerunning it is enough ([CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request)). A maintainer or the steward of the domain reviews and merges with a squash.
+The pull request page shows `contribution-checks`, which combines the test matrix on Linux, macOS and Windows, the wheel build and the CI coordinator tests.
+Open "Details" next to a failed job to read the log, fix, and push again on the same branch.
+A job cancelled before any step ran never got a runner: `contribution-checks` names it under `These jobs never started`, and rerunning it is enough ([CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request)).
+A maintainer or the steward of the domain reviews and merges with a squash.

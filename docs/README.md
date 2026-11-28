@@ -1,6 +1,7 @@
 # Documentation
 
-For: anyone who looks for a page of this folder: it lists each page under the reader it is written for. The first line after the title of every page names its reader.
+For: anyone who looks for a page of this folder: it lists each page under the reader it is written for.
+The first line after the title of every page names its reader.
 
 ## Administrator
 

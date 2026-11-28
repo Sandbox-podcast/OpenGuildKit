@@ -2,7 +2,10 @@
 
 For: a developer who runs or adds tests.
 
-The test suite uses `unittest` from the standard library and runs offline. CI runs the standard suite on Linux, macOS and Windows with Python 3.11 and 3.15, four of the six combinations on a pull request (hosted macOS runners are scarce: [CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request) says what to do when one never comes). A separate job runs the timed performance tests once per operating system on Python 3.15. A published release is checked by `.github/workflows/release-check.yml`, not on each pull request: it installs the files attached to the release on Linux, macOS and Windows and upgrades a v0.16.1 project to it ([GOVERNANCE.md](../GOVERNANCE.md#releases), step 7).
+The test suite uses `unittest` from the standard library and runs offline.
+CI runs the standard suite on Linux, macOS and Windows with Python 3.11 and 3.15, four of the six combinations on a pull request (hosted macOS runners are scarce: [CONTRIBUTING.md](../CONTRIBUTING.md#open-a-pull-request) says what to do when one never comes).
+A separate job runs the timed performance tests once per operating system on Python 3.15.
+A published release is checked by `.github/workflows/release-check.yml`, not on each pull request: it installs the files attached to the release on Linux, macOS and Windows and upgrades a v0.16.1 project to it ([GOVERNANCE.md](../GOVERNANCE.md#releases), step 7).
 
 ```bash
 python scripts/run_tests.py --jobs 4                          # everything, one process per test file, four at once
@@ -11,23 +14,34 @@ PYTHONPATH=src python -m unittest tests.test_robustness      # one kind
 PYTHONPATH=src python -m unittest tests.e2e.test_concurrency.LockTests   # one class
 ```
 
-`scripts/run_tests.py` runs each file `discover` finds as `python -m unittest tests.MODULE`, the largest files first, prints the whole output of a file that fails and exits 1 if any does; CI runs it with four processes, three on macOS (#451). This page records no duration for it: read the step "Unit and end-to-end tests" of a CI run.
+`scripts/run_tests.py` runs each file `discover` finds as `python -m unittest tests.MODULE`, the largest files first, prints the whole output of a file that fails and exits 1 if any does; CI runs it with four processes, three on macOS (#451).
+This page records no duration for it: read the step "Unit and end-to-end tests" of a CI run.
 
 On Windows, set `PYTHONPATH` with `set PYTHONPATH=src` (cmd) or `$env:PYTHONPATH="src"` (PowerShell), or install the project with `python -m pip install -e .` and drop it.
 
 ## How the suite runs the CLI
 
-`tests/support.py` runs the CLI for every test. `run_cli` calls `main()` in the test process and returns the exit code and what the command printed, a few tens of milliseconds a command against some 350 ms for a new `python -m openguildkit` process; `CapturedCli` gives a test case `self.run_cli(...)` on its `self.root`, and `copy_initialized_project` sets up a project once per class and gives each test its own copy. `tests/test_test_suite.py` fails when more than ten helpers of `tests/` run the CLI themselves instead.
+`tests/support.py` runs the CLI for every test.
+`run_cli` calls `main()` in the test process and returns the exit code and what the command printed, a few tens of milliseconds a command against some 350 ms for a new `python -m openguildkit` process; `CapturedCli` gives a test case `self.run_cli(...)` on its `self.root`, and `copy_initialized_project` sets up a project once per class and gives each test its own copy.
+`tests/test_test_suite.py` fails when more than ten helpers of `tests/` run the CLI themselves instead.
 
-A test starts a real process only when it needs one: the person typing at a pseudo-terminal (`CliTestCase.in_terminal`, which captures what the command shows), parallel writers and readers (`tests/e2e/test_concurrency.py`), a hash seed (`tests/test_determinism.py`, one process per seed), the stdio of a tool mock, the `openguildkit ui` server. `CatalogTests` in `tests/e2e/test_cli_flow.py` keeps `subprocess_mode = True`, so the `python -m openguildkit` entry point stays tested end to end. The example scripts of the field kit, the host rehearsal and the Documentalist replay run their commands through one `run()` function, which their tests replace with the in-process runner.
+A test starts a real process only when it needs one: the person typing at a pseudo-terminal (`CliTestCase.in_terminal`, which captures what the command shows), parallel writers and readers (`tests/e2e/test_concurrency.py`), a hash seed (`tests/test_determinism.py`, one process per seed), the stdio of a tool mock, the `openguildkit ui` server.
+`CatalogTests` in `tests/e2e/test_cli_flow.py` keeps `subprocess_mode = True`, so the `python -m openguildkit` entry point stays tested end to end.
+The example scripts of the field kit, the host rehearsal and the Documentalist replay run their commands through one `run()` function, which their tests replace with the in-process runner.
 
 Child processes get `support.subprocess_environment()`: without `PYTHONDONTWRITEBYTECODE`, which made each of them compile the package again, and with `PYTHONPYCACHEPREFIX` in a temporary folder, so the bytecode stays out of the repository.
 
-Git reads no configuration of the machine during the tests. `tests/__init__.py` sets `GIT_CONFIG_GLOBAL` to the null device, `GIT_CONFIG_NOSYSTEM=1` and a test identity for the whole run, so a contributor's commit signing, hooks or name never reach a commit a test makes, and a test needs no `-c user.name=...` of its own. `tests/test_test_suite.py` commits under a global configuration that signs with a key that does not exist.
+Git reads no configuration of the machine during the tests.
+`tests/__init__.py` sets `GIT_CONFIG_GLOBAL` to the null device, `GIT_CONFIG_NOSYSTEM=1` and a test identity for the whole run, so a contributor's commit signing, hooks or name never reach a commit a test makes, and a test needs no `-c user.name=...` of its own.
+`tests/test_test_suite.py` commits under a global configuration that signs with a key that does not exist.
 
 ## Kinds of tests
 
-On 26 November 2026, the sixth audit measured 2 141 tests in 515 s in one process, under a load average of 7 to 9 (#451). On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose other applications kept the load average between 3.8 and 6.6: 1 218 tests in 279 s, 3 skipped (the time budgets); the one failure of that run, `test_a_component_path_with_spaces_works_in_the_check_shell`, needs a `python` command, which this laptop does not have. On the same laptop and the same day, the suite took 636 s for 1 198 tests before #252, and 431 s for 1 202 tests after it. A matrix job on GitHub Actions was not timed for this commit. Each time below is the sum of its tests in an earlier run with `--durations 0` on the same laptop and the same day (1 205 tests in 283 s, before the last commits of #252's branch).
+On 26 November 2026, the sixth audit measured 2 141 tests in 515 s in one process, under a load average of 7 to 9 (#451).
+On 22 November 2026, on a laptop (Apple M1 Pro, macOS 26, Python 3.15.2) whose other applications kept the load average between 3.8 and 6.6: 1 218 tests in 279 s, 3 skipped (the time budgets); the one failure of that run, `test_a_component_path_with_spaces_works_in_the_check_shell`, needs a `python` command, which this laptop does not have.
+On the same laptop and the same day, the suite took 636 s for 1 198 tests before #252, and 431 s for 1 202 tests after it.
+A matrix job on GitHub Actions was not timed for this commit.
+Each time below is the sum of its tests in an earlier run with `--durations 0` on the same laptop and the same day (1 205 tests in 283 s, before the last commits of #252's branch).
 
 | Kind | Where | What it proves | Time |
 | --- | --- | --- | --- |
@@ -57,7 +71,8 @@ On 26 November 2026, the sixth audit measured 2 141 tests in 515 s in one proces
 | Field kit | `tests/e2e/test_field_kit.py`, `examples/field-tests/` | The campaign file has its thirty testers and every brief is complete; the kit prepares every tester's folder and the teammates' shared repository; two teams that play the scripted part of each of the three scenarios get identical results; a missing report, unusable findings or a difference between teams is named and fails the collection; the person's stand-in approves at a pseudo-terminal. | 10 s |
 | The repository itself | `test_architecture.py`, `test_dead_code.py`, `test_python_floor.py`, `test_release.py`, `test_workflows.py`, `test_ci_jobs.py`, `test_install_script.py`, `test_entry_pages.py`, `test_personal_data_doc.py`, `test_product_docs.py`, `test_test_suite.py`, `test_doc_promises.py`, `test_doc_examples.py`, `test_agent_native.py`, `test_lint_ratchet.py` | Module and function sizes, no dead code, Python 3.11 syntax, one version everywhere and the wheel as CI builds it, pinned workflow actions, the one-line installers run against a fake release in a local folder (with fake pipx and uv; `install.ps1` only where `pwsh` is installed), a time limit on every job of the workflows and shipped templates, a label for every tracked file outside the root, the jobs CI puts on macOS and how its gate names a job no runner picked up and counts a skipped one as passed, then in `test_ci_jobs.py` the files each CI job reads (its path filter, run in temporary Git repositories), the matrix of a pull request, the log of a test job, the version files, the coverage workflow, the Dependabot configuration and the sample servers of the web journeys, READMEs and pages that follow the code (every module in [architecture](architecture.md), every test file in this table), one way to run the CLI in tests, boundaries the pages promise (the last day of a share, the observed finding high confidence needs, the 180 days of a market observation), and examples of the pages run as written (each `openguildkit references` search finds something; `tools scenario` after `tools apply --mock`), and the root `AGENTS.md`, under 4 KB, whose paths and commands exist, with each of the [conventions for agents](agents/conventions.md) giving its rule, reason, check and issue; the lint ratchet (see [Lint and types](#lint-and-types)): ruff and mypy counted per rule against a committed baseline, a count above it refused, a baseline that only goes down, and the pins CI installs. | 9 s |
 
-The Node coordinator in `integrations/ci` has its own suite: `cd integrations/ci && npm test`. `tests/e2e/test_export_ci.py` runs the Python side of the cases it shares with that suite.
+The Node coordinator in `integrations/ci` has its own suite: `cd integrations/ci && npm test`.
+`tests/e2e/test_export_ci.py` runs the Python side of the cases it shares with that suite.
 
 ## Lint and types
 
@@ -75,7 +90,8 @@ To find a new finding among the old ones, run the tool on the files you changed:
 
 ## Size budgets
 
-What an agent loads is read again at every turn, so its size is tested like a time budget (#363). A test fails above the budget and names the file or output and its size in bytes.
+What an agent loads is read again at every turn, so its size is tested like a time budget (#363).
+A test fails above the budget and names the file or output and its size in bytes.
 
 | What | Budget | Test |
 | --- | --- | --- |
@@ -85,9 +101,15 @@ What an agent loads is read again at every turn, so its size is tested like a ti
 | `SKILL.md`, in the package and in `integrations/` | 15 000 bytes | `tests/test_agent_instructions.py` |
 | A file of a project, for a team that wants the same rule | `max_bytes` of a [`size` check](catalog-format.md#machine-checks-and-named-evidence) | `tests/test_rule_checks.py` |
 
-The block names each pack with the IDs of its rules. The text of the rules, their `Verify:` lines and the sources of the packs are printed by `openguildkit task brief ID --pack PACK` (#363), and the same file checks that every rule of every pack in force is named, for the example and for the monorepo. On 25 November 2026 the request-status example went from 15 878 to 5 983 bytes, under the 8 000 that #363 asks for. The monorepo went from 90 541 to 16 759 bytes and does not fit: its 49 packs bring 190 rule IDs, and before its first pack the block is already 8 158 bytes (the workflow 3 340, the 45 selected patterns 3 481, the sector and stack 1 071). Naming the packs with no rule ID would still leave about 11 500 bytes.
+The block names each pack with the IDs of its rules.
+The text of the rules, their `Verify:` lines and the sources of the packs are printed by `openguildkit task brief ID --pack PACK` (#363), and the same file checks that every rule of every pack in force is named, for the example and for the monorepo.
+On 25 November 2026 the request-status example went from 15 878 to 5 983 bytes, under the 8 000 that #363 asks for.
+The monorepo went from 90 541 to 16 759 bytes and does not fit: its 49 packs bring 190 rule IDs, and before its first pack the block is already 8 158 bytes (the workflow 3 340, the 45 selected patterns 3 481, the sector and stack 1 071).
+Naming the packs with no rule ID would still leave about 11 500 bytes.
 
-What is left to do to hold 8 000 bytes on a project this size, each a decision for #363 because it drops something the agent reads today: name the packs without their rule IDs (the consultation already gives their count), print the selected patterns behind `openguildkit preview`, or shorten the sector's context and the workflow. Until one is taken, the monorepo budget is the measured size plus 5 %, rounded up to the next 100, so the block cannot grow unnoticed; the comment in the test says the same. `SKILL.md` was 28 933 bytes and is 14 490: the procedures only some sessions need are in `references/`, copied in `integrations/` and installed with the skill.
+What is left to do to hold 8 000 bytes on a project this size, each a decision for #363 because it drops something the agent reads today: name the packs without their rule IDs (the consultation already gives their count), print the selected patterns behind `openguildkit preview`, or shorten the sector's context and the workflow.
+Until one is taken, the monorepo budget is the measured size plus 5 %, rounded up to the next 100, so the block cannot grow unnoticed; the comment in the test says the same.
+`SKILL.md` was 28 933 bytes and is 14 490: the procedures only some sessions need are in `references/`, copied in `integrations/` and installed with the skill.
 
 ## Output budget
 
@@ -95,13 +117,16 @@ Now in [Output budget](testing/output-budget.md).
 
 ## Robustness: seeds and known crashes
 
-The robustness tests use a fixed seed, so a failure names the seed, the command and the mutated key, and reproduces. To explore, set another seed:
+The robustness tests use a fixed seed, so a failure names the seed, the command and the mutated key, and reproduces.
+To explore, set another seed:
 
 ```bash
 OPENGUILDKIT_FUZZ_SEED=7 PYTHONPATH=src python -m unittest tests.test_robustness
 ```
 
-Every crash fails the run: none is tolerated. A task record edited by hand is checked once when it is loaded, field by field, and a damaged one is reported as `Task record ID is damaged: FIELD ...` instead of crashing a later command. The suite passes with the default seed and with seeds 1, 2 and 3 (`OPENGUILDKIT_FUZZ_SEED=N`).
+Every crash fails the run: none is tolerated.
+A task record edited by hand is checked once when it is loaded, field by field, and a damaged one is reported as `Task record ID is damaged: FIELD ...` instead of crashing a later command.
+The suite passes with the default seed and with seeds 1, 2 and 3 (`OPENGUILDKIT_FUZZ_SEED=N`).
 
 ## Performance numbers
 
@@ -109,15 +134,21 @@ Now in [Performance numbers](testing/performance.md).
 
 ## Field campaigns
 
-The tests above check what the code does. A field campaign checks what a team lives through: thirty autonomous agents each play a team that adopts OpenGuildKit with the documentation as their only help, on mocks, and report where they got stuck. The kit, the thirty testers, the three scenarios played by several teams and each campaign's dated report are in [`examples/field-tests/`](../examples/field-tests/README.md). The first campaign, on 21 November 2026, produced 341 findings grouped into 97 problems and the issues #149 to #180; its report is [`examples/field-tests/reports/2026-11-21.md`](../examples/field-tests/reports/2026-11-21.md).
+The tests above check what the code does.
+A field campaign checks what a team lives through: thirty autonomous agents each play a team that adopts OpenGuildKit with the documentation as their only help, on mocks, and report where they got stuck.
+The kit, the thirty testers, the three scenarios played by several teams and each campaign's dated report are in [`examples/field-tests/`](../examples/field-tests/README.md).
+The first campaign, on 21 November 2026, produced 341 findings grouped into 97 problems and the issues #149 to #180; its report is [`examples/field-tests/reports/2026-11-21.md`](../examples/field-tests/reports/2026-11-21.md).
 
-A campaign is run by a person with an agent host, not by CI. What CI runs is the part that needs no agent: `python examples/field-tests/field.py cohorts --out DIR` plays the scripted part of each scenario in several folders and fails when two of them differ.
+A campaign is run by a person with an agent host, not by CI.
+What CI runs is the part that needs no agent: `python examples/field-tests/field.py cohorts --out DIR` plays the scripted part of each scenario in several folders and fails when two of them differ.
 
 ## Rehearse the person's acts
 
-Approving, waiving and clearing a blocker need a person at a terminal, so an agent cannot do them. The tests drive them through a pseudo-terminal, on Linux and macOS:
+Approving, waiving and clearing a blocker need a person at a terminal, so an agent cannot do them.
+The tests drive them through a pseudo-terminal, on Linux and macOS:
 
-- `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` repeats the waiver flow in a temporary project: an unauthorized person and a wrong confirmation are refused, then a valid waiver is recorded. A waiver needs a policy in the profile, `"waivers": {"allowed_by": ["CM"], "max_days": 30}`, and `task waive` needs `--by` (a name in `allowed_by`), `--reason`, `--scope` (what the waiver covers) and `--until` (YYYY-MM-DD, at most `max_days` ahead).
+- `python -m unittest tests.e2e.test_more_commands.WaiverCommandTests` repeats the waiver flow in a temporary project: an unauthorized person and a wrong confirmation are refused, then a valid waiver is recorded.
+  A waiver needs a policy in the profile, `"waivers": {"allowed_by": ["CM"], "max_days": 30}`, and `task waive` needs `--by` (a name in `allowed_by`), `--reason`, `--scope` (what the waiver covers) and `--until` (YYYY-MM-DD, at most `max_days` ahead).
 - `python -m unittest tests.e2e.test_more_commands.BlockerCommandTests` repeats clearing: refused without a terminal, cancelled by a wrong confirmation, recorded with the person's name, and a second clearing refused; in a project with signed approvals, the clearance is signed with a synthetic key.
 - `python examples/host-validation/rehearse.py --project FOLDER` replays a whole task, the person's steps included.
 
@@ -125,20 +156,37 @@ In a test written with `unittest`, patch `sys.stdin.isatty` to return true and `
 
 ## A fast check of what changed
 
-`python scripts/check_fast.py` (optional `--base REF`, default `origin/main`) runs the tests that [docs/agents/map.json](agents/map.json) attaches to files changed since that revision, including the working tree. A changed test runs itself. A module of the package takes its tests; any other file or folder takes the tests and commands of its `paths` entry in the map, the longest folder first: the catalog under `src/openguildkit/registry/` runs its tests and validates the catalog, `web/` runs `npm run typecheck` and `npm test`, `integrations/ci/` runs the Node suite. A changed file with no attached test is named and the command exits non-zero. It first says how many test files it runs, then runs each in its own process, several at once (`scripts/run_tests.py`): the test named after a changed module first, then the tests that name it. The first failure stops the run and is printed first. After 30 seconds (`--budget`) nothing more starts and the files left are named on standard error; `--all` runs them all (#456). `--plan PATH` or `--plan "task new"` prints the role, entry points and tests of a module, or the function of a command, and runs nothing. A base that does not exist gives one line that names `--base`. `OPENGUILDKIT_PERF=1 python -m unittest tests.test_agent_native.CheckFastTests` times a one-line change of the module with the most tests. This does not replace the whole suite.
+`python scripts/check_fast.py` (optional `--base REF`, default `origin/main`) runs the tests that [docs/agents/map.json](agents/map.json) attaches to files changed since that revision, including the working tree.
+A changed test runs itself.
+A module of the package takes its tests; any other file or folder takes the tests and commands of its `paths` entry in the map, the longest folder first: the catalog under `src/openguildkit/registry/` runs its tests and validates the catalog, `web/` runs `npm run typecheck` and `npm test`, `integrations/ci/` runs the Node suite.
+A changed file with no attached test is named and the command exits non-zero.
+It first says how many test files it runs, then runs each in its own process, several at once (`scripts/run_tests.py`): the test named after a changed module first, then the tests that name it.
+The first failure stops the run and is printed first.
+After 30 seconds (`--budget`) nothing more starts and the files left are named on standard error; `--all` runs them all (#456).
+`--plan PATH` or `--plan "task new"` prints the role, entry points and tests of a module, or the function of a command, and runs nothing.
+A base that does not exist gives one line that names `--base`.
+`OPENGUILDKIT_PERF=1 python -m unittest tests.test_agent_native.CheckFastTests` times a one-line change of the module with the most tests.
+This does not replace the whole suite.
 
-`python scripts/build_map.py` writes the map from the code and the tests (#502): the tests that import each module, the tests that name each fixture, and the `commands` section, one entry per terminal command with its function and line; the role, entry points, documentation page and `paths` entries stay written by hand. `--check` names each entry that differs from the committed file and exits 1; `tests/test_agent_native.py` fails the same way.
+`python scripts/build_map.py` writes the map from the code and the tests (#502): the tests that import each module, the tests that name each fixture, and the `commands` section, one entry per terminal command with its function and line; the role, entry points, documentation page and `paths` entries stay written by hand.
+`--check` names each entry that differs from the committed file and exits 1; `tests/test_agent_native.py` fails the same way.
 
 ## What a local transcript cost
 
-`python scripts/agent_cost.py TRANSCRIPT.jsonl` reads one Claude Code transcript on disk and prints totals only: input, cache and output tokens, turns, subagents, command wait, lines skipped, and a cost from the rates named in the script. It prints no prompt and no tool result.
-`python scripts/agent_cost.py SESSION_FOLDER` adds the files of `subagents/*.jsonl` to the main transcript and prints one line per file; `subagents` is the number of those files. `--json` prints the whole report.
-A message is counted once however many lines it fills. Each model has its rate in `RATES`, and a model without one is named as `unpriced_model` and left out of the cost. The wait is the time between a tool call and its result. It does not measure a live session and it sends nothing.
+`python scripts/agent_cost.py TRANSCRIPT.jsonl` reads one Claude Code transcript on disk and prints totals only: input, cache and output tokens, turns, subagents, command wait, lines skipped, and a cost from the rates named in the script.
+It prints no prompt and no tool result.
+`python scripts/agent_cost.py SESSION_FOLDER` adds the files of `subagents/*.jsonl` to the main transcript and prints one line per file; `subagents` is the number of those files.
+`--json` prints the whole report.
+A message is counted once however many lines it fills.
+Each model has its rate in `RATES`, and a model without one is named as `unpriced_model` and left out of the cost.
+The wait is the time between a tool call and its result.
+It does not measure a live session and it sends nothing.
 
 ## Code coverage
 
 `.github/workflows/coverage.yml` runs the whole suite under `coverage` (branches, and the processes the tests start), combines the measures and writes the percentage of each module of `src/openguildkit` in the summary of the run.
-It fails when the package falls under 92 %, `guard.py` under 93 % or `hosts.py` under 95 %: one point under a measure of the whole suite on 28 November 2026, on macOS with Python 3.15.2 (93.3 %, 93.9 % and 96.1 %, branches included; #472). Two tests failed under `coverage` in that run and pass without it: `TraceTests.test_importing_the_cli_does_not_load_the_traceback_module` of `tests/test_cli_errors.py` (`coverage` loads `traceback`) and `CheckCommandTests.test_a_check_command_that_could_not_run_in_three_tasks_comes_with_the_command_to_remove_it` of `tests/e2e/test_task_retro.py`; until they are fixed, the step that runs the tests fails before the report.
+It fails when the package falls under 92 %, `guard.py` under 93 % or `hosts.py` under 95 %: one point under a measure of the whole suite on 28 November 2026, on macOS with Python 3.15.2 (93.3 %, 93.9 % and 96.1 %, branches included; #472).
+Two tests failed under `coverage` in that run and pass without it: `TraceTests.test_importing_the_cli_does_not_load_the_traceback_module` of `tests/test_cli_errors.py` (`coverage` loads `traceback`) and `CheckCommandTests.test_a_check_command_that_could_not_run_in_three_tasks_comes_with_the_command_to_remove_it` of `tests/e2e/test_task_retro.py`; until they are fixed, the step that runs the tests fails before the report.
 It runs on request only (Actions, Run workflow); making it a check of every pull request is a decision for the maintainers.
 Do not confuse it with `scripts/coverage.py` and `docs/coverage.md`: they measure what the catalog covers (rules, sources, sectors), not which lines of the code a test runs.
 The settings are in `[tool.coverage.run]` of `pyproject.toml`; the data goes to `build/coverage/`, which Git ignores.
@@ -146,7 +194,8 @@ The settings are in `[tool.coverage.run]` of `pyproject.toml`; the data goes to 
 ## Not covered
 
 - Windows behaviour is covered by CI only: the lock on Windows (`msvcrt.locking`) has not been run by hand, and the approval, waiver and authorization prompts are tested through a pseudo-terminal on Linux and macOS only.
-- The concurrency tests run on one machine. A project on a network file system, where file locks may not hold, is not tested.
+- The concurrency tests run on one machine.
+  A project on a network file system, where file locks may not hold, is not tested.
 - No test runs an agent host (Claude Code, Codex, Gemini CLI) for real; host settings and hooks are tested through the files they read and the input they send.
 - The robustness tests do not cover `.claude/settings.json`, `.codex/hooks.json`, market dossiers or the share register, whose known crashes are listed in #99.
 - Performance is measured with up to 500 tasks and 200 packages, not with a project's full history over years.

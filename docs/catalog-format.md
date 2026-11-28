@@ -2,7 +2,8 @@
 
 For: a contributor who adds or changes catalog records, and a team that adds its own.
 
-The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
+The [reference library](references.md) holds source material you can use when contributing a pack.
+The records below define what OpenGuildKit can apply to a project or use in a board review.
 
 The catalog has four collections of records, one JSON file per record, and five folders of material that the records and the commands use:
 
@@ -21,9 +22,19 @@ src/openguildkit/registry/          shared catalog, shipped with the package
   packs/ boards/ sectors/ patterns/ references/ deliverables/ tools/ tool-mocks/
 ```
 
-A project folder holds files in the same format as the bundled one and adds to it; an ID that already exists is refused, with two exceptions: a project board completes the bundled board of the same ID (see [Boards](#boards)), and a project mock replaces the bundled mock of the same tool. `openguildkit brains --new ID` writes a project brain in `boards/`, `patterns/`, `packs/` and `references/`.
+A project folder holds files in the same format as the bundled one and adds to it; an ID that already exists is refused, with two exceptions: a project board completes the bundled board of the same ID (see [Boards](#boards)), and a project mock replaces the bundled mock of the same tool.
+`openguildkit brains --new ID` writes a project brain in `boards/`, `patterns/`, `packs/` and `references/`.
 
-`catalog.py` validates every file at load time. An installed package reads its packs, boards, sectors and patterns from one file instead, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the wheel is built; Git ignores it, and a checkout without it, or whose record files changed name or size since, reads the record files. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md). A pattern can name the reference entries on its subject in an optional `references` list. A method without a `match` can name, in an optional `core_for` list, the roles of the pattern for which it is preselected by the role alone: its rules apply to any work of that discipline, whatever the product, its interface or its domain, and the catalog marks one or two per role at most. The other methods of a role are suggested, with their description as the reason. A regulation is never preselected by a role. A pattern's `match` can also hold `"people_decisions": true`: the project scores, ranks or decides about people (the EU AI Act). `check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back, and that the packs and brains a reference names exist; `openguildkit check`, `openguildkit references`, `openguildkit brains` and `task consult` run it on the project's own references, against the catalog the project uses with its lock, and stop on the first error.
+`catalog.py` validates every file at load time.
+An installed package reads its packs, boards, sectors and patterns from one file instead, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the wheel is built; Git ignores it, and a checkout without it, or whose record files changed name or size since, reads the record files.
+Use `openguildkit catalog --json` to list packs, boards and sectors.
+Use `openguildkit patterns --json` for the [pattern collection](patterns.md).
+A pattern can name the reference entries on its subject in an optional `references` list.
+A method without a `match` can name, in an optional `core_for` list, the roles of the pattern for which it is preselected by the role alone: its rules apply to any work of that discipline, whatever the product, its interface or its domain, and the catalog marks one or two per role at most.
+The other methods of a role are suggested, with their description as the reason.
+A regulation is never preselected by a role.
+A pattern's `match` can also hold `"people_decisions": true`: the project scores, ranks or decides about people (the EU AI Act).
+`check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back, and that the packs and brains a reference names exist; `openguildkit check`, `openguildkit references`, `openguildkit brains` and `task consult` run it on the project's own references, against the catalog the project uses with its lock, and stop on the first error.
 
 ## Rules common to all records
 
@@ -36,10 +47,12 @@ A project folder holds files in the same format as the bundled one and adds to i
 
 Also enforced:
 
-- No field outside the schema. A typo such as `"instructions"` instead of `"instruction"` fails.
+- No field outside the schema.
+  A typo such as `"instructions"` instead of `"instruction"` fails.
 - No duplicate keys in the same JSON object.
 - Every text value is a single line without control characters.
-- Files are UTF-8 (a BOM is accepted). Only `.json` files are read.
+- Files are UTF-8 (a BOM is accepted).
+  Only `.json` files are read.
 
 ## Packs
 
@@ -72,11 +85,15 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
 | `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check`, an optional `evidence`, an optional `records` and an optional `manual` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
 
-Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
+Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule.
+Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`.
+From then on their fingerprint changes and pending approvals need a new consultation.
 
 ### Machine checks and named evidence
 
-A rule can declare a `check` that `openguildkit task verify` evaluates and records as a check of the task, `rule:PACK/RULE`, with the evidence it found. Only `task verify` records it: `task result` refuses an outcome for it. The declarative kinds read the project's files with the standard library and run nothing:
+A rule can declare a `check` that `openguildkit task verify` evaluates and records as a check of the task, `rule:PACK/RULE`, with the evidence it found.
+Only `task verify` records it: `task result` refuses an outcome for it.
+The declarative kinds read the project's files with the standard library and run nothing:
 
 | `kind` | Fields | Passes when |
 |---|---|---|
@@ -86,7 +103,13 @@ A rule can declare a `check` that `openguildkit task verify` evaluates and recor
 | `size` | `paths`: 1 to 20 paths, `max_bytes`: a whole number from 1 to 1,000,000,000 | Every file the paths name is at most `max_bytes` bytes. The evidence names the largest file and its size, and every file above the limit when one is. No matching file passes, like `text` with `absent`: nothing is above the limit. Add a `file-exists` check to require the file. |
 | `command` | `command` | The command exits with 0. Only a pack in `.openguildkit/catalog/packs/` may declare it: the project already controls its check commands. A bundled pack, a central policy or a catalog lock with a command is refused. |
 
-Paths are relative to the project root, written with `/`, made of letters, digits, `. _ - @ + =` and the wildcards `*`, `?` and `**`, without `.` or `..` segments; a `field` path names one file, without wildcards. A path that resolves outside the project through a link is ignored, a wildcard never matches inside `.git` or `.openguildkit`, and the catalog refuses a path that names one of them. The work is bounded: at most 200 matched files (more fails the check and asks for narrower paths) and 1,000,000 bytes per file read (a larger file fails the check). Texts are matched literally, never as regular expressions, so a check always runs in time proportional to the files it reads. A `size` check does not read the file: it counts its bytes, so the 1,000,000 bytes per file limit does not apply to it, and it measures files only, not folders. Field checks read JSON and TOML only; YAML is not supported. A file that is not valid JSON or TOML fails the check with the parser's message.
+Paths are relative to the project root, written with `/`, made of letters, digits, `. _ - @ + =` and the wildcards `*`, `?` and `**`, without `.` or `..` segments; a `field` path names one file, without wildcards.
+A path that resolves outside the project through a link is ignored, a wildcard never matches inside `.git` or `.openguildkit`, and the catalog refuses a path that names one of them.
+The work is bounded: at most 200 matched files (more fails the check and asks for narrower paths) and 1,000,000 bytes per file read (a larger file fails the check).
+Texts are matched literally, never as regular expressions, so a check always runs in time proportional to the files it reads.
+A `size` check does not read the file: it counts its bytes, so the 1,000,000 bytes per file limit does not apply to it, and it measures files only, not folders.
+Field checks read JSON and TOML only; YAML is not supported.
+A file that is not valid JSON or TOML fails the check with the parser's message.
 
 A rule can also name pieces of evidence that a person keeps outside the code, such as the record of processing activities:
 
@@ -99,9 +122,16 @@ A rule can also name pieces of evidence that a person keeps outside the code, su
 }
 ```
 
-Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow/report-the-results.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task. `task complete` refuses the task while an asked evidence has no answer. The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`). The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first. A rule names at most 5 pieces of evidence.
+Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow/report-the-results.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task.
+`task complete` refuses the task while an asked evidence has no answer.
+The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`).
+The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first.
+A rule names at most 5 pieces of evidence.
 
-A rule that no file of the project can settle says why in `manual`, one line: the record lives outside the repository, the decision is a legal assessment, the behaviour shows only in a running system. A rule has a `check` or a `manual`, never both. Every rule of the bundled regulation packs (`gdpr`, `dora`, `nis2`, `iso-27001`, `pci-dss`, `eu-ai-act`, `cyber-resilience-act`, `european-accessibility-act`) has one of the two, and most stack packs carry at least one `text` or `field` check; `tests/test_machine_checks.py` lists the stack packs without one and why. [Catalog coverage](coverage.md#machine-checks-by-pack) counts both per pack.
+A rule that no file of the project can settle says why in `manual`, one line: the record lives outside the repository, the decision is a legal assessment, the behaviour shows only in a running system.
+A rule has a `check` or a `manual`, never both.
+Every rule of the bundled regulation packs (`gdpr`, `dora`, `nis2`, `iso-27001`, `pci-dss`, `eu-ai-act`, `cyber-resilience-act`, `european-accessibility-act`) has one of the two, and most stack packs carry at least one `text` or `field` check; `tests/test_machine_checks.py` lists the stack packs without one and why.
+[Catalog coverage](coverage.md#machine-checks-by-pack) counts both per pack.
 
 ### A value the task records
 
@@ -116,9 +146,19 @@ A rule whose answer means nothing without a number, such as a quality threshold 
 }
 ```
 
-`task result ID --template` shows `records`, with the accepted range, and an empty `value` on the check of that rule. A `passed` or `failed` outcome of the check is refused until `value` holds the number with its unit (`2 percentage points`, `95 % of critical cases`), and refused with the accepted range when the first number of the value falls outside the bounds; a `skipped` or `not-applicable` outcome needs none. The value is kept in the task's result next to the evidence. A task consulted before the rule declared `records` keeps the rule as it was approved, so its result is read and completed as before. In the bundled catalog, the `llm-evaluations` rules `evaluate-user-outcomes` (`pass-threshold`), `review-grading-rubric` (`grader-agreement`) and `compare-evaluation-baselines` (`regression-budget`) and the `nist-ai-risk` rule `set-risk-evidence` (`acceptance-threshold`) declare one. The pass threshold and the grader agreement are above 0 and at most 100: a threshold of 0 % accepts every run, so it says nothing. The regression budget and the acceptance threshold are at least 0 and at most 100: 0 is a strict and valid answer, no drop or no failure accepted. The two other `llm-evaluations` rules answer without a number: `check-permitted-tool-use` passes when the traces show no live action and blocked steps stopping, and `record-evaluation-setup` when the run record names each item.
+`task result ID --template` shows `records`, with the accepted range, and an empty `value` on the check of that rule.
+A `passed` or `failed` outcome of the check is refused until `value` holds the number with its unit (`2 percentage points`, `95 % of critical cases`), and refused with the accepted range when the first number of the value falls outside the bounds; a `skipped` or `not-applicable` outcome needs none.
+The value is kept in the task's result next to the evidence.
+A task consulted before the rule declared `records` keeps the rule as it was approved, so its result is read and completed as before.
+In the bundled catalog, the `llm-evaluations` rules `evaluate-user-outcomes` (`pass-threshold`), `review-grading-rubric` (`grader-agreement`) and `compare-evaluation-baselines` (`regression-budget`) and the `nist-ai-risk` rule `set-risk-evidence` (`acceptance-threshold`) declare one.
+The pass threshold and the grader agreement are above 0 and at most 100: a threshold of 0 % accepts every run, so it says nothing.
+The regression budget and the acceptance threshold are at least 0 and at most 100: 0 is a strict and valid answer, no drop or no failure accepted.
+The two other `llm-evaluations` rules answer without a number: `check-permitted-tool-use` passes when the traces show no live action and blocked steps stopping, and `record-evaluation-setup` when the run record names each item.
 
-The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`. `ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check. The former form, `"check": {"max_minutes": 60}`, is still read as that same field check. The Node coordinator in `integrations/ci/` supports this one rule, in either form; it does not evaluate a `size` check, and the central policy of `ci-check` takes a `field` check only.
+The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`.
+`ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check.
+The former form, `"check": {"max_minutes": 60}`, is still read as that same field check.
+The Node coordinator in `integrations/ci/` supports this one rule, in either form; it does not evaluate a `size` check, and the central policy of `ci-check` takes a `field` check only.
 
 ## Boards
 
@@ -151,7 +191,12 @@ A board is a discipline's review lens.
 | `triggers` | Non-empty list. Words or phrases that select the board when they appear as whole words in a brief. Matching ignores case, accents, the kind of apostrophe and regular plurals; the longest overlapping phrase wins, and a board's own shorter phrase never cancels its longer one, so `dora lead time` in `devops` keeps `dora` from selecting `legal`. Add translations (`sécurité`, `rgpd`) so non-English briefs route correctly, and avoid words that are common in other disciplines. |
 | `questions` | Non-empty list. What the board asks of every task it reviews. |
 
-A project file in `.openguildkit/catalog/boards/` whose `id` is a bundled board completes that board instead of being refused as a duplicate. It may hold only the fields it changes: `title` and `description` replace the bundled text, the lists (`expertises`, `triggers`, `questions`, `sources`, and in `review` the `evidence`, `challenge` and `decision_criteria`) gain the new items, and a specialist replaces the bundled one with the same `id` or is added. The merged board is validated like any other. A replaced title, description or specialist is the team's choice, and it changes what the board asks of every task: `check` and `task consult` name each one, with the bundled text it replaces, so the person sees it. An edit to `.openguildkit/catalog/` is work an approved task must cover when the guard is on ([the board before every change](../integrations/README.md#the-board-before-every-change)). `openguildkit brains --new ID` writes the skeleton of a new project board, with its pattern, pack and reference.
+A project file in `.openguildkit/catalog/boards/` whose `id` is a bundled board completes that board instead of being refused as a duplicate.
+It may hold only the fields it changes: `title` and `description` replace the bundled text, the lists (`expertises`, `triggers`, `questions`, `sources`, and in `review` the `evidence`, `challenge` and `decision_criteria`) gain the new items, and a specialist replaces the bundled one with the same `id` or is added.
+The merged board is validated like any other.
+A replaced title, description or specialist is the team's choice, and it changes what the board asks of every task: `check` and `task consult` name each one, with the bundled text it replaces, so the person sees it.
+An edit to `.openguildkit/catalog/` is work an approved task must cover when the guard is on ([the board before every change](../integrations/README.md#the-board-before-every-change)).
+`openguildkit brains --new ID` writes the skeleton of a new project board, with its pattern, pack and reference.
 
 ## Sectors
 
@@ -173,7 +218,13 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 |---|---|
 | `context` | Non-empty list of instructions specific to the sector. |
 
-A sector selects rules through the patterns that list it in `match.sectors`: `init` and `recommend` preselect them for the person to confirm or decline (see [patterns](patterns.md#browse-and-preview)). The bundled sectors are `general`, `financial-services`, `insurance`, `healthcare`, `public-sector`, `e-commerce`, `education`, `critical-infrastructure`, `aerospace`, `software-publisher` and `automotive`; `openguildkit catalog` prints the packs each one preselects. Their packs cover EU law and name the jurisdiction in their description; national rules come on top. The French packs (`france-health-data-hosting`, `france-rgaa-accessibility`, `france-public-sector-security`, `france-cookies-and-trackers`, `france-e-invoicing`) are the first of them: their description starts with `France only`, says whom the text binds and when it does not apply, and names the EU pack they add to; the two that no sector fits carry no `match` and are only suggested to their roles. `aerospace` proposes the information security rules of EASA Part-IS (`aviation-information-security`) and, for software on board an aircraft, the process controls built on ED-12C / DO-178C and ED-202A / DO-326A through EASA AMC 20-115D and AMC 20-42 (`airborne-software-assurance`); its context asks who is in scope and says that state aircraft are outside, and the standards, sold by RTCA and EUROCAE, are named, never quoted. `automotive` proposes UN Regulation No 155 (vehicle cybersecurity, `unece-r155-vehicle-cybersecurity`) and No 156 (software updates, `unece-r156-software-updates`): its context asks whether the organization is the vehicle manufacturer, a supplier or the maker of software outside the vehicle, and says that Regulation (EU) 2019/2144 lists No 155 but not No 156, that the Cyber Resilience Act leaves out products that Regulation covers (Art. 2(2)(c)), and that ISO/SAE 21434, ISO 24089 and ISO 26262 are paid standards the catalog links without reproducing them. `software-publisher` proposes ISO/IEC 27001 (`iso-27001-certification`, the norm form of the `iso-27001-isms` method, for a certification that customers ask for) and the Cyber Resilience Act; the norms question of `init --questions` gives each norm a `help`, the pattern's description that says when it does not apply (a SaaS outside the CRA, the PCI DSS questionnaire that depends on the payment integration), and the `sources` behind it.
+A sector selects rules through the patterns that list it in `match.sectors`: `init` and `recommend` preselect them for the person to confirm or decline (see [patterns](patterns.md#browse-and-preview)).
+The bundled sectors are `general`, `financial-services`, `insurance`, `healthcare`, `public-sector`, `e-commerce`, `education`, `critical-infrastructure`, `aerospace`, `software-publisher` and `automotive`; `openguildkit catalog` prints the packs each one preselects.
+Their packs cover EU law and name the jurisdiction in their description; national rules come on top.
+The French packs (`france-health-data-hosting`, `france-rgaa-accessibility`, `france-public-sector-security`, `france-cookies-and-trackers`, `france-e-invoicing`) are the first of them: their description starts with `France only`, says whom the text binds and when it does not apply, and names the EU pack they add to; the two that no sector fits carry no `match` and are only suggested to their roles.
+`aerospace` proposes the information security rules of EASA Part-IS (`aviation-information-security`) and, for software on board an aircraft, the process controls built on ED-12C / DO-178C and ED-202A / DO-326A through EASA AMC 20-115D and AMC 20-42 (`airborne-software-assurance`); its context asks who is in scope and says that state aircraft are outside, and the standards, sold by RTCA and EUROCAE, are named, never quoted.
+`automotive` proposes UN Regulation No 155 (vehicle cybersecurity, `unece-r155-vehicle-cybersecurity`) and No 156 (software updates, `unece-r156-software-updates`): its context asks whether the organization is the vehicle manufacturer, a supplier or the maker of software outside the vehicle, and says that Regulation (EU) 2019/2144 lists No 155 but not No 156, that the Cyber Resilience Act leaves out products that Regulation covers (Art. 2(2)(c)), and that ISO/SAE 21434, ISO 24089 and ISO 26262 are paid standards the catalog links without reproducing them.
+`software-publisher` proposes ISO/IEC 27001 (`iso-27001-certification`, the norm form of the `iso-27001-isms` method, for a certification that customers ask for) and the Cyber Resilience Act; the norms question of `init --questions` gives each norm a `help`, the pattern's description that says when it does not apply (a SaaS outside the CRA, the PCI DSS questionnaire that depends on the payment integration), and the `sources` behind it.
 
 To add a sector of your own, put its record in the project catalog and a pattern that names it, then answer the sector question with its ID:
 
@@ -182,13 +233,20 @@ To add a sector of your own, put its record in the project catalog and a pattern
 .openguildkit/catalog/patterns/internal-tools-access.json   "match": {"sectors": ["internal-tools"]}
 ```
 
-The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`. A pattern that names a sector absent from the catalog is refused when the catalog loads.
+The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`.
+A pattern that names a sector absent from the catalog is refused when the catalog loads.
 
-`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog. Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included. Once the sector is known again, change it with `openguildkit profile set sector ID --by INITIALS --reason WHY`.
+`general` is the default.
+If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog.
+Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included.
+Once the sector is known again, change it with `openguildkit profile set sector ID --by INITIALS --reason WHY`.
 
 ## References
 
-A file in `references/` is a family of reference entries: standards, regulations, methods and tools that a brain reads during a consultation. `references.py` loads the bundled families, then the project's, and validates each one: the family has `id`, `title` and `references`, the file is named `<id>.json`, and a project family with a bundled ID must keep its title and adds its entries to it. Reference IDs and aliases are unique across all families. The fields of an entry and the closed list of `kind` values are in [references.md](references.md#add-references).
+A file in `references/` is a family of reference entries: standards, regulations, methods and tools that a brain reads during a consultation.
+`references.py` loads the bundled families, then the project's, and validates each one: the family has `id`, `title` and `references`, the file is named `<id>.json`, and a project family with a bundled ID must keep its title and adds its entries to it.
+Reference IDs and aliases are unique across all families.
+The fields of an entry and the closed list of `kind` values are in [references.md](references.md#add-references).
 
 ```json
 {
@@ -206,15 +264,20 @@ A file in `references/` is a family of reference entries: standards, regulations
 }
 ```
 
-`brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task. `pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back. Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
+`brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task.
+`pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back.
+Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
 
 ## Deliverables
 
-A file in `deliverables/` is the template of a business deliverable: its method, its inputs, the tool actions that need approval and the checks a reviewer runs. `deliverables.py` loads the bundled templates, then the project's; a project template with a bundled ID is refused. The format and the commands are in [deliverables.md](deliverables.md).
+A file in `deliverables/` is the template of a business deliverable: its method, its inputs, the tool actions that need approval and the checks a reviewer runs.
+`deliverables.py` loads the bundled templates, then the project's; a project template with a bundled ID is refused.
+The format and the commands are in [deliverables.md](deliverables.md).
 
 ## Tools
 
-`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category:
+`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)).
+One file per category:
 
 ```json
 {
@@ -250,9 +313,15 @@ A file in `deliverables/` is the template of a business deliverable: its method,
 }
 ```
 
-The file name is the category, one of the 27 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`, `identity`, `ide`, `registries`, `containers`, `api-management`. A file with another name is refused. A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record. `tools plan` and `tools apply` mark each project tool `[project catalog]`.
+The file name is the category, one of the 27 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`, `identity`, `ide`, `registries`, `containers`, `api-management`.
+A file with another name is refused.
+A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record.
+`tools plan` and `tools apply` mark each project tool `[project catalog]`.
 
-`registry/features/features.json` groups tools into features (see [tools.md](tools.md#features)). Each feature has an `id`, a `purpose`, a `lead` and exactly three `alternatives`; each option names a `tool` of the registry and may carry an `as` label, such as `{"tool": "aws", "as": "Amazon ECR"}`. The four tools of a feature are different. A project cannot add features.
+`registry/features/features.json` groups tools into features (see [tools.md](tools.md#features)).
+Each feature has an `id`, a `purpose`, a `lead` and exactly three `alternatives`; each option names a `tool` of the registry and may carry an `as` label, such as `{"tool": "aws", "as": "Amazon ECR"}`.
+The four tools of a feature are different.
+A project cannot add features.
 
 | Field | Constraint |
 |---|---|
@@ -272,7 +341,9 @@ The file name is the category, one of the 27 that `tools.py` admits: `issue-trac
 | `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
 | `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |
 
-A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry. `registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account). Mock data is fictional: no real person, company or address, emails on `example.test`.
+A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry.
+`registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account).
+Mock data is fictional: no real person, company or address, emails on `example.test`.
 
 ## Organization catalog
 
@@ -290,12 +361,20 @@ Now in [Source dates](catalog-format/source-dates.md).
 
 - Write each instruction as an action an agent can take in a repository or a question it must ask a named owner.
 - Write each verification as something a reviewer can check: a file, a test, a record, a link.
-- Link the official source (standard body, regulator, project documentation). Paraphrase; do not copy text from paid standards.
-- Link the canonical page, not a search result, a template download or a course page. Give the source a title that describes it, such as `IETF RFC 7208, Sender Policy Framework`, not the browser tab text or the host name.
-- Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites. `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
-- Do not claim compliance. "Map project controls to the Statement of Applicability" is a rule. "This makes you ISO 27001 compliant" is not.
-- Keep one idea per rule. Split a rule that needs "and" twice.
+- Link the official source (standard body, regulator, project documentation).
+  Paraphrase; do not copy text from paid standards.
+- Link the canonical page, not a search result, a template download or a course page.
+  Give the source a title that describes it, such as `IETF RFC 7208, Sender Policy Framework`, not the browser tab text or the host name.
+- Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites.
+  `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
+- Do not claim compliance.
+  "Map project controls to the Statement of Applicability" is a rule.
+  "This makes you ISO 27001 compliant" is not.
+- Keep one idea per rule.
+  Split a rule that needs "and" twice.
 - Give each rule an ID that says what it asks (`keep-render-pure`, `protect-secrets`): `AGENTS.md` names every rule in force by its ID alone, and the agent reads that line at every turn.
-- Start a pack description with the context it applies to, such as "For a service in production: ...". [Catalog coverage](coverage.md) shows, for each brain, the packs its patterns reach and the references no pack applies yet.
-- Keep one method per pack, so that a pattern activates only the rules of its method. When you split a pack, keep its ID for the part its name describes, move the other rules to a new pack and bump the major version.
+- Start a pack description with the context it applies to, such as "For a service in production: ...".
+  [Catalog coverage](coverage.md) shows, for each brain, the packs its patterns reach and the references no pack applies yet.
+- Keep one method per pack, so that a pattern activates only the rules of its method.
+  When you split a pack, keep its ID for the part its name describes, move the other rules to a new pack and bump the major version.
 - When a service pack serves HTTP endpoints, declare `depends_on: ["api-design"]` so the contract rules apply to every stack.
