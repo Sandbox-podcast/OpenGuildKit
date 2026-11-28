@@ -24,6 +24,7 @@ from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR
 from .project_checks import failure_message
 from .project_instructions import rule_text
+from .records import Profile, Task
 from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check
 from .storage import file_sha256, write_text
@@ -44,7 +45,7 @@ def _evidence_concerned(item: dict, answers: dict) -> tuple[bool, str]:
     return False, f"it applies when the task's data is {'/'.join(when)}, and the task's data is {data}"
 
 
-def expected_checks(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+def expected_checks(task: Task, profile: Profile, relevance: dict | None = None) -> list[dict]:
     """Every check of the approved scope, with an ID, and whether it concerns the task (and why not).
 
     Without a relevance judgement every check concerns the task. The project's check commands always do,
@@ -91,12 +92,12 @@ def expected_checks(task: dict, profile: dict, relevance: dict | None = None) ->
     return checks
 
 
-def asked_checks(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+def asked_checks(task: Task, profile: Profile, relevance: dict | None = None) -> list[dict]:
     """The checks that concern the task: the ones a result answers."""
     return [check for check in expected_checks(task, profile, relevance) if check["concerned"]]
 
 
-def not_concerned(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+def not_concerned(task: Task, profile: Profile, relevance: dict | None = None) -> list[dict]:
     """What the task is not asked, one entry per pack (or per evidence), with the reason."""
     entries = {}
     for check in expected_checks(task, profile, relevance):
@@ -125,7 +126,7 @@ def _must_supply(item: dict, required: bool, scope: dict) -> str | None:
     return None
 
 
-def _run_command(root: Path, state: Path, task: dict, check: dict, command: str) -> dict:
+def _run_command(root: Path, state: Path, task: Task, check: dict, command: str) -> dict:
     """Run one command in the project root and keep its log as evidence."""
     started = time.monotonic()
     try:
@@ -172,7 +173,7 @@ def _stamp(outcome: dict, revision: dict | None, *, journal: bytes | None = None
     return stamped
 
 
-def run_command_checks(root: Path, state: Path, task: dict, profile: dict, relevance: dict | None = None,
+def run_command_checks(root: Path, state: Path, task: Task, profile: Profile, relevance: dict | None = None,
                        only: set[str] | None = None) -> list[dict]:
     """Run the project's check commands and evaluate the machine checks of the rules that concern the task.
 
@@ -227,7 +228,7 @@ def evidence_state(root: Path, value: str, fingerprint: str | None) -> str:
     return "unchanged" if evidence_fingerprint(root, value) == fingerprint else "changed"
 
 
-def decision_changes(root: Path, task: dict) -> list[str]:
+def decision_changes(root: Path, task: Task) -> list[str]:
     """Project changes since the decision's approved revision, excluding its exported records."""
     base = task.get("decision", {}).get("base_revision")
     if not is_decision_task(task) or not base:
@@ -273,12 +274,12 @@ def merge_results(previous: dict | None, new: dict, source: str = "report") -> d
     return merged
 
 
-def declared_cannot_run(task: dict) -> dict:
+def declared_cannot_run(task: Task) -> dict:
     """The check commands a person declared unable to run in this environment, by check ID."""
     return {item["check"]: item for item in (task.get("result") or {}).get("checks", []) if item.get("cannot_run")}
 
 
-def keep_declarations(task: dict, ran: list[dict]) -> tuple[list[dict], list[str]]:
+def keep_declarations(task: Task, ran: list[dict]) -> tuple[list[dict], list[str]]:
     """A person's declaration that a command cannot run stays until the command passes or they withdraw it."""
     declared = declared_cannot_run(task)
     kept, notes = [], []
@@ -304,7 +305,7 @@ def _swept(check: dict, result: dict) -> dict | None:
     return next((item for item in result.get("packs", []) if item["pack"] == check.get("pack")), None)
 
 
-def outcomes(task: dict, profile: dict, relevance: dict | None = None) -> dict:
+def outcomes(task: Task, profile: Profile, relevance: dict | None = None) -> dict:
     """Each asked check's outcome: reported one by one, or covered by a pack answer."""
     result = task.get("result") or {}
     reported = {item["check"]: item for item in result.get("checks", [])}
@@ -317,11 +318,11 @@ def outcomes(task: dict, profile: dict, relevance: dict | None = None) -> dict:
     return reported
 
 
-def deferred_evidence(task: dict) -> dict:
+def deferred_evidence(task: Task) -> dict:
     return {item["check"]: item for item in (task.get("result") or {}).get("deferred", [])}
 
 
-def waiting_evidence(task: dict, profile: dict, relevance: dict | None = None) -> list[dict]:
+def waiting_evidence(task: Task, profile: Profile, relevance: dict | None = None) -> list[dict]:
     """Named evidence that must be supplied and is not yet, with who provides it; deferred ones excluded."""
     reported, deferred = outcomes(task, profile, relevance), deferred_evidence(task)
     return [
@@ -345,7 +346,7 @@ def _evidence_problems(check: dict, outcome: dict | None) -> list[str]:
     return [f"{check['id']} is {outcome['status']}: {supply}."]
 
 
-def answers_to_report(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+def answers_to_report(task: Task, profile: Profile, relevance: dict | None = None) -> list[str]:
     """The rules and named evidence a result file answers, when no report has answered any of them yet.
 
     task verify counts them instead of listing them: the result template lists them with the answers each accepts.
@@ -363,7 +364,7 @@ def answers_to_report(task: dict, profile: dict, relevance: dict | None = None) 
             or (check["kind"] == "evidence" and check["id"] not in deferred)]
 
 
-def set_aside_rules(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+def set_aside_rules(task: Task, profile: Profile, relevance: dict | None = None) -> list[str]:
     """The data protection, security or AI rules and evidence that the task's answers select (GDPR for personal data,
     for example) and that were declared not applicable one by one: the person who closes the task confirms each at a
     terminal. A pack declared not applicable as a whole is an open point already."""
@@ -377,7 +378,7 @@ def set_aside_rules(task: dict, profile: dict, relevance: dict | None = None) ->
     return lines
 
 
-def _journal_problems(task: dict, root: Path | None) -> list[str]:
+def _journal_problems(task: Task, root: Path | None) -> list[str]:
     """A command journal whose bytes no longer match the hash task verify recorded.
 
     A check recorded before journals were hashed has no sha256: it stays readable and is not failed.
@@ -400,7 +401,7 @@ def _journal_problems(task: dict, root: Path | None) -> list[str]:
     return problems
 
 
-def completion_problems(task: dict, profile: dict, relevance: dict | None = None, *,
+def completion_problems(task: Task, profile: Profile, relevance: dict | None = None, *,
                         changed: list[str] | None = None, root: Path | None = None) -> list[str]:
     """Why the task cannot be declared done yet: only the checks that concern it count.
 
@@ -498,7 +499,7 @@ def _shared_rule_evidence(checks: dict, reported: dict) -> list[str]:
     return warnings
 
 
-def result_warnings(task: dict, profile: dict, relevance: dict | None = None) -> list[str]:
+def result_warnings(task: Task, profile: Profile, relevance: dict | None = None) -> list[str]:
     """What a reviewer should look at twice: answers that sweep rules the task's answers select, and weak evidence."""
     result = task.get("result") or {}
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
@@ -618,7 +619,7 @@ def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = 
     return {"checks": checks, "run": run}
 
 
-def compare_runs(task: dict) -> dict | None:
+def compare_runs(task: Task) -> dict | None:
     """Scenarios whose outcome changed between the last two ChaosFolk replays."""
     runs = [run for run in task.get("result", {}).get("runs", []) if run["tool"] == "chaosfolk"]
     if len(runs) < 2:
@@ -633,7 +634,7 @@ def compare_runs(task: dict) -> dict | None:
     }
 
 
-def missing_scenarios(task: dict) -> list[str]:
+def missing_scenarios(task: Task) -> list[str]:
     """Scenarios of the previous ChaosFolk replay that the last replay no longer ran."""
     runs = [run for run in task.get("result", {}).get("runs", []) if run.get("tool") == "chaosfolk"]
     if len(runs) < 2:

@@ -19,6 +19,7 @@ from .guard import guard_mode
 from .guard_export import conflict_message, record_shape
 from .guard_records import record_check
 from .project import STATE_DIR, load_profile
+from .records import Profile
 from .results import changed_journals
 from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json
@@ -226,7 +227,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
 
 
 def _judge_record(root: Path, base: str, relative: str, prefix: str, flag, *, fingerprint, policy: dict,
-                  base_root: Path, earlier: dict, profile: dict) -> tuple[list[str], dict | None]:
+                  base_root: Path, earlier: dict, profile: Profile) -> tuple[list[str], dict | None]:
     """The problems of one decision record the change brings, in the order guard --ci reports them, and the record
     when it covers its files (None when it is missing, invalid or faulty)."""
     from . import requester, roles

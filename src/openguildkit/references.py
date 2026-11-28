@@ -20,6 +20,7 @@ from .catalog import (
     validate_text,
 )
 from .patterns import role_choices
+from .records import Catalog
 
 # IDs used before the hyphen convention, such as pd_iac, stay resolvable as aliases.
 LEGACY_ID = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
@@ -115,7 +116,7 @@ def _merge_family(incoming: dict, families: dict, seen: set, project: set | None
             project.add(reference["id"])
 
 
-def load_references(extra_dir: Path | None = None, catalog: dict | None = None) -> dict[str, dict]:
+def load_references(extra_dir: Path | None = None, catalog: Catalog | None = None) -> dict[str, dict]:
     """Load the reference index and merge new project entries by stable ID. With the catalog the project uses, also
     check the project's entries with check_reference_links; the tests check the bundled ones."""
     bundled = package_file("registry", "references")
@@ -158,7 +159,7 @@ def _active_packs(pack_ids: list[str], packs: dict) -> set[str]:
     return active
 
 
-def check_reference_links(families: dict, catalog: dict, only: set[str] | None = None) -> None:
+def check_reference_links(families: dict, catalog: Catalog, only: set[str] | None = None) -> None:
     """Check that references, packs and patterns on one subject name each other.
 
     A reference names the brains whose work it supports, the pattern it presents and the

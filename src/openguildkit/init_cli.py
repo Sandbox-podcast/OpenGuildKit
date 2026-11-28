@@ -21,6 +21,7 @@ from .project_instructions import ALREADY_INITIALIZED, initialize, sync_instruct
 from .project_rules import require_resolved_conflicts, rule_plan
 from .project_setup import GUARD_MODES, init_questions, is_norm, setup_profile, unsure_answers
 from .prompts import prompt_questions
+from .records import Catalog, Profile
 from .rule_plan_text import print_rule_plan
 from .storage import print_json, project_lock, read_json
 from .tasks import tasks_touched
@@ -83,7 +84,7 @@ def _print_plan_notes(plan: dict) -> None:
         print(f"  {item['id']} does not apply{where}: {'; '.join(item['reasons'])}", file=sys.stderr)
 
 
-def _interactive_init(questions: list[dict], catalog: dict, registry: dict | None = None) -> dict:
+def _interactive_init(questions: list[dict], catalog: Catalog, registry: dict | None = None) -> dict:
     """Ask the setup questions in order; each norm is confirmed on its own, with the reason it is proposed."""
     by_id = {question["id"]: question for question in questions}
     answers = prompt_questions([by_id["name"], by_id["sector"]], "init")
@@ -132,7 +133,7 @@ def _prompt_checks(question: dict) -> list[str]:
     return list(dict.fromkeys([*kept, *extra.get("checks", [])]))
 
 
-def _prompt_norms(plan: dict, catalog: dict) -> tuple[list[str], dict[str, dict]]:
+def _prompt_norms(plan: dict, catalog: Catalog) -> tuple[list[str], dict[str, dict]]:
     """Ask, one norm at a time, whether each regulation the project's answers propose applies; a no asks who
     decides (once) and why, recorded with the decline."""
     norms = [pattern for pattern in plan["matched"] if is_norm(catalog["patterns"][pattern["id"]])]
@@ -170,7 +171,7 @@ def _prompt_line(prompt: str) -> str:
             return value
 
 
-def _patterns_question(question: dict, plan: dict, catalog: dict) -> dict:
+def _patterns_question(question: dict, plan: dict, catalog: Catalog) -> dict:
     """The patterns question with the preselected stack and role patterns as its default, listed first."""
     matched = [pattern["id"] for pattern in plan["matched"] if not is_norm(catalog["patterns"][pattern["id"]])]
     suggested = [pattern["id"] for pattern in plan["suggested"]]
@@ -194,7 +195,7 @@ def _prompt_tools(question: dict, registry: dict) -> dict:
     return answers
 
 
-def _print_preselection(plan: dict, catalog: dict) -> None:
+def _print_preselection(plan: dict, catalog: Catalog) -> None:
     """Show the other preselected patterns and why, so the person can keep or remove each one."""
     others = [pattern for pattern in plan["matched"] if not is_norm(catalog["patterns"][pattern["id"]])]
     if others:
@@ -223,7 +224,7 @@ def _detected_host(root: Path) -> str | None:
     return None
 
 
-def setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict], dict]:
+def setup_questions(root: Path, state: Path, catalog: Catalog) -> tuple[list[dict], dict]:
     """The questionnaire with the defaults this repository shows: components, tools and host."""
     registry = load_tools(state / "catalog" / "tools")
     listings: dict[str, set[str]] = {}  # The folders detection walks, so that the proposed checks need no second walk.
@@ -233,7 +234,7 @@ def setup_questions(root: Path, state: Path, catalog: dict) -> tuple[list[dict],
     return questions, registry
 
 
-def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, proposed: list[dict]) -> None:
+def _print_setup_notes(profile: Profile, left_aside: list[dict], registry: dict, proposed: list[dict]) -> None:
     """After init: what the guard lets the agent do, the components left aside and the next steps that apply."""
     mode = profile.get("guard", "off")
     host = profile.get("host", "other")
@@ -265,7 +266,7 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
     _print_check_notes(profile, proposed)
 
 
-def _print_check_notes(profile: dict, proposed: list[dict]) -> None:
+def _print_check_notes(profile: Profile, proposed: list[dict]) -> None:
     """Say which checks task verify will run, and the test commands the repository shows that were left out."""
     if profile["checks"]:
         print(f"Project checks run by task verify: {'; '.join(profile['checks'])}. Install the project's "
@@ -311,7 +312,7 @@ def _require_answers(answers: dict, questions: list[dict]) -> None:
                          f"written.\n{lines}")
 
 
-def init(args, root: Path, state: Path, catalog: dict) -> None:
+def init(args, root: Path, state: Path, catalog: Catalog) -> None:
     """Print the setup questionnaire, or write the profile, the instructions and the catalog lock from the answers."""
     questions, registry = setup_questions(root, state, catalog)
     if args.questions:

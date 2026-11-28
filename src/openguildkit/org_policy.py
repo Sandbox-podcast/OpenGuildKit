@@ -19,13 +19,14 @@ Tests: tests/test_org_policy.py
 
 import json
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 
 from . import requester
 from .lock import read_lock
 from .org_catalog import POLICY_FILE, copies_read_from, organization_in, read_files
 from .project import STATE_DIR
 from .project_rules import resolved_profile
+from .records import Catalog, Profile
 from .storage import read_json
 
 GUARD_ORDER = ("off", "observe", "enforce")
@@ -88,14 +89,14 @@ def given(path: str, commit: str, root: Path) -> dict:
     return policy
 
 
-def _packs(profile: dict, catalog: dict) -> set[str]:
+def _packs(profile: Profile, catalog: Catalog) -> set[str]:
     try:
         return set(resolved_profile(profile, catalog)["packs"])
     except (KeyError, TypeError, ValueError, AttributeError):  # A head profile CI cannot resolve: its own list.
         return {item for item in profile.get("packs", []) if isinstance(item, str)}
 
 
-def gaps(profile: dict, catalog: dict, policy: dict) -> dict[str, str]:
+def gaps(profile: Profile, catalog: Catalog, policy: dict) -> dict[str, str]:
     """Each setting of the profile under the policy's minimum, with what it requires and the command that meets it."""
     at = f"the organization policy at {policy['commit'][:12]} requires"
     minimum, found = policy["minimum"], {}
@@ -126,7 +127,7 @@ def frozen_text(policy: dict) -> str | None:
         f"{frozen['since']}: {frozen['reason']}. Only a commit of the organization policy lifts it")
 
 
-def findings(profile: dict, catalog: dict, policy: dict | None) -> list[tuple[str, str]]:
+def findings(profile: Profile, catalog: Catalog, policy: dict | None) -> list[tuple[str, str]]:
     """(code of docs/sarif.md, message) for the freeze and each gap; none without a policy."""
     if policy is None:
         return []
@@ -135,7 +136,7 @@ def findings(profile: dict, catalog: dict, policy: dict | None) -> list[tuple[st
             *[("policy-below-floor", message) for message in gaps(profile, catalog, policy).values()]]
 
 
-def refuse_lowering(before: dict, after: dict, catalog: dict, lock: dict | None, state: Path) -> None:
+def refuse_lowering(before: Profile, after: Profile, catalog: Catalog, lock: dict | None, state: Path) -> None:
     """Refuse a profile change that leaves the policy's minimum, even from a person at a terminal. A change that keeps
     a gap the profile already had, or closes one, goes on: the floor is never a reason to refuse raising a setting."""
     policy = pinned(lock, state)
@@ -148,7 +149,7 @@ def refuse_lowering(before: dict, after: dict, catalog: dict, lock: dict | None,
                          "policy, never less strict. Nothing was written.")
 
 
-def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, profile: dict, catalog: dict,
+def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, profile: Profile, catalog: Catalog,
                 copies: dict[str, str], changed: bool) -> list[tuple[str, str]]:
     """What guard --ci fails on: the policy the option names (else the one the base revision pins) unmet by the base
     profile or by the profile the change brings, and a freeze, which fails every change."""
@@ -163,6 +164,6 @@ def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, prof
         head = None
     if isinstance(head, dict) and head != profile:
         problems += [("policy-below-floor", f"The change brings a profile under the minimum: {message}")
-                     for key, message in gaps(head, catalog, policy).items()
+                     for key, message in gaps(cast(Profile, head), catalog, policy).items()  # As committed.
                      if key not in gaps(profile, catalog, policy)]
     return problems

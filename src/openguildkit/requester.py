@@ -13,9 +13,12 @@ Tests: tests/test_requester.py
 """
 
 import fnmatch
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from .doc_links import doc_link
+from .records import Profile, Task
 
 FIELD = "separate_requester"
 # The scheduled watch opens a task for each confirmed alert: no person asked for it.
@@ -26,7 +29,7 @@ def section() -> str:
     return doc_link("docs/workflow.md", "requester-and-approver")
 
 
-def active(profile: dict) -> bool:
+def active(profile: Mapping[str, Any]) -> bool:
     return profile.get(FIELD) is True
 
 
@@ -53,7 +56,7 @@ def principals(root: Path, relative: str) -> list[str]:
     return list(dict.fromkeys(found))
 
 
-def declared(name: str | None, profile: dict, root: Path | None = None) -> str | None:
+def declared(name: str | None, profile: Profile, root: Path | None = None) -> str | None:
     """The requester task new records: the name given, on one line, and required when the option is on. With the
     option on in a project with signed approvals, it is a principal of the allowed signers file."""
     if name is None:
@@ -82,7 +85,7 @@ def _ask_another(task_id: str) -> str:
             f"--reason WHY, or request changes ({section()}).")
 
 
-def approval_problem(task: dict, profile: dict, by: str, signer: str | None = None) -> str | None:
+def approval_problem(task: Task, profile: Profile, by: str, signer: str | None = None) -> str | None:
     """Why this approval is refused when the option is on: the task names no requester, or its requester approves it
     under the name given or as the signer."""
     if not active(profile):
@@ -100,7 +103,7 @@ def approval_problem(task: dict, profile: dict, by: str, signer: str | None = No
     return None
 
 
-def brief_line(task: dict, profile: dict) -> list[str]:
+def brief_line(task: Task, profile: Profile) -> list[str]:
     """The line the person reads before deciding, when the task names its requester."""
     name = task.get("requested_by")
     if not isinstance(name, str):

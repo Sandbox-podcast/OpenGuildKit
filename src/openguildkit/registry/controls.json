@@ -29,7 +29,7 @@
         {
           "file": "src/openguildkit/tasks_decide_cli.py",
           "symbol": "run_decide",
-          "line": 91
+          "line": 92
         },
         {
           "file": "src/openguildkit/terminal.py",
@@ -92,17 +92,17 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 252
+          "line": 253
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 302
+          "line": 303
         },
         {
           "file": "src/openguildkit/hosts.py",
           "symbol": "HOOK_HOSTS",
-          "line": 28
+          "line": 29
         }
       ],
       "in_dossier": [],
@@ -149,17 +149,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 146
+          "line": 149
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 193
+          "line": 196
         },
         {
           "file": "src/openguildkit/guard_records.py",
           "symbol": "_record_fault",
-          "line": 135
+          "line": 136
         }
       ],
       "in_dossier": [
@@ -180,17 +180,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 229
+          "line": 232
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 201
+          "line": 204
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 328
+          "line": 331
         }
       ],
       "in_dossier": [
@@ -222,17 +222,17 @@
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "approval_problem",
-          "line": 85
+          "line": 88
         },
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "record_problem",
-          "line": 111
+          "line": 114
         },
         {
           "file": "src/openguildkit/guard_ci.py",
           "symbol": "ci_guard",
-          "line": 343
+          "line": 344
         }
       ],
       "in_dossier": [
@@ -263,7 +263,7 @@
         {
           "file": "src/openguildkit/guard_ci.py",
           "symbol": "ci_guard",
-          "line": 343
+          "line": 344
         }
       ],
       "in_dossier": [],
@@ -310,17 +310,17 @@
         {
           "file": "src/openguildkit/guard_export.py",
           "symbol": "export_decision",
-          "line": 29
+          "line": 30
         },
         {
           "file": "src/openguildkit/guard_records.py",
           "symbol": "exported_decisions",
-          "line": 222
+          "line": 223
         },
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 65
+          "line": 66
         }
       ],
       "in_dossier": [
@@ -368,17 +368,17 @@
         {
           "file": "src/openguildkit/project_rules.py",
           "symbol": "Fingerprints",
-          "line": 324
+          "line": 326
         },
         {
           "file": "src/openguildkit/guard_records.py",
           "symbol": "_rules_hold",
-          "line": 79
+          "line": 80
         },
         {
           "file": "src/openguildkit/check_cli.py",
           "symbol": "check",
-          "line": 235
+          "line": 236
         }
       ],
       "in_dossier": [
@@ -398,17 +398,17 @@
         {
           "file": "src/openguildkit/profile_changes.py",
           "symbol": "write_change",
-          "line": 289
+          "line": 292
         },
         {
           "file": "src/openguildkit/profile_changes.py",
           "symbol": "weakening_changes",
-          "line": 70
+          "line": 73
         },
         {
           "file": "src/openguildkit/project.py",
           "symbol": "_changes",
-          "line": 247
+          "line": 250
         }
       ],
       "in_dossier": [
@@ -449,22 +449,22 @@
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "import_report",
-          "line": 353
+          "line": 354
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "set_status",
-          "line": 463
+          "line": 464
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "accept_alert",
-          "line": 493
+          "line": 494
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "blocking_alerts",
-          "line": 536
+          "line": 538
         }
       ],
       "in_dossier": [
@@ -522,17 +522,17 @@
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "discover",
-          "line": 387
+          "line": 389
         },
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "scan",
-          "line": 145
+          "line": 147
         },
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 184
+          "line": 187
         }
       ],
       "in_dossier": [],

@@ -27,6 +27,7 @@ from .decisions import (
 from .handoff import review_lines
 from .lock import project_catalog, require_instructions
 from .project import load_profile
+from .records import Profile, Task
 from .results import evidence_state
 from .storage import print_json, project_lock
 from .task_files import read_task, task_path
@@ -40,7 +41,7 @@ from .terminal import interactive, typed
 from .workflow import TaskStateError, blocker_list, is_decision_task, pending_removals, verdict_lines
 
 
-def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> None:
+def _save_decided(state: Path, task: Task, result: Task, still_holds=None) -> None:
     """Write what the person decided, under the lock, unless the task changed while they read and typed."""
     with project_lock(state):
         if read_task(state, task["id"]) != task:
@@ -76,7 +77,7 @@ def run_revoke(command: TaskCommand) -> None:
               f"{args.id}, and commit it.", file=sys.stderr)
 
 
-def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> list[str]:
+def _decision_prompt(state: Path, task: Task, profile: Profile, register: dict) -> list[str]:
     """What the person reads before approving, the same at the approval prompt and in task decision-payload: the
     previous round, the decision text (tasks_review.decision_text, also task challenge's), the brief, the summary and each
     board's advice."""

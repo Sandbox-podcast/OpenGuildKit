@@ -13,6 +13,7 @@ from typing import TextIO
 from .command import Command
 from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
 from .project import load_profile
+from .records import Catalog, Profile
 from .sensitive import looks_like_credential
 from .shell import shell_command
 from .storage import json_text, project_lock, write_text
@@ -113,7 +114,7 @@ def _pairs(values: list[str], separator: str, label: str) -> dict:
     return parsed
 
 
-def _host(args, profile: dict) -> str:
+def _host(args, profile: Profile) -> str:
     host = args.host or profile.get("host")
     if host not in HOSTS:
         raise ValueError(
@@ -238,7 +239,7 @@ def _apply_exit_code(result: dict) -> int:
     return 2 if result["applied"] else 1
 
 
-def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
+def _scenario(args, root: Path, state: Path, tools: dict, profile: Profile) -> int:
     """Write the starting scenario from the bundled records of the project's tools."""
     path = state / "catalog" / "tool-mocks" / SCENARIO
     if path.exists() and not args.force:
@@ -318,7 +319,7 @@ def _call(args, mock_dir: Path) -> int:
     return 1 if answer["isError"] else 0
 
 
-def _list(args, tools: dict, mocks: set, catalog: dict) -> int:
+def _list(args, tools: dict, mocks: set, catalog: Catalog) -> int:
     """tools list: the registry, filtered by category, brain or mock."""
     if args.brain and args.brain not in catalog["boards"]:
         raise ValueError(f"Unknown brain: {args.brain}. Run openguildkit brains.")
@@ -368,7 +369,7 @@ def _show(args, tools: dict, mocks: set) -> int:
     return 0
 
 
-def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: dict) -> int:
+def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: Profile) -> int:
     """tools recommend: the tools of the profile and the repository, and how each is connected."""
     result = recommend_tools(profile, root, tools)
     configured, unconnected = {}, {}

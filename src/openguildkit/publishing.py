@@ -22,8 +22,10 @@ import json
 import posixpath
 import re
 import uuid
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from . import clock
@@ -31,6 +33,7 @@ from .deliverables import project_path
 from .errors import unknown
 from .project_instructions import rule_text
 from .project_rules import pack_scopes, rule_plan
+from .records import Catalog, Profile
 from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
 from .task_files import read_task
@@ -49,7 +52,7 @@ MAX_SHARE_DAYS = 366
 _DEFAULT_PORTS = {"https": 443, "http": 80}
 
 
-def _title(task: dict) -> str:
+def _title(task: Mapping[str, Any]) -> str:
     return task["brief"].strip().splitlines()[0].rstrip(".")[:120]
 
 
@@ -57,11 +60,11 @@ def _frontmatter(fields: dict) -> str:
     return "---\n" + "".join(f"{key}: {json.dumps(value, ensure_ascii=False)}\n" for key, value in fields.items()) + "---\n\n"
 
 
-def _criteria(task: dict) -> list[str]:
+def _criteria(task: Mapping[str, Any]) -> list[str]:
     return [item["criterion"] for item in task.get("result", {}).get("criteria", []) if item["status"] == "met"]
 
 
-def _body(task: dict, title: str) -> list[str]:
+def _body(task: Mapping[str, Any], title: str) -> list[str]:
     """Keep any brief text that does not fit in the title."""
     lines = task["brief"].strip().splitlines()
     if lines[0].rstrip(".") == title:
@@ -70,7 +73,7 @@ def _body(task: dict, title: str) -> list[str]:
     return [rest, ""] if rest else []
 
 
-def _behaviour(task: dict) -> list[str]:
+def _behaviour(task: Mapping[str, Any]) -> list[str]:
     """The expected outcome and the criteria met, each said once."""
     seen, lines = set(), []
     for text in [task.get("answers", {}).get("outcome") or "", *_criteria(task)]:
@@ -81,7 +84,7 @@ def _behaviour(task: dict) -> list[str]:
     return lines
 
 
-def _verification(task: dict) -> str:
+def _verification(task: Mapping[str, Any]) -> str:
     """What was verified, what did not apply and what stayed open, so the page does not overstate the checks."""
     checks = task.get("result", {}).get("checks", [])
     passed = sum(item["status"] == "passed" for item in checks)
@@ -98,7 +101,7 @@ def _verification(task: dict) -> str:
     return line
 
 
-def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
+def _pages(task: Mapping[str, Any], position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
     title = _title(task)
     result = task.get("result", {})
     delivered = result.get("pull_request") or result.get("revision") or "not recorded"
@@ -127,7 +130,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     return pages
 
 
-def project_overview(profile: dict, catalog: dict) -> dict:
+def project_overview(profile: Profile, catalog: Catalog) -> dict:
     """What the Project page shows: profile fields, active packs with their rules, and boards.
 
     Component paths, check commands and anything outside the profile and catalog stay out.
@@ -184,7 +187,7 @@ def _exported_files(manifest_path: Path) -> list[str]:
     return files
 
 
-def _task_pages(tasks: list[dict], version: str, sections: tuple[str, ...]) -> tuple[dict, list[str], dict]:
+def _task_pages(tasks: Sequence[Mapping[str, Any]], version: str, sections: tuple[str, ...]) -> tuple[dict, list[str], dict]:
     """The pages of each task, with what may hold a credential replaced; the warnings on what they replaced and on
     the personal data they show; and each task as published."""
     pages, warnings, published = {}, [], {}
@@ -203,7 +206,7 @@ def _task_pages(tasks: list[dict], version: str, sections: tuple[str, ...]) -> t
     return pages, warnings, published
 
 
-def _summary_page(tasks: list[dict], pages: dict, published: dict, project: str, version: str,
+def _summary_page(tasks: Sequence[Mapping[str, Any]], pages: dict, published: dict, project: str, version: str,
                   sections: tuple[str, ...], overview: dict | None) -> str:
     """The SUMMARY.md of the export, adding the project page to pages when the project section is asked."""
     summary = [f"# {project}", ""]

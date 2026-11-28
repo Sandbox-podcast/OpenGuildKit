@@ -12,6 +12,7 @@ Tests: tests/test_features.py
 import re
 
 from .catalog import CatalogError, package_file, unique_fields
+from .records import Profile
 from .storage import load_json
 from .tools import match_tools
 
@@ -64,12 +65,12 @@ def feature_options(features: list[dict]) -> dict[str, list[str]]:
     return options
 
 
-def enabled_tools(profile: dict, tools: dict) -> set[str]:
+def enabled_tools(profile: Profile, tools: dict) -> set[str]:
     """The registry tools the profile names, whatever words the team used."""
     return set(match_tools(list(profile.get("tools", [])), tools)[0])
 
 
-def features_view(features: list[dict], tools: dict, profile: dict) -> list[dict]:
+def features_view(features: list[dict], tools: dict, profile: Profile) -> list[dict]:
     """Each feature with its options: whether the profile turns it on and how many MCP servers are on record."""
     enabled = enabled_tools(profile, tools)
     return [{**feature, "enabled": any(option["tool"] in enabled for option in feature["options"]),
@@ -79,6 +80,6 @@ def features_view(features: list[dict], tools: dict, profile: dict) -> list[dict
             for feature in features]
 
 
-def profile_names(profile: dict, tool_id: str, tools: dict) -> list[str]:
+def profile_names(profile: Profile, tool_id: str, tools: dict) -> list[str]:
     """The names in the profile's tools that resolve to this tool: turning it off removes each of them."""
     return [name for name in profile.get("tools", []) if match_tools([name], tools)[0] == [tool_id]]

@@ -12,6 +12,7 @@ from pathlib import Path
 from . import clock, delivered_review
 from .approval_check import DONE_STATUSES
 from .decisions import decision_payload, seal, signing_time_of
+from .records import Profile, Task, as_dict
 from .relevance import sensitive_area
 from .result_form import validate_result
 from .results import (
@@ -41,7 +42,7 @@ from .workflow import (
 CHANGED_EVIDENCE_GROUP = "Evidence changed since it was accepted"
 
 
-def accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
+def accepted_evidence(task: Task) -> list[tuple[str, str, str | None]]:
     """Each evidence a clearance or a passed named evidence cites: the evidence, what it was accepted for and its
     fingerprint, None for one recorded before fingerprints."""
     cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
@@ -51,7 +52,7 @@ def accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
                     if item["check"].startswith("evidence:") and item["status"] == "passed" and "evidence" in item]
 
 
-def evidence_states(task: dict, root: Path) -> list[dict]:
+def evidence_states(task: Task, root: Path) -> list[dict]:
     """Each evidence a clearance or a passed named evidence cites, with its state now, once one has a fingerprint:
     a task recorded before fingerprints lists none."""
     cited = accepted_evidence(task)
@@ -61,7 +62,7 @@ def evidence_states(task: dict, root: Path) -> list[dict]:
             for value, name, fingerprint in cited]
 
 
-def changed_evidence(task: dict, root: Path) -> list[str]:
+def changed_evidence(task: Task, root: Path) -> list[str]:
     """The evidence changed or gone since it was accepted, with who accepted it and when: an open point of the
     closing and a line of task list. guard --ci does not read it (question Q2 of the plan is not decided)."""
     accepted = {f"blocker {item['id']}": f"cleared on {item['resolution'].get('at', '')[:10]} by {item['resolution']['by']}"
@@ -77,8 +78,8 @@ def changed_evidence(task: dict, root: Path) -> list[str]:
     return points
 
 
-def record_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
-                  root: Path | None = None, *, changed: list[str] | None = None) -> dict:
+def record_result(task: Task, profile: Profile, payload: dict, source: str = "report", relevance: dict | None = None,
+                  root: Path | None = None, *, changed: list[str] | None = None) -> Task:
     """Add a delivery report to an approved task; later reports update earlier checks.
 
     A named evidence that cannot be recorded is held back under "_held" (for the caller to print and
@@ -93,26 +94,29 @@ def record_result(task: dict, profile: dict, payload: dict, source: str = "repor
         raise ValueError(
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
         )
-    updated = {**task, "result": result}
+    updated: Task = {**task, "result": result}
     for key, value in (("waiting_for", waiting_evidence(updated, profile, relevance)),
                        ("warnings", result_warnings(updated, profile, relevance))):
         result.pop(key, None)
         if value:
             result[key] = value
-    return {**_with_wait(updated), "_held": held}
+    closed = _with_wait(updated)
+    closed["_held"] = held
+    return closed
 
 
-def _with_wait(task: dict) -> dict:
+def _with_wait(task: Task) -> Task:
     """Next to the status, the evidence an approved task waits for, so task show and the export say it too."""
-    task = {key: value for key, value in task.items() if key != "waiting_for"}
+    task = task.copy()
+    task.pop("waiting_for", None)
     waiting = task.get("result", {}).get("waiting_for", [])
     if waiting:
         task["waiting_for"] = [f"{item['title']} ({item['check']}) from {item['owner']}" for item in waiting]
     return task
 
 
-def defer_evidence(task: dict, profile: dict, deferrals: list[tuple[str, dict]], by: str,
-                   relevance: dict | None = None) -> dict:
+def defer_evidence(task: Task, profile: Profile, deferrals: list[tuple[str, Task]], by: str,
+                   relevance: dict | None = None) -> Task:
     """Hand named evidence that is still awaited to a follow-up task, recorded on behalf of its owner."""
     waiting = {item["check"]: item for item in waiting_evidence(task, profile, relevance)}
     entries = []
@@ -130,8 +134,8 @@ def defer_evidence(task: dict, profile: dict, deferrals: list[tuple[str, dict]],
     return _with_wait({**task, "result": result})
 
 
-def complete_task(task: dict, profile: dict, root: Path | None = None, relevance: dict | None = None,
-                  by: str | None = None, *, changed: list[str] | None = None) -> dict:
+def complete_task(task: Task, profile: Profile, root: Path | None = None, relevance: dict | None = None,
+                  by: str | None = None, *, changed: list[str] | None = None) -> Task:
     """Close the task: done when nothing is left open, done-with-reservations otherwise.
 
     Closing over a skipped or failed data protection, security or AI rule that concerns the task
@@ -171,7 +175,7 @@ NO_COMMAND = ("No project check command ran for this task: the profile lists non
               ".openguildkit/project.json), so nothing was run to verify the change.")
 
 
-def _open_disagreements(task: dict) -> list[str]:
+def _open_disagreements(task: Task) -> list[str]:
     """Each disagreement left open with its point and its two boards, then the decision the person takes."""
     deliberation = task.get("deliberation", {})
     objections = {item["id"]: item for item in deliberation.get("objections", [])}
@@ -185,7 +189,7 @@ def _open_disagreements(task: dict) -> list[str]:
     return points
 
 
-def _blocks_not_lifted(task: dict) -> list[str]:
+def _blocks_not_lifted(task: Task) -> list[str]:
     """A board that said block, approved over blockers that were waived or left open rather than cleared."""
     points = []
     for entry in task.get("review", {}).get("boards", []):
@@ -201,7 +205,7 @@ def _blocks_not_lifted(task: dict) -> list[str]:
     return points
 
 
-def points_left_open(task: dict, profile: dict, relevance: dict | None = None, root: Path | None = None) -> list[dict]:
+def points_left_open(task: Task, profile: Profile, relevance: dict | None = None, root: Path | None = None) -> list[dict]:
     """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out. With the
     project root, evidence changed since it was accepted too."""
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
@@ -249,15 +253,15 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None, r
     return found
 
 
-def record_deliberation(task: dict, payload: dict) -> dict:
+def record_deliberation(task: Task, payload: dict) -> Task:
     return {**task, "deliberation": validate_deliberation(task, payload)}
 
 
 def record_decision(
-    task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
+    task: Task, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
     confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
     dated: bool = False,
-) -> dict:
+) -> Task:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
     says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
     when the approver signed a payload that carries it, is recorded and sealed with the approval. dated has a local
@@ -302,7 +306,7 @@ def record_decision(
     return {**task, "status": status, "decision": decision}
 
 
-def revoke_approval(task: dict, by: str, reason: str) -> dict:
+def revoke_approval(task: Task, by: str, reason: str) -> Task:
     """Withdraw an approval: the task goes back to changes requested, and the approval goes to the rounds with who
     withdrew it, when and why. The person does it at their terminal, as they approved; the guard stops counting the
     task at once."""
@@ -317,9 +321,9 @@ def revoke_approval(task: dict, by: str, reason: str) -> dict:
     archived = {**archived_round(task), "revoked": {"by": by.strip(), "reason": reason.strip(), "at": at}}
     decision = {"outcome": "changes-requested", "by": by.strip(), "reason": f"Approval withdrawn: {reason.strip()}",
                 "at": at, "withdraws": task["decision"]["at"]}
-    result = {**task, "status": "changes-requested", "decision": decision, "rounds": [*task["rounds"], archived]}
+    result: Task = {**task, "status": "changes-requested", "decision": decision, "rounds": [*task["rounds"], archived]}
     for key in (resolution_field("verification"), "result", "waiting_for", "completed_at"):
-        result.pop(key, None)
+        as_dict(result).pop(key, None)
     return result
 
 
@@ -327,7 +331,7 @@ ACTIONS = ("public-research", "external-api", "send-message", "publish", "instal
 _TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}")
 
 
-def record_authorization(task: dict, action: str, target: str, allow: bool, by: str, reason: str) -> dict:
+def record_authorization(task: Task, action: str, target: str, allow: bool, by: str, reason: str) -> Task:
     """Record a person's decision on an external action outside the authorized scope."""
     if action not in ACTIONS:
         raise ValueError(f"Choose the action from {', '.join(ACTIONS)}.")

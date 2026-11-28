@@ -19,6 +19,7 @@ from pathlib import Path
 
 from . import clock, lazy_re
 from .errors import unknown
+from .records import Task
 from .storage import read_json, write_json
 
 REGISTER_FILE = "alerts.json"
@@ -505,13 +506,13 @@ def link_alert(register: dict, alert_id: str, task_id: str) -> dict:
     return _replace(register, {**alert, "tasks": sorted(set(alert.get("tasks", [])) | {task_id})})
 
 
-def _legacy(task: dict) -> list[dict]:
+def _legacy(task: Task) -> list[dict]:
     """Alerts an earlier version stored inside the task itself."""
     return [{**alert, "status": _status(alert), "tasks": [task["id"]]}
             for alert in task.get("dependency_alerts", {}).get("alerts", [])]
 
 
-def migrate_task(register: dict, task: dict) -> tuple[dict, dict]:
+def migrate_task(register: dict, task: Task) -> tuple[dict, Task]:
     """Move the alerts an earlier version kept inside a task into the register, linked to the task."""
     alerts = list(register["alerts"])
     for old in _legacy(task):
@@ -521,11 +522,12 @@ def migrate_task(register: dict, task: dict) -> tuple[dict, dict]:
             alerts.append({"aliases": [old["advisory"].upper()], "scanners": [], "seen_by": [], **old})
         else:
             alerts = [_merge(entry, old) if entry is known else entry for entry in alerts]
-    task = {key: value for key, value in task.items() if key != "dependency_alerts"}
+    task = task.copy()
+    task.pop("dependency_alerts", None)
     return {**register, "alerts": alerts}, task
 
 
-def task_alerts(register: dict, task: dict, statuses: tuple = ACTIVE) -> list[dict]:
+def task_alerts(register: dict, task: Task, statuses: tuple = ACTIVE) -> list[dict]:
     """The alerts linked to a task, with the given statuses (open and confirmed by default)."""
     known = {alert["id"] for alert in register["alerts"]}
     linked = [alert for alert in register["alerts"] if task["id"] in alert.get("tasks", [])]
@@ -533,7 +535,7 @@ def task_alerts(register: dict, task: dict, statuses: tuple = ACTIVE) -> list[di
     return sorted((alert for alert in linked if _status(alert) in statuses), key=lambda alert: alert["id"])
 
 
-def blocking_alerts(register: dict, task: dict) -> list[str]:
+def blocking_alerts(register: dict, task: Task) -> list[str]:
     """Why the task's confirmed critical alerts stop its approval and completion."""
     return [
         f"Dependency alert {alert['id']} ({alert['package']} {alert['version']}) is confirmed and critical: "
@@ -565,7 +567,7 @@ def task_brief(alert: dict) -> str:
             f"{alert['advisory']} ({alert['severity']}). Fixed version: {alert.get('fix') or 'unknown'}.")
 
 
-def resolved_by_import(register: dict, task: dict, since: str | None = None) -> list[dict]:
+def resolved_by_import(register: dict, task: Task, since: str | None = None) -> list[dict]:
     """The task's alerts that were confirmed and critical and that an import resolved, not a person, on or after the
     day of since: the person reads each with its report before deciding."""
     return [alert for alert in task_alerts(register, task, ("resolved",))

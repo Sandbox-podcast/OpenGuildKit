@@ -10,9 +10,10 @@ from typing import Any
 
 from . import lazy_re
 from .catalog import BOUND_FIELDS, overlaid_boards, registry_folder, validated_bundle
+from .records import Catalog, Task
 
 
-def recorded_value(task: dict, check_id: str, item: dict | None = None) -> dict:
+def recorded_value(task: Task, check_id: str, item: dict | None = None) -> dict:
     """The value a rule's `records` asks a task to write in its result, such as an agreed threshold.
 
     Without item, the fields the result template shows for the check. With item, a reported outcome:
@@ -74,7 +75,7 @@ def _changed_fields(before: dict, after: dict) -> list[str]:
     return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
 
 
-def board_replacements(catalog: dict) -> list[str]:
+def board_replacements(catalog: Catalog) -> list[str]:
     """One line per bundled brain whose title, description or specialists the project catalog replaces.
 
     A project may replace them (docs/catalog-format.md), and a weaker security brain reads like the bundled one:
@@ -83,7 +84,7 @@ def board_replacements(catalog: dict) -> list[str]:
     return list(replaced_boards(catalog).values())
 
 
-def replaced_boards(catalog: dict) -> dict[str, str]:
+def replaced_boards(catalog: Catalog) -> dict[str, str]:
     """The line board_replacements prints, by the ID of the brain it is about."""
     from .wording import plural
 

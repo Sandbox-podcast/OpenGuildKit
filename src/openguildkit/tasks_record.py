@@ -5,10 +5,11 @@ Entry: timestamp, task_record_problem, board_brief_problem, validate_brief
 Tests: tests/test_blocker_clearances.py, tests/test_task_dependencies.py
 """
 
-from collections.abc import Iterator
-from typing import cast
+from collections.abc import Iterator, Mapping
+from typing import Any, cast
 
 from . import clock, short_lane
+from .records import Task
 
 # The severities and actions of a finding of task diff-review (delivered_review.py).
 SEVERITIES = ("blocking", "important", "minor")
@@ -166,7 +167,7 @@ def _dict_shape_problem(value: object, shape: dict, field: str) -> str | None:
     return None
 
 
-def task_record_problem(task: dict) -> str | None:
+def task_record_problem(task: Mapping[str, Any]) -> str | None:
     """Describe the first field of a task record that the commands could not use, if any."""
     if not isinstance(task.get("brief"), str) or not task["brief"].strip():
         return "brief must be text"
@@ -192,7 +193,7 @@ def task_record_problem(task: dict) -> str | None:
     return None
 
 
-def board_brief_problem(task: dict, board_id: str) -> None:
+def board_brief_problem(task: Task, board_id: str) -> None:
     """Refuse to print a pass from a damaged stored brief, with the field to restore."""
     stored = task.get("consultation", {}).get("board_briefs", {}).get(board_id)
     problem = shape_problem(stored, _BOARD_BRIEF, f"consultation.board_briefs.{board_id}") if stored is not None else None

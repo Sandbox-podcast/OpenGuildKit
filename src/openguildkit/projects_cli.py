@@ -19,8 +19,10 @@ Tests: tests/test_command_output_budget.py, tests/test_performance.py, tests/tes
 import csv
 import sys
 from collections import Counter
+from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 from .alerts import LEGACY_STATUSES, load_register
 from .check_cli import check_status
@@ -31,6 +33,7 @@ from .guard import guard_mode
 from .lock import project_catalog, read_lock
 from .project import STATE_DIR, load_profile
 from .project_setup import GUARD_MODES
+from .records import Profile, Task
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks
@@ -181,7 +184,7 @@ def _bundled_tools() -> dict:
     return load_tools()
 
 
-def _inventory(folder: Path, profile: dict, tools: dict) -> dict:
+def _inventory(folder: Path, profile: Mapping[str, Any], tools: dict) -> dict:
     """What host scan finds in the folder, as the counts a fleet is read by: the agent tools, the MCP servers (all, those
     without a fixed version, those the registry does not know) and the permissive settings, and the state of the hooks of
     the profile's host."""
@@ -218,7 +221,7 @@ def _other(row: dict, policy: dict | None, surfaces: bool) -> dict:
     return row
 
 
-def _gaps(policy: dict, row: dict, profile: dict) -> list[dict]:
+def _gaps(policy: dict, row: dict, profile: Profile) -> list[dict]:
     """Each field of the policy the project falls short of: the policy's value and the project's."""
     gaps = []
     if "guard" in policy and GUARD_RANK.get(row["guard"], -1) < GUARD_RANK[policy["guard"]]:
@@ -230,7 +233,7 @@ def _gaps(policy: dict, row: dict, profile: dict) -> list[dict]:
     return gaps
 
 
-def _open_points(task: dict) -> int:
+def _open_points(task: Task) -> int:
     """The blockers a reviewed task still waits on, and the points a task closed with reservations left open."""
     if task["status"] == "reviewed":
         return len(unresolved_blockers(task))

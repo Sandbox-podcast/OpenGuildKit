@@ -19,6 +19,7 @@ from pathlib import Path
 
 from . import audit_log
 from .project import restricted_paths
+from .records import Profile
 from .storage import load_json, write_text
 
 # The edit hook loads this module: doc_links is imported in the functions that use it (#539).
@@ -79,7 +80,7 @@ CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
 OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
 
 
-def restricted_rules(profile: dict) -> list[str]:
+def restricted_rules(profile: Profile) -> list[str]:
     """The Claude Code rules for those paths: its file tools may neither read nor edit them."""
     return _path_rules(restricted_paths(profile))
 
@@ -92,7 +93,7 @@ def _path_rules(paths: list[str]) -> list[str]:
 LIFTED = "lifted:"
 
 
-def lifted_rules(profile: dict) -> list[str]:
+def lifted_rules(profile: Profile) -> list[str]:
     """The Read and Edit rules of the paths a `profile set restricted-paths` lifted, as the history of the profile
     names them, and that the profile does not close again: host apply wrote them, so it removes them. A path lifted by
     an edit of project.json, by hand or in the web page, is not in that history: its rules stay until a person removes
@@ -110,7 +111,7 @@ def lifted_rules(profile: dict) -> list[str]:
     return _path_rules([path for path in dict.fromkeys(lifted) if path not in now])
 
 
-def signers_rule(profile: dict) -> str | None:
+def signers_rule(profile: Profile) -> str | None:
     """The deny rule that keeps Claude Code's file tools away from the allowed signers file of a signed project."""
     approval = profile.get("approval") or {}
     if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
@@ -365,7 +366,7 @@ def _gemini_disabled(settings: dict) -> bool:
     return isinstance(listed, list) and any(item in listed for pair in GEMINI_HOOK_NAMES.items() for item in pair)
 
 
-def _apply_gemini(root: Path, profile: dict) -> list[str]:
+def _apply_gemini(root: Path, profile: Profile) -> list[str]:
     """Declare the guard hooks in .gemini/settings.json and leave every other key of the file as it is."""
     path = root / GEMINI_SETTINGS_FILE
     settings = _read_settings(path)
@@ -457,7 +458,7 @@ def board_control(root: Path, host: str, guard: str) -> dict:
     return _board_control(root, host, guard)
 
 
-def approval_warning(profile: dict) -> str | None:
+def approval_warning(profile: Profile) -> str | None:
     """One line when the guard enforces but approvals are only sealed locally."""
     from .doc_links import doc_link
 
@@ -474,7 +475,7 @@ _PUBLIC_TITLE = "Public research stays available when the policy is public-sourc
 _APPROVAL_TITLE = "The agent cannot run the approval command"
 
 
-def _claude_controls(root: Path, profile: dict, local_only: bool) -> list[dict]:
+def _claude_controls(root: Path, profile: Profile, local_only: bool) -> list[dict]:
     """The research and approval controls of Claude Code: the deny rules of its project settings."""
     controls = []
     denied = _claude_denied(root)
@@ -551,7 +552,7 @@ def _other_host_controls(local_only: bool) -> list[dict]:
     return controls
 
 
-def _restricted_control(root: Path, profile: dict, host: str) -> list[dict]:
+def _restricted_control(root: Path, profile: Profile, host: str) -> list[dict]:
     """Whether the paths the team closes to the agent are denied to its file tools, when the profile names some."""
     controls = []
     paths = restricted_paths(profile)
@@ -573,7 +574,7 @@ def _restricted_control(root: Path, profile: dict, host: str) -> list[dict]:
     return controls
 
 
-def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
+def host_controls(root: Path, profile: Profile, other_tools: bool = True) -> list[dict]:
     """Say, for each project rule, whether the host enforces it, could but does not, or cannot. With other_tools, also
     one line for each tool of UNHOOKED_TOOLS whose files the project holds (host check; a consultation leaves them)."""
     host = profile.get("host", "other")
@@ -602,7 +603,7 @@ def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[d
     return controls
 
 
-def _apply_claude(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+def _apply_claude(root: Path, profile: Profile, local_only: bool, host: str) -> list[str]:
     """Write the deny rules and the hooks of Claude Code's project settings. Returns the file written."""
     written = []
     path = root / CLAUDE_SETTINGS_FILE
@@ -634,7 +635,7 @@ def _apply_claude(root: Path, profile: dict, local_only: bool, host: str) -> lis
     return written
 
 
-def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> list[str]:
     """Write the rules, the hooks and the web search setting of Codex. Returns the files written."""
     written = []
     write_text(root / CODEX_RULES_FILE, _codex_rules())
@@ -669,7 +670,7 @@ def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list
     return written
 
 
-def apply_host_settings(root: Path, profile: dict) -> list[str]:
+def apply_host_settings(root: Path, profile: Profile) -> list[str]:
     """Write the host settings that enforce the project's rules. Returns the files written."""
     host = profile.get("host", "other")
     local_only = profile.get("research", "local-only") == "local-only"

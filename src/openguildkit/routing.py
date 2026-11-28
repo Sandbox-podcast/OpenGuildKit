@@ -9,10 +9,13 @@ Tests: tests/test_short_lane.py
 
 import re
 import unicodedata
+from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any
 
 from . import lazy_re
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
+from .records import Catalog, Profile, Task
 
 _STRUCTURED_ROUTES = {
     "kind": {
@@ -523,7 +526,7 @@ _AUDIENCE_WORDS = frozenset((
 ))
 
 
-def _audience_routes(profile: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+def _audience_routes(profile: Profile, task: Task, answers: dict, enabled: set[str]) -> dict[str, str]:
     """Boards of the project's declared roles that the task's audience names, with the passage. The affected
     answer names the audience; the brief and the context name it after "for", "audience" or "pour"."""
     roles = [role for role in profile.get("roles", []) if role in enabled]
@@ -561,7 +564,7 @@ def _stack_words(boards: dict, role: str, stack: list[str]) -> list[str]:
     return trigger_matches({role: boards[role]}, ", ".join(stack)).get(role, [])
 
 
-def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+def _stack_routes(profile: Profile, boards: dict, task: Task, answers: dict, enabled: set[str]) -> dict[str, str]:
     """Boards of the project's declared roles that the task's stack calls for, with the reason: the role whose board
     the stack of a touched component names (named in the answers, or a path of the brief), and the frontend or
     backend role when the task touches the surface it serves and the project's stack names its frameworks."""
@@ -584,12 +587,12 @@ def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enable
     return found
 
 
-def _task_parts(task: dict, answers: dict) -> list[str]:
+def _task_parts(task: Mapping[str, Any], answers: dict) -> list[str]:
     """The brief and each free-text answer, read one at a time so that a quote never spans two of them."""
     return [text for text in (task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))) if text]
 
 
-def _task_text(task: dict, answers: dict) -> str:
+def _task_text(task: Mapping[str, Any], answers: dict) -> str:
     return " ".join([task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))])
 
 
@@ -601,7 +604,7 @@ def text_routes(boards: dict, brief: str, answers: dict | None = None,
     return _text_reasons(boards, {"brief": brief}, answers or {}, set(boards if enabled is None else enabled))[0]
 
 
-def _text_reasons(boards: dict, task: dict, answers: dict, enabled: set[str]) -> tuple[dict, dict]:
+def _text_reasons(boards: dict, task: Mapping[str, Any], answers: dict, enabled: set[str]) -> tuple[dict, dict]:
     """The reasons the brief and answers give each board, and the passages that exclude boards."""
     reasons: dict[str, list[str]] = {}
     excluded: dict[str, list[str]] = {}
@@ -622,7 +625,7 @@ def _text_reasons(boards: dict, task: dict, answers: dict, enabled: set[str]) ->
     return reasons, {board_id: passages for board_id, passages in excluded.items() if board_id not in reasons}
 
 
-def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
+def _route_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict) -> dict:
     boards = catalog["boards"]
     enabled = set(profile.get("boards") or boards)
     reasons = {}
@@ -667,7 +670,7 @@ def _left_out_reason(board: dict, declared: bool, answers: dict) -> str:
             f"data {answers['data']}) do not call for it and the brief names none of its subjects, such as {examples}")
 
 
-def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) -> list[dict]:
+def suggested_patterns(profile: Profile, catalog: Catalog, task: Task, answers: dict) -> list[dict]:
     """Patterns that the task's concepts call for and the project has not selected yet."""
     # A pattern scoped to components is recorded as {"id": ..., "components": [...]}.
     active = {entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("patterns", [])}
@@ -679,7 +682,7 @@ def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) 
     return [{"id": pattern_id, "reason": reason} for pattern_id, reason in suggestions.items()]
 
 
-def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selection: dict | None = None,
+def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict, selection: dict | None = None,
                   proposed: dict | None = None) -> dict:
     """Apply the project's required boards and the requester's changes to the proposed routing.
 
@@ -749,7 +752,7 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
             "not_selected": not_selected, "expected_not_selected": expected}
 
 
-def touched_components(scope: dict, profile: dict) -> set[str]:
+def touched_components(scope: dict, profile: Profile) -> set[str]:
     """Components the task names in its answers, or whose folder a path of the brief falls in."""
     named = set(as_list(scope["answers"].get("components")))
     text = " ".join([scope["brief"], *(scope["answers"].get(key, "") for key in ("context", *FOLLOW_UPS))])

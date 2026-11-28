@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .lock import project_catalog
 from .project import load_profile, project_root, state_path
+from .records import Catalog, Profile
 
 # What a command reads before it runs, each step after the ones before it (Command.read).
 NEEDS = ("args", "root", "catalog", "profile")
@@ -31,11 +32,11 @@ class Command:
         return state_path(self.root)
 
     @cached_property
-    def catalog(self) -> dict:
+    def catalog(self) -> Catalog:
         return project_catalog(self.args, self.state)
 
     @cached_property
-    def profile(self) -> dict:
+    def profile(self) -> Profile:
         return load_profile(self.state, self.catalog)
 
     def read(self, needs: str) -> None:

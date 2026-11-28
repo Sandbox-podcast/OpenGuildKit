@@ -9,10 +9,12 @@ tests/test_evidence_fingerprints.py
 import re
 from datetime import date, datetime
 from pathlib import Path
+from typing import cast
 
 from . import clock, roles
 from .approval_check import DONE_STATUSES
 from .decisions import approval_policy, seal, verify_signature
+from .records import Profile, Task, as_dict
 from .results import evidence_fingerprint
 from .tasks_approval import revoke_command
 from .workflow import TaskStateError, blocker_list, resolution_field
@@ -20,7 +22,7 @@ from .workflow import TaskStateError, blocker_list, resolution_field
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def waiver_policy(profile: dict) -> dict | None:
+def waiver_policy(profile: Profile) -> dict | None:
     return profile.get("waivers")
 
 
@@ -42,7 +44,7 @@ def expired_waivers(blockers: list) -> list[dict]:
     return [item for item in blockers if isinstance(item, dict) and expired_on(item.get("resolution"))]
 
 
-def expired_waiver_step(task: dict, item: dict) -> str:
+def expired_waiver_step(task: Task, item: dict) -> str:
     """What the person does about a waiver that expired on an approved task. A condition of approval is resolved
     again; a blocker the approval rested on is under its seal, so the approval is withdrawn."""
     task_id, blocker_id, until = task["id"], item["id"], item["resolution"]["until"]
@@ -84,7 +86,7 @@ def _clearing_evidence(value: str, root: Path) -> str:
     )
 
 
-def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
+def _clearance_payload(task: Task, blocker_id: str, entry: dict) -> dict:
     return {
         "kind": "blocker-clearance",
         "task": task["id"],
@@ -95,7 +97,7 @@ def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
     }
 
 
-def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
+def _check_clearance_signature(task: Task, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
     """A signed clearance follows the rule of a signed approval: --by names the person, as it does for task decide, and
     the signature must verify for --signer, an approver of the project; both are recorded."""
     if not entry.get("signer") or not entry.get("signature"):
@@ -104,7 +106,7 @@ def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy:
     verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
 
 
-def require_blocker_status(task: dict) -> None:
+def require_blocker_status(task: Task) -> None:
     """Blockers come from the boards' review: a person resolves them once it is recorded, before the decision or,
     for a condition of approval, before completion."""
     if task["status"] not in ("reviewed", "approved"):
@@ -112,8 +114,8 @@ def require_blocker_status(task: dict) -> None:
                              "after the approval for a condition of approval.")
 
 
-def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path,
-                    *, signing_payload: bool = False) -> dict:
+def resolve_blocker(task: Task, blocker_id: str, resolution: dict, profile: Profile, root: Path,
+                    *, signing_payload: bool = False) -> Task:
     """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
 
     The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
@@ -152,7 +154,7 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         if signing_payload:
             if policy["mode"] != "signed":
                 raise ValueError("A clearance payload is signed: it belongs to a project with signed approvals.")
-            return _clearance_payload(task, blocker_id, entry)
+            return cast(Task, _clearance_payload(task, blocker_id, entry))  # The payload to sign, not a task.
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
             _check_clearance_signature(task, blocker_id, entry, policy, root)
@@ -188,15 +190,17 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         # The expired waiver stays in the record, under the resolution that replaces it.
         entry["replaces"] = first
     field = resolution_field(blocker.get("phase"))
-    return {**task, field: {**task.get(field, {}), blocker_id: entry}}
+    result = task.copy()
+    as_dict(result)[field] = {**as_dict(task).get(field, {}), blocker_id: entry}
+    return result
 
 
-def unresolved_blockers(task: dict) -> list[str]:
+def unresolved_blockers(task: Task) -> list[str]:
     return [item["id"] for item in blocker_list(task)
             if (not item["resolution"] or expired_on(item["resolution"])) and item.get("phase") != "verification"]
 
 
-def verification_blocker_problems(task: dict, profile: dict, root: Path | None = None) -> list[str]:
+def verification_blocker_problems(task: Task, profile: Profile, root: Path | None = None) -> list[str]:
     policy = approval_policy(profile)
     problems = []
     for item in blocker_list(task):

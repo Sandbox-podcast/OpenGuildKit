@@ -9,6 +9,8 @@ from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 
+from .records import Catalog, Profile, Task
+
 
 @dataclass(frozen=True)
 class TaskCommand:
@@ -18,6 +20,6 @@ class TaskCommand:
     args: Namespace
     root: Path
     state: Path
-    profile: dict
-    catalog: dict
-    task: dict
+    profile: Profile
+    catalog: Catalog
+    task: Task

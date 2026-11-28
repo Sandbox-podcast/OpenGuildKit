@@ -31,6 +31,7 @@ from .alerts import (
 from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
+from .records import Task
 from .storage import json_text, project_lock, read_json, write_json
 from .task_files import read_task, task_path
 from .tasks import create_task
@@ -214,7 +215,7 @@ def run(command: Command) -> None:
         print(f"{alert['id']}: {alert['status']}{severity}" + (" (accepted)" if alert.get("accepted") else ""))
 
 
-def task_command(args, state: Path, task: dict) -> None:
+def task_command(args, state: Path, task: Task) -> None:
     """`task alerts ID`: import, review or link alerts in the register for one task, then list them."""
     with project_lock(state):
         current = read_task(state, args.id)
@@ -238,7 +239,7 @@ def task_command(args, state: Path, task: dict) -> None:
         _consult_again_note(migrated, task_alerts(register, migrated), args.json)
 
 
-def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
+def _consult_again_note(task: Task, active: list[dict], as_json: bool) -> None:
     """The boards read a task's alerts when it is consulted: say so when its consultation lacks an active one."""
     held = {alert["id"] for alert in task.get("consultation", {}).get("scope", {}).get("dependency_alerts", [])}
     if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json and any(
@@ -247,7 +248,7 @@ def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
               f"{task['id']} --reuse-answers so the boards see its alerts.")
 
 
-def consultation_task(state: Path, task: dict) -> dict:
+def consultation_task(state: Path, task: Task) -> Task:
     """The task as a consultation sees it: only its open and confirmed alerts."""
     alerts = task_alerts(load_register(state), task)
     return {**task, "dependency_alerts": {"alerts": alerts}}

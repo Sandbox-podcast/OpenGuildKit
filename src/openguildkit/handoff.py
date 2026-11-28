@@ -11,6 +11,7 @@ from pathlib import Path
 from . import owners, short_lane
 from .board_entries import required_text, validate_review
 from .consultation import answer_lines, json_section, scope_lines
+from .records import Task
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
 
@@ -28,7 +29,7 @@ def _evidence_section(evidence: list[dict]) -> list[str]:
     return [*lines, ""]
 
 
-def _checks_section(task: dict) -> list[str]:
+def _checks_section(task: Task) -> list[str]:
     """The check commands task verify will run, and what they need, so nothing surprises the agent at the end."""
     if is_decision_task(task):
         return []
@@ -51,7 +52,7 @@ def _checks_section(task: dict) -> list[str]:
     return [*lines, ""]
 
 
-def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
+def _rules_section(task: Task, checks: list[dict] | None) -> list[str]:
     """The rules task checks asks, pack by pack, then one line for the packs and rules it does not ask. checks
     are those of results.expected_checks; without them every rule is listed. A decision task asks none."""
     if is_decision_task(task):
@@ -79,7 +80,7 @@ def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
     return [*lines, ""]
 
 
-def _handoff_heading(task: dict, status: str) -> tuple[str, str]:
+def _handoff_heading(task: Task, status: str) -> tuple[str, str]:
     """The heading and the instruction of a handoff: a decision to report, a scope to implement, or a task already
     closed and shown for reference."""
     if is_decision_task(task):
@@ -107,7 +108,7 @@ def _handoff_heading(task: dict, status: str) -> tuple[str, str]:
     return heading, instruction
 
 
-def _conditions_section(task: dict) -> list[str]:
+def _conditions_section(task: Task) -> list[str]:
     """The blockers the approval left open for the verification phase, which only the finished work clears."""
     pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
                             and not item["resolution"]]
@@ -122,7 +123,7 @@ def _conditions_section(task: dict) -> list[str]:
               for item in pending_verification), ""]
 
 
-def _resolved_section(task: dict) -> list[str]:
+def _resolved_section(task: Task) -> list[str]:
     """The waivers and resolutions of the blockers resolved before the approval, to respect."""
     if not any(item["resolution"] for item in blocker_list(task)):
         return []
@@ -137,7 +138,7 @@ def _resolved_section(task: dict) -> list[str]:
     ]
 
 
-def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None,
+def handoff(task: Task, evidence: list[dict] | None = None, checks: list[dict] | None = None,
             root: Path | None = None) -> str:
     """Render the authorized scope, decision and advisory findings, with the named evidence first.
 

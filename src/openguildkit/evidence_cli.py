@@ -26,6 +26,7 @@ from .guard_records import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .storage import file_sha256, json_text, read_json, write_text
 
 DOSSIER_FILES = ("alerts.jsonl", "controls.json", "decisions.jsonl", "profile-changes.jsonl", "signers-history.jsonl")
@@ -116,7 +117,7 @@ def _sha256(path: Path) -> str | None:
         return None
 
 
-def _decisions(root: Path, state: Path, profile: dict, catalog: dict, since: str | None, until: str | None) -> list[dict]:
+def _decisions(root: Path, state: Path, profile: Profile, catalog: Catalog, since: str | None, until: str | None) -> list[dict]:
     """One line for each exported decision record dated in the period, and one for each file of the folder that cannot be
     read, oldest first."""
     judged = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}
@@ -189,7 +190,7 @@ def _alerts(state: Path, since: str | None, until: str | None) -> list[dict]:
     return [*sorted(alerts, key=lambda alert: alert["id"]), *imports]
 
 
-def _signers(root: Path, profile: dict, since: str | None, until: str | None) -> tuple[list[dict], str | None]:
+def _signers(root: Path, profile: Profile, since: str | None, until: str | None) -> tuple[list[dict], str | None]:
     """The commits of the period that changed the allowed signers file, oldest first: the principals the file listed
     and its object ID, never a key. The reason it is empty when it cannot be filled."""
     policy = approval_policy(profile)
@@ -214,7 +215,7 @@ def _signers(root: Path, profile: dict, since: str | None, until: str | None) ->
     return rows, None
 
 
-def _manifest(root: Path, state: Path, profile: dict, catalog: dict, files: dict, period: tuple, notes: list) -> dict:
+def _manifest(root: Path, state: Path, profile: Profile, catalog: Catalog, files: dict, period: tuple, notes: list) -> dict:
     policy = approval_policy(profile)
     return {
         "schema_version": 1, "openguildkit": package_version(), "generated": clock.today().isoformat(),

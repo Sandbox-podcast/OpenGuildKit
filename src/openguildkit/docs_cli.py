@@ -21,12 +21,13 @@ from .publishing import (
     shared_addresses,
     space_neighbours,
 )
+from .records import Catalog, Profile
 from .storage import print_json, project_lock, write_json
 from .task_files import read_task, task_path
 from .wording import plural
 
 
-def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def deliverable(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     templates = load_deliverables(catalog, state / "catalog" / "deliverables")
     action = args.deliverable_action
     if action == "list":
@@ -78,7 +79,7 @@ def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> 
     return 0
 
 
-def _docs_export(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def _docs_export(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     """docs export: write the documentation pages of the tasks, and say what was written, removed or kept."""
     tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
     sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
@@ -162,7 +163,7 @@ def _share_verify(args, state: Path) -> int:
     return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
 
 
-def docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def docs(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     if args.docs_action == "export":
         return _docs_export(args, root, state, profile, catalog)
     if args.share_action == "add":

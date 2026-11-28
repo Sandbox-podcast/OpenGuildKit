@@ -23,10 +23,11 @@ from .decisions import (
     exported_rounds,
 )
 from .project import STATE_DIR
+from .records import Profile, Task
 from .storage import read_json, write_json
 
 
-def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:
+def export_decision(root: Path, state: Path, task: Task, profile: Profile, output: Path | None = None) -> Path:
     """Write a shareable record of an approved decision: no evidence details, no internal notes.
 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
@@ -81,14 +82,14 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 RECORD_VERSION = 2
 
 
-def _exported_result(task: dict) -> dict:
+def _exported_result(task: Task) -> dict:
     """The result part of an exported record: the checks and their exceptions, the journals, the evidence declared
     or supplied, the criteria and how each was verified."""
     from .results import verification_of
 
     # A decision task closes without a result file: its result holds only the closing.
     checks = task["result"].get("checks", [])
-    result = {
+    result: dict = {
         key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
     }
     result["checks"] = {item["check"]: item["status"] for item in checks}
@@ -128,7 +129,7 @@ def _exported_result(task: dict) -> dict:
     return result
 
 
-def _export_extras(root: Path, task: dict, record: dict) -> None:
+def _export_extras(root: Path, task: Task, record: dict) -> None:
     """Add to the record what the task gathered besides its result: blockers, evidence states, the task it follows,
     the declined scope, the review of the delivered diff."""
     from .delivered_review import exported_review
@@ -165,7 +166,7 @@ def changed_files(root: Path, base_revision: dict | None) -> list[str] | None:
     return sorted({path for path in changed_paths_since(root, base_revision["commit"]) if not path.startswith(prefix)})
 
 
-def _same_task(record: object, task: dict) -> bool:
+def _same_task(record: object, task: Task) -> bool:
     """Whether an existing record is this task's own earlier export: same ID, same creation time when the record
     names it, and an approval of one of this task's consultations (each has its own random ID)."""
     if not isinstance(record, dict) or record.get("task") != task["id"]:
@@ -179,7 +180,7 @@ def _same_task(record: object, task: dict) -> bool:
     return isinstance(consultation, str) and consultation in ids
 
 
-def record_of_another_task(state: Path, task: dict) -> Path | None:
+def record_of_another_task(state: Path, task: Task) -> Path | None:
     """The exported record that uses this local task's ID while it belongs to another task, if any."""
     path = state / DECISIONS_DIR / f"{task['id']}.json"
     if not path.is_file():
@@ -191,7 +192,7 @@ def record_of_another_task(state: Path, task: dict) -> Path | None:
     return None if _same_task(record, task) else path
 
 
-def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
+def _refuse_foreign_record(root: Path, path: Path, task: Task) -> None:
     """Never replace a record that another task wrote, such as a teammate's decision with the same ID.
 
     Only a regular file can hold a record: a device such as /dev/null, given with --output, receives it as is.
@@ -278,7 +279,7 @@ def conflict_message(path: Path, relative: str) -> str | None:
             f"another ID, and export it again (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
-def withdrawal_of(task: dict, record: dict) -> dict | None:
+def withdrawal_of(task: Task, record: dict) -> dict | None:
     """Who withdrew, why and when, from the round of the task that holds the approval the record carries."""
     for previous in task.get("rounds", []):
         if isinstance(previous.get("revoked"), dict) and \
@@ -287,7 +288,7 @@ def withdrawal_of(task: dict, record: dict) -> dict | None:
     return None
 
 
-def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None = None) -> Path:
+def export_withdrawal(root: Path, state: Path, task: Task, output: Path | None = None) -> Path:
     """Write the withdrawal of an approval into the record that task export wrote of it, so that CI refuses it.
 
     The record keeps the approval as it was, with who withdrew it, why and when; its digest is computed again.
@@ -323,7 +324,7 @@ def untracked_files(root: Path) -> list[str]:
                   if not path.startswith(prefix))
 
 
-def changes_since_approval(root: Path, task: dict) -> list[str] | None:
+def changes_since_approval(root: Path, task: Task) -> list[str] | None:
     """The files Git tracks that changed since the task's approval, committed or not, and the new files it does not
     track yet (the decision records left out); None when the approval named no Git revision."""
     files = changed_files(root, (task.get("decision") or {}).get("base_revision"))

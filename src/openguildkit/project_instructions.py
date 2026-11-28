@@ -19,6 +19,7 @@ from .project_rules import (
     resolved_profile,
     rule_conflicts,
 )
+from .records import Catalog, Profile
 from .rule_checks import describe_check
 from .storage import write_json, write_text
 from .wording import plural
@@ -53,7 +54,7 @@ def rule_text(rule: dict) -> tuple[str, str]:
     )
 
 
-def profile_decision_lines(profile: dict, catalog: dict) -> list[str]:
+def profile_decision_lines(profile: Profile, catalog: Catalog) -> list[str]:
     """The declined patterns and the patterns adopted by a command, with who, when and why when recorded."""
     lines = []
     for entry in profile.get("declined", []):
@@ -83,7 +84,7 @@ def _scope_text(components: dict, scope: list[str] | None) -> str:
     return ", ".join(names)
 
 
-def _component_sections(profile: dict, catalog: dict, components: dict) -> list[str]:
+def _component_sections(profile: Profile, catalog: Catalog, components: dict) -> list[str]:
     """The components of the project and the patterns it selected, each with the components it applies to."""
     lines: list[str] = []
     if components:
@@ -102,7 +103,7 @@ def _component_sections(profile: dict, catalog: dict, components: dict) -> list[
     return lines
 
 
-def _rule_decision_section(profile: dict, catalog: dict) -> list[str]:
+def _rule_decision_section(profile: Profile, catalog: Catalog) -> list[str]:
     """The rule conflicts the profile resolved: which packs apply instead of which, and why."""
     lines: list[str] = []
     applied = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"]]
@@ -121,7 +122,7 @@ def _rule_decision_section(profile: dict, catalog: dict) -> list[str]:
     return lines
 
 
-def _policy_sections(profile: dict) -> list[str]:
+def _policy_sections(profile: Profile) -> list[str]:
     """The approval, requester, waiver, guard and review policies of the profile, its conventions and checks."""
     lines: list[str] = []
     if profile.get("approval", {}).get("mode") == "signed":
@@ -152,13 +153,13 @@ def _policy_sections(profile: dict) -> list[str]:
             "Every consultation includes these boards: "
             + ", ".join(f"`{board_id}`" for board_id in profile["required_boards"]) + "."
         )
-    for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
-        if profile[field]:
-            lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
+    for title, items in (("Team conventions", profile["conventions"]), ("Project checks", profile["checks"])):
+        if items:
+            lines.extend(["", f"### {title}", "", *_bullets(items)])
     return lines
 
 
-def _pack_sections(profile: dict, catalog: dict, resolved: dict, components: dict) -> list[str]:
+def _pack_sections(profile: Profile, catalog: Catalog, resolved: Profile, components: dict) -> list[str]:
     """The rule packs in force, each with the components it applies to, its policy commit and its rules."""
     lines: list[str] = []
     scopes = pack_scopes(profile, catalog) if components else {}
@@ -174,7 +175,7 @@ def _pack_sections(profile: dict, catalog: dict, resolved: dict, components: dic
     return lines
 
 
-def render_instructions(profile: dict, catalog: dict) -> str:
+def render_instructions(profile: Profile, catalog: Catalog) -> str:
     require_resolved_conflicts(profile, catalog)
     resolved = resolved_profile(profile, catalog)
     sector = catalog["sectors"][profile["sector"]]
@@ -334,11 +335,11 @@ def _gemini_instructions(current: str) -> str:
     return _import_instructions(current, GEMINI_FILE, "@./AGENTS.md")
 
 
-def _wants_gemini_file(root: Path, profile: dict) -> bool:
+def _wants_gemini_file(root: Path, profile: Profile) -> bool:
     return profile.get("host") == "gemini-cli" and not _links_to_agents(root, GEMINI_FILE)
 
 
-def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
+def sync_instructions(root: Path, profile: Profile, catalog: Catalog) -> list[str]:
     """Write the managed instructions; returns the lines a person had edited in the block, which it replaces."""
     state = state_path(root)
     instructions = root / "AGENTS.md"
@@ -369,7 +370,7 @@ def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
     return replaced
 
 
-def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def initialize(root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     path = state / "project.json"
     if path.exists():
         raise ValueError(ALREADY_INITIALIZED)
@@ -410,7 +411,7 @@ def _outdated_files(generated: str, current: str, claude: str, linked: bool, ign
     return [name for name, test in checks if _outdated(test)]
 
 
-def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
+def check_instructions(root: Path, profile: Profile, catalog: Catalog) -> None:
     current = _instruction_text(root / "AGENTS.md")
     linked = _claude_links_to_agents(root)
     claude = "" if linked else _instruction_text(root / "CLAUDE.md")

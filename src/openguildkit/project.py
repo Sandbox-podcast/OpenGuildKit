@@ -6,7 +6,9 @@ tests/test_profile_reference.py, tests/test_rule_checks.py, tests/test_source_da
 """
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, cast
 
 from . import lazy_re, short_lane
 from .patterns import (
@@ -15,6 +17,7 @@ from .patterns import (
     recommend_patterns,
     role_choices,
 )
+from .records import Catalog, Profile
 from .storage import read_json
 
 STATE_DIR = ".openguildkit"
@@ -69,7 +72,7 @@ def catalog_ids(value, field: str, available: dict) -> list[str]:
     return chosen
 
 
-def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
+def _recommended_packs(stack: list[str], catalog: Catalog) -> list[str]:
     aliases = {"react.js": "react", "openapi": "api-design"}
     tokens = {re.split(r"[\s@]+", item.lower(), maxsplit=1)[0] for item in stack}
     legacy_stack_packs = {"api-design", "python", "react", "typescript"}
@@ -78,7 +81,7 @@ def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
     return sorted(candidates & catalog["packs"].keys())
 
 
-def default_packs(stack: list[str], components: list[dict], patterns: list, catalog: dict) -> list[str]:
+def default_packs(stack: list[str], components: list[dict], patterns: list, catalog: Catalog) -> list[str]:
     """Recommended packs. In a monorepo a language pack that a selected pattern brings keeps that pattern's scope."""
     packs = _recommended_packs(stack, catalog)
     if not components:
@@ -118,7 +121,7 @@ def _components(value) -> list[dict]:
     return components
 
 
-def project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str], list[dict]]:
+def project_context(answers: Mapping[str, Any], catalog: Catalog) -> tuple[str, list[str], list[str], list[dict]]:
     sector = answers.get("sector", "general")
     if not isinstance(sector, str) or sector not in catalog["sectors"]:
         raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
@@ -163,7 +166,7 @@ def decision_record(entry: dict, label: str) -> dict:
     return record
 
 
-def declined_entries(value, catalog: dict) -> list:
+def declined_entries(value, catalog: Catalog) -> list:
     """Declined patterns: plain IDs (written before declines were recorded), or objects with who, when and why."""
     if not isinstance(value, list):
         raise ValueError("declined must be a list")
@@ -185,7 +188,7 @@ def declined_entries(value, catalog: dict) -> list:
     return entries
 
 
-def declined_ids(profile: dict) -> list[str]:
+def declined_ids(profile: Profile) -> list[str]:
     return [entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("declined", [])]
 
 
@@ -218,11 +221,11 @@ def _declined_rules(value, required: list[str]) -> list[dict]:
     return entries
 
 
-def declined_rule_ids(profile: dict) -> list[str]:
+def declined_rule_ids(profile: Profile) -> list[str]:
     return [entry["id"] for entry in profile.get("declined_rules", [])]
 
 
-def rules_in_force(pack: dict, profile: dict) -> dict:
+def rules_in_force(pack: dict, profile: Profile) -> dict:
     """The pack as a task of this profile is asked it: without the rules the person declined. The same pack when
     none of its rules is declined, so that a project that declines none reads exactly the catalog."""
     declined = {rule.partition("/")[2] for rule in declined_rule_ids(profile) if rule.partition("/")[0] == pack["id"]}
@@ -231,7 +234,7 @@ def rules_in_force(pack: dict, profile: dict) -> dict:
     return {**pack, "rules": [rule for rule in pack["rules"] if rule["id"] not in declined]}
 
 
-def _approval_roles(value, catalog: dict) -> dict[str, list[str]]:
+def _approval_roles(value, catalog: Catalog) -> dict[str, list[str]]:
     """approval.roles: each board, by ID, with the people of its role (roles.py)."""
     if not isinstance(value, dict) or not value:
         raise ValueError("approval.roles must map a board to the people of its role")
@@ -256,7 +259,7 @@ def _changes(value) -> list[dict]:
     return result
 
 
-def recommendation_inputs(answers: dict, catalog: dict) -> dict:
+def recommendation_inputs(answers: Mapping[str, Any], catalog: Catalog) -> dict:
     """Everything that preselects patterns besides the stack: personal data, decisions about people and
     declined patterns."""
     return {
@@ -267,7 +270,7 @@ def recommendation_inputs(answers: dict, catalog: dict) -> dict:
     }
 
 
-def profile_recommendations(answers: dict, catalog: dict) -> dict:
+def profile_recommendations(answers: Mapping[str, Any], catalog: Catalog) -> dict:
     """Preselected and suggested patterns for setup answers or a saved profile, and the packs they bring."""
     sector, stack, roles, components = project_context(answers, catalog)
     inputs = recommendation_inputs(answers, catalog)
@@ -288,12 +291,12 @@ RULES_NOTE = ("Each pattern's count is the rules of its own packs and their depe
               "pattern or the baseline brings the same pack.")
 
 
-def pattern_rules(pattern: dict, catalog: dict) -> int:
+def pattern_rules(pattern: dict, catalog: Catalog) -> int:
     """The rules of a pattern's packs and their dependencies: the same number wherever it is shown."""
     return sum(pack_rule_counts(pattern["packs"], catalog).values())
 
 
-def pack_rule_counts(pack_ids: list[str], catalog: dict) -> dict[str, int]:
+def pack_rule_counts(pack_ids: list[str], catalog: Catalog) -> dict[str, int]:
     """The rules of these packs and of their dependencies, each pack counted once."""
     counts: dict[str, int] = {}
 
@@ -310,7 +313,7 @@ def pack_rule_counts(pack_ids: list[str], catalog: dict) -> dict[str, int]:
     return counts
 
 
-def pattern_entries(value, catalog: dict, components: list[dict]) -> list:
+def pattern_entries(value, catalog: Catalog, components: list[dict]) -> list:
     """Validate selected patterns: plain IDs, or objects limiting a pattern to components."""
     if not isinstance(value, list):
         raise ValueError("patterns must be a list")
@@ -336,7 +339,7 @@ def pattern_entries(value, catalog: dict, components: list[dict]) -> list:
     return entries
 
 
-def _resolutions(value, catalog: dict) -> list[dict]:
+def _resolutions(value, catalog: Catalog) -> list[dict]:
     """Validate the team's choices between conflicting packs."""
     if not isinstance(value, list):
         raise ValueError("resolutions must be a list")
@@ -361,11 +364,11 @@ def _resolutions(value, catalog: dict) -> list[dict]:
     return result
 
 
-def pattern_ids(profile: dict) -> list[str]:
+def pattern_ids(profile: Profile) -> list[str]:
     return [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
 
 
-def restricted_paths(profile: dict) -> list[str]:
+def restricted_paths(profile: Mapping[str, Any]) -> list[str]:
     """The path patterns that `restricted_paths` of .openguildkit/project.json closes to the agent; none when it is
     absent. Refused, with the file named, when it is not a list of {"paths": [project paths]} (a "class" text and a list
     of "boards" may come with each): a path is relative to the project, without .. and without parentheses."""
@@ -390,7 +393,7 @@ def restricted_paths(profile: dict) -> list[str]:
     return list(dict.fromkeys(paths))
 
 
-def validate_profile(answers: dict, catalog: dict) -> dict:
+def validate_profile(answers: Mapping[str, Any], catalog: Catalog) -> Profile:
     """The profile the answers describe, each field checked, in the order project.json writes them; ValueError names
     the first field that is wrong."""
     fields = {
@@ -415,7 +418,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     inputs = recommendation_inputs(answers, catalog)
     patterns, declined = _chosen_patterns(answers, catalog, (sector, stack, roles, components), inputs)
     packs = catalog_ids(answers.get("packs", default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
-    profile = {
+    profile = cast(Profile, {  # The fields in the order project.json writes them, components when there are some.
         "schema_version": SCHEMA_VERSION,
         "name": name.strip(),
         "sector": sector,
@@ -426,7 +429,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "research": research,
         "conventions": _texts(answers.get("conventions", []), "conventions"),
         "checks": _texts(answers.get("checks", []), "checks"),
-    }
+    })
     if roles:
         profile["roles"] = roles
     if inputs["personal_data"] is not None:
@@ -444,7 +447,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     return profile
 
 
-def _chosen_patterns(answers: dict, catalog: dict, context: tuple, inputs: dict) -> tuple[list, list]:
+def _chosen_patterns(answers: Mapping[str, Any], catalog: Catalog, context: tuple, inputs: dict) -> tuple[list, list]:
     """The patterns of the profile, the recommended ones when it names neither patterns nor packs, and its declines."""
     sector, stack, roles, components = context
     patterns = pattern_entries(answers.get("patterns", []), catalog, components)
@@ -461,7 +464,7 @@ def _chosen_patterns(answers: dict, catalog: dict, context: tuple, inputs: dict)
     return patterns, declined
 
 
-def _add_agent_settings(profile: dict, answers: dict) -> None:
+def _add_agent_settings(profile: Profile, answers: Mapping[str, Any]) -> None:
     """The host, the tools and the guard mode."""
     host = answers.get("host")
     if host is not None:
@@ -479,7 +482,7 @@ def _add_agent_settings(profile: dict, answers: dict) -> None:
         profile["guard"] = guard
 
 
-def _add_rule_choices(profile: dict, answers: dict, catalog: dict) -> None:
+def _add_rule_choices(profile: Profile, answers: Mapping[str, Any], catalog: Catalog) -> None:
     """The required and declined rules, then the check that no selected pack is a draft of task retro."""
     required_rules = _texts(answers.get("required_rules", []), "required_rules")
     for item in required_rules:
@@ -499,7 +502,7 @@ def _add_rule_choices(profile: dict, answers: dict, catalog: dict) -> None:
                          "rewrite its description before a profile uses it.")
 
 
-def _add_approval(profile: dict, answers: dict, catalog: dict) -> None:
+def _add_approval(profile: Profile, answers: Mapping[str, Any], catalog: Catalog) -> None:
     """The approval: local or signed, with its options max_age_days and roles."""
     approval = answers.get("approval")
     if approval is None:
@@ -528,7 +531,7 @@ def _add_approval(profile: dict, answers: dict, catalog: dict) -> None:
                                "roles": _approval_roles(approval["roles"], catalog)}
 
 
-def _add_options(profile: dict, answers: dict, catalog: dict) -> None:
+def _add_options(profile: Profile, answers: Mapping[str, Any], catalog: Catalog) -> None:
     """The waivers and the options a person turns on: short lane, separate requester, freeze, restricted paths,
     a question per rule, required boards, conflict resolutions and the recorded changes."""
     waivers = answers.get("waivers")
@@ -572,7 +575,7 @@ def _add_options(profile: dict, answers: dict, catalog: dict) -> None:
         profile["changes"] = changes
 
 
-def load_profile(state: Path, catalog: dict) -> dict:
+def load_profile(state: Path, catalog: Catalog) -> Profile:
     path = state / "project.json"
     if not path.is_file():
         # Run from the wrong folder, a bare "run init" would start a second project there.
@@ -597,7 +600,7 @@ def load_profile(state: Path, catalog: dict) -> dict:
     return validate_profile(answers, catalog)
 
 
-def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
+def _missing_records(answers: dict, catalog: Catalog) -> list[tuple[str, str]]:
     """Profile entries that name a pack, pattern or board no catalog in force provides."""
     fields = (
         ("packs", "packs"), ("patterns", "patterns"), ("declined", "patterns"), ("boards", "boards"),
@@ -613,7 +616,7 @@ def _missing_records(answers: dict, catalog: dict) -> list[tuple[str, str]]:
     return missing
 
 
-def selected_packs(profile: dict, catalog: dict) -> list[str]:
+def selected_packs(profile: Profile, catalog: Catalog) -> list[str]:
     """Packs from the profile and its patterns, each after its dependencies, before any resolution."""
     ordered = {}
 

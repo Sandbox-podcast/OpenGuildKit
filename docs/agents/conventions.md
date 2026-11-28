@@ -317,7 +317,7 @@ Issues #501 and #515.
 
 **Check.** The type checker of `lint-and-type-ratchet`, with a ratchet on the parameters annotated `dict`.
 
-**Today.** Absent.
+**Today.** `records.py` declares `Task` and `Profile` as `TypedDict` and `Catalog` as a mapping of collections; the readers, the task actions and every parameter named `task`, `profile` or `catalog` take them, and `tests/test_records.py` refuses a bare `dict` there and runs `mypy` on an unknown key of a task.
 Issue #507.
 
 ## Measure

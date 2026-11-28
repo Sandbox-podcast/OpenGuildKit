@@ -5,6 +5,8 @@ Tests: tests/test_rule_checks.py
 """
 
 import json
+from collections.abc import Mapping
+from typing import Any
 
 from .clock import today
 from .doc_links import doc_link
@@ -19,6 +21,7 @@ from .project import (
     recommendation_inputs,
     validate_profile,
 )
+from .records import Catalog, Profile
 
 
 def _select(question_id, prompt, choices, default=None, multiple=False):
@@ -103,7 +106,7 @@ def norm_reason(pattern: dict) -> str:
     return " or ".join(reasons)
 
 
-def _norms_question(catalog: dict) -> dict:
+def _norms_question(catalog: Catalog) -> dict:
     """One sub-question per norm, asked only when its condition holds; a no is recorded in declined.
 
     The help is the pattern's description, which says when the norm does not apply, with the sources behind it,
@@ -181,7 +184,7 @@ def _checks_question(proposed: list[dict]) -> dict:
 
 
 def init_questions(
-    catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
+    catalog: Catalog, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
     host: str | None = None, proposed_checks: list[dict] | None = None,
 ) -> list[dict]:
     """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
@@ -339,7 +342,7 @@ def unsure_answers(answers: dict, questions: list[dict]) -> tuple[dict, list[str
     return answers, notes
 
 
-def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
+def _norm_answers(value, catalog: Catalog) -> dict[str, dict | None]:
     """The answers to the norms question: "yes" (or true) accepts a norm; a no names who and why,
     {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
     if not isinstance(value, dict):
@@ -371,7 +374,7 @@ def _merged_stack(detected: list[str], written: list) -> list[str]:
     return merged + [item for item in written if technology_key(item) in by_key]
 
 
-def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
+def unanswered_norms(answers: Mapping[str, Any], catalog: Catalog, norms: dict) -> list[dict]:
     """The norms whose condition the answers meet and that no answer accepts, lists or declines."""
     sector, stack, roles, components = project_context(answers, catalog)
     inputs = recommendation_inputs(answers, catalog)
@@ -381,7 +384,7 @@ def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
             and entry["id"] not in norms and entry["id"] not in chosen]
 
 
-def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
+def complete_answers(answers: object, questions: list[dict], catalog: Catalog) -> tuple[dict, list[dict], list[str]]:
     """Give each omitted question its default and record the norms answered no in declined.
 
     Returns the answers, the detected components left aside and the norms answered yes.
@@ -410,7 +413,7 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     return completed, left_aside, [pattern_id for pattern_id, decline in norms.items() if decline is None]
 
 
-def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tuple[dict, list[dict]]:
+def setup_profile(answers: object, catalog: Catalog, questions: list[dict]) -> tuple[Profile, list[dict]]:
     """The profile that init writes from setup answers, and the detected components the answers leave aside.
 
     Unlike a saved profile, setup answers add their packs to the recommended ones unless

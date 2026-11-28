@@ -8,7 +8,7 @@ tests/test_deliberation.py
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from . import requester, short_lane
 from .alerts import resolution_line, resolved_by_import
@@ -18,13 +18,14 @@ from .code_lookup import code_lookup
 from .consultation import consult
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
+from .records import Catalog, Profile, Task, as_dict
 from .sensitive import redact_data
 from .tasks_approval import decided_message, stale_review_message
 from .tasks_record import RESOLUTION_FIELDS, timestamp, validate_brief
 from .workflow import TaskStateError, blocker_resolutions, decision_summary, is_decision_task
 
 
-def cited_evidence(task: dict) -> list[str]:
+def cited_evidence(task: Task) -> list[str]:
     """The project paths a task names as evidence for a reviewer: named evidence, rule and pack answers,
     acceptance criteria and blocker clearings.
 
@@ -44,11 +45,11 @@ def cited_evidence(task: dict) -> list[str]:
 
 
 def record_consultation(
-    task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
+    task: Task, answers: dict, profile: Profile, catalog: Catalog, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
     knowledge: Mapping[str, dict] | None = None, tools: list[dict] | None = None, root: Path | None = None,
     brief: str | None = None,
-) -> dict:
+) -> Task:
     """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.
 
     A brief can be revised at any consultation, the passes then start over; after a change request, the earlier round
@@ -76,23 +77,23 @@ def record_consultation(
             archived["reopened"] = reopened["message"]
         rounds.append(archived)
     validated = validate_answers(cast(dict, redact_data(answers)))
-    result = {**task, "answers": validated, "rounds": rounds}
+    result: Task = {**task, "answers": validated, "rounds": rounds}
     if brief is not None:
         result["brief"] = validate_brief(brief)
     missing, not_searched = None, None
     if root is not None and validated["kind"] == "bug":
         missing, not_searched = code_lookup(" ".join([result["brief"], validated.get("context", "")]), root)
-    result.update(
-        status="consulting",
-        consultation=consult(
+    result.update({
+        "status": "consulting",
+        "consultation": consult(
             task_scope_profile(profile, catalog, validated.get("components", [])),
             catalog, result, selection, host_controls, market, storybook,
             knowledge, tools, missing, not_searched,
         ),
-        profile_fingerprint=profile_fingerprint(profile, catalog),
-    )
+        "profile_fingerprint": profile_fingerprint(profile, catalog),
+    })
     for key in ("review", "decision", "passes", "deliberation", *RESOLUTION_FIELDS, "result", "waiting_for"):
-        result.pop(key, None)
+        as_dict(result).pop(key, None)
     # A broken seal means the review itself may have been edited: every board reviews again.
     if reopened and reopened["kind"] not in ("invalid-seal", "no-seal"):
         kept = kept_passes(task, result["consultation"])
@@ -108,12 +109,13 @@ ROUND_FIELDS = ("brief", "answers", "consultation", "review", "decision", "profi
                 *RESOLUTION_FIELDS, "result")
 
 
-def archived_round(task: dict) -> dict:
+def archived_round(task: Task) -> dict:
     """The record of a round as the rounds keep it, when the task is consulted again or its approval withdrawn."""
-    return {key: task[key] for key in ROUND_FIELDS if key in task}
+    fields: Mapping[str, Any] = task
+    return {key: fields[key] for key in ROUND_FIELDS if key in fields}
 
 
-def kept_passes(task: dict, consultation: dict) -> dict:
+def kept_passes(task: Task, consultation: dict) -> dict:
     """The passes of the approved round whose board brief and entry template did not change: same board, same rules,
     same questions. The person approves again over them; task pass BOARD --again redoes one."""
     previous = task["consultation"]
@@ -141,7 +143,7 @@ def kept_passes_note(task_id: str, kept: list[str], left: list[str]) -> str:
             f"task pass {task_id} BOARD --again.\n")
 
 
-def previous_round_line(task: dict) -> str | None:
+def previous_round_line(task: Task) -> str | None:
     """One line recalling the previous round's decision and its reason, for the next round's decision."""
     if not task.get("rounds"):
         return None
@@ -157,7 +159,7 @@ def previous_round_line(task: dict) -> str | None:
             f"on {decision['at'][:10]}: {decision['reason'].rstrip('.')}.{revised}{reopened}{withdrawn}")
 
 
-def _check_change(profile: dict, action: str, command: str) -> str:
+def _check_change(profile: Profile, action: str, command: str) -> str:
     """Who changed a check command through the profile commands, when and why, from the profile's history."""
     for entry in reversed(profile.get("changes", [])):
         if entry["change"].startswith(f"{action} check ") and command in entry["change"]:
@@ -165,7 +167,7 @@ def _check_change(profile: dict, action: str, command: str) -> str:
     return "no profile command recorded it: the profile was edited by hand"
 
 
-def check_command_lines(task: dict, profile: dict, previous: dict | None = None) -> list[str]:
+def check_command_lines(task: Task, profile: Profile, previous: dict | None = None) -> list[str]:
     """The shell commands task verify will run for the task, and those added or removed since the previous approval
     of the project, each with who changed it: a command added after one approval runs after the next."""
     if is_decision_task(task):
@@ -185,7 +187,7 @@ def check_command_lines(task: dict, profile: dict, previous: dict | None = None)
     return lines
 
 
-def decision_text(task: dict, profile: dict, previous: dict | None = None, register: dict | None = None) -> list[str]:
+def decision_text(task: Task, profile: Profile, previous: dict | None = None, register: dict | None = None) -> list[str]:
     """What the person reads before deciding, built once for the approval prompt, task challenge and task
     decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), the check
     commands task verify will run with those changed since the project's last approval, and the task's confirmed
@@ -197,7 +199,7 @@ def decision_text(task: dict, profile: dict, previous: dict | None = None, regis
     return lines
 
 
-def record_review(task: dict, review: dict, root: Path | None = None, kept: list[str] | None = None) -> dict:
+def record_review(task: Task, review: dict, root: Path | None = None, kept: list[str] | None = None) -> Task:
     """Record the review; with the project root, the project files and tests it cites must exist.
 
     kept names the passes kept from an approved round (kept_passes), so the person reads which boards did not review
@@ -209,12 +211,12 @@ def record_review(task: dict, review: dict, root: Path | None = None, kept: list
                              if isinstance(review, dict) else review, root)
     if kept:
         review["kept"] = kept
-    result = {**task, "status": "reviewed", "review": review}
+    result: Task = {**task, "status": "reviewed", "review": review}
     result.pop("passes", None)
     return result
 
 
-def _passes(task: dict) -> dict:
+def _passes(task: Task) -> dict:
     if task["status"] != "consulting":
         raise TaskStateError("Board passes can only run while the task is being consulted.")
     passes = task.get("passes")
@@ -223,7 +225,7 @@ def _passes(task: dict) -> dict:
     return {"consultation_id": passes["consultation_id"], "boards": dict(passes["boards"])}
 
 
-def start_pass(task: dict, board_id: str, mode: str, again: bool = False) -> dict:
+def start_pass(task: Task, board_id: str, mode: str, again: bool = False) -> Task:
     """Mark a board's pass as started. A done pass is only printed, unless again asks to redo it; starting again
     after a failed or done pass counts a new attempt, printing a pass that is already started does not."""
     passes = _passes(task)
@@ -241,7 +243,7 @@ def start_pass(task: dict, board_id: str, mode: str, again: bool = False) -> dic
     return {**task, "passes": passes}
 
 
-def earlier_sequential_pass(task: dict, board_id: str) -> str | None:
+def earlier_sequential_pass(task: Task, board_id: str) -> str | None:
     """In passes run one after the other, another board whose pass of this consultation was already started: it
     printed the instructions every pass shares, which the one agent running the sequence keeps in mind."""
     boards = (task.get("passes") or {}).get("boards", {})
@@ -251,7 +253,7 @@ def earlier_sequential_pass(task: dict, board_id: str) -> str | None:
                  and boards.get(other, {}).get("mode") == "sequential" and not boards[other].get("kept_from")), None)
 
 
-def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | None = None) -> dict:
+def submit_pass(task: Task, entry: dict, mode: str | None = None, root: Path | None = None) -> Task:
     """Record one board's entry. An invalid entry is recorded as a failure; the corrected file can be sent again."""
     passes = _passes(task)
     raw_id = entry.get("id") if isinstance(entry, dict) else None
@@ -279,10 +281,13 @@ def submit_pass(task: dict, entry: dict, mode: str | None = None, root: Path | N
     # The signs of copied advice that concern this entry, against the passes already done: each submit says what
     # its own pass adds, not the warnings of the earlier passes again.
     copied = review_warnings([*others, validated], focus=validated["id"])
-    return {**task, "passes": passes, **({"_warnings": copied} if copied else {})}
+    result: Task = {**task, "passes": passes}
+    if copied:
+        result["_warnings"] = copied
+    return result
 
 
-def pass_progress(task: dict) -> list[dict]:
+def pass_progress(task: Task) -> list[dict]:
     """Each selected board with its pass status: done, failed, started (or interrupted) or missing.
 
     Once the review is recorded, the passes are part of it: each of its boards is done, in the review.
@@ -302,7 +307,7 @@ def pass_progress(task: dict) -> list[dict]:
     return progress
 
 
-def assemble_review(task: dict, summary: str) -> dict:
+def assemble_review(task: Task, summary: str) -> Task:
     """Build the full review from completed passes once every board is done."""
     passes = _passes(task)
     progress = pass_progress({**task, "passes": passes})

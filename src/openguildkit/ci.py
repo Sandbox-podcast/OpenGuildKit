@@ -11,6 +11,7 @@ from . import git
 from .catalog import EXPORT_EXPIRY_ID, rule_check
 from .project_instructions import rule_text
 from .project_rules import profile_fingerprint, resolved_profile
+from .records import Catalog, Profile
 from .rule_checks import compare_field, parse_fields
 from .storage import parse_json
 
@@ -59,7 +60,7 @@ def read_policy_pack(repo: Path, commit: str) -> dict:
                          "--org-policy PATH --org-commit SHA.") from None
 
 
-def check_export(profile: dict, catalog: dict, target: Path, commit: str) -> dict:
+def check_export(profile: Profile, catalog: Catalog, target: Path, commit: str) -> dict:
     """Judge the target commit with the central rule's field check, read from the exact commit."""
     if EXPORT_EXPIRY_ID not in resolved_profile(profile, catalog)["packs"]:
         raise ValueError(f"Select the {EXPORT_EXPIRY_ID} pack in the trusted project profile.")

@@ -23,6 +23,7 @@ from .decisions import DECISIONS_DIR, base_commit, revisions_outside_history
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
+from .records import Catalog, Profile, Task
 from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
 from .startup import UNKNOWN_MODE, declared_mode
 from .task_index import tasks_with_status
@@ -45,17 +46,17 @@ HOST_PROTECTED = {"gemini-cli": (".gemini/settings.json",)}
 STATE_WORK = (f"{STATE_DIR}/alerts.json", f"{STATE_DIR}/catalog/")
 
 
-def guard_mode(profile: dict) -> str:
+def guard_mode(profile: Profile) -> str:
     return profile.get("guard", "off")
 
 
-def _age_days(moment: str) -> int | None:
+def _age_days(moment: str | None) -> int | None:
     from .approval_check import days_since
 
     return days_since(moment)
 
 
-def read_task_lazily(state: Path, task_id: str) -> dict:
+def read_task_lazily(state: Path, task_id: str) -> Task:
     """task_files.read_task, imported on the first call: the hook reads records only when one may be approved."""
     from .task_files import read_task as read
 
@@ -67,7 +68,7 @@ def read_task_lazily(state: Path, task_id: str) -> dict:
 NOT_COVERING = ("draft", "consulting", "reviewed", "changes-requested", "done", "done-with-reservations")
 
 
-def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
+def covering_approvals(root: Path, state: Path, profile: Profile, catalog: Catalog) -> list[dict]:
     """Approved tasks, not yet done, whose approval still holds (approval_check.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
@@ -155,7 +156,7 @@ def _protected(relative: str, host: str | None = None) -> bool:
     return _listed(relative, PROTECTED + HOST_PROTECTED.get(host, ()))
 
 
-def signers_file(root: Path, profile: dict) -> str | None:
+def signers_file(root: Path, profile: Profile) -> str | None:
     """The allowed signers file of a project with signed approvals, as a project path; None otherwise."""
     approval = profile.get("approval") or {}
     if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
@@ -299,7 +300,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     return 0, _context(event, message, dialect), ""
 
 
-def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict, hook_input: object) -> tuple[int, str, str]:
+def guard_hook(event: str, root: Path, state: Path, profile: Profile, catalog: Catalog, hook_input: object) -> tuple[int, str, str]:
     """Return the exit code, stdout and stderr for a host hook."""
     mode = guard_mode(profile)
     if mode == "off":

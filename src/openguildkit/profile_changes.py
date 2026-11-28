@@ -8,7 +8,9 @@ tests/test_profile_reference.py.
 """
 
 from argparse import Namespace
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from . import audit_log, incident, org_policy, requester
 from .clock import today
@@ -18,6 +20,7 @@ from .profile_edits import RULE_WORD, changed_profile, lifted_paths
 from .project import declined_ids, declined_rule_ids, load_profile, restricted_paths, validate_profile
 from .project_instructions import sync_instructions
 from .project_setup import DEFAULT_GUARD, is_norm, norm_reason, unanswered_norms
+from .records import Catalog, Profile
 from .sensitive import redact_credentials
 from .storage import project_lock, write_json
 from .tasks import tasks_touched
@@ -43,7 +46,7 @@ PROTECTIVE_BOARDS = ("security", "legal")
 AI_PACKS = ("llm-evaluations", "nist-ai-risk", "eu-ai-act")
 
 
-def protective_packs(catalog: dict) -> set[str]:
+def protective_packs(catalog: Catalog) -> set[str]:
     """Packs whose removal weakens a protection: those of a regulation, of a security method, or about AI."""
     packs = set(AI_PACKS) | {"secure-sdlc"}
     for pattern in catalog["patterns"].values():
@@ -53,7 +56,7 @@ def protective_packs(catalog: dict) -> set[str]:
     return packs & set(catalog["packs"])
 
 
-def _packs_in_force(profile: dict, catalog: dict) -> set[str]:
+def _packs_in_force(profile: Profile, catalog: Catalog) -> set[str]:
     """The packs a profile lists or brings through its patterns, without resolving it: the page passes drafts."""
     packs = set(profile.get("packs", []))
     for entry in profile.get("patterns", []):
@@ -62,12 +65,12 @@ def _packs_in_force(profile: dict, catalog: dict) -> set[str]:
     return packs
 
 
-def _boards_in_force(profile: dict, catalog: dict) -> set[str]:
+def _boards_in_force(profile: Profile, catalog: Catalog) -> set[str]:
     """An empty board list lets every board advise."""
     return set(profile.get("boards") or catalog["boards"])
 
 
-def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[str, list[str]]]:
+def weakening_changes(before: Profile, after: Profile, catalog: Catalog) -> list[tuple[str, list[str]]]:
     """What a new profile weakens, each with the profile command a person types for it at a terminal: a lower
     guard, public research, a regulation that stops being active, a regulation, security or AI pack removed, the
     security or legal board removed, personal data set to no, a host whose settings enforce less, signed
@@ -87,7 +90,7 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     if after.get("research") == "public-sources" and before.get("research") != "public-sources":
         changes.append(("research public-sources", ["profile", "set", "research", "public-sources", *person]))
 
-    def active(profile: dict) -> set:
+    def active(profile: Mapping[str, Any]) -> set:
         return {pattern_selection(entry)[0] for entry in profile.get("patterns", []) if isinstance(entry, (str, dict))}
 
     dropped = (active(before) - active(after)) | (set(declined_ids(after)) - set(declined_ids(before)))
@@ -129,7 +132,7 @@ def _texts(value) -> list[str]:
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
 
-def _signed(profile: dict) -> dict | None:
+def _signed(profile: Profile) -> dict | None:
     """Who approves in a profile with signed approvals, or None when approvals are local."""
     approval = profile.get("approval")
     if not isinstance(approval, dict) or approval.get("mode") != "signed":
@@ -137,7 +140,7 @@ def _signed(profile: dict) -> dict | None:
     return {"allowed_signers": str(approval.get("allowed_signers")), "approvers": _texts(approval.get("approvers"))}
 
 
-def _approval_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _approval_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """Signed approvals turned off, or a change of who signs: an approver added, the signers file moved, or
     signing turned on, since whoever writes that file then approves without a terminal."""
     old, new = _signed(before), _signed(after)
@@ -159,7 +162,7 @@ def _approval_changes(before: dict, after: dict, person: list[str]) -> list[tupl
     return changes
 
 
-def _waiver_policy(profile: dict) -> tuple[list[str], int] | None:
+def _waiver_policy(profile: Profile) -> tuple[list[str], int] | None:
     waivers = profile.get("waivers")
     if not isinstance(waivers, dict):
         return None
@@ -167,7 +170,7 @@ def _waiver_policy(profile: dict) -> tuple[list[str], int] | None:
     return _texts(waivers.get("allowed_by")), days if type(days) is int else 0
 
 
-def _waiver_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _waiver_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """Waivers allowed where none were, or allowed to more people or for longer."""
     old, new = _waiver_policy(before), _waiver_policy(after)
     if new is None or new == old:
@@ -183,7 +186,7 @@ def _waiver_changes(before: dict, after: dict, person: list[str]) -> list[tuple[
     return [(f"waivers widened: {'; '.join(wider)}", command)] if wider else []
 
 
-def _light_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _light_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """A path added to the short lane: a task there is reviewed by one board and without questions, so adding a path
     lowers the rigor of that part of the project. Fewer paths, or none, is stricter and asks nothing."""
     old, new = _texts(before.get("light_paths")), _texts(after.get("light_paths"))
@@ -194,7 +197,7 @@ def _light_changes(before: dict, after: dict, person: list[str]) -> list[tuple[s
     return [(what, ["profile", "set", "light-paths", *new, *person])]
 
 
-def _requester_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _requester_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """The separation of the requester and the approver turned on or off. Either way it changes who may approve, so
     only a person turns it, at a terminal, as for signed approvals."""
     old, new = requester.active(before), requester.active(after)
@@ -207,7 +210,7 @@ def _requester_changes(before: dict, after: dict, person: list[str]) -> list[tup
              ["profile", "set", "separate-requester", "off", *person])]
 
 
-def _incident_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _incident_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """A freeze lifted, or the limit on the age of an approval raised or removed (incident.py). Freezing and a shorter
     limit only restrict, so they ask nothing."""
     changes = []
@@ -221,7 +224,7 @@ def _incident_changes(before: dict, after: dict, person: list[str]) -> list[tupl
     return changes
 
 
-def _role_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _role_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """A role of a board (roles.py) removed, or given more people: anyone may then clear that board's blockers, or more
     people may. A new role, or fewer people in one, only restricts and asks nothing."""
     old = (before.get("approval") or {}).get("roles") or {}
@@ -238,7 +241,7 @@ def _role_changes(before: dict, after: dict, person: list[str]) -> list[tuple[st
     return changes
 
 
-def _restricted_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+def _restricted_changes(before: Profile, after: Profile, person: list[str]) -> list[tuple[str, list[str]]]:
     """A path of restricted_paths that the new profile no longer closes to the agents. Closing a path asks nothing."""
     lifted = lifted_paths(before, after)
     if not lifted:
@@ -249,7 +252,7 @@ def _restricted_changes(before: dict, after: dict, person: list[str]) -> list[tu
     return [(what, ["profile", "set", "restricted-paths", *kept, *person])]
 
 
-def check_proposal(profile: dict, catalog: dict, action: str, field: str | None, value: str) -> tuple[dict, list[str]]:
+def check_proposal(profile: Profile, catalog: Catalog, action: str, field: str | None, value: str) -> tuple[Profile, list[str]]:
     """The profile a command would write and what it weakens, or the ValueError the command would raise.
 
     action is add, remove or decline: field names the list for add and remove and is None for decline, whose value is a
@@ -281,12 +284,12 @@ def voided_note(voided: list[str]) -> str:
     return f" It also voids the approval of {', '.join(voided)}." if voided else ""
 
 
-def voided_approvals(state: Path, profile: dict, catalog: dict) -> list[str]:
+def voided_approvals(state: Path, profile: Profile, catalog: Catalog) -> list[str]:
     """The approved tasks whose approval this profile voids, by the rule that decides whether an approval holds."""
     return [task["id"] for task in tasks_touched(state, profile, catalog) if task["status"] == "approved"]
 
 
-def write_change(root: Path, state: Path, args, edit, by: str, reason: str, confirm) -> tuple[dict, dict, dict]:
+def write_change(root: Path, state: Path, args, edit, by: str, reason: str, confirm) -> tuple[Profile, dict, Catalog]:
     """Under the project lock: apply edit to the profile, name the approvals it voids, have the person confirm what
     it weakens, record who, when and why, then write the instructions, the profile and the catalog lock. args carries
     the central policy options of the command, or is None for the web page."""
@@ -323,7 +326,7 @@ def print_touched(tasks: list[dict], before: bool = False) -> None:
         print(f"  {task['id']} ({task['status']}): {task['step']}.")
 
 
-def report_change(state: Path, updated: dict, record: dict, catalog: dict, host_settings: bool) -> None:
+def report_change(state: Path, updated: Profile, record: dict, catalog: Catalog, host_settings: bool) -> None:
     """What follows a change: the norms it brings, the host settings to apply, the tasks it touches."""
     print(f"Profile changed: {record['change']}, by {record['by']} on {record['on']}. AGENTS.md is up to date.")
     for norm in unanswered_norms(updated, catalog, {}):
@@ -346,7 +349,7 @@ def _yes_no(value: object) -> str:
     return "unsure" if value is None else "yes" if value else "no"
 
 
-def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
+def export_answers(profile: Profile, catalog: Catalog) -> tuple[dict, list[str]]:
     """The init --answers file that sets up another repository with this profile's rules, and what the person types
     there for each setting that is left out because it names someone or lowers a protection.
 
@@ -421,7 +424,7 @@ def export_answers(profile: dict, catalog: dict) -> tuple[dict, list[str]]:
     return answers, _organization_steps(catalog) + steps
 
 
-def _organization_steps(catalog: dict) -> list[str]:
+def _organization_steps(catalog: Catalog) -> list[str]:
     """What profile export says of the organization catalog (RFC #446): it is pinned in the lock, not the answers."""
     organization = catalog.get("organization")
     if organization is None:
@@ -440,7 +443,7 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
     profile command a person types for it."""
     changed: list[str] = []
 
-    def edit(profile: dict, catalog: dict) -> tuple[dict, str]:
+    def edit(profile: Profile, catalog: Catalog) -> tuple[Profile, str]:
         try:
             candidate = validate_profile(edited, catalog)
         except ValueError as error:

@@ -16,10 +16,13 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from . import clock
+from .records import Profile, Task
 from .storage import canonical_sha256, read_json
 
 # The edit hook loads this module: git is imported in the functions that use it (#539).
@@ -57,7 +60,7 @@ def exported_boards(review: dict) -> list[dict]:
     ]
 
 
-def exported_rounds(task: dict) -> list[dict]:
+def exported_rounds(task: Task) -> list[dict]:
     """The earlier rounds as an exported record shows them: who decided what and why, and a revised brief."""
     return [
         {"consultation_id": previous.get("consultation", {}).get("id"),
@@ -77,7 +80,7 @@ def shared_digest(brief: str, summary: str, boards: list[dict], rounds: list[dic
     return canonical_sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
 
 
-def task_shared_digest(task: dict) -> str:
+def task_shared_digest(task: Task) -> str:
     return shared_digest(task["brief"], task["review"]["summary"], exported_boards(task["review"]), exported_rounds(task))
 
 
@@ -143,7 +146,7 @@ def verify_time(payload: dict) -> str | None:
     return re.sub(r"[-:T]", "", moment)
 
 
-def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
+def decision_payload(task: Task, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
                      separate: bool = False, signed_at: str | None = None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode. separate says that the profile
     separated the requester from the approver when it was given (requester.py). signed_at, when the approver gives
@@ -186,7 +189,7 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
     return payload
 
 
-def payload_text(payload: dict) -> str:
+def payload_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, ensure_ascii=False, indent=2) + "\n"
 
 
@@ -194,7 +197,7 @@ def seal(payload: dict) -> str:
     return canonical_sha256(payload)
 
 
-def approval_policy(profile: dict) -> dict:
+def approval_policy(profile: Profile) -> dict:
     return profile.get("approval") or {"mode": "local"}
 
 
@@ -412,7 +415,7 @@ def history_message(task_id: str, changes: list[str] | None = None, sealed: bool
     return f"Task {task_id} was completed under earlier rules{detail}; its record stays as history."
 
 
-def check_decision_seal(task: dict) -> dict:
+def check_decision_seal(task: Task) -> dict:
     """Check the seal without launching Git or verifying an SSH signature."""
     decision = task["decision"]
     if "seal" not in decision:
@@ -430,7 +433,7 @@ def check_decision_seal(task: dict) -> dict:
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 
 
-def base_commit(task: dict) -> str | None:
+def base_commit(task: Task) -> str | None:
     """The commit an approval was given at, when the project was a Git repository then."""
     base = (task.get("decision") or {}).get("base_revision")
     return base.get("commit") if isinstance(base, dict) and isinstance(base.get("commit"), str) else None
@@ -457,7 +460,7 @@ def outside_history_message(task_id: str, commit: str) -> str:
             f"squash or an amended commit replaced it. {reconsult_hint(task_id)}")
 
 
-def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[str] | None = None) -> tuple | None:
+def decision_problem(task: Task, root: Path | None, profile: Profile, outside: set[str] | None = None) -> tuple | None:
     """What breaks an approval besides its rules: the seal, the signature, the approved revision. (kind, message).
 
     Without the project root, only the seal is checked. outside holds the revisions already known to be out of the
@@ -475,7 +478,7 @@ def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[
 EARLIER_SIGNERS = "earlier-signers"
 
 
-def signature_or_history_problem(task: dict, root: Path, profile: dict, payload: dict,
+def signature_or_history_problem(task: Task, root: Path, profile: Profile, payload: dict,
                                  outside: set[str] | None = None) -> tuple | None:
     """The signature a signed project requires, then the approved revision, for an approval whose seal holds.
 
@@ -503,7 +506,7 @@ def signature_or_history_problem(task: dict, root: Path, profile: dict, payload:
     return None
 
 
-def check_decision(task: dict, root: Path, profile: dict) -> None:
+def check_decision(task: Task, root: Path, profile: Profile) -> None:
     """Refuse an approval that no longer matches the record, its signature or the project history."""
     problem = decision_problem(task, root, profile)
     if problem and problem[0] != EARLIER_SIGNERS:

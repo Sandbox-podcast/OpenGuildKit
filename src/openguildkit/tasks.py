@@ -14,14 +14,16 @@ tests/test_short_lane.py
 
 import json
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import date
 from pathlib import Path
+from typing import Any, cast
 
 from . import task_index
 from .approval_check import DONE_STATUSES, approval_problem
 from .decisions import base_commit, check_decision_seal, revisions_outside_history
 from .project_rules import Fingerprints
+from .records import Catalog, Profile, Task
 from .storage import write_text
 from .task_files import read_task, task_path
 from .tasks_blockers import _DAY
@@ -29,7 +31,7 @@ from .tasks_record import STATUSES, timestamp, validate_brief
 from .tasks_status import kept_line, line_to_keep, task_row
 
 
-def write_task(path: Path, task: dict) -> None:
+def write_task(path: Path, task: Task) -> None:
     """Write a task record without indentation, which made 29 % of a closed task's weight: git ignores the records
     and only the commands read them. Nothing compares their bytes (seals and digests hash the parsed fields), and any
     JSON reader, an earlier release's included, reads the same fields."""
@@ -68,7 +70,7 @@ def dependencies(state: Path, task_id: str, after: list[str]) -> dict[str, str]:
     return found
 
 
-def waiting_for(task: dict, statuses: dict[str, str]) -> list[dict]:
+def waiting_for(task: Mapping[str, Any], statuses: dict[str, str]) -> list[dict]:
     """The tasks this one waits for that are not done yet, with their status; one that no longer exists still holds
     it back, as unknown."""
     return [{"task": name, "status": statuses.get(name, "unknown")} for name in task.get("after", [])
@@ -90,7 +92,7 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
     path = task_path(state, task_id)
     if path.exists():
         raise ValueError(f"Task already exists: {task_id}")
-    record = {
+    record = cast(Task, {  # lane, when given, adds the short lane and its paths.
         "schema_version": 1,
         "id": task_id,
         "brief": brief,
@@ -100,7 +102,7 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
         **(lane or {}),
         # Who asked for the work (requester.py): written only when named, so a task without one is as before.
         **({"requested_by": requested_by} if requested_by is not None else {}),
-    }
+    })
     if after:
         record["after"] = list(dependencies(state, task_id, after))
     if follows is not None:
@@ -130,8 +132,8 @@ def _period_day(value: str | None, option: str) -> str | None:
 
 
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
-               since: str | None = None, until: str | None = None, *, profile: dict | None = None,
-               catalog: dict | None = None, root: Path | None = None, read: dict | None = None,
+               since: str | None = None, until: str | None = None, *, profile: Profile | None = None,
+               catalog: Catalog | None = None, root: Path | None = None, read: dict | None = None,
                skip: Iterable[str] = (), indexed: bool = False) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point.
 
@@ -151,10 +153,12 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     if not directory.is_dir():
         return rows
     judged = profile is not None and catalog is not None
-    fingerprints = Fingerprints(profile, catalog) if judged else None
+    fingerprints = Fingerprints(profile, catalog) if profile is not None and catalog is not None else None
     skip = {*skip, *(set(STATUSES) - {status} if status else ())}
     index = task_index.entries(state) if indexed else {}
-    entries, statuses, learnt = [], {}, False
+    entries: list[tuple[Task | None, Any]] = []
+    statuses: dict[str, str] = {}
+    learnt = False
 
     def in_period(day: str) -> bool:
         return not ((since and day < since) or (until and day > until))
@@ -188,7 +192,7 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     for task, row in entries:
         if task is not None:
             problem = (approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside)
-                       if judged else None)
+                       if profile is not None and catalog is not None else None)
             row = task_row(task, problem, profile, fingerprints, root)
             name = f"{task['id']}.json"
             if index.get(name, {}).get("checked") is True:
@@ -222,7 +226,7 @@ _UNSEALED_STEP = ("consult it again (openguildkit task consult ID --reuse-answer
                   "every board reviews again and check fails on it until then; or open a linked task with --follows")
 
 
-def _seal_holds(task: dict) -> bool:
+def _seal_holds(task: Task) -> bool:
     try:
         check_decision_seal(task)
     except ValueError:
@@ -230,7 +234,7 @@ def _seal_holds(task: dict) -> bool:
     return True
 
 
-def tasks_touched(state: Path, profile: dict, catalog: dict) -> list[dict]:
+def tasks_touched(state: Path, profile: Profile, catalog: Catalog) -> list[dict]:
     """The open tasks consulted under other rules, checks or boards than this profile's, each with what to do.
 
     update, sync and the profile commands name the same: given the profile about to be written, these are the tasks
@@ -282,7 +286,7 @@ def last_approval(state: Path) -> dict | None:
     return latest
 
 
-def _latest_approval(task: dict) -> dict | None:
+def _latest_approval(task: Task) -> dict | None:
     """The task's most recent approval, earlier rounds included, as last_approval gives it."""
     latest = None
     for entry in [*task["rounds"], task]:

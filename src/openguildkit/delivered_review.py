@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from . import clock, git, lazy_re
+from .records import Task
 from .sensitive import redact_credentials
 from .storage import print_json
 from .tasks_record import ACTIONS, SEVERITIES
@@ -36,7 +37,7 @@ def _short(revision: str) -> str:
     return revision[:12] if _COMMIT.fullmatch(revision) else revision
 
 
-def require_reviewable(task: dict) -> None:
+def require_reviewable(task: Task) -> None:
     """The delivered diff exists once the approved task records a result with its revision, in a Git repository."""
     if task["status"] != "approved":
         raise TaskStateError("The boards review the delivered diff of an approved task, after task result and before "
@@ -52,7 +53,7 @@ def require_reviewable(task: dict) -> None:
                          f"Git, or task result {task['id']} --file FILE names it.")
 
 
-def delivered_change(root: Path, task: dict) -> dict:
+def delivered_change(root: Path, task: Task) -> dict:
     """The files and the diff between the approved revision and the delivered one, the tool's state folder left out.
 
     A delivered revision that is not a commit of the repository (the working tree) is compared as the files are now,
@@ -108,11 +109,11 @@ def _added_lines(diff: str, root: Path, untracked: list[str]) -> dict[str, set[i
     return added
 
 
-def _board_ids(task: dict) -> list[str]:
+def _board_ids(task: Task) -> list[str]:
     return [entry["id"] for entry in task["review"]["boards"]]
 
 
-def _asked(task: dict, board_id: str) -> list[str]:
+def _asked(task: Task, board_id: str) -> list[str]:
     """What the decision asked that this board reads the diff against."""
     entry = next(item for item in task["review"]["boards"] if item["id"] == board_id)
     challenge = entry.get("challenge", {})
@@ -141,7 +142,7 @@ def _asked(task: dict, board_id: str) -> list[str]:
     return lines
 
 
-def board_brief(task: dict, change: dict, board_id: str) -> dict:
+def board_brief(task: Task, change: dict, board_id: str) -> dict:
     """One board's brief: the diff, what the decision asked, its lens and the format of its findings."""
     if board_id not in _board_ids(task):
         raise ValueError(f"Board {board_id} did not review this task. Its boards: {', '.join(_board_ids(task))}.")
@@ -189,7 +190,7 @@ def render_brief(brief: dict) -> str:
     return "\n".join(lines)
 
 
-def _problems(task: dict, change: dict, payload: object) -> tuple[str | None, list[dict], list[str]]:
+def _problems(task: Task, change: dict, payload: object) -> tuple[str | None, list[dict], list[str]]:
     """The board, its findings and every problem of the file at once, as task submit reports them."""
     if not isinstance(payload, dict):
         return None, [], ["The file must be a JSON object with board and findings."]
@@ -242,18 +243,18 @@ def _finding_problems(item: dict, where: str, change: dict) -> list[str]:
     return problems
 
 
-def record_findings(task: dict, change: dict, payload: object) -> tuple[dict, str]:
+def record_findings(task: Task, change: dict, payload: object) -> tuple[Task, str | None]:
     """The task with one board's findings on the delivered diff, which replace that board's earlier ones."""
     board, findings, problems = _problems(task, change, payload)
     if problems:
         raise ValueError("The findings cannot be recorded:\n- " + "\n- ".join(problems) + "\nFix them in the file and "
                          f"record it again: openguildkit task diff-review {task['id']} --submit FILE")
-    review = task.get("delivered_review", {"boards": {}})
+    review: dict = task.get("delivered_review", {"boards": {}})
     entry = {"base": change["base"], "revision": change["delivered"], "at": clock.timestamp(), "findings": findings}
     return {**task, "delivered_review": {**review, "boards": {**review["boards"], board: entry}}}, board
 
 
-def review_status(task: dict) -> dict:
+def review_status(task: Task) -> dict:
     """Which boards reviewed the delivered revision, which reviewed an earlier one, and the findings that stay open."""
     boards = task["review"]["boards"] if "review" in task else []
     reviewed = task.get("delivered_review", {}).get("boards", {})
@@ -271,7 +272,7 @@ def review_status(task: dict) -> dict:
     return {"boards": rows, "delivered": delivered}
 
 
-def status_line(task: dict) -> str:
+def status_line(task: Task) -> str:
     """How many boards reviewed the diff, the blocking findings, and what comes next."""
     status = review_status(task)
     rows = status["boards"]
@@ -292,7 +293,7 @@ def status_line(task: dict) -> str:
     return line + f"\nNext: openguildkit task complete {task['id']}."
 
 
-def open_points(task: dict) -> list[str]:
+def open_points(task: Task) -> list[str]:
     """What task complete keeps open: blocking findings, findings left to the person, and reviews of an earlier
     revision than the delivered one."""
     reviewed = task.get("delivered_review", {}).get("boards", {})
@@ -309,7 +310,7 @@ def open_points(task: dict) -> list[str]:
     return points
 
 
-def exported_review(task: dict) -> dict | None:
+def exported_review(task: Task) -> dict | None:
     """The findings as the shared decision record carries them, board by board."""
     reviewed = task.get("delivered_review", {}).get("boards")
     if not reviewed:
@@ -317,7 +318,7 @@ def exported_review(task: dict) -> dict | None:
     return {board: {key: record[key] for key in ("revision", "at", "findings")} for board, record in sorted(reviewed.items())}
 
 
-def print_overview(args, task: dict, change: dict) -> None:
+def print_overview(args, task: Task, change: dict) -> None:
     """The diff a task delivered and each board's review of it, as text or as JSON."""
     status = review_status(task)
     if args.json:

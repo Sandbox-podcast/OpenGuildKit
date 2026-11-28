@@ -25,6 +25,7 @@ from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
 from .lock import require_instructions
 from .project import WORK_DIR
+from .records import Catalog, Profile
 from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
 from .storage import project_lock
@@ -367,7 +368,7 @@ ACTION_OPTIONS = {
 }
 
 
-def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def _new(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """Create a task draft and print its ID; the next step goes to the agent on standard error."""
     if (args.brief is None) == (args.file is None):
         raise ValueError("Supply either a task brief or --file PATH.")
@@ -452,7 +453,7 @@ def run(command: Command) -> int | None:
         raise ValueError(state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
 
 
-def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:
+def _run(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int | None:
     action = args.action
     if action == "new":
         _new(args, root, state, profile, catalog)

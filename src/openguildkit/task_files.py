@@ -13,8 +13,10 @@ import marshal
 import re
 import time
 from pathlib import Path
+from typing import cast
 
 from . import task_index
+from .records import Task, as_dict
 from .storage import file_signature, read_json
 from .tasks_record import task_record_problem
 
@@ -53,11 +55,11 @@ class KeptRecords:
         self.size = 0
         self.entries: dict[Path, tuple[tuple, bytes, int]] = {}
 
-    def get(self, path: Path, signature: tuple | None) -> dict | None:
+    def get(self, path: Path, signature: tuple | None) -> Task | None:
         kept = self.entries.get(path)
         return marshal.loads(kept[1]) if kept is not None and signature is not None and kept[0] == signature else None
 
-    def settled(self, path: Path, stat: tuple | None) -> dict | None:
+    def settled(self, path: Path, stat: tuple | None) -> Task | None:
         """The record kept for a file whose size, times and inode are unchanged and whose modification was settled
         when it was read (older than the racy window of task_index): no need to read the file for its digest."""
         kept = self.entries.get(path)
@@ -65,10 +67,10 @@ class KeptRecords:
             return None
         return marshal.loads(kept[1])
 
-    def put(self, path: Path, signature: tuple | None, record: dict, read_at: int = 0) -> None:
+    def put(self, path: Path, signature: tuple | None, record: Task, read_at: int = 0) -> None:
         if signature is None:
             return
-        blob = marshal.dumps(record)
+        blob = marshal.dumps(as_dict(record))
         before = self.entries.pop(path, None)
         self.size -= len(before[1]) if before else 0
         if self.size + len(blob) <= self.limit:
@@ -91,7 +93,7 @@ def keeping_records(kept: KeptRecords):
         _KEPT = before
 
 
-def read_task(state: Path, task_id: str) -> dict:
+def read_task(state: Path, task_id: str) -> Task:
     path = task_path(state, task_id)
     if not path.is_file():
         raise ValueError(_unknown_task(state, task_id))
@@ -111,8 +113,8 @@ def read_task(state: Path, task_id: str) -> dict:
     return task
 
 
-def _validated_task(state: Path, path: Path, task_id: str) -> dict:
-    task = read_json(path)
+def _validated_task(state: Path, path: Path, task_id: str) -> Task:
+    task = cast(Task, read_json(path))  # Checked below: task_record_problem names the first field that departs.
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
     problem = task_record_problem(task)

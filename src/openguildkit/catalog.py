@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 from . import clock, lazy_re
+from .records import Catalog
 from .rule_checks import validate_check
 from .storage import canonical_sha256, file_signature, load_json, unique_fields
 
@@ -477,7 +478,7 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
     return merged, overlay
 
 
-def overlaid_boards(catalog: dict) -> set[str]:
+def overlaid_boards(catalog: Catalog) -> set[str]:
     """Bundled brains that a project file completes. The project owns them, so the lock does not pin them."""
     return set(catalog.get("overlays", {}).get("boards", []))
 
@@ -688,7 +689,7 @@ def _merged_records(builtin, project: Path | None, organization: dict | None = N
     return catalog
 
 
-def _add_central_policy(catalog: dict, central_policy: tuple[str, dict]) -> None:
+def _add_central_policy(catalog: Catalog, central_policy: tuple[str, dict]) -> None:
     commit, pack = central_policy
     validate_entry("packs", pack)
     rules = pack["rules"]
@@ -701,7 +702,7 @@ def _add_central_policy(catalog: dict, central_policy: tuple[str, dict]) -> None
     catalog["packs"] = dict(sorted(catalog["packs"].items()))
 
 
-def _check_links(catalog: dict) -> None:
+def _check_links(catalog: Catalog) -> None:
     """Every pack a pack or a pattern names exists, and every sector a pattern names."""
     validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
@@ -715,7 +716,7 @@ def _check_links(catalog: dict) -> None:
 
 def load_catalog(
     extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None, organization: dict | None = None
-) -> dict[str, dict[str, dict[str, Any]]]:
+) -> Catalog:
     """Load bundled records, an organization catalog's and optional project additions, ordered by ID. Each call gets
     its own copy; records already validated in this process are not validated again while their files are unchanged.
 

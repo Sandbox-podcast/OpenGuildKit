@@ -33,6 +33,7 @@ from .org_catalog import unaccepted_replacements
 from .project import STATE_DIR, load_profile, state_path
 from .project_instructions import RuleError
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .references import load_references
 from .storage import print_json
 from .tasks import list_tasks
@@ -49,7 +50,7 @@ NO_HOST_SETTINGS = (
 )
 
 
-def pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
+def pending_catalog_changes(lock: dict | None, live: dict, profile: Profile, bundled: dict) -> list[str]:
     """Locked records whose rules the installed catalog changes; a source checked again changes no rule."""
     if lock is None:
         return []
@@ -76,7 +77,7 @@ def undated_project_sources(state: Path, live: dict) -> list[str]:
     return undated_sources({**live, **references})
 
 
-def warn_unsigned(profile: dict, report=None) -> None:
+def warn_unsigned(profile: Profile, report=None) -> None:
     """Say once per setup or check command, not on every command, that local approvals can be forged."""
     warning = approval_warning(profile)
     if warning:
@@ -221,7 +222,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     from .surfaces import render_scan, scan_exit_code, scan_report, scan_sarif  # 11 ms that only host scan needs.
 
-    profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
+    profile: Profile | dict = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
     result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
         print(scan_sarif(result, root), end="")
@@ -232,7 +233,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     return scan_exit_code(result, args.strict)
 
 
-def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dict | None = None) -> int:
+def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, read: dict | None = None) -> int:
     """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output.
 
     The command stops where it stopped: a problem that ends it (instructions, host settings, catalog lock, approvals
@@ -272,7 +273,7 @@ def check_status(args, root: Path, read: dict) -> dict:
         return {"passes": False, "code": 1, "message": lines[-1] if lines else None}
     return {"passes": True, "code": 0, "message": None}
 
-def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report, read: dict) -> None:
+def _check_project(args, root: Path, state: Path, profile: Profile, catalog: Catalog, report, read: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate. Each problem and warning goes to the
     report too, when it gathers them. read receives the task records, by ID, and each is read once."""

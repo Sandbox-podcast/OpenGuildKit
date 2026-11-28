@@ -22,8 +22,10 @@ import json
 import os
 import re
 import tomllib
+from collections.abc import Mapping
 from itertools import islice
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from .allowlist import address_allowed, load_allow
@@ -225,7 +227,7 @@ def _agents_md(tool: dict) -> tuple[str, str]:
     return "not-documented", f"not documented as reading AGENTS.md (absent from the agents.md list read {day})"
 
 
-def _coverage(root: Path, tool: dict, profile: dict) -> dict:
+def _coverage(root: Path, tool: dict, profile: Mapping[str, Any]) -> dict:
     """What OpenGuildKit covers for a tool. Claude Code, Codex and Gemini CLI: what host check says of the guard hooks, for
     the guard of the profile; every other tool has no hook."""
     guard, host = profile.get("guard", "off"), profile.get("host", "other")
@@ -384,7 +386,7 @@ def _permissive(configs: _Configs) -> list[dict]:
     return found
 
 
-def discover(root: Path, profile: dict | None = None, tools: dict | None = None, allow: dict | None = None) -> dict:
+def discover(root: Path, profile: Mapping[str, Any] | None = None, tools: dict | None = None, allow: dict | None = None) -> dict:
     """The agent tools the files of a project show, its MCP servers, and the findings about them and about the
     permissive settings. The profile gives the guard and the host; tools is the registry (the bundled one by default);
     allow is an allow list (allowlist.py), whose absence leaves the findings as they were."""
@@ -416,7 +418,7 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None,
             "findings": sorted(found, key=_order), "skipped": configs.skipped}
 
 
-def scan_report(root: Path, profile: dict | None = None, tools: dict | None = None, allow: Path | None = None) -> dict:
+def scan_report(root: Path, profile: Mapping[str, Any] | None = None, tools: dict | None = None, allow: Path | None = None) -> dict:
     """What `host scan` prints with --json: the inventory, the findings of both analyses in one list, the sources.
     allow is the file of an allow list: what it does not name is an error."""
     content, inventory = scan(root), discover(root, profile, tools, load_allow(allow) if allow else None)

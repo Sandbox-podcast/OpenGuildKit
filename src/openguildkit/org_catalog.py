@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from . import lazy_re
+from .records import Catalog
 
 # The edit hook loads this module: git and shell are imported in the functions that use them (#539).
 
@@ -245,7 +246,7 @@ def organization_in(lock: dict | None, state: Path) -> dict | None:
     return read
 
 
-def records_of(catalog: dict) -> dict[str, dict]:
+def records_of(catalog: Catalog) -> dict[str, dict]:
     """The organization records of a catalog, by collection/id."""
     provided = catalog.get("organization", {}).get("records", {})
     return {f"{collection}/{record_id}": catalog[collection][record_id]
@@ -265,7 +266,7 @@ def changes(before: dict[str, dict], after: dict[str, dict]) -> dict:
             "changed": changed}
 
 
-def replacements(catalog: dict, lock: dict | None) -> list[dict]:
+def replacements(catalog: Catalog, lock: dict | None) -> list[dict]:
     """The project records that replace an organization record, each with the acceptance that covers it, or None.
     An acceptance covers the organization record it was given for: a new edition of it needs a new one."""
     replaced = catalog.get("organization", {}).get("replaced", {})
@@ -279,7 +280,7 @@ def replacements(catalog: dict, lock: dict | None) -> list[dict]:
     return rows
 
 
-def unaccepted_replacements(catalog: dict, lock: dict | None) -> dict[str, str]:
+def unaccepted_replacements(catalog: Catalog, lock: dict | None) -> dict[str, str]:
     """The line check prints for each replacement no person accepted, by collection/id."""
     return {row["record"]: (f"the project catalog replaces {row['record']} of the organization catalog "
                             f"(.openguildkit/catalog/{row['record']}.json). If a person agrees, openguildkit "

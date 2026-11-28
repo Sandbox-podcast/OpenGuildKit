@@ -12,6 +12,7 @@ from .consultation import profile_settings
 from .decisions import reconsult_command, stale_approval_message
 from .project import rules_in_force
 from .project_rules import fingerprint_holds, task_scope_profile
+from .records import Catalog, Profile, Task
 
 
 def _setting_change(name: str, before, after) -> str:
@@ -21,7 +22,7 @@ def _setting_change(name: str, before, after) -> str:
     return f"{name} {'unset' if before is None else before} -> {'unset' if after is None else after}"
 
 
-def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
+def rule_changes(task: Task, profile: Profile, catalog: Catalog) -> list[str]:
     """What changed, pack by pack and rule by rule, in the rules the task was consulted under."""
     scope = task["consultation"]["scope"]
     try:
@@ -60,14 +61,14 @@ def revoke_command(task_id: str) -> str:
     return f"openguildkit task revoke {task_id} --by INITIALS --reason TEXT"
 
 
-def require_approval(task: dict, profile: dict, catalog: dict, root: Path | None = None) -> None:
+def require_approval(task: Task, profile: Profile, catalog: Catalog, root: Path | None = None) -> None:
     """Refuse to act on an approved task whose approval no longer holds, with the one message every reader prints."""
     problem = approval_problem(task, profile, catalog, root)
     if problem and problem["severity"] == "error":
         raise ValueError(problem["message"])
 
 
-def decided_message(task: dict, problem: dict | None = None) -> str | None:
+def decided_message(task: Task, problem: dict | None = None) -> str | None:
     """For a task a person already decided: its status, who decided and when, and the one command that fits next.
 
     problem is the task's approval_problem: an approval that no longer holds leads to a new consultation, not to the
@@ -100,7 +101,7 @@ def stale_review_message(task_id: str) -> str:
             "again.")
 
 
-def require_current_scope(task: dict, profile: dict, catalog: dict) -> None:
+def require_current_scope(task: Task, profile: Profile, catalog: Catalog) -> None:
     """Refuse to decide over a review given under other rules, checks or boards than the profile's."""
     if not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
         if task["status"] in ("approved", *DONE_STATUSES):

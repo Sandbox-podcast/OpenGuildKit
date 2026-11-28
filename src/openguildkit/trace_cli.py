@@ -19,6 +19,7 @@ from .guard_records import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .results import changed_journals
 from .storage import print_json
 
@@ -62,7 +63,7 @@ def project_file(root: Path, path: Path) -> str:
     return relative.as_posix()
 
 
-def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) -> dict:
+def trace(root: Path, state: Path, profile: Profile, catalog: Catalog, relative: str) -> dict:
     """The decisions whose record lists the file, most recent first, the records that cannot be read, and the
     commits on the file after the last decision."""
     rows = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}

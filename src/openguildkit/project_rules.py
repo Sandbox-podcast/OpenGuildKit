@@ -5,6 +5,7 @@ Tests: tests/test_rule_checks.py
 """
 
 from pathlib import PurePosixPath
+from typing import cast
 
 from . import lazy_re
 from .catalog import rule_check
@@ -18,10 +19,11 @@ from .project import (
     rules_in_force,
     selected_packs,
 )
+from .records import Catalog, Profile
 from .storage import canonical_sha256
 
 
-def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
+def rule_conflicts(profile: Profile, catalog: Catalog) -> list[dict]:
     """Declared incompatibilities between selected packs that apply to a common scope."""
     selected = selected_packs(profile, catalog)
     scopes = pack_scopes(profile, catalog)
@@ -57,7 +59,7 @@ def rule_conflicts(profile: dict, catalog: dict) -> list[dict]:
     return conflicts
 
 
-def _excluded_packs(profile: dict, catalog: dict) -> set[str]:
+def _excluded_packs(profile: Profile, catalog: Catalog) -> set[str]:
     excluded = set()
     for conflict in rule_conflicts(profile, catalog):
         resolution = conflict["resolution"]
@@ -66,13 +68,13 @@ def _excluded_packs(profile: dict, catalog: dict) -> set[str]:
     return excluded
 
 
-def resolved_profile(profile: dict, catalog: dict) -> dict:
+def resolved_profile(profile: Profile, catalog: Catalog) -> Profile:
     excluded = _excluded_packs(profile, catalog) if profile.get("resolutions") else set()
     packs = [pack_id for pack_id in selected_packs(profile, catalog) if pack_id not in excluded]
     return {**profile, "packs": packs, "boards": profile["boards"] or sorted(catalog["boards"])}
 
 
-def pack_provenance(profile: dict, catalog: dict) -> dict[str, list[str]]:
+def pack_provenance(profile: Profile, catalog: Catalog) -> dict[str, list[str]]:
     """Explain why each pack is active: required, selected, from a pattern or as a dependency."""
     reasons: dict[str, list[str]] = {}
 
@@ -93,7 +95,7 @@ def pack_provenance(profile: dict, catalog: dict) -> dict[str, list[str]]:
     return reasons
 
 
-def pattern_origin(pattern: dict, profile: dict) -> str:
+def pattern_origin(pattern: dict, profile: Profile) -> str:
     """Why a selected pattern without a stack concerns the project: its sector, personal data or roles."""
     if is_stack_pattern(pattern):
         return ""
@@ -114,7 +116,7 @@ def pattern_origin(pattern: dict, profile: dict) -> str:
 RULE_WARNING = 80
 
 
-def _pattern_reason(pattern: dict, profile: dict) -> str:
+def _pattern_reason(pattern: dict, profile: Profile) -> str:
     """Why a selected pattern applies, in one line: its stack, sector, personal data, core role, or a decision."""
     adopted = [change for change in profile.get("changes", []) if change["change"] == f"adopt {pattern['id']}"]
     if adopted:
@@ -130,7 +132,7 @@ def _pattern_reason(pattern: dict, profile: dict) -> str:
     return f"role {', '.join(core)} (core method)" if core else "chosen by the team"
 
 
-def regulation_demands(pattern: dict, catalog: dict) -> str:
+def regulation_demands(pattern: dict, catalog: Catalog) -> str:
     """One sentence saying what a regulation asks of each task: rules to answer, evidence to supply, checks run."""
     packs = pack_rule_counts(pattern["packs"], catalog)
     rules = [rule for pack_id in packs for rule in catalog["packs"][pack_id]["rules"]]
@@ -144,7 +146,7 @@ def regulation_demands(pattern: dict, catalog: dict) -> str:
     return text + "."
 
 
-def rule_plan(profile: dict, catalog: dict) -> dict:
+def rule_plan(profile: Profile, catalog: Catalog) -> dict:
     """Everything init or sync would write, with the origin and scope of each pack, the patterns with their
     reason and rule count, what each regulation asks of a task, and the recorded profile decisions."""
     resolved = resolved_profile(profile, catalog)
@@ -193,7 +195,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
     return plan
 
 
-def require_resolved_conflicts(profile: dict, catalog: dict) -> None:
+def require_resolved_conflicts(profile: Profile, catalog: Catalog) -> None:
     open_conflicts = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"] is None]
     if open_conflicts:
         names = "; ".join(" and ".join(conflict["packs"]) for conflict in open_conflicts)
@@ -206,7 +208,7 @@ def require_resolved_conflicts(profile: dict, catalog: dict) -> None:
         )
 
 
-def pack_scopes(profile: dict, catalog: dict) -> dict[str, list[str] | None]:
+def pack_scopes(profile: Profile, catalog: Catalog) -> dict[str, list[str] | None]:
     """Map each resolved pack to the components it applies to, or None for the whole project."""
     scopes: dict[str, set[str] | None] = {}
 
@@ -234,7 +236,7 @@ def _without_dates(record: dict) -> dict:
     return {**record, "sources": sources} if "sources" in record else record
 
 
-def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -> dict:
+def task_scope_profile(profile: Profile, catalog: Catalog, component_ids: list[str]) -> Profile:
     """Resolve the project rules for all components or the ones named in the task answers."""
     resolved = resolved_profile(profile, catalog)
     if not component_ids:
@@ -288,7 +290,7 @@ APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "res
                            "light_paths", "separate_requester", "frozen", "restricted_paths")
 
 
-def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
+def _advice_profile(profile: Profile, neutral: tuple = ()) -> Profile:
     """The profile without its decision history, and without the neutral fields given: who declined or changed
     what does not change the advice."""
     advice = {key: value for key, value in profile.items() if key != "changes" and key not in neutral}
@@ -296,10 +298,10 @@ def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:
         advice["declined"] = declined_ids(profile)
     if "declined_rules" in advice:
         advice["declined_rules"] = sorted(declined_rule_ids(profile))
-    return advice
+    return cast(Profile, advice)  # A profile less the fields given, which only resolved_profile reads.
 
 
-def profile_fingerprint(profile: dict, catalog: dict, *, legacy: bool = False) -> str:
+def profile_fingerprint(profile: Profile, catalog: Catalog, *, legacy: bool = False) -> str:
     """The digest of what an approval rests on: the rules, the checks and the boards of the profile.
 
     legacy gives the digest of releases before 0.17, which covered every field; approvals recorded under it hold
@@ -324,7 +326,7 @@ def profile_fingerprint(profile: dict, catalog: dict, *, legacy: bool = False) -
 class Fingerprints:
     """The current fingerprint of a profile, and the earlier releases' one computed only when a record needs it."""
 
-    def __init__(self, profile: dict, catalog: dict):
+    def __init__(self, profile: Profile, catalog: Catalog):
         self.profile, self.catalog = profile, catalog
         self.current = profile_fingerprint(profile, catalog)
         self._legacy: str | None = None
@@ -338,7 +340,7 @@ class Fingerprints:
         return recorded == self._legacy
 
 
-def fingerprint_holds(recorded: str | None, profile: dict, catalog: dict) -> bool:
+def fingerprint_holds(recorded: str | None, profile: Profile, catalog: Catalog) -> bool:
     """Whether a fingerprint recorded with an approval still matches the rules, checks and boards of the profile."""
     return Fingerprints(profile, catalog).holds(recorded)
 

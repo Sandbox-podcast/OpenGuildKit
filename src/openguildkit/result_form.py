@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from .approval_check import DONE_STATUSES
 from .board_entries import required_text
 from .catalog_queries import recorded_value
+from .records import Profile, Task
 from .relevance import sensitive_area
 from .results import asked_checks, decision_revision_message, evidence_fingerprint, expected_checks, not_concerned
 from .rule_checks import validate_path
@@ -35,11 +36,11 @@ def _evidence_reference(value: str, check_id: str) -> str:
     return value
 
 
-def _shape(task: dict) -> str:
+def _shape(task: Task) -> str:
     return f"Run openguildkit task result {task['id']} --template for the shape."
 
 
-def _refusal(task: dict, message: str) -> ValueError:
+def _refusal(task: Task, message: str) -> ValueError:
     """A refused result names what is accepted and the template that shows it."""
     return ValueError(f"{message} {_shape(task)}")
 
@@ -47,7 +48,7 @@ def _refusal(task: dict, message: str) -> ValueError:
 class _Problems:
     """The defects of one result, each with the entry that holds it: one refusal lists them all (issue #490)."""
 
-    def __init__(self, task: dict):
+    def __init__(self, task: Task):
         self.task = task
         self.found: list[tuple[str, ValueError]] = []
 
@@ -75,7 +76,7 @@ class _Problems:
 TEMPLATE_NOTES = {"instructions", "recorded_by_verify", "not_concerned"}
 
 
-def _revision(task: dict, payload: dict, changed: list[str] | None) -> dict:
+def _revision(task: Task, payload: dict, changed: list[str] | None) -> dict:
     """The delivered revision or pull request; a decision task that changed no project file needs neither, and one
     already recorded (the revision task verify reads from Git) stands when the report leaves it out."""
     if not payload.get("revision") and not payload.get("pull_request"):
@@ -93,7 +94,7 @@ def _revision(task: dict, payload: dict, changed: list[str] | None) -> dict:
         raise _refusal(task, str(error)) from None
 
 
-def _criterion(task: dict, item: object, known: dict, root: Path | None) -> dict:
+def _criterion(task: Task, item: object, known: dict, root: Path | None) -> dict:
     """A criterion is met or not, with its evidence; verified_by ties it to a verify command or a test file."""
     if not isinstance(item, dict) or not {"criterion", "status", "evidence"} <= item.keys() <= {
             "criterion", "status", "evidence", "verified_by"}:
@@ -123,7 +124,7 @@ def _criterion(task: dict, item: object, known: dict, root: Path | None) -> dict
     return entry
 
 
-def _pack_answer(task: dict, item: object, scope: set) -> dict | None:
+def _pack_answer(task: Task, item: object, scope: set) -> dict | None:
     """One answer can cover every rule of a pack: passed or failed with evidence, skipped or not-applicable
     with a reason and the person who owns it. A pack entry left with an empty status is not answered yet."""
     if not isinstance(item, dict) or not {"pack", "status"} <= item.keys() <= {
@@ -144,7 +145,7 @@ def _pack_answer(task: dict, item: object, scope: set) -> dict | None:
         raise _refusal(task, f"{error} A {item['status']} pack needs {' and '.join(fields)}.") from None
 
 
-def validate_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
+def validate_result(task: Task, profile: Profile, payload: dict, source: str = "report", relevance: dict | None = None,
                     root: Path | None = None, *, changed: list[str] | None = None) -> dict:
     """A result names the delivered revision or PR, the acceptance criteria and each check's outcome.
 
@@ -201,7 +202,7 @@ def validate_result(task: dict, profile: dict, payload: dict, source: str = "rep
     return result
 
 
-def _check_entry(task: dict, item: object, known: dict, source: str, root: Path | None) -> tuple[dict, str]:
+def _check_entry(task: Task, item: object, known: dict, source: str, root: Path | None) -> tuple[dict, str]:
     """One check outcome, or the reason a named evidence is held back."""
     if not isinstance(item, dict) or "check" not in item or "status" not in item:
         raise _refusal(task, f"Each check has check and status ({', '.join(RESULT_STATUSES)}).")
@@ -291,7 +292,7 @@ def _evidence_answer(check: dict) -> str:
     return f'{supplied} Or status "not-applicable", with a reason and an owner, when it does not apply to this task.'
 
 
-def _pack_form(task: dict, asked: list[dict]) -> set[str]:
+def _pack_form(task: Task, asked: list[dict]) -> set[str]:
     """Packs the template answers once: none of their rules is required, records a value or is selected by the
     task's data or concerns, and none is a data protection, security or AI rule."""
     packs: dict[str, bool] = {}
@@ -304,7 +305,7 @@ def _pack_form(task: dict, asked: list[dict]) -> set[str]:
     return {pack for pack, whole in packs.items() if whole}
 
 
-def result_template(task: dict, profile: dict, relevance: dict | None = None, *,
+def result_template(task: Task, profile: Profile, relevance: dict | None = None, *,
                     changed: list[str] | None = None) -> dict:
     """A result file to fill: the criteria, every check that concerns the task and a report covers, and what is not asked.
 

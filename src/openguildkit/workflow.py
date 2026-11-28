@@ -9,12 +9,15 @@ tests/test_decision_brief.py, tests/test_evidence_fingerprints.py, tests/test_ou
 tests/test_sensitive.py, tests/test_short_lane.py
 """
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from . import owners
 from .board_entries import evidence_positions, received_value, validate_review
 from .consultation import json_section
 from .questionnaire import ASSUMPTIONS
+from .records import Task
 from .routing import normalize_text, trigger_matches
 from .tasks_record import RESOLUTION_FIELDS
 from .wording import plural
@@ -25,7 +28,7 @@ class TaskStateError(ValueError):
     status and the next command that runs in it (tasks_status.state_refusal)."""
 
 
-def mock_evidence(task: dict) -> list[str]:
+def mock_evidence(task: Task) -> list[str]:
     """Review evidence cited from a mock tool ("finance #1 stripe:in_test_001"): synthetic data, never the real system."""
     scope = task.get("consultation", {}).get("scope", {})
     mocks = {item["id"] for item in scope.get("tools", []) if item.get("mode") == "mock"}
@@ -170,7 +173,7 @@ def _resolved(positions: set[str]) -> bool:
     return "concede" in positions or positions == {"amend"}
 
 
-def deliberation_request(task: dict) -> dict:
+def deliberation_request(task: Task) -> dict:
     """What each board must answer, on the same point, before the person decides: one response per board and
     side, covering every objection it raised or received."""
     if task.get("status") != "reviewed":
@@ -229,7 +232,7 @@ def nothing_to_deliberate(task_id: str) -> str:
             f"openguildkit task challenge {task_id} prints the decision brief.")
 
 
-def validate_deliberation(task: dict, payload: dict) -> dict:
+def validate_deliberation(task: Task, payload: dict) -> dict:
     """Both boards answer each objection with a position and evidence from their first review."""
     request = deliberation_request(task)
     items = {item["id"]: item for item in request["objections"]}
@@ -280,7 +283,7 @@ def validate_deliberation(task: dict, payload: dict) -> dict:
     }
 
 
-def pending_removals(task: dict) -> list[str]:
+def pending_removals(task: Task) -> list[str]:
     """Boards routed for sensitive data that the agent removed and the person has not confirmed yet."""
     return [
         item["board"] for item in task.get("consultation", {}).get("adjustments", [])
@@ -322,7 +325,7 @@ def verdict_lines(review: dict, deliberation: dict | None = None, decision_task:
     return lines
 
 
-def _board_change_lines(task: dict) -> list[str]:
+def _board_change_lines(task: Task) -> list[str]:
     confirmed = task.get("decision", {}).get("confirmed_removals", [])
     lines = []
     for item in task["consultation"].get("adjustments", []):
@@ -343,7 +346,7 @@ def _board_change_lines(task: dict) -> list[str]:
     return lines
 
 
-def _blocker_lines(task: dict) -> list[str]:
+def _blocker_lines(task: Task) -> list[str]:
     lines = []
     for item in blocker_list(task):
         resolution = item["resolution"]
@@ -366,7 +369,7 @@ def _blocker_lines(task: dict) -> list[str]:
     return lines
 
 
-def decision_summary(task: dict) -> list[str]:
+def decision_summary(task: Task) -> list[str]:
     """What the person approving must see before deciding, as plain lines. Each objection appears once."""
     review = validate_review(task["consultation"], task["review"])
     domains = task["consultation"].get("domains")
@@ -403,7 +406,7 @@ def decision_summary(task: dict) -> list[str]:
     return lines
 
 
-def assumptions_read(task: dict, review: dict) -> list[dict]:
+def assumptions_read(task: Task, review: dict) -> list[dict]:
     """The task's working assumptions with the boards that contest each, the contested first, then in their order."""
     assumed = task["consultation"]["scope"].get("answers", {}).get(ASSUMPTIONS, [])
     items = [{"number": number, "text": text, "contested": []} for number, text in enumerate(assumed, start=1)]
@@ -413,7 +416,7 @@ def assumptions_read(task: dict, review: dict) -> list[dict]:
     return sorted(items, key=lambda item: not item["contested"])
 
 
-def _assumption_lines(task: dict, review: dict) -> list[str]:
+def _assumption_lines(task: Task, review: dict) -> list[str]:
     """The assumptions apart, before the person types the task ID: approving accepts what is still assumed."""
     items = assumptions_read(task, review)
     if not items:
@@ -427,7 +430,7 @@ def _assumption_lines(task: dict, review: dict) -> list[str]:
     return lines
 
 
-def challenge_report(task: dict, lines: list[str] | None = None, root: Path | None = None) -> str:
+def challenge_report(task: Task, lines: list[str] | None = None, root: Path | None = None) -> str:
     """The decision brief: the lines the person reads before deciding (tasks_review.decision_text, the same as the
     approval prompt), then each board's challenge as JSON. With the project root, the code owners of what the task
     touches, read from CODEOWNERS and never recorded."""
@@ -487,7 +490,7 @@ def challenge_report(task: dict, lines: list[str] | None = None, root: Path | No
     return "# Decision brief\n\n" + summary + "\n\n" + json_section(report) + "\n"
 
 
-def is_decision_task(task: dict) -> bool:
+def is_decision_task(task: Task) -> bool:
     """A decision task asks for a recommendation, not for a change to the project."""
     return task.get("answers", {}).get("kind") == "decision"
 
@@ -497,15 +500,16 @@ def resolution_field(phase: str | None) -> str:
     return RESOLUTION_FIELDS[1] if phase == "verification" else RESOLUTION_FIELDS[0]
 
 
-def blocker_resolutions(task: dict) -> dict:
+def blocker_resolutions(task: Task) -> dict:
     """Every clearance and waiver of the task's blockers, both phases, by blocker ID: the one way to read them."""
-    resolutions = {}
+    resolutions: dict = {}
+    fields: Mapping[str, Any] = task  # Read by a name held in a variable, which the type of a task refuses.
     for field in RESOLUTION_FIELDS:
-        resolutions.update(task.get(field, {}))
+        resolutions.update(fields.get(field, {}))
     return resolutions
 
 
-def blocker_list(task: dict) -> list[dict]:
+def blocker_list(task: Task) -> list[dict]:
     """Every blocker of the recorded review, with how it was resolved so far."""
     if "review" not in task:
         return []
@@ -523,7 +527,7 @@ _SHARED_RESOLUTION = ("kind", "by", "at", "recorded_from", "evidence", "supports
                       "until", "signer")
 
 
-def exported_blockers(task: dict) -> list[dict]:
+def exported_blockers(task: Task) -> list[dict]:
     """Each blocker as a shared decision record shows it: its board, phase, finding and condition, and who cleared or
     waived it, with the evidence and what it establishes, or the waiver's reason, scope and end date."""
     shown = []

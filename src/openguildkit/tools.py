@@ -24,6 +24,7 @@ from . import clock, lazy_re
 from .catalog import CatalogError, package_file
 from .detect import SKIPPED_DIRECTORIES
 from .detect_manifest import MAX_MANIFEST_BYTES
+from .records import Profile
 from .sensitive import looks_like_credential
 from .storage import load_json, unique_fields
 from .tool_connections import HOSTS, read_manifest
@@ -248,7 +249,7 @@ def detect_tools(root: Path, tools: dict) -> list[dict]:
     return found
 
 
-def recommend_tools(profile: dict, root: Path, tools: dict) -> dict:
+def recommend_tools(profile: Profile, root: Path, tools: dict) -> dict:
     """What the project names and what the repository shows, resolved against the registry."""
     named, unknown = match_tools(profile.get("tools", []), tools)
     detected = detect_tools(root, tools)

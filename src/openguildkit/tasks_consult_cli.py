@@ -22,6 +22,7 @@ from .project import load_profile
 from .project_rules import task_scope_profile
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
+from .records import Profile, Task
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_data
 from .shell import shell_word
@@ -83,13 +84,13 @@ def _selection(args) -> dict:
     return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
 
 
-def _read_consultation(task: dict) -> dict:
+def _read_consultation(task: Task) -> dict:
     if "consultation" not in task:
         raise TaskStateError("The task has no consultation yet.")
     return task["consultation"]
 
 
-def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]:
+def _project_tools(state: Path, profile: Profile, registry: dict) -> dict[str, str]:
     """The project's tools by ID: connected through the host, or only listed in the profile."""
     tools = {item["id"]: "connected" for item in connected_tools(state, registry)}
     for tool_id in match_tools([name for name in profile.get("tools", []) if isinstance(name, str)], registry)[0]:
@@ -97,7 +98,7 @@ def _project_tools(state: Path, profile: dict, registry: dict) -> dict[str, str]
     return tools
 
 
-def _print_route(state: Path, task: dict, answers: dict, profile: dict, selected: dict,
+def _print_route(state: Path, task: Task, answers: dict, profile: Profile, selected: dict,
                  selection: dict | None = None, answers_path: Path | None = None) -> None:
     """Print the selected boards with their reasons and tools, what was left out and how to change it."""
     selection = selection or {}
@@ -328,7 +329,7 @@ def run_consult(command: TaskCommand) -> None:
         print(f"OpenGuildKit: {line}", file=sys.stderr)
 
 
-def _light_answers(args, task: dict, profile: dict) -> dict:
+def _light_answers(args, task: Task, profile: Profile) -> dict:
     """The answers of a short-lane task: the lane's own. The lane convenes one board and takes no answers of the
     requester's, so those options are refused, and a lane the profile no longer allows stops the consultation."""
     used = [option for option, given in (("--answers", args.answers), ("--add", args.add), ("--remove", args.remove)) if given]
@@ -340,7 +341,7 @@ def _light_answers(args, task: dict, profile: dict) -> dict:
     return short_lane.default_answers(task)
 
 
-def _reused_answers(args, task: dict) -> dict:
+def _reused_answers(args, task: Task) -> dict:
     """The task's recorded answers for task consult --reuse-answers, those of --answers FILE replacing them, and
     concerns asked at a terminal when neither has it (a task consulted before the question was required). Without a
     terminal a missing concerns is answered unsure, which keeps every topic's rules open, and the command says so."""

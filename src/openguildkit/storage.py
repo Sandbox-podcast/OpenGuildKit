@@ -9,7 +9,7 @@ import json
 import os
 import stat
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -167,7 +167,7 @@ def write_text(path: Path, content: str) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
-def write_json(path: Path, data: dict) -> None:
+def write_json(path: Path, data: Mapping[str, Any]) -> None:
     write_text(path, json_text(data))
 
 

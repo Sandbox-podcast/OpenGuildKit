@@ -26,6 +26,7 @@ from .catalog import (
     validate_sources,
     validate_text,
 )
+from .records import Catalog, Task
 from .storage import write_text
 from .wording import plural
 from .workflow import blocker_list, is_decision_task, objections
@@ -70,7 +71,7 @@ def project_path(root: Path, state: Path, value: Path | str, option: str) -> Pat
     return target
 
 
-def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
+def _validate(record: dict, catalog: Catalog, bundled: bool = False) -> None:
     validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool", "decision"})
     for flag in ("market", "requires_tool", "decision"):
         if flag in record and not isinstance(record[flag], bool):
@@ -108,7 +109,7 @@ def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
                     validate_text(item[key], f"{field[:-1]} {key}")
 
 
-def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str, dict]:
+def load_deliverables(catalog: Catalog, extra_dir: Path | None = None) -> dict[str, dict]:
     roots = [package_file("registry", "deliverables")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
@@ -160,7 +161,7 @@ def utm_link(url: str, values: dict[str, str | None]) -> str:
     return urlunsplit((address.scheme, address.netloc, address.path, query, address.fragment))
 
 
-def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
+def _market_lines(deliverable: dict, task: Task) -> tuple[list[str], list[str]]:
     """Front matter and input lines linking a market template to the dossier the task was consulted with."""
     if not deliverable.get("market"):
         return [], []
@@ -188,7 +189,7 @@ def _day(stamp: object) -> str:
     return stamp[:10] if isinstance(stamp, str) else ""
 
 
-def _status_lines(task: dict) -> list[str]:
+def _status_lines(task: Task) -> list[str]:
     task_id, approved = task["id"], _day(task.get("decision", {}).get("at"))
     accepted = f"Accepted: decision task `{task_id}` approved on {approved}"
     closed = _day(task.get("completed_at"))
@@ -206,7 +207,7 @@ def _status_lines(task: dict) -> list[str]:
     return lines
 
 
-def _advice_lines(task: dict) -> list[str]:
+def _advice_lines(task: Task) -> list[str]:
     """Each board's verdict and recommendation, then what the deliberation left open, or the objections that
     no deliberation answered and the person decided when approving."""
     review = task.get("review", {})
@@ -236,7 +237,7 @@ def _advice_lines(task: dict) -> list[str]:
     return [*lines, *(f"- {item['id']}: {_one_line(item.get('point'))}" for item in pending)]
 
 
-def _condition_lines(task: dict) -> list[str]:
+def _condition_lines(task: Task) -> list[str]:
     """Each blocker a board set, without who owns, cleared or waived it: only the decision's own name is kept."""
     lines = []
     for item in blocker_list(task):
@@ -257,7 +258,7 @@ def _condition_lines(task: dict) -> list[str]:
     return lines or ["No condition: no board set a blocker."]
 
 
-def decision_sections(task: dict) -> dict[str, list[str]]:
+def decision_sections(task: Task) -> dict[str, list[str]]:
     """The sections of an architecture decision record, filled from a decision task. The only person named is the
     one the decision names; a section the task cannot fill says TODO with what to write."""
     task_id, answers, decision = task["id"], task.get("answers", {}), task.get("decision", {})
@@ -283,14 +284,14 @@ def decision_sections(task: dict) -> dict[str, list[str]]:
                          f"`.openguildkit/decisions/{task_id}.json`"]}
 
 
-def _decision_refusal(deliverable: dict, task: dict) -> ValueError:
+def _decision_refusal(deliverable: dict, task: Task) -> ValueError:
     kind = task.get("answers", {}).get("kind") or "unanswered"
     return ValueError(f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
                       "Open a decision task (answer kind decision at task consult) for the choice to record, or pick "
                       "another template: openguildkit deliverable list.")
 
 
-def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
+def new_draft(deliverable: dict, task: Task, tool: str | None, approved_tools: list[str], output: Path) -> dict:
     """Write the draft. The tool is optional unless the template requires one: its actions are authorized one by
     one with task authorize. The draft may go to a client, so the approval stays in the task record.
     """

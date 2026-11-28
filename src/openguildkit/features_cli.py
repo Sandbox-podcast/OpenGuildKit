@@ -16,6 +16,7 @@ from .cli_surface import add_by
 from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
+from .records import Catalog, Profile
 from .tool_connections import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status
 from .tool_registry import load_tools
 from .tools import resolve_tool
@@ -66,7 +67,7 @@ def _targets(names: list[str], features: list[dict], tools: dict) -> list[str]:
 def _edit(args, features: list[dict], tools: dict):
     enable = args.features_action == "enable"
 
-    def edit(profile: dict, catalog: dict) -> tuple[dict, str]:
+    def edit(profile: Profile, catalog: Catalog) -> tuple[dict, str]:
         names = list(profile.get("tools", []))
         for tool_id in _targets(args.names, features, tools):
             present = profile_names(profile, tool_id, tools)

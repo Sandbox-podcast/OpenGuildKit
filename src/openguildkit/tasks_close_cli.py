@@ -17,6 +17,7 @@ from .guard_export import changes_since_approval, export_decision, export_withdr
 from .handoff import handoff
 from .lock import require_instructions
 from .project import STATE_DIR
+from .records import Catalog, Profile, Task
 from .relevance import changed_files, pack_relevance
 from .result_form import SUPPLY, SUPPLY_OR_NOT_APPLICABLE, result_template
 from .results import (
@@ -51,7 +52,7 @@ from .wording import plural
 from .workflow import TaskStateError, is_decision_task
 
 
-def _relevance(root: Path, task: dict, profile: dict, catalog: dict, every: bool = False) -> dict:
+def _relevance(root: Path, task: Task, profile: Profile, catalog: Catalog, every: bool = False) -> dict:
     """Which packs concern the task, from its answers, its boards and the files changed since its approval."""
     if "consultation" not in task:
         return {"packs": {}}
@@ -82,7 +83,7 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
             print(f"  {name} ({plural(count, 'check')}): {reason}")
 
 
-def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
+def _lane_problems(root: Path, task: Task, profile: Profile) -> list[str]:
     """What keeps a short-lane task from being done: the profile no longer allows its paths, or a file changed since
     its approval is outside them. A project outside Git has no list of changed files to compare."""
     problem = short_lane.lane_problem(task, profile)
@@ -93,7 +94,7 @@ def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
         if outside else []
 
 
-def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root: Path, changed: list[str]) -> dict:
+def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, root: Path, changed: list[str]) -> Task:
     """The closed task. Deferring evidence or naming who closes needs the person at a terminal."""
     lane = _lane_problems(root, task, profile)
     if lane:
@@ -135,7 +136,7 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
     return closed
 
 
-def _print_closing(task: dict, listed: bool = False) -> None:
+def _print_closing(task: Task, listed: bool = False) -> None:
     """The status and the open points grouped by nature, one per line; notes on what was not run or read go to stderr.
 
     listed: the person already read the open points at the confirmation prompt, so they are not printed again.
@@ -171,7 +172,7 @@ MIN_REASON_WORDS = 3
 DECLARATION_REFUSAL = "Declaring whether a command can run needs the person at an interactive terminal."
 
 
-def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
+def _declaration_checks(args, task: Task, profile: Profile, check_id: str) -> dict:
     """The task's check commands; a declaration names one of them and the person, at a terminal."""
     commands = {check["id"]: check["command"] for check in expected_checks(task, profile) if check["kind"] == "command"}
     if check_id not in commands:
@@ -183,7 +184,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
     return commands
 
 
-def _cannot_run(args, root: Path, state: Path, task: dict, profile: dict, relevance: dict) -> dict:
+def _cannot_run(args, root: Path, state: Path, task: Task, profile: Profile, relevance: dict) -> dict:
     """A person records, at a terminal, that a check command cannot run in this environment.
 
     The command runs first: one that passes here can run, and is recorded as such instead.
@@ -202,7 +203,7 @@ def _cannot_run(args, root: Path, state: Path, task: dict, profile: dict, releva
             "owner": args.by.strip(), "cannot_run": True}
 
 
-def _withdraw(args, root: Path, state: Path, task: dict, profile: dict, relevance: dict) -> dict:
+def _withdraw(args, root: Path, state: Path, task: Task, profile: Profile, relevance: dict) -> dict:
     """The person who declared that a command cannot run withdraws it: the command runs and its outcome stands."""
     _declaration_checks(args, task, profile, args.withdraw)
     declaration = declared_cannot_run(task).get(args.withdraw)
@@ -222,7 +223,7 @@ def _no_check_command() -> str:
             "the change applies to tasks consulted after it.")
 
 
-def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Path, state: Path,
+def _print_remaining(args, task: Task, profile: Profile, relevance: dict, root: Path, state: Path,
                      changed: list[str], held: list[str]) -> int:
     """Every point that keeps the task from being done, one per line, then their count.
 
@@ -285,7 +286,7 @@ def run_result_template(command: TaskCommand) -> None:
         print(decision_revision_message(changed), file=sys.stderr)
 
 
-def _verify_payload(args, root: Path, state: Path, task: dict, profile: dict, relevance: dict,
+def _verify_payload(args, root: Path, state: Path, task: Task, profile: Profile, relevance: dict,
                     decision: bool) -> tuple[dict, list[str]]:
     """What task verify records: the revision and the checks run, declared cannot-run, withdrawn or imported from
     a ChaosFolk replay; and the notes on the declarations kept."""
@@ -322,7 +323,7 @@ def _print_export_next(state: Path, task_id: str) -> None:
           "added.", file=sys.stderr)
 
 
-def _print_recorded(result: dict, profile: dict, held: list, decision: bool, task_id: str) -> None:
+def _print_recorded(result: Task, profile: Profile, held: list, decision: bool, task_id: str) -> None:
     """Print what the result recorded: the answers held back, each check and its status, the missing replays, the
     checks waiting for someone, the criteria and the warnings."""
     kept = {item["check"] for item in result["result"]["checks"]}

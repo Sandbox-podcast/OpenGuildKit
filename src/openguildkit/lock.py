@@ -24,6 +24,7 @@ from .catalog import (
 from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
 from .project import selected_packs
+from .records import Catalog, Profile
 from .startup import package_version
 from .storage import file_signature, read_json, write_json
 
@@ -91,7 +92,7 @@ def central_policy(args) -> tuple[str, dict] | None:
     return None if repo is None else (commit, read_policy_pack(repo, commit))
 
 
-def _live_catalog(args, state: Path, lock: dict | None) -> dict:
+def _live_catalog(args, state: Path, lock: dict | None) -> Catalog:
     """The installed catalog with the organization's records, if the lock pins an organization catalog, and the
     project's additions."""
     organization = organization_in(lock, state)
@@ -103,7 +104,7 @@ def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
     return _live_catalog(args, state, read_lock(state)), bundled_ids()
 
 
-def project_catalog(args, state: Path) -> dict:
+def project_catalog(args, state: Path) -> Catalog:
     """The catalog in force for the project: locked records take precedence over installed ones."""
     lock = read_lock(state)
     return apply_lock(_live_catalog(args, state, lock), lock)
@@ -116,7 +117,7 @@ LOCK_OLDER = (
 )
 
 
-def require_instructions(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def require_instructions(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """Refuse out-of-date instructions, naming update rather than sync when they follow a newer installed catalog."""
     from .project_instructions import RuleError, check_instructions  # Not for the edit hook (#539).
 
@@ -129,7 +130,7 @@ def require_instructions(args, root: Path, state: Path, profile: dict, catalog: 
         raise
 
 
-def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
+def _instructions_match(root: Path, profile: Profile, catalog: Catalog) -> bool:
     from .project_instructions import check_instructions
 
     try:
@@ -139,7 +140,7 @@ def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
     return True
 
 
-def apply_lock(catalog: dict, lock: dict | None) -> dict:
+def apply_lock(catalog: Catalog, lock: dict | None) -> Catalog:
     """Return the catalog with the project's locked records in place of the bundled ones. It holds the lock's records,
     not copies: pass a lock read for this call (read_lock gives each call its own copy)."""
     if not lock:
@@ -159,7 +160,7 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
     return effective
 
 
-def used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
+def used_ids(profile: Profile, catalog: Catalog) -> dict[str, list[str]]:
     patterns = [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
     return {
         "packs": selected_packs(profile, catalog),
@@ -175,7 +176,7 @@ def _lockable(bundled: dict[str, set[str]], lock: dict | None) -> dict[str, set[
     return {collection: bundled[collection] | set(pinned.get(collection, {})) for collection in COLLECTIONS}
 
 
-def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
+def locked_records(profile: Profile, catalog: Catalog, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     """The bundled or already locked records the profile uses, taken from the given catalog."""
     used = used_ids(profile, catalog)
     lockable = _lockable(bundled, lock)
@@ -191,7 +192,7 @@ def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], l
     }
 
 
-def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
+def build_lock(profile: Profile, catalog: Catalog, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     """The lock of the records the profile uses; the organization catalog it pins, if any, stays pinned."""
     built = {
         "schema_version": 1,
@@ -218,7 +219,7 @@ def write_lock(state: Path, lock: dict) -> None:
     write_json(lock_path(state), lock)
 
 
-def lock_is_current(lock: dict | None, profile: dict, catalog: dict, bundled: dict[str, set[str]]) -> bool:
+def lock_is_current(lock: dict | None, profile: Profile, catalog: Catalog, bundled: dict[str, set[str]]) -> bool:
     """A project without a lock predates it; a lock must cover exactly what the profile uses."""
     return lock is None or lock["records"] == locked_records(profile, catalog, bundled, lock)
 
@@ -299,7 +300,7 @@ def update_target(live: dict, lock: dict) -> dict:
     return target
 
 
-def catalog_changes(lock: dict, live: dict, target: dict, profile: dict, bundled: dict[str, set[str]]) -> list[dict]:
+def catalog_changes(lock: dict, live: dict, target: dict, profile: Profile, bundled: dict[str, set[str]]) -> list[dict]:
     """Compare the locked records with what the installed catalog would now write."""
     changes = []
     current = locked_records(profile, target, bundled, lock)

@@ -6,6 +6,8 @@ Tests: tests/test_profile_reference.py
 """
 
 import difflib
+from collections.abc import Mapping
+from typing import Any
 
 from . import requester, short_lane
 from .clock import today
@@ -14,6 +16,7 @@ from .patterns import pattern_selection, recommend_patterns, role_choices
 from .project import declined_ids, declined_rule_ids, restricted_paths, rules_in_force
 from .project_rules import resolved_profile
 from .project_setup import GUARD_MODES
+from .records import Catalog, Profile, as_dict
 from .shell import shell_word
 from .tool_registry import load_tools
 from .tools import match_tools
@@ -51,12 +54,12 @@ SET_OPTIONS = {"signers": ("approval", "signed"), "approver": ("approval", "sign
 RULE_WORD = "rule"
 
 
-def lifted_paths(before: dict, after: dict) -> list[str]:
+def lifted_paths(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[str]:
     now = set(restricted_paths(after))
     return [path for path in restricted_paths(before) if path not in now]
 
 
-def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
+def _adopt(profile: Profile, pattern_id: str, catalog: Catalog) -> dict:
     if pattern_id not in catalog["patterns"]:
         raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
     if pattern_id in {pattern_selection(entry)[0] for entry in profile.get("patterns", [])}:
@@ -70,7 +73,7 @@ def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
     return {**profile, "patterns": [*profile.get("patterns", []), entry], "declined": declined}
 
 
-def _decline(profile: dict, pattern_id: str, catalog: dict, by: str, reason: str) -> dict:
+def _decline(profile: Profile, pattern_id: str, catalog: Catalog, by: str, reason: str) -> dict:
     if pattern_id not in catalog["patterns"]:
         raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
     if pattern_id in declined_ids(profile):
@@ -80,7 +83,7 @@ def _decline(profile: dict, pattern_id: str, catalog: dict, by: str, reason: str
     return {**profile, "patterns": patterns, "declined": [*profile.get("declined", []), decline]}
 
 
-def _known_rule(value: str, catalog: dict) -> str:
+def _known_rule(value: str, catalog: Catalog) -> str:
     """PACK/RULE as the catalog has it, from PACK/RULE or rule:PACK/RULE (the ID task checks prints)."""
     rule = value.strip().removeprefix("rule:")
     if "/" not in rule:
@@ -94,7 +97,7 @@ def _known_rule(value: str, catalog: dict) -> str:
     return rule
 
 
-def _decline_rule(profile: dict, value: str, catalog: dict, by: str, reason: str) -> dict:
+def _decline_rule(profile: Profile, value: str, catalog: Catalog, by: str, reason: str) -> dict:
     """One rule set aside with who, when and why: a rule in force, neither required nor the last of its pack."""
     rule = _known_rule(value, catalog)
     pack_id, _, rule_id = rule.partition("/")
@@ -118,7 +121,7 @@ def _decline_rule(profile: dict, value: str, catalog: dict, by: str, reason: str
     return {**profile, "declined_rules": [*profile.get("declined_rules", []), entry]}
 
 
-def _adopt_rule(profile: dict, value: str) -> dict:
+def _adopt_rule(profile: Profile, value: str) -> dict:
     """A declined rule asked again; a rule the catalog no longer has can be restored too, to clear its entry."""
     rule = value.strip().removeprefix("rule:")
     if rule not in declined_rule_ids(profile):
@@ -159,12 +162,12 @@ def _change_tools(current: list[str], values: list[str], add: bool) -> list[str]
     return current
 
 
-def _change_list(profile: dict, field: str, values: list[str], add: bool, catalog: dict) -> dict:
+def _change_list(profile: Profile, field: str, values: list[str], add: bool, catalog: Catalog) -> dict:
     key, collection = LIST_FIELDS[field]
     if field == "tool":
-        return {**profile, key: _change_tools(list(profile.get(key, [])), values, add)}
+        return {**profile, key: _change_tools(list(as_dict(profile).get(key, [])), values, add)}
     known = catalog[collection] if collection else role_choices(catalog["patterns"]) if field == "role" else None
-    current = list(profile.get(key, []))
+    current = list(as_dict(profile).get(key, []))
     for value in values:
         if known is not None and value not in known:
             raise ValueError(f"Unknown {field}: {value}. Run openguildkit catalog or openguildkit patterns.")
@@ -275,7 +278,7 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
     return field.replace("-", "_"), value == "yes" if field in ("personal-data", "people-decisions") else value
 
 
-def _set(profile: dict, args, catalog: dict) -> dict:
+def _set(profile: Profile, args, catalog: Catalog) -> dict:
     field, value = args.field, args.value
     if field not in FREE_VALUES:
         allowed = SET_FIELDS[field] or tuple(catalog["sectors"])
@@ -292,7 +295,7 @@ def _set(profile: dict, args, catalog: dict) -> dict:
             raise ValueError(f"--{option} belongs to profile set {' '.join(owner)}. Nothing was written.")
     key, new = _setting(field, value, options)
     if field == "freeze" and new is not None and profile.get(key):
-        raise ValueError(f"The project is already frozen by {profile[key]['by']} since {profile[key]['on']}. Nothing "
+        raise ValueError(f"The project is already frozen by {as_dict(profile)[key]['by']} since {as_dict(profile)[key]['on']}. Nothing "
                          "was written.")
     if profile.get(key) == new:
         raise ValueError(f"{field} is already {value}. Nothing was written.")
@@ -300,7 +303,7 @@ def _set(profile: dict, args, catalog: dict) -> dict:
     return updated if new is None else {**updated, key: new}
 
 
-def _set_change(args, before: dict, after: dict) -> str:
+def _set_change(args, before: Mapping[str, Any], after: Mapping[str, Any]) -> str:
     """The set command in a few words for the history, with who signs or who may waive, or the restricted paths it
     lifts, which host apply reads to remove the rules it wrote for them (hosts.py:lifted_rules)."""
     change = f"set {args.field} {args.value}"
@@ -320,7 +323,7 @@ def _set_change(args, before: dict, after: dict) -> str:
     return change
 
 
-def changed_profile(profile: dict, args, catalog: dict) -> tuple[dict, str]:
+def changed_profile(profile: Profile, args, catalog: Catalog) -> tuple[dict, str]:
     """The profile after the command and the change in a few words."""
     action = args.profile_action
     rule = rule_argument(args) if action in ("adopt", "decline") else None

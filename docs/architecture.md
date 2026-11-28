@@ -126,6 +126,7 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
+| `records.py` | The types of the records read from disk: a task, a project profile and the catalog in force, each field named, so that the type checker sees a key nothing writes. |
 | `references.py` | Searches the reference library, separately from the active rule packs. |
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
 | `requester.py` | The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445). |
