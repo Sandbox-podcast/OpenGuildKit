@@ -368,8 +368,11 @@ def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
     """The project paths that git ignores, so a teammate who pulls the repository will not have them."""
     if not paths:
         return set()
-    # check-ignore fails with 1 when it ignores none of the paths.
-    return {name.replace("\\", "/") for name in git.names(root, "check-ignore", "--no-index", "--", *paths) or []}
+    # -z needs --stdin in check-ignore, which ends with 1 when it ignores none of the paths.
+    result = git.run(root, "check-ignore", "-z", "--stdin", "--no-index", stdin="\0".join(paths).encode("utf-8"))
+    if result is None or result.returncode not in (0, 1):
+        return set()
+    return {name.replace("\\", "/") for name in git.split_names(result.stdout)}
 
 
 def reconsult_command(task_id: str) -> str:
