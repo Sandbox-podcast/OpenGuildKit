@@ -153,7 +153,7 @@ class TraceTests(CapturedCli, unittest.TestCase):
         self.git("commit", "-q", "-m", "docs")
         self.complete()
         self.run_cli("task", "export", TASK)
-        record = json.loads((self.root / RECORD).read_text())
+        record = json.loads((self.root / RECORD).read_text(encoding="utf-8"))
         self.assertEqual(record["files"], names)
         for name in names:
             self.assertIn(f"{TASK} [", self.trace(name)[0].splitlines()[0])
