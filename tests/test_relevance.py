@@ -7,7 +7,8 @@ from openguildkit.patterns import recommend_patterns
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import resolved_profile
 from openguildkit.relevance import judge_rules, pack_relevance
-from openguildkit.results import asked_checks, expected_checks, not_concerned, result_template
+from openguildkit.result_form import result_template
+from openguildkit.results import asked_checks, expected_checks, not_concerned
 
 # The project of the field check that counted 116 answers for a 20-line bug fix.
 FINTECH = {"name": "Ledger", "sector": "financial-services", "stack": ["Python 3.12", "FastAPI", "PostgreSQL 16", "React 18"],

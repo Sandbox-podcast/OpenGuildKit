@@ -9,7 +9,7 @@ from .lock import lock_path, package_version, project_catalog
 from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
 from .project import load_profile
 from .project_rules import Fingerprints, rule_plan
-from .results import RESULT_STATUSES
+from .result_form import RESULT_STATUSES
 from .sensitive import redact_credentials
 from .tasks import list_tasks, read_task, task_path
 from .tasks_approval import approval_problem, stale_review_message

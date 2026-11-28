@@ -13,10 +13,9 @@ from .handoff import handoff
 from .lock import require_instructions
 from .project import STATE_DIR
 from .relevance import changed_files, pack_relevance
+from .result_form import SUPPLY, SUPPLY_OR_NOT_APPLICABLE, result_template
 from .results import (
     DONE_STATUSES,
-    SUPPLY,
-    SUPPLY_OR_NOT_APPLICABLE,
     answers_to_report,
     chaosfolk_checks,
     compare_runs,
@@ -29,7 +28,6 @@ from .results import (
     keep_declarations,
     missing_scenarios,
     outcomes,
-    result_template,
     run_command_checks,
     set_aside_rules,
 )

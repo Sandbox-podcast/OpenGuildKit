@@ -7,6 +7,7 @@ from pathlib import Path
 from . import clock, delivered_review
 from .decisions import decision_payload, seal, signing_time_of
 from .relevance import sensitive_area
+from .result_form import validate_result
 from .results import (
     DONE_STATUSES,
     asked_checks,
@@ -16,7 +17,6 @@ from .results import (
     not_concerned,
     outcomes,
     result_warnings,
-    validate_result,
     waiting_evidence,
 )
 from .tasks_approval import decided_message

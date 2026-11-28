@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import results
-from openguildkit.results import validate_result
+from openguildkit.result_form import validate_result
 from openguildkit.storage import write_json
 from tests.support import CapturedCli
 
