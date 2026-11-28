@@ -2,6 +2,9 @@
 
 import ast
 import inspect
+import json
+import math
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -18,7 +21,12 @@ from openguildkit import (
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "src" / "openguildkit"
-MAX_MODULE_LINES = 2000
+# Issue #486: the code of the repository in files a reader can open whole. A file above MAX_FILE_BYTES is listed in
+# tests/byte_budget.json with its size rounded up to the thousand as its ceiling, which only goes down.
+MAX_FILE_BYTES = 40_000
+BUDGETED = ("src", "tests", "scripts", "web/src", "integrations/ci/lib")
+CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mjs", ".js", ".css")
+BYTE_BUDGET = REPO / "tests" / "byte_budget.json"
 MAX_CLI_LINES = 1500
 MAX_CLI_FUNCTION_LINES = 120
 # Top-level function names that more than one module of the package defines (#530): a name searched from its
@@ -50,11 +58,31 @@ def imported_modules(tree: ast.Module, top_level: bool) -> set[str]:
     return found
 
 
+def code_sizes() -> dict[str, int]:
+    """The size in bytes of each tracked code file of BUDGETED, as committed: without the carriage returns of a
+    Windows checkout."""
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", *BUDGETED], capture_output=True, check=True)
+    names = [name for name in listed.stdout.decode("utf-8").split("\0") if name.endswith(CODE_SUFFIXES)]
+    return {name: len((REPO / name).read_bytes().replace(b"\r\n", b"\n")) for name in names if (REPO / name).is_file()}
+
+
 class ModuleShapeTests(unittest.TestCase):
-    def test_no_module_of_the_package_passes_two_thousand_lines(self):
-        long = {path.name: count for path in PACKAGE.glob("*.py")
-                if (count := len(path.read_text(encoding="utf-8").splitlines())) > MAX_MODULE_LINES}
-        self.assertEqual(long, {})
+    def test_issue_486_no_code_file_passes_its_byte_budget(self):
+        """Issue #486: the only guard counted lines, and 16 modules passed 40 KB, tasks_cli.py at 94,758 bytes."""
+        budget = json.loads(BYTE_BUDGET.read_text(encoding="utf-8"))
+        over = {name: size for name, size in code_sizes().items() if size > budget.get(name, MAX_FILE_BYTES)}
+        self.assertEqual(over, {}, f"split these files below {MAX_FILE_BYTES:,} bytes, or below their ceiling in "
+                                   f"{BYTE_BUDGET.name}")
+
+    def test_issue_486_a_ceiling_of_the_byte_budget_only_goes_down(self):
+        """Issue #486: a listed file keeps the ceiling of its size rounded up to the thousand, and leaves the list
+        once below MAX_FILE_BYTES, so that the ceiling cannot be raised without failing here."""
+        sizes = code_sizes()
+        for name, ceiling in json.loads(BYTE_BUDGET.read_text(encoding="utf-8")).items():
+            with self.subTest(file=name):
+                self.assertIn(name, sizes, "remove it from the budget: the file is gone")
+                self.assertGreater(sizes[name], MAX_FILE_BYTES, "remove it from the budget: it fits the default")
+                self.assertEqual(ceiling, math.ceil(sizes[name] / 1000) * 1000, f"{name} holds {sizes[name]:,} bytes")
 
     def test_the_cli_stays_short_and_so_do_its_functions(self):
         text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
