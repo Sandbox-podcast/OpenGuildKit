@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Web interface: the Atelier Nova demo lives under `web/src/demo`, with its own style sheets; a Vitest test fails if the product reaches it, and `npm run bundle` refuses a style rule for a class no script of the build names. Product CSS 64,490 to 43,720 bytes (10.3 KB gzipped), build 1,144 to 1,124 KB (#500)
 - `openguildkit ui`: the page's style, reduced motion, single-key shortcuts and the names of the decision owner and signer are kept by the project in `.openguildkit/work/ui-prefs.json` (`POST /api/prefs`, closed list of keys, bounded values) and come back at the next launch, whatever the host name (#463)
 - `openguildkit ui`: a kept task record whose size, times and inode are unchanged since a settled read is served without reading its file again for a digest; the page's opening batch on 1,000 closed tasks takes 1.6 s warm instead of 2.0 s, in the server's process (#537)
 - Catalog loading: an installed package reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, validated when the wheel is built, instead of reading and validating 289 files in every process; `task list` loads the catalog and reads the lock once, and commands copy the catalog less. A checkout without the bundle reads the record files as before (#533)

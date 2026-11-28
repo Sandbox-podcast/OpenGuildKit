@@ -226,7 +226,6 @@
     "tests/project/labels.test.ts": 1,
     "tests/project/project.test.ts": 1,
     "tests/project/vocabulary.test.ts": 1,
-    "tests/scripts/bundle.test.mjs": 1,
     "tests/scripts/unused-exports.test.mjs": 1,
     "scripts/build-catalogue.ts": 1,
     "scripts/measure-project.mjs": 1,

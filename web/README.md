@@ -32,7 +32,7 @@ npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_d
 npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
 
-`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Ce jour-là la construction pèse 1 148 Ko, avec 115 Ko (9 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
+`npm run bundle` refuse une construction qui contient la démo, une règle de style pour une classe qu'aucun script de la construction ne nomme (sauf `KEPT_FOR_THE_DEMO`), ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Le 28 novembre 2026, sans les règles de style de la démo, la construction pèse 1 124 Ko, avec 139 Ko (11 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
 
 Les préférences de la page (style, mouvement, raccourcis, noms du décideur et du signataire) sont gardées par le projet, dans `.openguildkit/work/ui-prefs.json` (hors de Git) : chaque lancement de `openguildkit ui` les retrouve, bien que le nom d'hôte change à chaque fois ([détails](docs/interface-projet.md#lancer)).
 

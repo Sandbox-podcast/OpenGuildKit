@@ -34,7 +34,6 @@
 .mode-focus .main { padding: 28px clamp(18px, 3vw, 52px) 70px; }
 .mode-focus .main > .stack { gap: 18px; }
 .mode-focus .topbar { background: var(--surface); }
-.mode-focus .topbar .identity { min-height: 36px; border-radius: 8px; }
 .mode-focus .topbar .searchbox, .mode-focus .pickers select { border: 1px solid var(--border); border-radius: 8px; box-shadow: none; }
 .mode-focus .topbar .searchbox { cursor: pointer; }
 .mode-focus .searchbox:hover, .mode-focus .pickers select:hover { border-color: var(--border-strong); }
@@ -45,17 +44,8 @@
 .mode-focus .nav-line-icon { flex: 0 0 auto; }
 .mode-focus .nav-group-label { font-size: 0.69rem; letter-spacing: 0.06em; }
 .mode-focus .nav-room-note { font-weight: 500; }
-.mode-focus .guide-link { border-radius: 8px; background: var(--surface); color: var(--text-2); }
-.mode-focus .guide-link:hover { background: var(--surface-2); }
-.mode-focus .guide { box-shadow: -10px 0 32px rgb(15 36 30 / 10%); }
 .mode-focus .place-heading { padding: 0 0 15px; margin-bottom: 18px; }
 .mode-focus .place-heading h1 { font-weight: 660; font-size: clamp(1.62rem, 3vw, 2.15rem); letter-spacing: -0.035em; line-height: 1.15; }
-.mode-focus .resume-work { border-radius: var(--radius); background: var(--surface); overflow: hidden; box-shadow: 0 1px 3px rgb(15 36 30 / 4%); }
-.mode-focus .resume-primary { background: #edf8f1; border: 0; }
-.mode-focus .resume-primary, .mode-focus .resume-project { padding: 16px 20px; }
-.mode-focus .resume-action, .mode-focus .resume-project > a { text-decoration: none; }
-.mode-focus .resume-project > .resume-all-projects { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; width: fit-content; color: var(--accent); }
-.mode-focus :is(.resume-action, .resume-project > a):is(:hover, :focus-visible) { text-decoration: underline; }
 
 .mode-focus .pixel-font { letter-spacing: -0.015em; }
 .mode-focus :is(.panel, .card, .tabs, .dialog, .toast, .menu-pop) { border: 1px solid var(--edge, var(--border)); box-shadow: 0 1px 3px rgb(15 36 30 / 5%); border-radius: var(--radius); }
@@ -89,32 +79,9 @@
 .mode-focus .badge.tone-muted { color: var(--text-3); background: var(--tint-neutral); }
 .mode-focus .version { border-radius: 4px; background: var(--tint-data); }
 .mode-focus table.data tr:hover td { background: var(--surface-2); }
-.mode-focus .tooltip [role='tooltip'] { color: var(--text); background: var(--surface); }
 .mode-focus .progress > span { background: var(--success); }
-.mode-focus .diff .add { color: var(--success); background: var(--tint-success); }
-.mode-focus .diff .del { color: var(--danger); background: var(--tint-danger); }
 .mode-focus .notice { border-radius: 6px; }
-.mode-focus .timeline li { border-color: var(--border); }
 .mode-focus .board-col, .mode-focus .calendar .day { box-shadow: inset 0 0 0 1px var(--border); border-radius: 8px; }
-.mode-focus .board-col.drop { box-shadow: inset 0 0 0 2px var(--accent); background: var(--tint-data); }
-.mode-focus :is(.gallery-canvas, .slide-stage, .landing-frame, .timeline-bar span:nth-child(2n)) { background: var(--surface-2); }
-.mode-focus .expert-card { text-align: left; align-items: flex-start; padding: 16px; }
-.mode-focus .expert-card .portrait-frame { padding: 0; box-shadow: none; border-radius: 8px; }
-.mode-focus .expert-card .portrait-frame img { width: 44px; height: 44px; border-radius: 8px; }
-.mode-focus .expert-card .class { color: var(--text); }
-.mode-focus .expert-profile-art { border: 0; padding: 0; min-width: 0; background: none; }
-.mode-focus .expert-profile-art img { border-radius: 12px; }
-.mode-focus .council-table .seat-name { border: 0; }
-.mode-focus .seat .portrait-frame { box-shadow: none; border-radius: 8px; }
-.mode-focus .entry-home { padding: 74px clamp(16px, 4vw, 48px) 42px; }
-.mode-focus :is(.entry-hero, .entry-grid) { max-width: 1120px; }
-.mode-focus .entry-hero { min-height: auto; border-radius: 18px; background: var(--surface); box-shadow: 0 1px 3px rgb(15 36 30 / 5%); }
-.mode-focus .entry-copy { padding: clamp(20px, 5vw, 60px); }
-.mode-focus .entry-copy h1 { max-width: 18ch; font-size: clamp(1.9rem, 4vw, 3.15rem); font-weight: 660; letter-spacing: -0.045em; }
-.mode-focus .entry-copy p { max-width: 48ch; }
-.mode-focus .entry-copy .brand-hero { margin-bottom: 20px; }
-.mode-focus .entry-actions .btn { min-height: 44px; }
-
 @media (max-width: 900px) {
   .mode-focus .main { padding: 16px 12px 62px; }
   .mode-focus .sidebar { background: var(--surface); }
@@ -122,5 +89,4 @@
 
 @media (max-width: 480px) {
   .mode-focus .panel { padding: 13px; }
-  .mode-focus .resume-primary, .mode-focus .resume-project { padding: 12px; }
 }

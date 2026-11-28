@@ -1,5 +1,10 @@
 /** Route table. Every route works by direct link and survives a reload. */
 import { Suspense, useEffect } from 'react';
+// The rules only the demo applies, in the order of the product's sheets that main.tsx imports (#500).
+import '@/demo/styles/components.css';
+import '@/demo/styles/shell.css';
+import '@/demo/styles/spaces.css';
+import '@/demo/styles/pro.css';
 import { lazyPlace, preloadWhenIdle, type Place } from '@/shared/lazyPlace';
 import { useAppState } from './store';
 import { navigate, useRoute } from '@/shared/router';
