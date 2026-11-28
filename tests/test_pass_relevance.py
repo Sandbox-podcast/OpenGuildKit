@@ -61,7 +61,7 @@ class ProjectCase(CapturedCli, unittest.TestCase):
         self.cli("task", "new", brief, "--id", task_id)
         write_json(self.root / f"{task_id}.json", answers)
         self.cli("task", "consult", task_id, "--answers", self.root / f"{task_id}.json")
-        return json.loads(self.cli("task", "show", task_id))
+        return json.loads(self.cli("task", "show", task_id, "--json"))
 
     def approve(self, task_id: str) -> None:
         """Record one entry per board from the template, then approve at a terminal."""
@@ -250,7 +250,7 @@ class PassRelevanceTests(ProjectCase):
                       "Customers who export their requests", "", ""])
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=lambda: next(typed)):
             self.cli("task", "consult", "typed")
-        self.assertEqual(json.loads(self.cli("task", "show", "typed"))["answers"]["concerns"], ["unsure"])
+        self.assertEqual(json.loads(self.cli("task", "show", "typed", "--json"))["answers"]["concerns"], ["unsure"])
 
 
 class PackBriefTests(ProjectCase):

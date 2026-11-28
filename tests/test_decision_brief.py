@@ -30,7 +30,7 @@ class DecisionBriefTests(CapturedCli, unittest.TestCase):
         (self.root / "tests" / "test_access.py").write_text("def test_access(): pass\n", encoding="utf-8")
 
     def record(self):
-        return json.loads(self.run_cli("task", "show", TASK)[0])
+        return json.loads(self.run_cli("task", "show", TASK, "--json")[0])
 
     def reviewed(self, *consult_options, answers=None, edit=None):
         """Consult the example task, record the example review for the selected boards, edited by `edit`."""

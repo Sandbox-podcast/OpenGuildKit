@@ -5,7 +5,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import ts from 'typescript';
+import { parseSync } from 'vite';
 
 const SOURCE = /\.(ts|tsx|mjs)$/;
 const EXTENSIONS = ['', '.ts', '.tsx', '.mjs', '.js', '/index.ts', '/index.tsx'];
@@ -19,9 +19,30 @@ function files(folder) {
   });
 }
 
+/** The ESTree program of a file, from the parser Vite ships (oxc): TypeScript 7 has no compiler API to parse with. */
 function parse(path) {
-  const kind = path.endsWith('.tsx') ? ts.ScriptKind.TSX : path.endsWith('.mjs') ? ts.ScriptKind.JS : ts.ScriptKind.TS;
-  return ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, kind);
+  const lang = path.endsWith('.tsx') ? 'tsx' : path.endsWith('.mjs') ? 'js' : 'ts';
+  return { fileName: path, program: parseSync(path, readFileSync(path, 'utf8'), { lang }).program };
+}
+
+/** Calls `visit(node, parent)` on each node under `node`, parents first. */
+function walk(node, visit, parent = null) {
+  visit(node, parent);
+  for (const value of Object.values(node)) {
+    for (const child of Array.isArray(value) ? value : [value]) {
+      if (child && typeof child.type === 'string') walk(child, visit, node);
+    }
+  }
+}
+
+/** The text of an identifier or of a string literal (`export { x as 'y' }`, `declare module 'm'`). */
+const nameOf = (node) => node.name ?? node.value;
+
+/** The text of a string literal or of a template without substitution, else null. */
+function stringOf(node) {
+  if (node?.type === 'Literal' && typeof node.value === 'string') return node.value;
+  if (node?.type === 'TemplateLiteral' && !node.expressions.length) return node.quasis[0].value.cooked;
+  return null;
 }
 
 /** The file a specifier names inside the project, or null for a package. */
@@ -34,25 +55,34 @@ function resolveSpecifier(root, from, specifier) {
   return found ?? null;
 }
 
-const has = (node, kind) => (ts.canHaveModifiers(node) ? ts.getModifiers(node) ?? [] : []).some((m) => m.kind === kind);
-
-function bindingNames(name) {
-  if (ts.isIdentifier(name)) return [name.text];
-  return name.elements.flatMap((element) => (ts.isOmittedExpression(element) ? [] : bindingNames(element.name)));
+function bindingNames(pattern) {
+  switch (pattern?.type) {
+    case 'Identifier':
+      return [pattern.name];
+    case 'ArrayPattern':
+      return pattern.elements.flatMap(bindingNames);
+    case 'ObjectPattern':
+      return pattern.properties.flatMap((p) => bindingNames(p.type === 'RestElement' ? p : p.value));
+    case 'AssignmentPattern':
+      return bindingNames(pattern.left);
+    case 'RestElement':
+      return bindingNames(pattern.argument);
+    default:
+      return [];
+  }
 }
 
 /** The names a module exports. */
 function exportsOf(source) {
   const names = [];
-  for (const statement of source.statements) {
-    if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-      names.push(...statement.exportClause.elements.map((element) => element.name.text));
-    } else if (ts.isExportAssignment(statement)) {
+  for (const statement of source.program.body) {
+    if (statement.type === 'ExportDefaultDeclaration' || statement.type === 'TSExportAssignment') {
       names.push('default');
-    } else if (has(statement, ts.SyntaxKind.ExportKeyword)) {
-      if (has(statement, ts.SyntaxKind.DefaultKeyword)) names.push('default');
-      else if (ts.isVariableStatement(statement)) names.push(...statement.declarationList.declarations.flatMap((d) => bindingNames(d.name)));
-      else if (statement.name) names.push(statement.name.text);
+    } else if (statement.type === 'ExportNamedDeclaration') {
+      const { declaration } = statement;
+      names.push(...statement.specifiers.map((s) => nameOf(s.exported)));
+      if (declaration?.type === 'VariableDeclaration') names.push(...declaration.declarations.flatMap((d) => bindingNames(d.id)));
+      else if (declaration?.id) names.push(nameOf(declaration.id));
     }
   }
   return names;
@@ -68,50 +98,48 @@ function importsOf(root, source) {
     for (const name of names) set.add(name);
     used.set(target, set);
   };
-  const visit = (node) => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.importClause;
-      const names = [];
-      if (clause?.name) names.push('default');
-      if (clause?.namedBindings) {
-        if (ts.isNamespaceImport(clause.namedBindings)) names.push('*');
-        else names.push(...clause.namedBindings.elements.map((e) => (e.propertyName ?? e.name).text));
-      }
-      use(node.moduleSpecifier.text, names);
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.exportClause;
-      use(node.moduleSpecifier.text, clause && ts.isNamedExports(clause) ? clause.elements.map((e) => (e.propertyName ?? e.name).text) : ['*']);
-    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      const [argument] = node.arguments;
-      if (argument && ts.isStringLiteralLike(argument)) use(argument.text, dynamicNames(node));
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
-      use(node.argument.literal.text, [node.qualifier ? (ts.isIdentifier(node.qualifier) ? node.qualifier.text : '*') : '*']);
+  const parents = new Map();
+  walk(source.program, (node, parent) => {
+    parents.set(node, parent);
+    if (node.type === 'ImportDeclaration') {
+      use(node.source.value, node.specifiers.map((s) => {
+        if (s.type === 'ImportDefaultSpecifier') return 'default';
+        if (s.type === 'ImportNamespaceSpecifier') return '*';
+        return nameOf(s.imported);
+      }));
+    } else if (node.type === 'ExportNamedDeclaration' && node.source) {
+      use(node.source.value, node.specifiers.map((s) => nameOf(s.local)));
+    } else if (node.type === 'ExportAllDeclaration') {
+      use(node.source.value, ['*']);
+    } else if (node.type === 'ImportExpression') {
+      const specifier = stringOf(node.source);
+      if (specifier !== null) use(specifier, dynamicNames(node, parents, source.program));
+    } else if (node.type === 'TSImportType') {
+      const specifier = stringOf(node.source ?? node.argument?.literal);
+      if (specifier !== null) use(specifier, [node.qualifier?.type === 'Identifier' ? node.qualifier.name : '*']);
     }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
+  });
   return used;
 }
 
 /** The names a dynamic import reads: the strings next to it, the properties read on its result, or all of them. */
-function dynamicNames(call) {
-  let node = call.parent;
-  if (ts.isArrowFunction(node) && ts.isCallExpression(node.parent)) {
-    const names = node.parent.arguments.filter(ts.isStringLiteralLike).map((a) => a.text);
+function dynamicNames(call, parents, program) {
+  let node = parents.get(call);
+  const outer = parents.get(node);
+  if (node.type === 'ArrowFunctionExpression' && outer?.type === 'CallExpression') {
+    const names = outer.arguments.map(stringOf).filter((name) => name !== null);
     if (names.length) return names;
   }
-  if (ts.isAwaitExpression(node)) node = node.parent;
-  if (ts.isParenthesizedExpression(node)) node = node.parent;
-  if (ts.isPropertyAccessExpression(node)) return [node.name.text];
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
-    const variable = node.name.text;
+  if (node.type === 'AwaitExpression') node = parents.get(node);
+  if (node.type === 'ParenthesizedExpression') node = parents.get(node);
+  if (node.type === 'MemberExpression' && !node.computed) return [node.property.name];
+  if (node.type === 'VariableDeclarator' && node.id.type === 'Identifier') {
+    const variable = node.id.name;
     const names = new Set();
-    const scope = node.getSourceFile();
-    const visit = (child) => {
-      if (ts.isPropertyAccessExpression(child) && ts.isIdentifier(child.expression) && child.expression.text === variable) names.add(child.name.text);
-      ts.forEachChild(child, visit);
-    };
-    visit(scope);
+    walk(program, (child) => {
+      if (child.type === 'MemberExpression' && !child.computed && child.object.type === 'Identifier' && child.object.name === variable)
+        names.add(child.property.name);
+    });
     if (names.size) return [...names];
   }
   return ['*'];
@@ -119,13 +147,12 @@ function dynamicNames(call) {
 
 /** Whether the module refers to a name besides declaring it. */
 function usedInFile(source, name) {
-  let count = 0;
-  const visit = (node) => {
-    if (ts.isIdentifier(node) && node.text === name) count += 1;
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return count > 1;
+  // ESTree gives `{ x }` and `export { x }` two nodes at one place: a place counts once.
+  const places = new Set();
+  walk(source.program, (node) => {
+    if ((node.type === 'Identifier' || node.type === 'JSXIdentifier') && node.name === name) places.add(node.start);
+  });
+  return places.size > 1;
 }
 
 /** Each export of src/ that nothing uses, as "src/path.ts: name". */

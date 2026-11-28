@@ -67,7 +67,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
     def test_deciding_a_completed_task_says_it_is_already_decided_with_its_status(self):
         # OGK-TASK-052
         self.done()
-        status = json.loads(self.run_cli("task", "show", TASK)[0])["status"]
+        status = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["status"]
         error = self.decide_again()
         self.assertIn(f"Task {TASK} is already decided and {status}: approved by Camille on ", error)
         self.assertIn(f"--follows {TASK}", error)
@@ -98,7 +98,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
     def test_the_progress_of_a_completed_task_shows_the_recorded_passes(self):
         self.done()
         output, _ = self.run_cli("task", "progress", TASK)
-        boards = json.loads(self.run_cli("task", "show", TASK)[0])["consultation"]["boards"]
+        boards = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["consultation"]["boards"]
         self.assertEqual(output.splitlines(), [f"{board}: done (in review)" for board in boards])
         self.assertNotIn("missing", output)
 

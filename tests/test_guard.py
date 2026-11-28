@@ -333,7 +333,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
     def test_ci_refuses_a_decision_record_it_cannot_recompute(self):
         self.branch_with_change(guard="enforce")
         self.approve_example()
-        fingerprint = json.loads(self.run_cli("task", "show", TASK)[0])["profile_fingerprint"]
+        fingerprint = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["profile_fingerprint"]
         self.commit_record("fake.json", {"task": "nothing", "profile_fingerprint": fingerprint,
                                          "decision": {"seal": "x", "by": "Agent", "reason": "Self-approved"}})
         result = self.ci(code=1)

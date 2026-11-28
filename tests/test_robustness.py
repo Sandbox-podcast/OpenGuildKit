@@ -179,11 +179,11 @@ class FuzzTestCase(unittest.TestCase):
         self.expect("task", "review", TASK, "--file", self.root / "review.json")
 
     def record(self):
-        return json.loads(self.expect("task", "show", TASK))
+        return json.loads(self.expect("task", "show", TASK, "--json"))
 
     def record_loads(self, statuses):
         def check(context):
-            code, stdout, stderr = self.cli("task", "show", TASK)
+            code, stdout, stderr = self.cli("task", "show", TASK, "--json")
             if code != 0:
                 self.crashes.append(f"{context}: the task record no longer loads: {stderr}")
             elif json.loads(stdout)["status"] not in statuses:
@@ -351,7 +351,7 @@ class CommandSequenceTests(FuzzTestCase):
             for known, status in model.items():
                 if status is None:
                     continue
-                code, stdout, stderr = self.cli("task", "show", known)
+                code, stdout, stderr = self.cli("task", "show", known, "--json")
                 self.assertEqual(code, 0, f"{known} no longer loads after\n" + "\n".join(steps) + f"\n{stderr}")
                 self.assertEqual(json.loads(stdout)["status"], status, "\n".join(steps))
         listed = {row["id"]: row["status"] for row in json.loads(self.expect("task", "list", "--json"))}

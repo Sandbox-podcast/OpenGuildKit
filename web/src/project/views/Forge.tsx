@@ -186,7 +186,9 @@ export function ForgeTask({ id }: { id: string }) {
 }
 
 function ForgeRecord({ id, reconsult }: { id: string; reconsult: string | null }) {
-  const record = useCli<TaskRecord>(['task', 'show', id], { omit: ['markdown', 'review_template', 'scope', 'review', 'consultation'] });
+  const record = useCli<TaskRecord>(['task', 'show', id, '--json'], {
+    omit: ['markdown', 'review_template', 'scope', 'review', 'consultation'],
+  });
   const [handoff, setHandoff] = useState(false);
   return (
     <Q q={record}>
@@ -1004,7 +1006,7 @@ function Deliverables() {
     tasks.data ? `deliverable-records:${(tasks.data ?? []).map((t) => `${t.id}=${t.status}`).join(',')}` : null,
     useCallback(async () => {
       const ids = (tasks.data ?? []).filter((x) => isDecided(x.status)).map((x) => x.id);
-      const records = await batchJson<TaskRecord>(Object.fromEntries(ids.map((id) => [id, ['task', 'show', id]])), {
+      const records = await batchJson<TaskRecord>(Object.fromEntries(ids.map((id) => [id, ['task', 'show', id, '--json']])), {
         omit: ['consultation', 'review', 'rounds', 'answers'],
       });
       return ids.map((id) => records[id]).filter((r): r is TaskRecord => !!r);

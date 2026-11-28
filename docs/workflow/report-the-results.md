@@ -109,7 +109,7 @@ OpenGuildKit checks that the path exists; it never reads the document, and says 
 It warns when one file is cited for several different evidences, and when a file looks like configuration, code or an image (a `Dockerfile`, a `.py` or `.png` file).
 
 A result that lacks only named evidence is recorded: an evidence that is missing, declared not applicable where it must be supplied, or cited at a path that does not exist is held back with the reason (`Not recorded: ...`), and the task waits.
-`task result` and `task list` name the evidence and who provides it, and `task show` and the exported record carry `waiting_for` next to the status.
+`task result` and `task list` name the evidence and who provides it, and `task show --full` and the exported record carry `waiting_for` next to the status.
 When an answer is not recorded, the output says whether an earlier answer for the same check stays recorded, and does not call the task ready.
 The person can hand the missing evidence to a follow-up task that the owner will close: open it with `task new "BRIEF" --follows ID`, then run `task complete ID --defer EVIDENCE=FOLLOW-UP --by INITIALS` at a terminal.
 The task closes with that reservation visible.

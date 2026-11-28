@@ -47,7 +47,7 @@ A check whose name is free text, such as an imported
 ChaosFolk scenario named `checkout_flow.json`, is not listed: `omitted` counts the checks
 left out and `failed_omitted` how many of them failed, so a client sees that a failure
 exists.
-`task show` in the terminal gives their names.
+`task show ID --full` in the terminal gives their names.
 Before a task records any results,
 `checks` is empty, `omitted` and `failed_omitted` are 0 and `revision` is `null`.
 

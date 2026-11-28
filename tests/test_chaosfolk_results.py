@@ -66,7 +66,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         comparison = json.loads(self.run_cli("task", "runs", TASK, "--json"))
         self.assertEqual(comparison["changed"]["h02-save.json"], ["failed", "passed"])
         self.assertEqual(self.run_cli("task", "complete", TASK).strip(), "done")
-        record = json.loads(self.run_cli("task", "show", TASK))
+        record = json.loads(self.run_cli("task", "show", TASK, "--json"))
         run = record["result"]["runs"][-1]
         self.assertEqual(run["version"], "b406600")
         self.assertEqual(run["summary"], "qa-results/summary.json")
@@ -88,7 +88,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         output = self.replay(("login", "failed", "500 on submit"), ("login", "passed", ""), ("checkout", "passed", ""))
         self.assertIn("chaosfolk:login: failed", output)
         self.assertNotIn("Ready", output)
-        record = json.loads(self.run_cli("task", "show", TASK))
+        record = json.loads(self.run_cli("task", "show", TASK, "--json"))
         self.assertEqual(record["result"]["runs"][-1]["outcomes"]["login"], "failed")
         self.assertEqual([c["check"] for c in record["result"]["checks"]].count("chaosfolk:login"), 1)
         self.assertIn("chaosfolk:login failed", self.complete_error())
@@ -98,7 +98,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         self.replay(("a.json", "passed", ""), ("b.json", "passed", ""))
         output = self.replay(("b.json", "passed", ""))
         self.assertIn("chaosfolk:a.json: missing", output)
-        record = json.loads(self.run_cli("task", "show", TASK))
+        record = json.loads(self.run_cli("task", "show", TASK, "--json"))
         self.assertNotIn("chaosfolk:a.json", [c["check"] for c in record["result"]["checks"]])
         self.assertIn("chaosfolk:a.json ran in the previous replay and is missing from the last one", self.complete_error())
 

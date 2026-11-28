@@ -567,7 +567,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
             _, error = self.run_cli("task", action, self.task_id, code=1)
             self.assertIn(message, error)
             self.assertIn(f'--follows {self.task_id}', error)
-        output, error = self.run_cli("task", "show", self.task_id)
+        output, error = self.run_cli("task", "show", self.task_id, "--json")
         self.assertEqual(json.loads(output)["status"], "approved")
         self.assertIn(message, error)
         listing, _ = self.run_cli("task", "list", "--json")
@@ -659,7 +659,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
         brief = "契約のステータスを表示する"
         self.run_cli("task", "new", brief, "--id", self.task_id)
         result = subprocess.run(
-            [sys.executable, "-m", "openguildkit", "--project", str(self.root), "task", "show", self.task_id],
+            [sys.executable, "-m", "openguildkit", "--project", str(self.root), "task", "show", self.task_id, "--json"],
             env={**os.environ, "PYTHONIOENCODING": "cp1252"},
             encoding="utf-8",
             capture_output=True,

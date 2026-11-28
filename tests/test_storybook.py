@@ -223,7 +223,7 @@ class StorybookConsultationTests(unittest.TestCase):
                                        "supports": "The project's primary button."})
             write_json(root / "review.json", copy.deepcopy(review))
             run_cli(root, "task", "review", "status", "--file", root / "review.json")
-            self.assertEqual(json.loads(run_cli(root, "task", "show", "status").stdout)["status"], "reviewed")
+            self.assertEqual(json.loads(run_cli(root, "task", "show", "status", "--json").stdout)["status"], "reviewed")
 
 
 if __name__ == "__main__":

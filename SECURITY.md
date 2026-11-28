@@ -26,4 +26,4 @@ OpenGuildKit records who approved, cleared, waived, closed, reviewed or shared, 
 
 ## Supported versions
 
-Only the latest release receives fixes during the 0.x series. The [support policy](docs/support.md) states what is written about versions and deprecation, and what the maintainer has still to decide. The [threat model](docs/threat-model.md) lists what the tool protects and what it leaves open.
+Only the latest release receives fixes during the 0.x series. The [support policy](docs/support.md) states what is written about versions and deprecation, and proposes a support window and a deprecation rule that the maintainers have still to confirm. The [threat model](docs/threat-model.md) lists what the tool protects and what it leaves open.

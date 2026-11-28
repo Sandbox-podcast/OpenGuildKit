@@ -288,7 +288,7 @@ class ParallelWriteTests(ConcurrencyTestCase):
                     failures.append(f"{' '.join(command)}: {error}")
 
         readers = [threading.Thread(target=read_loop, args=command)
-                   for command in (("task", "list", "--json"), ("task", "show", TASK_ID))]
+                   for command in (("task", "list", "--json"), ("task", "show", TASK_ID, "--json"))]
         for reader in readers:
             reader.start()
         try:
@@ -307,7 +307,7 @@ class ParallelWriteTests(ConcurrencyTestCase):
         self.assertIn("show", runs)
 
     def task_record_of(self, task_id):
-        return json.loads(self.run_cli("task", "show", task_id).stdout)
+        return json.loads(self.run_cli("task", "show", task_id, "--json").stdout)
 
 
 def _in_process(project, *arguments, typed=None):

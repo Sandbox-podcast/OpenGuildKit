@@ -343,7 +343,7 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
         self.run_cli("init", "--answers", self.root / "profile.json")
 
     def brief(self):
-        return json.loads(self.run_cli("task", "show", TASK)[0])["brief"]
+        return json.loads(self.run_cli("task", "show", TASK, "--json")[0])["brief"]
 
     def test_task_new_keeps_the_words_replaces_the_credential_and_warns_without_blocking(self):
         key, password = SAMPLES["a cloud access key ID"], SAMPLES["a password"]
@@ -416,7 +416,7 @@ class TaskInputTests(CapturedCli, unittest.TestCase):
         warning = self.consult({**answers, "context": answers["context"] + f" Reference {token}."})
         self.assertIn("replaced a possible credential in the task answers", warning)
         self.assertNotIn(token, warning)
-        record = json.loads(self.run_cli("task", "show", TASK)[0])
+        record = json.loads(self.run_cli("task", "show", TASK, "--json")[0])
         self.assertNotIn(token, json.dumps(record))
         self.assertIn("Reference [credential].", record["answers"]["context"])
 

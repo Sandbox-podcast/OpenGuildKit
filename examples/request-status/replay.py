@@ -62,7 +62,7 @@ def main() -> None:
 
     step("3. Scope it and consult the boards")
     cli(project, "task", "consult", TASK_ID, "--answers", HERE / "answers.json", capture=True)
-    task = json.loads(cli(project, "task", "show", TASK_ID, capture=True))
+    task = json.loads(cli(project, "task", "show", TASK_ID, "--json", capture=True))
     for board, reasons in task["consultation"]["routing"].items():
         print(f"  {board:<20} {'; '.join(reasons)}")
 

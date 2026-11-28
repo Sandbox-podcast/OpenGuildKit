@@ -39,7 +39,7 @@ class TaskWeightTests(CapturedCli, unittest.TestCase):
 
     def test_passes_after_the_first_of_a_sequence_leave_out_the_instructions_they_share(self):
         self.cli("task", "consult", "small1", "--answers", self.root / "answers.json")
-        boards = json.loads(self.cli("task", "show", "small1"))["consultation"]["boards"]
+        boards = json.loads(self.cli("task", "show", "small1", "--json"))["consultation"]["boards"]
         self.assertGreaterEqual(len(boards), 3)
         alone = {board: self.cli("task", "brief", "small1", "--board", board) for board in boards}
         passes = {board: self.cli("task", "pass", "small1", board, "--mode", "sequential") for board in boards}
@@ -59,7 +59,7 @@ class TaskWeightTests(CapturedCli, unittest.TestCase):
 
     def test_passes_run_as_subagents_each_print_the_shared_instructions(self):
         self.cli("task", "consult", "small1", "--answers", self.root / "answers.json")
-        for board in json.loads(self.cli("task", "show", "small1"))["consultation"]["boards"]:
+        for board in json.loads(self.cli("task", "show", "small1", "--json"))["consultation"]["boards"]:
             printed = self.cli("task", "pass", "small1", board, "--mode", "subagent")
             for text in SHARED:
                 self.assertIn(text, printed)
@@ -107,7 +107,7 @@ class RevisionAndClosingTests(ResultCase):
         self.assertEqual(listed, f"Done with reservations: see the open points with openguildkit task show {TASK} "
                                  "--closing.")
         closing = self.run_cli("task", "show", TASK, "--closing")[0]
-        whole = self.run_cli("task", "show", TASK)[0]
+        whole = self.run_cli("task", "show", TASK, "--full")[0]
         self.assertEqual(json.loads(closing), {"id": TASK, "status": "done-with-reservations", "by": "CM",
                                                "open_points": self.record()["result"]["closing"]["open_points"]})
         self.assertIn("rule:python/follow-python-style is skipped", closing)

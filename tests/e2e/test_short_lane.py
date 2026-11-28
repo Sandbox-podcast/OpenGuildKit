@@ -44,7 +44,7 @@ class ShortLaneJourneyTests(CliTestCase):
         (self.project / ".openguildkit" / "work").mkdir()
 
     def task_json(self, task_id=TASK):
-        return json.loads(self.run_cli("task", "show", task_id).stdout)
+        return json.loads(self.run_cli("task", "show", task_id, "--json").stdout)
 
     def entry(self):
         template = json.loads(self.run_cli("task", "template", TASK).stdout)

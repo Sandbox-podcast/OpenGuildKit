@@ -110,7 +110,7 @@ class StateRefusalTests(Project):
         self.cli("task", "consult", "open", "--answers", "answers.json")
         self.cli("task", "pass", "open", "security")
         self.cli("task", "consult", "open", "--answers", "answers.json", "--brief", "Fix the CSV export of statuses")
-        record = json.loads(self.cli("task", "show", "open")[1])
+        record = json.loads(self.cli("task", "show", "open", "--json")[1])
         self.assertEqual((record["brief"], record["status"]), ("Fix the CSV export of statuses", "consulting"))
         progress = json.loads(self.cli("task", "progress", "open", "--json")[1])
         self.assertEqual({item["status"] for item in progress}, {"missing"})
@@ -126,7 +126,7 @@ class StateRefusalTests(Project):
         self.assertNotIn(-1, positions, error)
         self.assertEqual(positions, sorted(positions))
         self.cli("task", "consult", "open", "--answers", "answers.json")
-        boards = json.loads(self.cli("task", "show", "open")[1])["consultation"]["boards"]
+        boards = json.loads(self.cli("task", "show", "open", "--json")[1])["consultation"]["boards"]
         template = {entry["id"]: entry for entry in json.loads(self.cli("task", "template", "open")[1])["boards"]}
         for index, board in enumerate(boards, start=1):
             self.cli("task", "pass", "open", board)
@@ -145,7 +145,7 @@ class StateRefusalTests(Project):
         """Issue #529: task review, task decide and task export printed "reviewed", "approved" and a path, no next step."""
         self.cli("task", "new", "Fix the export", "--id", "open")
         self.cli("task", "consult", "open", "--answers", "answers.json")
-        boards = json.loads(self.cli("task", "show", "open")[1])["consultation"]["boards"]
+        boards = json.loads(self.cli("task", "show", "open", "--json")[1])["consultation"]["boards"]
         template = {entry["id"]: entry for entry in json.loads(self.cli("task", "template", "open")[1])["boards"]}
         for board in boards:
             self.cli("task", "pass", "open", board)
@@ -165,7 +165,7 @@ class StateRefusalTests(Project):
         self.cli("task", "new", "Fix the export", "--id", "open")
         self.cli("task", "consult", "open", "--answers", "answers.json")
         self.cli("task", "pass", "open", "security")
-        boards = json.loads(self.cli("task", "show", "open")[1])["consultation"]["boards"]
+        boards = json.loads(self.cli("task", "show", "open", "--json")[1])["consultation"]["boards"]
         others = ", ".join(board for board in boards if board != "security")
         listed = self.cli("task", "list")[1]
         self.assertIn(f"next: Board reviews pending: {others}; passes started, waiting for their entry: security.",

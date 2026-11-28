@@ -288,7 +288,7 @@ def run_retro(args, root: Path, state: Path, profile: Profile, catalog: Catalog)
 
 
 def _summary(task: Task, profile: Profile) -> str:
-    """What task show --summary prints: a screen, whatever the size of the record."""
+    """What task show prints by default: a screen, whatever the size of the record."""
     decided = decision_words(task)
     lines = [f"{task['id']} [{task['status']}{', ' + decided if decided else ''}] {task['brief'].splitlines()[0][:100]}",
              f"  created: {task['created_at'][:10]}"]
@@ -300,16 +300,18 @@ def _summary(task: Task, profile: Profile) -> str:
         passed = sum(item["status"] == "passed" for item in result.get("checks", []))
         lines.append(f"  result: {met} of {len(result.get('criteria', []))} criteria met, "
                      f"{passed} of {len(result.get('checks', []))} checks passed")
-    lines += [f"  next: {next_step(task, profile)}", f"  all of it: openguildkit task show {task['id']} --json"]
+    lines += [f"  next: {next_step(task, profile)}", f"  all of it: openguildkit task show {task['id']} --full"]
     return "\n".join(lines)
 
 
 def run_show(command: TaskCommand) -> None:
-    """The task record as JSON, only the open points its closing left, or a summary."""
+    """A summary by default; the task record as JSON with --full or --json; only the open points its closing left."""
     args, profile, task = command.args, command.profile, command.task
     if args.summary and args.json:
         raise OgkError("OGK-TASK-146", "--summary and --json exclude each other: one is a screen, the other the whole record.")
-    if args.summary:
-        print(_summary(task, profile))
+    if args.closing:
+        print_json(_closing_points(task, args.id))
+    elif args.full or args.json:
+        print_json(task)
     else:
-        print_json(_closing_points(task, args.id) if args.closing else task)
+        print(_summary(task, profile))

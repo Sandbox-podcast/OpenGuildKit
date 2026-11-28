@@ -231,10 +231,18 @@ class TaskShowTests(unittest.TestCase):
         record = json.loads(run_cli(self.root, "task", "show", "status", "--json").stdout)
         self.assertEqual((record["id"], record["status"]), ("status", "draft"))
 
-    def test_the_default_of_show_is_still_the_record(self):
-        """The default of `task show` is a person's choice to change: scripts parse it today."""
-        shown = json.loads(run_cli(self.root, "task", "show", "status").stdout)
-        self.assertEqual(shown, json.loads(run_cli(self.root, "task", "show", "status", "--json").stdout))
+    def test_the_summary_is_the_default_and_full_prints_the_record(self):
+        """Issue #498: `task show ID` printed the whole record by default; the summary is now the plain form."""
+        plain = run_cli(self.root, "task", "show", "status").stdout
+        self.assertEqual(plain, run_cli(self.root, "task", "show", "status", "--summary").stdout)
+        self.assertIn("all of it: openguildkit task show status --full", plain)
+        self.assertLess(len(plain.encode("utf-8")), 5_000)
+        full = run_cli(self.root, "task", "show", "status", "--full").stdout
+        self.assertEqual(json.loads(full), json.loads(run_cli(self.root, "task", "show", "status", "--json").stdout))
+
+    def test_full_and_summary_do_not_go_together(self):
+        refused = run_cli(self.root, "task", "show", "status", "--summary", "--full", expect=2)
+        self.assertIn("not allowed with", refused.stderr)
 
     def test_the_summary_and_the_closing_points_do_not_go_together(self):
         refused = run_cli(self.root, "task", "show", "status", "--summary", "--closing", expect=2)

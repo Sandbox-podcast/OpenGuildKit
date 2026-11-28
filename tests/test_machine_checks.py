@@ -383,7 +383,7 @@ class DemoProjectTests(CapturedCli, unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille Martin", "--reason", "Agreed")
         self.run_cli("task", "verify", TASK)
-        recorded = {item["check"]: item for item in json.loads(self.run_cli("task", "show", TASK))["result"]["checks"]}
+        recorded = {item["check"]: item for item in json.loads(self.run_cli("task", "show", TASK, "--json"))["result"]["checks"]}
         for pack_id in REGULATIONS:
             machine = [f"rule:{pack_id}/{rule['id']}" for rule in self.catalog["packs"][pack_id]["rules"]
                        if "check" in rule]

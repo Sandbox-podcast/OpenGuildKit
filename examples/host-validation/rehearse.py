@@ -90,7 +90,7 @@ def run_feature(project: Path, observed: dict) -> None:
     cli(project, "task", "new", task["brief"], "--id", task["id"])
     (project / "answers.json").write_text(json.dumps(task["answers"]), encoding="utf-8")
     cli(project, "task", "consult", task["id"], "--answers", project / "answers.json")
-    record = json.loads(cli(project, "task", "show", task["id"]).stdout)
+    record = json.loads(cli(project, "task", "show", task["id"], "--json").stdout)
     boards = record["consultation"]["boards"]
     observed["feature_boards"] = boards
     templates = {item["id"]: item for item in record["consultation"]["review_template"]["boards"]}
@@ -148,7 +148,7 @@ def run_decision(project: Path, observed: dict) -> None:
     (project / "answers2.json").write_text(json.dumps(task["answers"]), encoding="utf-8")
     cli(project, "task", "consult", task["id"], "--answers", project / "answers2.json", "--add", "marketing",
         "--reason", "A pricing comparison is a market question")
-    record = json.loads(cli(project, "task", "show", task["id"]).stdout)
+    record = json.loads(cli(project, "task", "show", task["id"], "--json").stdout)
     templates = {item["id"]: item for item in record["consultation"]["review_template"]["boards"]}
     for board in record["consultation"]["boards"]:
         cli(project, "task", "pass", task["id"], board, "--mode", "sequential")

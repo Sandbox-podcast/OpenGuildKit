@@ -42,7 +42,7 @@ def _checks_section(task: Task) -> list[str]:
     if task.get("status") in ("done", "done-with-reservations"):
         lines = ["## Checks task verify ran", "",
                  "Each one had to pass, or be recorded by a person as unable to run here, before the task was closed. "
-                 "Their outcomes are in task show (result.checks).", ""]
+                 f"Their outcomes are in openguildkit task show {task['id']} --full (result.checks).", ""]
     else:
         lines = ["## Checks task verify will run", "",
                  "Each one must pass before the task is done. Install the project's dependencies and the tools these "

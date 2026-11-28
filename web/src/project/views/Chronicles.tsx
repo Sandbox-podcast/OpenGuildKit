@@ -98,7 +98,7 @@ export function Chronicles() {
     tasks.data ? key : null,
     useCallback(async () => {
       // Only the dates and decisions: the consultations and reviews stay on the server.
-      const records = await batchJson<TaskRecord>(Object.fromEntries(ids.map((id) => [id, ['task', 'show', id]])), {
+      const records = await batchJson<TaskRecord>(Object.fromEntries(ids.map((id) => [id, ['task', 'show', id, '--json']])), {
         omit: ['consultation', 'review', 'answers', 'scope'],
       });
       return ids.map((id) => records[id]).filter((r): r is TaskRecord => !!r);
