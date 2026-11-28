@@ -35,7 +35,7 @@ class TraceTests(unittest.TestCase):
                 self.assertEqual(traced.stdout, plain.stdout)
                 self.assertEqual(traced.stderr.count("Traceback (most recent call last)"), 1)
                 self.assertTrue(traced.stderr.startswith("Traceback"), traced.stderr)
-                self.assertIn("tasks.py", traced.stderr)
+                self.assertIn("task_files.py", traced.stderr)
                 self.assertTrue(traced.stderr.endswith(plain.stderr), "the message is the one of the plain run")
 
     def test_without_the_variable_the_output_is_the_one_of_before(self):
