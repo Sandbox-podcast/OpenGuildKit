@@ -42,7 +42,9 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
             with self.subTest(command=" ".join(command)):
                 _, error = self.run_cli(*command, code=1)
                 self.assertNotIn("[Errno", error)
-                self.assertRegex(error, r"Cannot open \S*nope\.(json|md): it does not exist\.")
+                # A file an option names is named with it: `Cannot open --file nope.json: it does not exist.`
+                option = rf"{command[-2]} " if command[-2].startswith("--") else r"\S*"
+                self.assertRegex(error, rf"Cannot open {option}nope\.(json|md): it does not exist\.")
 
     def test_other_system_errors_do_not_show_the_python_text_either(self):
         self.assertEqual(os_error_message(IsADirectoryError(21, "Is a directory", "docs")),

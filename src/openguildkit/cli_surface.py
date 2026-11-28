@@ -9,6 +9,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from .doc_links import doc_link
+
 # The root page lists the commands under these headings, in this order; a command named nowhere fails
 # tests/test_cli_surface.py, so that none is left under the wrong heading.
 GROUPS = (
@@ -30,7 +32,7 @@ PLACEHOLDERS = {"--reason": "WHY", "--task": "TASK", "--id": "ID", "--board": "B
 
 BY_HELP = "Your initials or team handle, not your full name: it is committed."
 BY_RULE = ("`--by` is committed with the profile, the task or the decision: write your initials or a team handle, "
-           "not a name or an address (docs/personal-data.md).")
+           "not a name or an address")
 
 
 class VersionAction(argparse.Action):
@@ -106,7 +108,7 @@ def polish(parser: argparse.ArgumentParser, depth: int = 0) -> None:
 def _initials(value: str) -> str:
     """The value of --by, which is committed: a space or an address is let through with a line that gives the rule."""
     if "@" in value or " " in value.strip():
-        print(f"OpenGuildKit: {BY_RULE}", file=sys.stderr)
+        print(f"OpenGuildKit: {BY_RULE} ({doc_link('docs/personal-data.md')}).", file=sys.stderr)
     return value
 
 

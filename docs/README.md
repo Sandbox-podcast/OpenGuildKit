@@ -25,6 +25,7 @@ For: anyone who looks for a page of this folder: it lists each page under the re
 - [Task workflow](workflow.md): the path of a change, from the request to the closing.
 - [Professional brains](brains.md), [business deliverables](deliverables.md), [dependency alerts](alerts.md), [market dossiers](market.md) and [Storybook](storybook.md).
 - [Glossary](glossary.md), in English and French.
+- [Command reference](cli.md): every command and option with its help, written from the parser.
 - [Exit codes](exit-codes.md) and [troubleshooting](troubleshooting.md).
 
 ## Contributor
