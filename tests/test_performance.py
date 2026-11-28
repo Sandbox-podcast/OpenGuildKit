@@ -525,10 +525,10 @@ class StartupTests(unittest.TestCase):
         loaded = {name for name in imported(result.stderr) if name.startswith("openguildkit")}
         for module in ("tasks", "project_rules", "project_instructions", "project_setup", "ci", "results", "workflow",
                        "consultation", "sensitive", "detect", "routing", "delivered_review", "org_policy", "roles",
-                       "requester"):
+                       "requester", "git", "shell", "doc_links", "wording", "stack_versions"):
             with self.subTest(module=module):
                 self.assertNotIn(f"openguildkit.{module}", loaded)
-        self.assertLessEqual(len(loaded), 25, sorted(loaded))
+        self.assertLessEqual(len(loaded), 20, sorted(loaded))
 
     def test_version_answers_without_the_cli(self):
         """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""

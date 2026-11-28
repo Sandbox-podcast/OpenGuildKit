@@ -18,8 +18,9 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import NoReturn
 
-from . import git, lazy_re
-from .shell import shell_word
+from . import lazy_re
+
+# The edit hook loads this module: git and shell are imported in the functions that use them (#539).
 
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 # The organization policy (RFC #452, org_policy.py): one file at the root, read and fingerprinted with the records
@@ -48,6 +49,8 @@ _NEEDS_GIT = "Reading the organization catalog"
 
 def _is_repository(repo: Path) -> bool:
     """True when the folder is the top of a Git working copy or a bare repository, not a folder inside another one."""
+    from . import git
+
     if not repo.is_dir():
         return False
     top = git.required(repo, "rev-parse", "--show-toplevel", needs=_NEEDS_GIT, offline=True)
@@ -102,6 +105,8 @@ def _named_folder(name: str, named: dict[str, str]) -> Path:
 def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
     """(path, object) of each record file at the commit: COLLECTION/NAME.json, and the policy file at the root, plain
     files only."""
+    from . import git
+
     listing = git.required(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE, needs=_NEEDS_GIT,
                            offline=True)
     if listing.returncode:
@@ -122,6 +127,8 @@ def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
 
 def _contents(repo: Path, objects: list[str]) -> list[bytes]:
     """The content of each object, read by one `git cat-file --batch`."""
+    from . import git
+
     if not objects:
         return []
     result = git.required(repo, "cat-file", "--batch", stdin="".join(f"{obj}\n" for obj in objects).encode("ascii"),
@@ -149,6 +156,9 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
     """The record files of the organization catalog at the commit, with their fingerprint. Raises with the command
     that fixes it when the copy or the commit is missing. repo is what the lock calls the copy (its path, or its name
     with the folder given as `folder`)."""
+    from . import git
+    from .shell import shell_word
+
     if not FULL_COMMIT.fullmatch(commit):
         raise ValueError(f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
                          f"{shell_word(repo)} rev-parse COMMIT prints it.")

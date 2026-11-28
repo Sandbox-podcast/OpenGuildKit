@@ -15,7 +15,7 @@ import time
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
-from . import git, incident, lazy_re, short_lane
+from . import incident, lazy_re, short_lane
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -39,7 +39,6 @@ from .decisions import (
     verify_recorded_signature,
     verify_signature,
 )
-from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
@@ -48,10 +47,9 @@ from .startup import UNKNOWN_MODE, declared_mode
 from .storage import file_sha256, parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .terminal import interactive
-from .wording import plural
 
-# The hook runs before every edit an agent makes: it imports the task records, the rule plan, the export and CI
-# modules only in the functions that use them (#539).
+# The hook runs before every edit an agent makes: it imports the task records, the rule plan, the export, CI, git,
+# doc_links and wording modules only in the functions that use them (#539).
 if TYPE_CHECKING:
     from .project_rules import Fingerprints
 
@@ -624,6 +622,8 @@ _NEEDS_GIT = "guard --ci"  # What a missing Git stops (git.required).
 
 def _git_lines(root: Path, command: str, *args: str) -> list[str]:
     """The file names a Git command lists, as they are on disk (-z)."""
+    from . import git
+
     result = git.required(root, command, "-z", *args, needs=_NEEDS_GIT)
     if result.returncode:
         raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
@@ -635,6 +635,8 @@ def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
 
     One git cat-file process reads them all, however many records the base holds: one git show per file took 23.5 s
     at 990 decisions (issue #532)."""
+    from . import git
+
     # cat-file reads one name per line, and git ls-tree quotes a name that holds a newline.
     names = [name for name in names if not PurePosixPath(name).is_absolute() and ".." not in PurePosixPath(name).parts
              and "\n" not in name]
@@ -729,6 +731,8 @@ _COMMIT = lazy_re.compile(r"[0-9a-f]{7,64}")
 def in_history(history: Path, commit: object) -> bool:
     """Whether HEAD of the repository contains the commit: a commit git does not have, or one HEAD does not reach,
     is outside its history."""
+    from . import git
+
     if not isinstance(commit, str) or not _COMMIT.fullmatch(commit):
         return False
     return git.text(history, "merge-base", "--is-ancestor", commit, "HEAD") is not None
@@ -830,6 +834,8 @@ _APPROVER = lazy_re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
 def conflict_message(path: Path, relative: str) -> str | None:
     """Name a decision record left with git conflict markers, and whose each side is when the text says it."""
+    from .doc_links import doc_link
+
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
@@ -863,6 +869,7 @@ def _completion_problem(record: dict) -> str | None:
     """Whether a record's completion agrees with what task complete writes. No person seals a completion, so
     this is consistency, not proof: the record's own digest can be recomputed by whoever edits it."""
     from .results import DONE_STATUSES
+    from .wording import plural
 
     status, completed = record.get("status"), record.get("completed")
     if status not in ("approved", *DONE_STATUSES):
@@ -988,6 +995,8 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
 
 def untracked_files(root: Path) -> list[str]:
     """The new files Git does not track yet, ignored files and decision records left out: no record lists them."""
+    from . import git
+
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     return sorted(path for path in git.names(root, "ls-files", "--others", "--exclude-standard", "--full-name") or []
                   if not path.startswith(prefix))
@@ -1025,6 +1034,8 @@ def _no_base_profile(root: Path) -> str:
 
 
 def _local_records() -> str:
+    from .doc_links import doc_link
+
     return ("Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record "
             "can recompute it too, so nothing here proves who approved. Require signed approvals "
             f"({doc_link('docs/workflow.md', 'signed-approvals')})")
@@ -1042,6 +1053,9 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
 
     covers maps each valid record's task to the files it covers, None when it lists none.
     """
+    from . import git
+    from .wording import plural
+
     listed = {git.unquote(path) for files in covers.values() for path in files or []}
     missing = [path for path in work if path not in listed]
     if not missing:
@@ -1072,6 +1086,8 @@ def _lane_fault(record: dict, files: list[str] | None, light: list[str], base: s
 def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | None:
     """Why a new record cannot be true: its approval says it was signed (signed_at) after the commit of the change that
     first carries the record, the clocks of two machines allowed to differ by CLOCK_SKEW."""
+    from . import git
+
     moment = (record["decision"].get("payload") or {}).get("signed_at")
     brought = git.required(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative,
                            needs=_NEEDS_GIT)
@@ -1105,6 +1121,8 @@ def _workflow_ref() -> str | None:
 
 def _changed_guard_workflows(root: Path, base: str, changed: list[str]) -> list[str]:
     """The changed workflow files that run this check, on the base revision or in the change."""
+    from . import git
+
     running = _workflow_ref()
     found = []
     for path in changed:
@@ -1117,6 +1135,8 @@ def _changed_guard_workflows(root: Path, base: str, changed: list[str]) -> list[
 
 
 def _workflow_note(paths: list[str]) -> str:
+    from .doc_links import doc_link
+
     return (f"This change edits {', '.join(paths)}, which runs this check: on pull_request, GitHub runs the pull "
             "request's own copy of a workflow, so this result may come from the edited file. Have a person review the "
             "change, and keep pull requests from editing the check (CODEOWNERS on .github/workflows/, a ruleset that "
@@ -1169,7 +1189,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
     """
-    from . import org_policy, requester, roles
+    from . import git, org_policy, requester, roles
     from .org_catalog import copies_read_from, parse_copies
     from .project_rules import Fingerprints
     from .tasks_blockers import expired_waiver_problem

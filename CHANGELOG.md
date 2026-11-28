@@ -203,7 +203,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Tests: `tests/test_core.py` and `tests/test_audit_fixes.py` are gone; their 15 tests live next to their modules, in `test_approval_lifecycle.py`, `test_catalog_sources.py`, `test_upgrades.py`, `test_alerts.py` and `test_project_checks.py` (#488)
 - Code coverage (`.github/workflows/coverage.yml`): the package must stay at 92 % or more, `guard.py` at 93 % and `hosts.py` at 95 %, one point under a measure of the whole suite on 28 November 2026 (93.3 %, 93.9 %, 96.1 %) (#472)
 - Code: `project.py` (1 737 lines) is split into `project.py` (finding a project, validating and loading its profile), `project_setup.py` (the setup questionnaire), `project_rules.py` (rule plan and fingerprints) and `project_instructions.py` (`AGENTS.md` and the other instruction files); `validate_profile` goes from 150 to 52 lines; no output changes (#512)
-- `guard --hook`: the active edit hook imports 25 modules of the package instead of 44: the task records, the rule plan, the instruction files, the export and the CI checks wait for a record that may be approved or for the command that uses them; importing the guard goes from 35 to 28 ms (#539)
+- `guard --hook`: the active edit hook imports 20 modules of the package instead of 44: the task records, the rule plan, the instruction files, the export, the CI checks, Git and the wording helpers wait for a record that may be approved or for the function that uses them; importing the guard goes from 35 to 28 ms (#539)
 
 ## 0.17.0
 

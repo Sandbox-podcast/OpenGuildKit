@@ -3,7 +3,7 @@
 import unicodedata
 from collections import Counter
 
-from .stack_versions import STACK_VERSION, version_key, version_lower_bound
+# The edit hook loads this module: stack_versions is imported in the functions that use it (#539).
 
 ROLE_TITLES = {
     "communication": "Communication",
@@ -44,6 +44,8 @@ def role_choices(patterns: dict) -> dict[str, dict]:
 
 
 def technology_key(text: str) -> str:
+    from .stack_versions import STACK_VERSION
+
     name = STACK_VERSION.sub("", text.strip())
     normalized = unicodedata.normalize("NFKD", name.casefold())
     return "".join(character for character in normalized if character.isalnum() or character in "+#")
@@ -51,11 +53,15 @@ def technology_key(text: str) -> str:
 
 def technology_version(text: str) -> str | None:
     """Return the numeric lower bound of a version or range written after the technology name."""
+    from .stack_versions import STACK_VERSION, version_lower_bound
+
     match = STACK_VERSION.search(text.strip())
     return version_lower_bound(match.group(1)) if match else None
 
 
 def version_at_least(version: str, minimum: str) -> bool:
+    from .stack_versions import version_key
+
     return version_key(version) >= version_key(minimum)
 
 

@@ -15,14 +15,18 @@ import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import clock, git
+from . import clock
 from .storage import canonical_sha256, read_json
+
+# The edit hook loads this module: git is imported in the functions that use it (#539).
 
 NAMESPACE = "openguildkit-decision"
 
 
 def git_revision(root: Path) -> dict | None:
     """The commit the project is at, and whether files differ from it. None outside a Git repository."""
+    from . import git
+
     head = git.text(root, "rev-parse", "--verify", "HEAD")
     if head is None:
         return None
@@ -32,6 +36,8 @@ def git_revision(root: Path) -> dict | None:
 
 def changed_paths_since(root: Path, commit: str) -> list[str]:
     """Changes to tracked and staged files between an approved commit and the working tree."""
+    from . import git
+
     change = git.names(root, "diff", "--name-only", "--no-renames", commit, "--")
     if change is None:
         raise ValueError("Could not compare the project files with the approved Git revision.")
@@ -194,6 +200,8 @@ def committed_signers(root: Path, relative: str) -> str:
     Refused, naming the file, outside a Git repository, when Git does not track the file, or when the working copy
     differs from HEAD: who may approve changes through a commit a person reviews.
     """
+    from . import git
+
     shown = f"The allowed signers file {relative}"
     retry = "Have the person review and commit it, then sign again."
     inside = git.text(root, "rev-parse", "--is-inside-work-tree")
@@ -261,6 +269,8 @@ PROJECT_FILE = ".openguildkit/project.json"
 def merged_reference(root: Path) -> str | None:
     """The branch that holds reviewed, merged work: the remote's default branch (origin/HEAD, which git clone sets), or
     else the upstream branch the current branch tracks. None when the repository has neither."""
+    from . import git
+
     for reference in ("refs/remotes/origin/HEAD", "@{upstream}"):
         found = git.text(root, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", reference)
         if found and found.strip():
@@ -277,6 +287,8 @@ def signers_at_approval(history: Path, payload: dict, *, merged_only: bool = Fal
     does not hold a signed project.json and its signers file. merged_only also asks that the revision be on the merged
     branch (merged_reference): a commit only this copy holds, which an agent can write and revert, does not count.
     """
+    from . import git
+
     base = payload.get("base_revision")
     commit = base.get("commit") if isinstance(base, dict) else None
     if not isinstance(commit, str) or not commit or commit.startswith("-"):
@@ -360,6 +372,8 @@ def exported_records(state: Path) -> list[tuple[Path, dict | None]]:
 
 def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
     """The project paths that git ignores, so a teammate who pulls the repository will not have them."""
+    from . import git
+
     if not paths:
         return set()
     # -z needs --stdin in check-ignore, which ends with 1 when it ignores none of the paths.
@@ -425,6 +439,8 @@ def revisions_outside_history(root: Path, commits: list[str]) -> set[str]:
     listed, one a rebase, a squash or an amendment replaced is. Outside a Git repository, or for a commit git no
     longer has, nothing is reported, so the approval is judged on the rest.
     """
+    from . import git
+
     wanted = sorted({commit for commit in commits if commit})
     if not wanted:
         return set()
