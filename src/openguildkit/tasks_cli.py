@@ -1608,7 +1608,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     if args.ready:
         rows = [row for row in rows if row["status"] not in (*DONE_STATUSES, "unreadable") and not row.get("waiting_for")]
     # A task listed from the line the index keeps is not in read: that line holds only while the exported record of
-    # its ID is its own, or there is none (tasks._kept_line).
+    # its ID is its own, or there is none (tasks.kept_line).
     clashes = _id_clashes(root, state, read)
     for row in rows:
         if row["id"] in clashes:

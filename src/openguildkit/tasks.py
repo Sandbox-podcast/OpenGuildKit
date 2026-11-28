@@ -175,7 +175,7 @@ def _validated_task(state: Path, path: Path, task_id: str) -> dict:
     task = read_json(path)
     if task.get("schema_version") != 1 or task.get("id") != task_id:
         raise ValueError(f"Unsupported or mismatched task record: {path}")
-    problem = _record_problem(task)
+    problem = record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
         raise ValueError(
@@ -286,31 +286,31 @@ _RECORD = {
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
 
 
-def _shape_problem(value: object, shape: object, field: str) -> str | None:
+def shape_problem(value: object, shape: object, field: str) -> str | None:
     """Where value departs from shape (see _RECORD), named by its path such as review.boards[0].challenge."""
     if isinstance(shape, tuple):
-        problems = [_shape_problem(value, option, field) for option in shape]
+        problems = [shape_problem(value, option, field) for option in shape]
         return None if None in problems else problems[-1]
     if isinstance(shape, frozenset):
         return None if value in shape else f"{field} must be one of {', '.join(sorted(shape))}"
     if isinstance(shape, list):
         if not isinstance(value, list):
             return f"{field} must be a list"
-        problems = (_shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
+        problems = (shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
         return next((problem for problem in problems if problem), None)
     if isinstance(shape, dict):
         if not isinstance(value, dict):
             return f"{field} must be an object"
         for key, inner in shape.items():
             if key == "*":
-                problems = (_shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
+                problems = (shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
             else:
                 name = key.rstrip("?")
                 if name not in value:
                     if key.endswith("?"):
                         continue
                     return f"{field}.{name} is missing" if field else f"{name} is missing"
-                problems = iter([_shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
+                problems = iter([shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
             problem = next((problem for problem in problems if problem), None)
             if problem:
                 return problem
@@ -322,7 +322,7 @@ def _shape_problem(value: object, shape: object, field: str) -> str | None:
     return None if isinstance(value, shape) else f"{field} must be {'an object' if shape is dict else 'a list'}"
 
 
-def _record_problem(task: dict) -> str | None:
+def record_problem(task: dict) -> str | None:
     """Describe the first field of a task record that the commands could not use, if any."""
     if not isinstance(task.get("brief"), str) or not task["brief"].strip():
         return "brief must be text"
@@ -335,7 +335,7 @@ def _record_problem(task: dict) -> str | None:
     for field in STATUSES[status]:
         if field not in task:
             return f"{'an' if status[0] in 'aeiou' else 'a'} {status} task needs {field}"
-    problem = _shape_problem(task, _RECORD, "")
+    problem = shape_problem(task, _RECORD, "")
     if problem:
         return problem
     if ("lane" in task) != bool(task.get("paths")):
@@ -351,7 +351,7 @@ def _record_problem(task: dict) -> str | None:
 def board_brief_problem(task: dict, board_id: str) -> None:
     """Refuse to print a pass from a damaged stored brief, with the field to restore."""
     stored = task.get("consultation", {}).get("board_briefs", {}).get(board_id)
-    problem = _shape_problem(stored, _BOARD_BRIEF, f"consultation.board_briefs.{board_id}") if stored is not None else None
+    problem = shape_problem(stored, _BOARD_BRIEF, f"consultation.board_briefs.{board_id}") if stored is not None else None
     if problem:
         raise ValueError(f"Task record {task['id']} is damaged: {problem}. Restore it from a backup or consult again.")
 
@@ -724,7 +724,7 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
 
     indexed reads the status index first (task_index.py) and writes back what the reads taught it: a record read
     whole at its current signature is not read again when its status is left out, nor when it is a closed task whose
-    line the index keeps (_kept_line), which read then does not receive. The index only saves reads: missing, stale
+    line the index keeps (kept_line), which read then does not receive. The index only saves reads: missing, stale
     or corrupt, it gives the same list.
     """
     since, until = _period_day(since, "--since"), _period_day(until, "--until")
@@ -746,7 +746,7 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         if known.get("checked") is True and known.get("status") in skip:
             statuses[path.stem] = known["status"]
             continue
-        line = _kept_line(state, known, path.stem, fingerprints)
+        line = kept_line(state, known, path.stem, fingerprints)
         if line:
             statuses[path.stem] = known["status"]
             if in_period(line["row"]["created"]):
@@ -771,10 +771,10 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
         if task is not None:
             problem = (approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside)
                        if judged else None)
-            row = _task_row(task, problem, profile, fingerprints, root)
+            row = task_row(task, problem, profile, fingerprints, root)
             name = f"{task['id']}.json"
             if index.get(name, {}).get("checked") is True:
-                line = _line_to_keep(state, task, row, problem, fingerprints)
+                line = line_to_keep(state, task, row, problem, fingerprints)
                 if line and index[name].get("line") != line:
                     index[name], learnt = {**index[name], "line": line}, True
         elif row["status"] == "unreadable":
@@ -792,8 +792,8 @@ def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
     return rows
 
 
-def _task_row(task: dict, problem: dict | None, profile: dict | None, fingerprints: Fingerprints | None,
-              root: Path | None) -> dict:
+def task_row(task: dict, problem: dict | None, profile: dict | None, fingerprints: Fingerprints | None,
+             root: Path | None) -> dict:
     """A task's line of task list, but for the tasks it waits for, which depend on the others; problem is its
     approval_problem, fingerprints those of the profile when the approval is judged."""
     # An approval that holds through the signers of the revision it was signed at keeps its next step.
@@ -827,7 +827,7 @@ def _task_row(task: dict, problem: dict | None, profile: dict | None, fingerprin
     return row
 
 
-# The line of a closed task the status index keeps (_line_to_keep), checked again when it is read back (_kept_line).
+# The line of a closed task the status index keeps (line_to_keep), checked again when it is read back (kept_line).
 _LINE_ROW = {"id": str, "status": str, "created": str, "owner": (str, type(None)), "brief": str, "next": str,
              "decided?": str, "closed_by?": str, "follows?": str, "lane?": str, "paths?": [str], "after?": [str]}
 _LINE_FIELDS = {key.rstrip("?") for key in _LINE_ROW}
@@ -846,8 +846,8 @@ def _code_stamp() -> str | None:
     return hashlib.sha256(repr(modules).encode()).hexdigest()
 
 
-def _line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
-                  fingerprints: Fingerprints | None) -> dict | None:
+def line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
+                 fingerprints: Fingerprints | None) -> dict | None:
     """What the status index keeps of a closed task's line: the row, the fingerprint of the rules it was approved
     under and the signature of its exported record (None without one). None when the line depends on more than the
     record and the rules: an approval that does not hold, evidence whose file may change, an exported record of
@@ -856,7 +856,7 @@ def _line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
 
     code = _code_stamp()
     if task["status"] not in DONE_STATUSES or problem or fingerprints is None or code is None or \
-            any(fingerprint for _, _, fingerprint in _accepted_evidence(task)):
+            any(fingerprint for _, _, fingerprint in accepted_evidence(task)):
         return None
     # Taken before the record is read, and not trusted just after a write: as for the index, a second write within
     # the same clock tick could keep the signature.
@@ -867,12 +867,12 @@ def _line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
             "export": list(export) if export else None}
 
 
-def _kept_line(state: Path, entry: dict, task_id: str, fingerprints: Fingerprints | None) -> dict | None:
+def kept_line(state: Path, entry: dict, task_id: str, fingerprints: Fingerprints | None) -> dict | None:
     """The line the status index keeps for a closed task while its record, its exported record, the code that wrote
     the line and the rules it was approved under all hold; None otherwise, and the record is read."""
     line = entry.get("line")
     if entry.get("checked") is not True or fingerprints is None or not isinstance(line, dict) or \
-            _shape_problem(line, _LINE, "line"):
+            shape_problem(line, _LINE, "line"):
         return None
     row, export = line["row"], file_signature(state / DECISIONS_DIR / f"{task_id}.json")
     if (line["code"], row["id"], row["status"], line["export"]) != \
@@ -1482,7 +1482,7 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
 CHANGED_EVIDENCE_GROUP = "Evidence changed since it was accepted"
 
 
-def _accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
+def accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
     """Each evidence a clearance or a passed named evidence cites: the evidence, what it was accepted for and its
     fingerprint, None for one recorded before fingerprints."""
     cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
@@ -1495,7 +1495,7 @@ def _accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
 def evidence_states(task: dict, root: Path) -> list[dict]:
     """Each evidence a clearance or a passed named evidence cites, with its state now, once one has a fingerprint:
     a task recorded before fingerprints lists none."""
-    cited = _accepted_evidence(task)
+    cited = accepted_evidence(task)
     if not any(fingerprint for _, _, fingerprint in cited):
         return []
     return [{"evidence": value, "for": name, "state": evidence_state(root, value, fingerprint)}
