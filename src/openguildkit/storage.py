@@ -200,7 +200,7 @@ def project_lock(directory: Path):
     directory.mkdir(parents=True, exist_ok=True)
     lock_file = directory / ".lock"
     if lock_file.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project lock: {lock_file}")
+        raise OgkError("OGK-CORE-024", f"Refusing a symbolic link as project lock: {lock_file}")
     try:
         with _held_lock(lock_file):
             yield

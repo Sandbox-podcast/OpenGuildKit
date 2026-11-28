@@ -19,13 +19,17 @@ The register holds the message of each code as the code writes it and the tests 
 - `set_severity`: OGK-ALERTS-015, OGK-ALERTS-016
 - `set_status`: OGK-ALERTS-006, OGK-ALERTS-007, OGK-ALERTS-008, OGK-ALERTS-014
 
+### alerts_cli.py
+
+- `task_command`: OGK-ALERTS-018
+
 ### allowlist.py
 
 - `load_allow`: OGK-GUARD-001, OGK-GUARD-002, OGK-GUARD-022
 
 ### audit_cli.py
 
-- `run`: OGK-AUDIT-001
+- `run`: OGK-AUDIT-001, OGK-AUDIT-007, OGK-AUDIT-008
 
 ### audit_log.py
 
@@ -84,7 +88,7 @@ The register holds the message of each code as the code writes it and the tests 
 ### catalog_cli.py
 
 - `print_brains`: OGK-CATALOG-002
-- `print_patterns`: OGK-CATALOG-001
+- `print_patterns`: OGK-CATALOG-001, OGK-CATALOG-110
 
 ### catalog_queries.py
 
@@ -101,7 +105,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 - `_committed_bytes`: OGK-CI-001
 - `_committed_file`: OGK-CI-002, OGK-CI-003
-- `check_export`: OGK-CI-005
+- `check_export`: OGK-CI-005, OGK-CI-006
 - `read_policy_pack`: OGK-CI-004
 
 ### cli.py
@@ -114,7 +118,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### connect_cli.py
 
-- `_mcp`: OGK-INIT-001
+- `_mcp`: OGK-INIT-001, OGK-INIT-006
 
 ### consultation.py
 
@@ -174,8 +178,9 @@ The register holds the message of each code as the code writes it and the tests 
 ### evidence_cli.py
 
 - `_day`: OGK-EVIDENCE-002
-- `_verify`: OGK-EVIDENCE-003
-- `run`: OGK-EVIDENCE-001
+- `_signature`: OGK-EVIDENCE-005
+- `_verify`: OGK-EVIDENCE-003, OGK-EVIDENCE-006
+- `run`: OGK-EVIDENCE-001, OGK-EVIDENCE-004
 
 ### features.py
 
@@ -185,6 +190,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### features_cli.py
 
+- `_refuse`: OGK-FEATURE-012
 - `_targets`: OGK-FEATURE-001
 - `edit`: OGK-FEATURE-002, OGK-FEATURE-003
 
@@ -238,6 +244,10 @@ The register holds the message of each code as the code writes it and the tests 
 - `_require_answers`: OGK-INIT-003
 - `init`: OGK-INIT-004, OGK-INIT-005
 
+### integrations.py
+
+- `install_agent_files`: OGK-CI-007, OGK-CI-008
+
 ### lock.py
 
 - `_validated_lock`: OGK-CORE-004, OGK-CORE-015, OGK-CORE-016, OGK-CORE-017, OGK-CORE-018
@@ -247,7 +257,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### managed.py
 
-- `run`: OGK-CORE-005, OGK-CORE-006
+- `run`: OGK-CORE-005, OGK-CORE-006, OGK-CORE-023
 
 ### market.py
 
@@ -271,9 +281,10 @@ The register holds the message of each code as the code writes it and the tests 
 ### market_cli.py
 
 - `_changed`: OGK-MARKET-011
+- `_due`: OGK-MARKET-035
 - `_person_reviews`: OGK-MARKET-012
 - `_require`: OGK-MARKET-010
-- `run`: OGK-MARKET-013
+- `run`: OGK-MARKET-013, OGK-MARKET-036
 
 ### mcp_mock.py
 
@@ -326,7 +337,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### profile_changes.py
 
-- `edit`: OGK-PROFILE-032, OGK-PROFILE-033
+- `edit`: OGK-PROFILE-032, OGK-PROFILE-033, OGK-PROFILE-036
 - `refuse`: OGK-PROFILE-034
 
 ### profile_cli.py
@@ -392,6 +403,7 @@ The register holds the message of each code as the code writes it and the tests 
 ### project_rules.py
 
 - `require_resolved_conflicts`: OGK-RULE-001
+- `task_scope_profile`: OGK-RULE-028
 
 ### project_setup.py
 
@@ -480,9 +492,10 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### sarif.py
 
-- `_clean_path`: OGK-CHECK-007
+- `_clean_path`: OGK-CHECK-007, OGK-CHECK-016
 - `_prepared`: OGK-CHECK-008, OGK-CHECK-009, OGK-CHECK-010, OGK-CHECK-011
-- `_rule`: OGK-CHECK-012
+- `_rule`: OGK-CHECK-012, OGK-CHECK-017
+- `to_sarif`: OGK-CHECK-018
 
 ### sensitive.py
 
@@ -502,6 +515,7 @@ The register holds the message of each code as the code writes it and the tests 
 - `_loads`: OGK-CORE-021
 - `lock_timeout`: OGK-CORE-014
 - `parse_json`: OGK-CORE-009, OGK-CORE-010
+- `project_lock`: OGK-CORE-024
 - `unique_fields`: OGK-CORE-008
 - `write_text`: OGK-CORE-011
 
@@ -524,7 +538,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### storybook_stories.py
 
-- `generate`: OGK-STORY-013
+- `generate`: OGK-STORY-013, OGK-STORY-037
 
 ### task_files.py
 
@@ -625,7 +639,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### terminal.py
 
-- `typed`: OGK-CORE-013
+- `typed`: OGK-CORE-013, OGK-CORE-025
 
 ### tool_connections.py
 
@@ -681,7 +695,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### trace_cli.py
 
-- `project_file`: OGK-AUDIT-006
+- `project_file`: OGK-AUDIT-006, OGK-AUDIT-009
 
 ### web_requests.py
 

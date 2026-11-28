@@ -26,12 +26,12 @@ def run(command: Command) -> int:
     args, root = command.args, command.root
     if args.mode == "export":
         if args.path is not None:
-            raise ValueError("audit export takes no path: it reads the records and the profile of the project.")
+            raise OgkError("OGK-AUDIT-007", "audit export takes no path: it reads the records and the profile of the project.")
         for line in audit_log.reconstruct(root, audit_log.since_day(args.since)):
             print(line.decode("ascii"))
         return 0
     if args.since is not None:
-        raise ValueError("--since is an option of openguildkit audit export.")
+        raise OgkError("OGK-AUDIT-008", "--since is an option of openguildkit audit export.")
     path = args.path or audit_log.default_path(root)
     try:
         count, problem = audit_log.verify(path)

@@ -267,7 +267,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     by_component = _variants_by_component(proposals, components, skipped)
     names = [item["key"].split(":", 1)[1] for item in components.values()]
     if len(set(name.casefold() for name in names)) != len(names):
-        raise ValueError("Two validated components share a name.")
+        raise OgkError("OGK-STORY-037", "Two validated components share a name.")
     for key, component in components.items():
         story = _component_story(key, component, by_component[key], out, root, framework, skipped, warnings)
         if story is not None:

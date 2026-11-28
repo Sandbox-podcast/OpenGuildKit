@@ -31,6 +31,7 @@ from .alerts import (
 from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
+from .errors import OgkError
 from .records import Task
 from .storage import print_json, project_lock, read_json, write_json
 from .task_files import read_task, task_path
@@ -226,7 +227,7 @@ def task_command(args, state: Path, task: Task) -> None:
             register = link_alert(register, args.link, args.id)
         if args.alert_id:
             if not args.status:
-                raise ValueError("Give --status with --set.")
+                raise OgkError("OGK-ALERTS-018", "Give --status with --set.")
             register = _review(register, args.alert_id, args.status, args.by or "", args.reason)
         if migrated != current or args.import_file or args.link or args.alert_id:
             save_register(state, register)

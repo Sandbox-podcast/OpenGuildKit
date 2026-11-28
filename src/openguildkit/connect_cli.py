@@ -29,7 +29,7 @@ def _mcp(command: Command) -> int:
         raise OgkError("OGK-INIT-001", "Supply --project PATH to open a project MCP server.")
     state = command.state
     if args.policy_repo is not None or args.policy_commit is not None:
-        raise ValueError("The MCP server reads the project catalog in force without policy overrides.")
+        raise OgkError("OGK-INIT-006", "The MCP server reads the project catalog in force without policy overrides.")
     from .project_mcp import serve_project  # Only this command serves MCP.
 
     return serve_project(state)

@@ -87,7 +87,7 @@ def _edit(args, features: list[dict], tools: dict):
 
 
 def _refuse(change: str, weakened: list, voided: list) -> None:
-    raise ValueError(f"'{change}' would weaken a protection; turning a feature on or off never should. "
+    raise OgkError("OGK-FEATURE-012", f"'{change}' would weaken a protection; turning a feature on or off never should. "
                      "Nothing was written.")
 
 

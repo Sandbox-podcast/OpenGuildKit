@@ -457,7 +457,7 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
                                  "and make the change again. Nothing was written.")
         fields = sorted(key for key in {*profile, *candidate} - {"changes"} if profile.get(key) != candidate.get(key))
         if not fields:
-            raise ValueError("The profile is unchanged. Nothing was written.")
+            raise OgkError("OGK-PROFILE-036", "The profile is unchanged. Nothing was written.")
         changed.extend(fields)
         return candidate, f"edit {', '.join(fields)} from the web page"
 
