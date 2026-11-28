@@ -53,3 +53,32 @@ def windows_console(descriptor: int) -> bool:
     kernel32.GetConsoleMode.restype = wintypes.BOOL
     mode = wintypes.DWORD()
     return bool(kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
+
+
+def reader_closed() -> int:
+    """The reader of the output stopped early, as `| head` does: end quietly, like a command that finished.
+
+    Standard output then points at the null device, so the interpreter's last flush cannot fail again.
+    """
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, sys.stdout.fileno())
+        os.close(null)
+    except (OSError, ValueError, AttributeError):
+        pass  # Not a real file descriptor, as when a test captures the output: nothing is flushed at exit.
+    return 0
+
+
+def utf8_streams() -> None:
+    """Write redirected output in UTF-8 on every platform, as agents and scripts read it, and never fail on a
+    character standard error cannot show. cli.main and the edit hook call it when run as a command."""
+    for stream in (sys.stdout, sys.stderr):
+        if not stream.isatty() and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(errors="backslashreplace")
+
+
+def warn(message: str) -> None:
+    """One line on standard error, after the name of the tool."""
+    print(f"OpenGuildKit: {message}", file=sys.stderr)

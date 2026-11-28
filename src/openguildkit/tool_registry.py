@@ -74,7 +74,7 @@ SERVER_OPTIONAL = {
 DETECT_FIELDS = {"files", "npm", "pypi"}
 
 
-def _text(value: object, label: str) -> str:
+def _catalog_line(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip() or "\n" in value:
         raise CatalogError(f"{label} must be one line of text")
     return value
@@ -82,7 +82,7 @@ def _text(value: object, label: str) -> str:
 
 def _https(value: object, label: str, placeholders: bool = False) -> str:
     """An https URL. A server endpoint may also be a loopback address: some servers run on the workstation."""
-    text = _text(value, label)
+    text = _catalog_line(value, label)
     probe = SETTING_NAME.sub("x", text) if placeholders else text
     if not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::\d+)?(?:/[^\s?#]*)?(?:\?[^\s#]*)?", probe) and not (
             placeholders and re.fullmatch(r"http://(?:127\.0\.0\.1|localhost):\d{2,5}(?:/[^\s?#]*)?", probe)):
@@ -108,7 +108,7 @@ def _validate_server(server: object, label: str) -> None:
     if not isinstance(server["id"], str) or not TOOL_ID.fullmatch(server["id"]):
         raise CatalogError(f"{label}: use a lowercase id with hyphens")
     for field in ("name", "maintainer", "capabilities"):
-        _text(server[field], f"{label} {field}")
+        _catalog_line(server[field], f"{label} {field}")
     for field, choices in (("publisher", PUBLISHERS), ("transport", TRANSPORTS), ("auth", AUTH), ("status", STATUSES)):
         if server[field] not in choices:
             raise CatalogError(f"{label}: {field} is one of {', '.join(choices)}")
@@ -135,14 +135,14 @@ def _server_optional_fields(server: dict, label: str) -> None:
     if "status_source" in server:
         _https(server["status_source"], f"{label} status_source")
     if "license" in server:
-        _text(server["license"], f"{label} license")
+        _catalog_line(server["license"], f"{label} license")
     if "reviewed" in server:
         _read_on(server, "reviewed", label, "access, scopes and read-only mode were looked for")
     if "pin_read" in server:
         _read_on(server, "pin_read", label, "the version written in the launch was read in the package registry")
     for field in ("access", "scopes", "pin"):
         if field in server:
-            _text(server[field], f"{label} {field}")
+            _catalog_line(server[field], f"{label} {field}")
 
 
 def _server_settings(server: dict, label: str) -> set[str]:
@@ -155,7 +155,7 @@ def _server_settings(server: dict, label: str) -> set[str]:
     ):
         raise CatalogError(f"{label}: settings is a list of name and description")
     for item in settings:
-        _text(item["description"], f"{label} setting {item['name']}")
+        _catalog_line(item["description"], f"{label} setting {item['name']}")
     return {item["name"] for item in settings}
 
 
@@ -172,14 +172,14 @@ def _stdio_placeholders(server: dict, label: str) -> set[str]:
     checked: no stand-in, no secret written inline."""
     if "url" in server or not {"command", "args", "package"} <= server.keys():
         raise CatalogError(f"{label}: a stdio server has command, args and package, and no url")
-    _text(server["command"], f"{label} command")
+    _catalog_line(server["command"], f"{label} command")
     if not isinstance(server["args"], list) or any(not isinstance(arg, str) or not arg for arg in server["args"]):
         raise CatalogError(f"{label}: args is a list of text")
     package = server["package"]
     if not isinstance(package, dict) or package.keys() != {"registry", "name"} \
             or package["registry"] not in PACKAGE_REGISTRIES:
         raise CatalogError(f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
-    _text(package["name"], f"{label} package name")
+    _catalog_line(package["name"], f"{label} package name")
     _check_stand_ins([server["command"], *server["args"]], label)
     for arg in server["args"]:
         inline = _INLINE_VALUE.match(arg)
@@ -221,7 +221,7 @@ def _validate_read_only(server: dict, label: str) -> None:
     allowed = {"how", "url", "headers"} if remote else {"how", "args", "env"}
     if not isinstance(variant, dict) or "how" not in variant or not variant.keys() <= allowed:
         raise CatalogError(f"{label}: read_only has how, and {' or '.join(sorted(allowed - {'how'}))} when they select it")
-    _text(variant["how"], f"{label} read_only how")
+    _catalog_line(variant["how"], f"{label} read_only how")
     if "url" in variant:
         _https(variant["url"], f"{label} read_only url", placeholders=True)
         if set(SETTING_NAME.findall(variant["url"])) != set(SETTING_NAME.findall(server["url"])):
@@ -282,7 +282,7 @@ def _validate_tool(tool: object, label: str) -> None:
         raise CatalogError(f"{label}: use a lowercase id with hyphens")
     label = f"{label}/{tool['id']}"
     for field in ("title", "vendor", "summary"):
-        _text(tool[field], f"{label} {field}")
+        _catalog_line(tool[field], f"{label} {field}")
     _https(tool["homepage"], f"{label} homepage")
     if not tool["brains"]:
         raise CatalogError(f"{label}: name at least one brain")
@@ -291,7 +291,7 @@ def _validate_tool(tool: object, label: str) -> None:
             not isinstance(alias, str) or not alias.strip() for alias in tool["aliases"])):
         raise CatalogError(f"{label}: aliases is a list of names")
     if "notes" in tool:
-        _text(tool["notes"], f"{label} notes")
+        _catalog_line(tool["notes"], f"{label} notes")
     _tool_api_and_detect(tool, label)
     if not isinstance(tool["servers"], list):
         raise CatalogError(f"{label}: servers is a list, empty when the tool has no MCP server")
@@ -338,7 +338,7 @@ def _load_tool_file(path: Path, record: object, from_project: bool, tools: dict,
         raise CatalogError("a tool file has id, title and tools")
     if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
         raise CatalogError(f"name the file after its category: {', '.join(CATEGORIES)}")
-    _text(record["title"], "title")
+    _catalog_line(record["title"], "title")
     if not isinstance(record["tools"], list):
         raise CatalogError("tools must be a list")
     for tool in record["tools"]:

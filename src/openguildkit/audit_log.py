@@ -68,7 +68,7 @@ def is_on(root: Path) -> bool:
         return False
 
 
-def _text(value: object, limit: int = MAX_TEXT) -> str:
+def _squeezed(value: object, limit: int = MAX_TEXT) -> str:
     return " ".join(str(value).split())[:limit]
 
 
@@ -111,11 +111,11 @@ def record(root: Path, event: str, **fields) -> None:
         if event not in EVENTS:
             raise ValueError(f"unknown event {event}")
         shown = {key: value for key, value in fields.items() if key in EVENTS[event] and value not in (None, "", [])}
-        shown = {key: [_text(item) for item in value[:MAX_PATHS]] if isinstance(value, list) else _text(value)
+        shown = {key: [_squeezed(item) for item in value[:MAX_PATHS]] if isinstance(value, list) else _squeezed(value)
                  for key, value in shown.items()}
-        _append(path, {"v": VERSION, "at": clock.real_timestamp(), "event": event, "project": _text(root.name, 100), **shown})
+        _append(path, {"v": VERSION, "at": clock.real_timestamp(), "event": event, "project": _squeezed(root.name, 100), **shown})
     except Exception as error:  # An audit failure must not change what the command or the hook does.
-        print(f"OpenGuildKit: the audit log could not be written ({_text(error, 160)}): {event} is not in it.",
+        print(f"OpenGuildKit: the audit log could not be written ({_squeezed(error, 160)}): {event} is not in it.",
               file=sys.stderr)
 
 
@@ -148,7 +148,7 @@ def refused(raw: str | None, project: Path | None, event: str = "guard.refused")
         facts = profile if isinstance(profile, dict) else {}
         record(root, event, host=facts.get("host"), mode=facts.get("guard"), paths=paths)
     except Exception as error:
-        print(f"OpenGuildKit: the audit log could not be written ({_text(error, 160)}): {event} is not in it.",
+        print(f"OpenGuildKit: the audit log could not be written ({_squeezed(error, 160)}): {event} is not in it.",
               file=sys.stderr)
 
 
@@ -237,8 +237,8 @@ def reconstruct(root: Path, since: str | None = None) -> list[bytes]:
     for item in sorted(events, key=lambda item: item["at"]):
         if since and item["at"][:10] < since:
             continue
-        shown = {key: _text(value) for key, value in item.items() if value not in (None, "")}
-        line = _line({"v": VERSION, "at": shown.pop("at"), "event": shown.pop("event"), "project": _text(root.name, 100),
+        shown = {key: _squeezed(value) for key, value in item.items() if value not in (None, "")}
+        line = _line({"v": VERSION, "at": shown.pop("at"), "event": shown.pop("event"), "project": _squeezed(root.name, 100),
                       **shown, "reconstructed": True}, prev)
         lines.append(line)
         prev = hashlib.sha256(line).hexdigest()

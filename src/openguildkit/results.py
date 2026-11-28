@@ -637,3 +637,18 @@ def missing_scenarios(task: dict) -> list[str]:
     return sorted(runs[-2]["outcomes"].keys() - runs[-1]["outcomes"].keys())
 
 
+def changed_journals(root: Path, result: dict) -> list[str]:
+    """The checks whose journal is in this tree and no longer matches the sha256 the result holds: trace and ci-check
+    (guard_ci._journal_mismatch) read it alike. A journal this checkout does not contain cannot be hashed here."""
+    changed = []
+    for item in result.get("journals") if isinstance(result.get("journals"), list) else []:
+        if not isinstance(item, dict) or not all(isinstance(item.get(key), str) for key in ("check", "evidence", "sha256")):
+            continue
+        path = root / item["evidence"]
+        try:
+            current = file_sha256(path) if path.is_file() else None
+        except OSError:
+            current = None
+        if current is not None and current != item["sha256"]:
+            changed.append(item["check"])
+    return changed

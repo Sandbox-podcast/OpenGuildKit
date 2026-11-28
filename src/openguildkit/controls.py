@@ -43,7 +43,7 @@ def load() -> dict:
     return data
 
 
-def _text(value: object, where: str) -> None:
+def _require_line(value: object, where: str) -> None:
     if not isinstance(value, str) or not value.strip() or "\n" in value:
         raise ValueError(f"{where} must be a non-empty line of text.")
 
@@ -64,7 +64,7 @@ def _mapping(entry: object, where: str, frameworks: list) -> None:
     if entry["reference"] not in frameworks:
         raise ValueError(f"{where}: reference {entry['reference']!r} is not one of the frameworks of the page: add it "
                          "to frameworks first.")
-    _text(entry["clause"], f"{where}: clause")
+    _require_line(entry["clause"], f"{where}: clause")
     if len(entry["clause"]) > MAX_CLAUSE:
         raise ValueError(f"{where}: clause is a locator of at most {MAX_CLAUSE} characters, not a text of the framework.")
     source = entry["source"]
@@ -97,7 +97,7 @@ def validate(data: dict) -> None:
             raise ValueError(f"The control {where} is listed twice.")
         seen.add(where)
         for key in ("title", "guarantees", "not_covered"):
-            _text(item[key], f"{where}: {key}")
+            _require_line(item[key], f"{where}: {key}")
         for key in ("commands", "in_dossier"):
             if not isinstance(item[key], list) or not all(isinstance(value, str) for value in item[key]):
                 raise ValueError(f"{where}: {key} is a list of text.")

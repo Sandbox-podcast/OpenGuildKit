@@ -21,13 +21,13 @@ AXES = ("mcp_servers", "models", "endpoints")
 NAME = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
-def _text(item: object) -> bool:
+def _is_text(item: object) -> bool:
     return isinstance(item, str) and bool(item.strip())
 
 
 def _server(item: object) -> bool:
     """A server of the list: its entry as text, or an object with that entry and a name the hosts can key on."""
-    return _text(item) or (isinstance(item, dict) and set(item) == {"server", "name"} and _text(item["server"])
+    return _is_text(item) or (isinstance(item, dict) and set(item) == {"server", "name"} and _is_text(item["server"])
                            and isinstance(item["name"], str) and NAME.fullmatch(item["name"]) is not None)
 
 
@@ -40,7 +40,7 @@ def load_allow(path: Path) -> dict:
         raise ValueError(f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
     block = data.get("allow", data) if isinstance(data, dict) else None
     if (not isinstance(block, dict) or set(block) - set(AXES)
-            or any(not isinstance(items, list) or not all((_server if axis == "mcp_servers" else _text)(item)
+            or any(not isinstance(items, list) or not all((_server if axis == "mcp_servers" else _is_text)(item)
                                                           for item in items) for axis, items in block.items())):
         raise ValueError(f"The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, "
                          "each a list of non-empty text, alone or under the key allow; a server may be an object with "

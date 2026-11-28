@@ -31,7 +31,7 @@ MAX_CLI_LINES = 1500
 MAX_CLI_FUNCTION_LINES = 120
 # Top-level function names that more than one module of the package defines (#530): a name searched from its
 # command should lead to one function. Lower the ceiling when a copy goes; never raise it.
-MAX_SHARED_FUNCTION_NAMES = 68
+MAX_SHARED_FUNCTION_NAMES = 64
 # Issue #508: a function a reader can hold in mind, measured as scripts of the audit measure it. Length is its lines,
 # complexity counts one plus each branch (BRANCH, and each extra operand of and/or), nesting the deepest block of NEST
 # (an elif does not nest); a nested function, class or lambda counts for itself, not for its parent.

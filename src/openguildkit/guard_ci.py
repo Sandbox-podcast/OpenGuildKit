@@ -12,8 +12,9 @@ from .guard import guard_mode
 from .guard_export import conflict_message, record_shape
 from .guard_records import record_check
 from .project import STATE_DIR, load_profile
+from .results import changed_journals
 from .startup import UNKNOWN_MODE, declared_mode
-from .storage import file_sha256, parse_json, read_json
+from .storage import parse_json, read_json
 
 _NEEDS_GIT = "guard --ci"  # What a missing Git stops (git.required).
 
@@ -209,23 +210,9 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
     it on the machine that still has the file.
     """
     result = record.get("result")
-    journals = result.get("journals") if isinstance(result, dict) else None
-    if not isinstance(journals, list):
+    if not isinstance(result, dict):
         return None
-    mismatched = []
-    for item in journals:
-        if not isinstance(item, dict):
-            continue
-        evidence, digest, name = item.get("evidence"), item.get("sha256"), item.get("check")
-        if not isinstance(evidence, str) or not isinstance(digest, str) or not isinstance(name, str):
-            continue
-        path = root / evidence
-        try:
-            current = file_sha256(path) if path.is_file() else None
-        except OSError:
-            current = None
-        if current is not None and current != digest:
-            mismatched.append(name)
+    mismatched = changed_journals(root, result)
     if not mismatched:
         return None
     return f"{', '.join(mismatched)}: the journal no longer matches the recorded sha256."

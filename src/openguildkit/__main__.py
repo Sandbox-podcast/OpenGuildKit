@@ -6,7 +6,6 @@ without importing the rest of the CLI, and ends before importing the guard when 
 which parses it as before.
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -44,14 +43,11 @@ def hook_call(arguments: list[str]) -> tuple[str, Path | None] | None:
 
 def _run_hook(event: str, project: Path | None, console: bool) -> int:
     """The hook with the same output encoding and the same endings as cli.main."""
-    if console:
-        for stream in (sys.stdout, sys.stderr):
-            if not stream.isatty() and hasattr(stream, "reconfigure"):
-                stream.reconfigure(encoding="utf-8", errors="backslashreplace")
-        if hasattr(sys.stderr, "reconfigure"):
-            sys.stderr.reconfigure(errors="backslashreplace")
     from .startup import guard_declared_off
-    from .terminal import interactive
+    from .terminal import interactive, reader_closed, utf8_streams, warn
+
+    if console:
+        utf8_streams()
 
     if guard_declared_off(project):  # Before importing the guard: an edit costs the interpreter and one read (#539).
         try:
@@ -66,22 +62,17 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
         code = hook_command(event, project)
         sys.stdout.flush()
         return code
-    except BrokenPipeError:
-        try:  # The host stopped reading: end quietly, as cli.main does.
-            null = os.open(os.devnull, os.O_WRONLY)
-            os.dup2(null, sys.stdout.fileno())
-            os.close(null)
-        except (OSError, ValueError, AttributeError):
-            pass
-        return 0
+    except BrokenPipeError:  # The host stopped reading: end quietly, as cli.main does.
+        return reader_closed()
     except OSError as error:
         from .cli_errors import print_trace
 
         print_trace()
-        print(f"OpenGuildKit: {error}", file=sys.stderr)
+        warn(str(error))
         return 1
     except KeyboardInterrupt:
-        print("\nOpenGuildKit: Cancelled.", file=sys.stderr)
+        print(file=sys.stderr)
+        warn("Cancelled.")
         return 130
 
 
