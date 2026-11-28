@@ -367,7 +367,7 @@ class SubjectTests(RelevanceCase):
                     self.assertIn("automated decisions about people", judged["gdpr/automated-decision"]["reason"])
 
     def test_every_regulatory_pack_states_its_subject_and_legal_reason(self):
-        from openguildkit.relevance import LEGAL_BASIS
+        from openguildkit.legal_basis import LEGAL_BASIS
         regulatory = {pack for pattern in self.catalog["patterns"].values() if pattern.get("kind") == "regulation"
                       for pack in pattern["packs"]}
         regulatory |= {"incident-notification", "notice-and-action", "pay-transparency", "iso-27001"}
