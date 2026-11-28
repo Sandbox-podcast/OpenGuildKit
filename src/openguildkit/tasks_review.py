@@ -7,22 +7,14 @@ from typing import cast
 
 from . import requester, short_lane
 from .alerts import resolution_line, resolved_by_import
+from .board_entries import review_warnings, validate_board_entry, validate_review
 from .consultation import code_lookup, consult
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
 from .sensitive import redact_data
 from .tasks_approval import approval_problem, decided_message, stale_review_message
 from .tasks_record import timestamp, validate_brief
-from .workflow import (
-    RESOLUTION_FIELDS,
-    TaskStateError,
-    blocker_resolutions,
-    decision_summary,
-    is_decision_task,
-    review_warnings,
-    validate_board_entry,
-    validate_review,
-)
+from .workflow import RESOLUTION_FIELDS, TaskStateError, blocker_resolutions, decision_summary, is_decision_task
 
 
 def cited_evidence(task: dict) -> list[str]:

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import audit_log, requester, roles, short_lane
 from .alerts import blocking_alerts, load_register
+from .board_entries import validate_review
 from .decisions import (
     DECISIONS_DIR,
     NAMESPACE,
@@ -29,15 +30,7 @@ from .tasks_closing import record_authorization, record_decision, revoke_approva
 from .tasks_command import TaskCommand
 from .tasks_review import decision_text, previous_round_line
 from .terminal import interactive, typed
-from .workflow import (
-    TaskStateError,
-    blocker_list,
-    is_decision_task,
-    pending_removals,
-    review_lines,
-    validate_review,
-    verdict_lines,
-)
+from .workflow import TaskStateError, blocker_list, is_decision_task, pending_removals, review_lines, verdict_lines
 
 
 def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> None:

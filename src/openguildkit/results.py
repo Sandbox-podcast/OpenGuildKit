@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
 from . import lazy_re
+from .board_entries import required_text
 from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR
@@ -26,7 +27,7 @@ from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data
 from .storage import file_sha256, write_text
 from .wording import plural
-from .workflow import is_decision_task, required_text
+from .workflow import is_decision_task
 
 RESULT_STATUSES = ("passed", "failed", "skipped", "not-applicable")
 CRITERION_STATUSES = ("met", "not-met")
