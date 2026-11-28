@@ -39,20 +39,59 @@ const SharePage = named(() => import('@/demo/features/docs/Docs'), 'SharePage');
 const ChroniclesSpace = named(() => import('@/demo/features/chronicles/Chronicles'), 'ChroniclesSpace');
 const StewardshipSpace = named(() => import('@/demo/features/stewardship/Stewardship'), 'StewardshipSpace');
 const ArsenalSpace = named(() => import('@/demo/features/arsenal/Arsenal'), 'ArsenalSpace');
-const Wait = () => <p className="muted loading-line" role="status">Chargement du lieu…</p>;
+const Wait = () => (
+  <p className="muted loading-line" role="status">
+    Chargement du lieu…
+  </p>
+);
 
-const PLACES = [Kingdom, BlueprintSpace, GuildSpace, CouncilRoom, QuestsSpace, LibrarySpace, ForgeSpace, WatchtowerSpace, ObservatorySpace, DocsSpace, ChroniclesSpace, StewardshipSpace, ArsenalSpace];
+const PLACES = [
+  Kingdom,
+  BlueprintSpace,
+  GuildSpace,
+  CouncilRoom,
+  QuestsSpace,
+  LibrarySpace,
+  ForgeSpace,
+  WatchtowerSpace,
+  ObservatorySpace,
+  DocsSpace,
+  ChroniclesSpace,
+  StewardshipSpace,
+  ArsenalSpace,
+];
 
 /** Loads the screen of the address being opened before the first render, so it does not wait. */
 export function preloadRoute() {
   const first = window.location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  const place = ({ '': Kingdom, royaume: Kingdom, entree: Entry, onboarding: Onboarding, blueprint: BlueprintSpace, guilde: GuildSpace, conseil: CouncilList, quetes: QuestsSpace, bibliotheque: LibrarySpace, forge: ForgeSpace, tour: WatchtowerSpace, observatoire: ObservatorySpace, documentation: DocsSpace, chroniques: ChroniclesSpace, intendance: StewardshipSpace, arsenal: ArsenalSpace } as Record<string, Place>)[first];
+  const place = (
+    {
+      '': Kingdom,
+      royaume: Kingdom,
+      entree: Entry,
+      onboarding: Onboarding,
+      blueprint: BlueprintSpace,
+      guilde: GuildSpace,
+      conseil: CouncilList,
+      quetes: QuestsSpace,
+      bibliotheque: LibrarySpace,
+      forge: ForgeSpace,
+      tour: WatchtowerSpace,
+      observatoire: ObservatorySpace,
+      documentation: DocsSpace,
+      chroniques: ChroniclesSpace,
+      intendance: StewardshipSpace,
+      arsenal: ArsenalSpace,
+    } as Record<string, Place>
+  )[first];
   return (place?.preload() ?? Promise.resolve()).catch(() => undefined);
 }
 
 export function App() {
   const s = useAppState();
-  useEffect(() => { preloadWhenIdle(PLACES); }, []);
+  useEffect(() => {
+    preloadWhenIdle(PLACES);
+  }, []);
   const route = useRoute();
   const [a, b, c] = route.parts;
   const hasOrg = !!s.session.orgId && !!s.orgs[s.session.orgId];
@@ -65,33 +104,100 @@ export function App() {
     else if (hasOrg && !a) navigate('/royaume', { replace: true });
   }, [a, hasOrg, onboarding]);
 
-  if (a === 'partage') return <Shell bare><Suspense fallback={<Wait />}><SharePage token={b ?? ''} /></Suspense></Shell>;
-  if (a === 'entree' || !hasOrg) return <Shell bare><Suspense fallback={<Wait />}><Entry /></Suspense></Shell>;
-  if (a === 'onboarding' || onboarding) return <Shell bare><Suspense fallback={<Wait />}><Onboarding /></Suspense></Shell>;
+  if (a === 'partage')
+    return (
+      <Shell bare>
+        <Suspense fallback={<Wait />}>
+          <SharePage token={b ?? ''} />
+        </Suspense>
+      </Shell>
+    );
+  if (a === 'entree' || !hasOrg)
+    return (
+      <Shell bare>
+        <Suspense fallback={<Wait />}>
+          <Entry />
+        </Suspense>
+      </Shell>
+    );
+  if (a === 'onboarding' || onboarding)
+    return (
+      <Shell bare>
+        <Suspense fallback={<Wait />}>
+          <Onboarding />
+        </Suspense>
+      </Shell>
+    );
 
   let page;
   switch (a) {
-    case 'royaume': page = b === 'projets' ? <ProjectsView /> : <Kingdom />; break;
-    case 'projets': page = <ProjectSheet id={b} />; break;
-    case 'blueprint': page = <BlueprintSpace tab={b} />; break;
-    case 'guilde': page = b && b !== 'equipe' ? <ExpertSheet id={b} /> : <GuildSpace tab={b} />; break;
-    case 'conseil': page = b ? <CouncilRoom id={b} /> : <CouncilList />; break;
-    case 'decisions': page = <DecisionPage id={b} />; break;
-    case 'quetes': page = b ? <QuestSheet id={b} /> : <QuestsSpace />; break;
-    case 'bibliotheque': page = b === 'ref' ? <ReferenceSheet id={c} /> : <LibrarySpace tab={b} />; break;
-    case 'forge': page = b === 'executions' && c ? <RunPage id={c} /> : b === 'livrables' && c ? <DeliverablePage id={c} /> : <ForgeSpace tab={b} />; break;
-    case 'tour': page = <WatchtowerSpace tab={b} id={c} />; break;
-    case 'observatoire': page = <ObservatorySpace tab={b} id={c} />; break;
-    case 'documentation': page = <DocsSpace tab={b} />; break;
-    case 'chroniques': page = <ChroniclesSpace tab={b} />; break;
-    case 'intendance': page = <StewardshipSpace tab={b} />; break;
-    case 'arsenal': page = <ArsenalSpace />; break;
-    default: page = <Empty title="Lien introuvable">Cette adresse ne correspond à aucun lieu. <a href="#/royaume">Revenir au Royaume</a></Empty>;
+    case 'royaume':
+      page = b === 'projets' ? <ProjectsView /> : <Kingdom />;
+      break;
+    case 'projets':
+      page = <ProjectSheet id={b} />;
+      break;
+    case 'blueprint':
+      page = <BlueprintSpace tab={b} />;
+      break;
+    case 'guilde':
+      page = b && b !== 'equipe' ? <ExpertSheet id={b} /> : <GuildSpace tab={b} />;
+      break;
+    case 'conseil':
+      page = b ? <CouncilRoom id={b} /> : <CouncilList />;
+      break;
+    case 'decisions':
+      page = <DecisionPage id={b} />;
+      break;
+    case 'quetes':
+      page = b ? <QuestSheet id={b} /> : <QuestsSpace />;
+      break;
+    case 'bibliotheque':
+      page = b === 'ref' ? <ReferenceSheet id={c} /> : <LibrarySpace tab={b} />;
+      break;
+    case 'forge':
+      page = b === 'executions' && c ? <RunPage id={c} /> : b === 'livrables' && c ? <DeliverablePage id={c} /> : <ForgeSpace tab={b} />;
+      break;
+    case 'tour':
+      page = <WatchtowerSpace tab={b} id={c} />;
+      break;
+    case 'observatoire':
+      page = <ObservatorySpace tab={b} id={c} />;
+      break;
+    case 'documentation':
+      page = <DocsSpace tab={b} />;
+      break;
+    case 'chroniques':
+      page = <ChroniclesSpace tab={b} />;
+      break;
+    case 'intendance':
+      page = <StewardshipSpace tab={b} />;
+      break;
+    case 'arsenal':
+      page = <ArsenalSpace />;
+      break;
+    default:
+      page = (
+        <Empty title="Lien introuvable">
+          Cette adresse ne correspond à aucun lieu. <a href="#/royaume">Revenir au Royaume</a>
+        </Empty>
+      );
   }
-  return <Shell><ErrorBoundary resetKey={route.path}><Suspense fallback={<Wait />}>{page}</Suspense></ErrorBoundary></Shell>;
+  return (
+    <Shell>
+      <ErrorBoundary resetKey={route.path}>
+        <Suspense fallback={<Wait />}>{page}</Suspense>
+      </ErrorBoundary>
+    </Shell>
+  );
 }
 
 /** Shown when an object of a link does not exist (deleted, other organisation, typo). */
 export function NotFound({ what }: { what: string }) {
-  return <Empty title={`${what} introuvable`}>L’objet n’existe pas dans l’organisation active : il a peut-être été supprimé, ou appartient à une autre organisation. <a href="#/royaume">Revenir au Royaume</a></Empty>;
+  return (
+    <Empty title={`${what} introuvable`}>
+      L’objet n’existe pas dans l’organisation active : il a peut-être été supprimé, ou appartient à une autre organisation.{' '}
+      <a href="#/royaume">Revenir au Royaume</a>
+    </Empty>
+  );
 }

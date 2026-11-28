@@ -59,8 +59,14 @@ export const catalogueSchema = z.object({
 });
 export type Catalogue = z.infer<typeof catalogueSchema>;
 
-export interface ParseIssue { line: number; message: string }
-export interface ParseResult { catalogue: Catalogue; issues: ParseIssue[] }
+export interface ParseIssue {
+  line: number;
+  message: string;
+}
+export interface ParseResult {
+  catalogue: Catalogue;
+  issues: ParseIssue[];
+}
 
 export { isSafeUrl };
 
@@ -107,7 +113,11 @@ export function parseCatalogueMarkdown(markdown: string): ParseResult {
   const issues: ParseIssue[] = [];
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const edition = /\*\*[ÉE]dition\s*:\s*([^*]+)\*\*/.exec(markdown)?.[1].trim() ?? 'inconnue';
-  const title = lines.find((l) => l.startsWith('# '))?.slice(2).trim() ?? 'Catalogue';
+  const title =
+    lines
+      .find((l) => l.startsWith('# '))
+      ?.slice(2)
+      .trim() ?? 'Catalogue';
   const declaredMatch = /\*\*(\d+)\s+r[ée]f[ée]rences\s*·\s*(\d+)\s+cat[ée]gories\s*·\s*(\d+)\s+familles/i.exec(markdown);
   const notice = /\*\*Statut\s*:\s*([^*]+)\*\*/.exec(markdown)?.[1].trim() ?? '';
   const references: Reference[] = [];
@@ -117,17 +127,37 @@ export function parseCatalogueMarkdown(markdown: string): ParseResult {
     const line = raw.trim();
     const lineNo = index + 1;
     const fam = /^##\s+\d+\.\s+(.+?)\s+—\s+\d+\s+r[ée]f[ée]rences/.exec(line);
-    if (fam) { family = fam[1].trim(); category = ''; return; }
-    if (/^##\s/.test(line)) { family = ''; category = ''; return; }
+    if (fam) {
+      family = fam[1].trim();
+      category = '';
+      return;
+    }
+    if (/^##\s/.test(line)) {
+      family = '';
+      category = '';
+      return;
+    }
     const cat = /^###\s+(.+?)\s+\((\d+)\)\s*$/.exec(line);
-    if (cat) { category = cat[1].trim(); return; }
+    if (cat) {
+      category = cat[1].trim();
+      return;
+    }
     if (!line.startsWith('| **') || !family || !category) return;
-    const cells = line.replace(/^\|\s*/, '').replace(/\s*\|$/, '').split(' | ');
-    if (cells.length < 5) { issues.push({ line: lineNo, message: 'Ligne de tableau incomplète (5 colonnes attendues).' }); return; }
+    const cells = line
+      .replace(/^\|\s*/, '')
+      .replace(/\s*\|$/, '')
+      .split(' | ');
+    if (cells.length < 5) {
+      issues.push({ line: lineNo, message: 'Ligne de tableau incomplète (5 colonnes attendues).' });
+      return;
+    }
     const [nameCell, nature, description, whenToUse] = cells;
     const sourcesCell = cells.slice(4).join(' | ');
     const name = /^\*\*(.+)\*\*$/.exec(nameCell)?.[1]?.trim();
-    if (!name) { issues.push({ line: lineNo, message: 'Nom de référence absent ou mal formé.' }); return; }
+    if (!name) {
+      issues.push({ line: lineNo, message: 'Nom de référence absent ou mal formé.' });
+      return;
+    }
     const sources = [...sourcesCell.matchAll(SOURCE_RE)].map((m) => ({ label: m[1].trim(), url: m[2] }));
     if (sources.length === 0) issues.push({ line: lineNo, message: `« ${name} » n'a aucune source lisible.` });
     const unsafe = sources.filter((s) => !isSafeUrl(s.url));
@@ -164,7 +194,10 @@ export function parseCatalogueMarkdown(markdown: string): ParseResult {
 function dedupeIds(references: Reference[]): void {
   const seen = new Map<string, number>();
   for (const r of references) {
-    if (!seen.has(r.id)) { seen.set(r.id, 1); continue; }
+    if (!seen.has(r.id)) {
+      seen.set(r.id, 1);
+      continue;
+    }
     let id = `${r.id}-${r.categoryId}`.slice(0, 80);
     let n = 2;
     while (seen.has(id)) id = `${r.id}-${n++}`;
@@ -173,7 +206,12 @@ function dedupeIds(references: Reference[]): void {
   }
 }
 
-export interface CatalogueStats { references: number; categories: number; families: number; byFamily: Record<string, number> }
+export interface CatalogueStats {
+  references: number;
+  categories: number;
+  families: number;
+  byFamily: Record<string, number>;
+}
 export function catalogueStats(refs: Reference[]): CatalogueStats {
   const byFamily: Record<string, number> = {};
   refs.forEach((r) => (byFamily[r.family] = (byFamily[r.family] ?? 0) + 1));
@@ -189,8 +227,17 @@ export function catalogueStats(refs: Reference[]): CatalogueStats {
 export const duplicateKey = (name: string) => slugify(name).replace(/-/g, '');
 
 export type ImportDecision = 'add' | 'update' | 'skip';
-export interface ImportRow { incoming: Reference; existing?: Reference; changes: string[]; decision: ImportDecision }
-export interface ImportPreview { rows: ImportRow[]; errors: ParseIssue[]; format: 'markdown' | 'json' }
+export interface ImportRow {
+  incoming: Reference;
+  existing?: Reference;
+  changes: string[];
+  decision: ImportDecision;
+}
+export interface ImportPreview {
+  rows: ImportRow[];
+  errors: ParseIssue[];
+  format: 'markdown' | 'json';
+}
 
 /** Parses an imported file (Markdown or JSON) and matches it against the current catalogue. */
 export function previewCatalogueImport(text: string, current: Reference[]): ImportPreview {

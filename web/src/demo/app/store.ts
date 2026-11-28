@@ -15,7 +15,9 @@ let storageProblem: string | null = initial.problem ?? null;
 const listeners = new Set<() => void>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
-function emit() { listeners.forEach((l) => l()); }
+function emit() {
+  listeners.forEach((l) => l());
+}
 
 function flushSave() {
   if (saveTimer === undefined) return;
@@ -23,7 +25,10 @@ function flushSave() {
   saveTimer = undefined;
   const res = saveWorkspace(state);
   const next = res.ok ? null : res.reason;
-  if (next !== storageProblem) { storageProblem = next; emit(); }
+  if (next !== storageProblem) {
+    storageProblem = next;
+    emit();
+  }
 }
 
 function scheduleSave() {
@@ -39,12 +44,22 @@ if (typeof window !== 'undefined') {
 }
 
 export const getState = () => state;
-export const subscribe = (l: () => void) => { listeners.add(l); return () => listeners.delete(l); };
+export const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
 export const useAppState = () => useSyncExternalStore(subscribe, getState);
 export const useStorageProblem = () => useSyncExternalStore(subscribe, () => storageProblem);
-export const dismissStorageProblem = () => { storageProblem = null; emit(); };
+export const dismissStorageProblem = () => {
+  storageProblem = null;
+  emit();
+};
 
-export interface DispatchOptions { opId?: string; success?: string | ((value: unknown) => string); silent?: boolean }
+export interface DispatchOptions {
+  opId?: string;
+  success?: string | ((value: unknown) => string);
+  silent?: boolean;
+}
 
 /** Executes a command; refusals are reported with their reason, nothing is applied. */
 export function dispatch<P, R>(def: CommandDef<P, R>, payload: P, opts: DispatchOptions = {}): Outcome<R> {
@@ -62,7 +77,8 @@ export function dispatch<P, R>(def: CommandDef<P, R>, payload: P, opts: Dispatch
     toast({ tone: 'success', title: typeof opts.success === 'function' ? opts.success(out.value) : opts.success });
     if (state.prefs.sound) playSound('success');
   }
-  if (out.duplicate && !opts.silent) toast({ tone: 'info', title: 'Déjà enregistré', text: 'Cette opération a déjà été appliquée ; rien n’a été dupliqué.' });
+  if (out.duplicate && !opts.silent)
+    toast({ tone: 'info', title: 'Déjà enregistré', text: 'Cette opération a déjà été appliquée ; rien n’a été dupliqué.' });
   return out;
 }
 

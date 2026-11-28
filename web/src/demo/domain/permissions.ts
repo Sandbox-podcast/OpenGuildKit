@@ -19,12 +19,12 @@ export const CAPABILITIES = {
   export: 'Exporter',
   share: 'Partager',
   archive: 'Archiver et restaurer',
-  configure_org: "Paramétrer l’organisation",
+  configure_org: 'Paramétrer l’organisation',
 } as const;
 export type Capability = keyof typeof CAPABILITIES;
 
 export const ROLES = {
-  owner: { label: "Propriétaire de l’organisation", short: 'Propriétaire' },
+  owner: { label: 'Propriétaire de l’organisation', short: 'Propriétaire' },
   admin: { label: 'Administrateur', short: 'Admin' },
   maintainer: { label: 'Responsable de projet ou mainteneur', short: 'Mainteneur' },
   contributor: { label: 'Contributeur', short: 'Contributeur' },
@@ -49,7 +49,10 @@ export const AGENT_CAPABILITIES: readonly Capability[] = ['view', 'propose'];
 /** Capabilities that keep working on an archived project. */
 const ARCHIVE_SAFE: readonly Capability[] = ['view', 'export', 'archive'];
 
-export interface Decision { ok: boolean; reason?: string }
+export interface Decision {
+  ok: boolean;
+  reason?: string;
+}
 export const allow: Decision = { ok: true };
 export const deny = (reason: string): Decision => ({ ok: false, reason });
 
@@ -63,20 +66,20 @@ export function rolesOf(state: AppState, userId: ID, orgId: ID, projectId?: ID):
 export function authorize(state: AppState, actor: Actor, capability: Capability, scope: { orgId: ID; projectId?: ID }): Decision {
   if (actor.type === 'system') return allow;
   const project = scope.projectId ? state.db.project[scope.projectId] : undefined;
-  if (project && project.orgId !== scope.orgId) return deny("Cet objet n’appartient pas à l’organisation active.");
+  if (project && project.orgId !== scope.orgId) return deny('Cet objet n’appartient pas à l’organisation active.');
   if (project?.status === 'archived' && !ARCHIVE_SAFE.includes(capability)) {
     return deny(`Le projet « ${project.name} » est archivé : il reste consultable mais n'accepte plus de nouvelles opérations.`);
   }
   if (actor.type === 'agent') {
     const expert = state.db.expert[actor.expertId];
-    if (!expert || expert.orgId !== scope.orgId) return deny("Cet agent n’appartient pas à l’organisation active.");
+    if (!expert || expert.orgId !== scope.orgId) return deny('Cet agent n’appartient pas à l’organisation active.');
     if (!AGENT_CAPABILITIES.includes(capability)) {
       return deny(`Un agent IA ne peut pas « ${CAPABILITIES[capability].toLowerCase()} » : cette action revient à un humain identifié.`);
     }
     return allow;
   }
   const roles = rolesOf(state, actor.userId, scope.orgId, scope.projectId);
-  if (roles.length === 0) return deny("Vous n’êtes pas membre de cette organisation.");
+  if (roles.length === 0) return deny('Vous n’êtes pas membre de cette organisation.');
   if (roles.some((r) => ROLE_CAPABILITIES[r].includes(capability))) return allow;
   const names = roles.map((r) => ROLES[r].short).join(', ');
   return deny(`Votre rôle (${names}) ne permet pas de « ${CAPABILITIES[capability].toLowerCase()} ».`);

@@ -4,13 +4,22 @@
  */
 import type { Signal } from '@/demo/domain/types';
 
-export type SignalTemplate = Omit<Signal, 'id' | 'orgId' | 'sourceId' | 'competitorId' | 'publishedAt' | 'consultedAt' | 'notes' | 'favorite' | 'fictional' | 'projectIds'> & {
-  competitor?: string; source: string; daysAgo: number; projects: string[];
+export type SignalTemplate = Omit<
+  Signal,
+  'id' | 'orgId' | 'sourceId' | 'competitorId' | 'publishedAt' | 'consultedAt' | 'notes' | 'favorite' | 'fictional' | 'projectIds'
+> & {
+  competitor?: string;
+  source: string;
+  daysAgo: number;
+  projects: string[];
 };
 
 export const WATCH_FEED: SignalTemplate[] = [
   {
-    competitor: 'Helio CRM', source: 'Blog produit Helio (fictif)', daysAgo: 1, type: 'fonctionnalité',
+    competitor: 'Helio CRM',
+    source: 'Blog produit Helio (fictif)',
+    daysAgo: 1,
+    type: 'fonctionnalité',
     title: 'Helio CRM (fictif) ajoute des rapports planifiés',
     context: 'Billet de blog fictif décrivant des rapports envoyés chaque semaine par courriel.',
     facts: ['Le billet annonce des rapports planifiés hebdomadaires.'],
@@ -21,7 +30,9 @@ export const WATCH_FEED: SignalTemplate[] = [
     projects: ['prj-export'],
   },
   {
-    source: 'Veille réglementaire (fictive)', daysAgo: 2, type: 'écosystème',
+    source: 'Veille réglementaire (fictive)',
+    daysAgo: 2,
+    type: 'écosystème',
     title: 'Nouvelle version d’une bibliothèque CSV (fictive) annoncée',
     context: 'Note de version fictive de csv-forge 2.4.0, qui corrige l’injection de formules.',
     facts: ['csv-forge 2.4.0 échappe les cellules commençant par =, +, -, @.'],

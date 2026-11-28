@@ -1,11 +1,32 @@
 /** Decorative pixel art with explicit native proportions. */
 import { buildingSprite, type PlaceKey } from './buildings';
 
-function Sprite({ sprite, scale = 2, alt = '', className }: { sprite: { url: string; w: number; h: number }; scale?: number; alt?: string; className?: string }) {
-  return <img className={`pixel ${className ?? ''}`} src={sprite.url} width={sprite.w * scale} height={sprite.h * scale} alt={alt} draggable={false} />;
+function Sprite({
+  sprite,
+  scale = 2,
+  alt = '',
+  className,
+}: {
+  sprite: { url: string; w: number; h: number };
+  scale?: number;
+  alt?: string;
+  className?: string;
+}) {
+  return (
+    <img
+      className={`pixel ${className ?? ''}`}
+      src={sprite.url}
+      width={sprite.w * scale}
+      height={sprite.h * scale}
+      alt={alt}
+      draggable={false}
+    />
+  );
 }
 
-export const Building = ({ place, scale = 2, alt = '' }: { place: PlaceKey; scale?: number; alt?: string }) => <Sprite sprite={buildingSprite(place)} scale={scale} alt={alt} />;
+export const Building = ({ place, scale = 2, alt = '' }: { place: PlaceKey; scale?: number; alt?: string }) => (
+  <Sprite sprite={buildingSprite(place)} scale={scale} alt={alt} />
+);
 
 /**
  * public/assets/rooms has a header scene for twelve places. The Arsenal, which came later and has none of its own,

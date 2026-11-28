@@ -11,7 +11,18 @@ export const loadDemo = command<{ reload?: boolean }, string>({
       return NOVA;
     }
     buildNova(d, ctx.now);
-    emit(d, { ...ctx, orgId: NOVA, actor: { type: 'system' } }, { action: 'demo.loaded', summary: p.reload ? 'Scénario « Atelier Nova » rechargé (données de démonstration remises à zéro)' : 'Scénario de démonstration « Atelier Nova » chargé', object: { kind: 'org', id: NOVA }, provenance: 'démo' });
+    emit(
+      d,
+      { ...ctx, orgId: NOVA, actor: { type: 'system' } },
+      {
+        action: 'demo.loaded',
+        summary: p.reload
+          ? 'Scénario « Atelier Nova » rechargé (données de démonstration remises à zéro)'
+          : 'Scénario de démonstration « Atelier Nova » chargé',
+        object: { kind: 'org', id: NOVA },
+        provenance: 'démo',
+      },
+    );
     return NOVA;
   },
 });

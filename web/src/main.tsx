@@ -15,7 +15,12 @@ import { ErrorBoundary } from './shared/ui/ErrorBoundary';
 // `npm run build:demo` include: the build that the wheel ships says how to start it instead.
 
 function Splash() {
-  return <div className="splash" role="status"><img src="./assets/brand/favicon.png" alt="" width={48} height={48} /><span>Ouverture de la guilde…</span></div>;
+  return (
+    <div className="splash" role="status">
+      <img src="./assets/brand/favicon.png" alt="" width={48} height={48} />
+      <span>Ouverture de la guilde…</span>
+    </div>
+  );
 }
 
 function DemoNotIncluded() {
@@ -23,9 +28,17 @@ function DemoNotIncluded() {
     <main className="splash" style={{ padding: '24px 16px', textAlign: 'center' }}>
       <img src="./assets/brand/favicon.png" alt="" width={48} height={48} />
       <h1 style={{ fontSize: '1.4rem', margin: 0 }}>La démonstration n'est pas incluse</h1>
-      <p style={{ margin: 0, maxWidth: '60ch' }}>Cette page est l'interface de ton projet : ouvre-la avec <code>openguildkit ui</code>, dans le dossier du projet.</p>
-      <p style={{ margin: 0, maxWidth: '60ch' }}>La démonstration Atelier Nova ne fait pas partie du paquet. Lance-la depuis un clone du dépôt, puis ouvre http://localhost:5199 :</p>
-      <pre style={{ textAlign: 'left', margin: 0 }}><code>cd web{'\n'}npm ci --ignore-scripts{'\n'}npm run dev</code></pre>
+      <p style={{ margin: 0, maxWidth: '60ch' }}>
+        Cette page est l'interface de ton projet : ouvre-la avec <code>openguildkit ui</code>, dans le dossier du projet.
+      </p>
+      <p style={{ margin: 0, maxWidth: '60ch' }}>
+        La démonstration Atelier Nova ne fait pas partie du paquet. Lance-la depuis un clone du dépôt, puis ouvre http://localhost:5199 :
+      </p>
+      <pre style={{ textAlign: 'left', margin: 0 }}>
+        <code>
+          cd web{'\n'}npm ci --ignore-scripts{'\n'}npm run dev
+        </code>
+      </pre>
     </main>
   );
 }
@@ -37,7 +50,11 @@ async function start() {
   if (served) void import('./project/ProjectApp');
   const session = demo ? null : await detectSession();
   document.documentElement.dataset.app = session ? 'project' : 'demo';
-  document.title = session ? `${session.project.name} · Open Guild Kit` : __OGK_DEMO__ ? 'Open Guild Kit — Démonstration interactive' : 'Open Guild Kit';
+  document.title = session
+    ? `${session.project.name} · Open Guild Kit`
+    : __OGK_DEMO__
+      ? 'Open Guild Kit — Démonstration interactive'
+      : 'Open Guild Kit';
   const root = createRoot(document.getElementById('root')!);
   root.render(<Splash />);
   // The app and the screen of the address are loaded before the first render: no screen waits on a chunk.
@@ -54,7 +71,13 @@ async function start() {
   } else {
     App = DemoNotIncluded;
   }
-  root.render(<StrictMode><ErrorBoundary><App /></ErrorBoundary></StrictMode>);
+  root.render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  );
 }
 
 void start();

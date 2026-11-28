@@ -10,10 +10,18 @@ export const STORAGE_KEY = 'open-guild-kit.demo';
 const BACKUP_FORMAT = 'ogk-sauvegarde/1';
 
 export type LoadResult = { state: AppState; problem?: string; savedAt?: number };
-export interface KeyValueStore { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void }
+export interface KeyValueStore {
+  getItem(k: string): string | null;
+  setItem(k: string, v: string): void;
+  removeItem(k: string): void;
+}
 
 const memory = new Map<string, string>();
-const fallback: KeyValueStore = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => void memory.set(k, v), removeItem: (k) => void memory.delete(k) };
+const fallback: KeyValueStore = {
+  getItem: (k) => memory.get(k) ?? null,
+  setItem: (k, v) => void memory.set(k, v),
+  removeItem: (k) => void memory.delete(k),
+};
 export const defaultStore = (): KeyValueStore => (typeof localStorage !== 'undefined' ? localStorage : fallback);
 
 /** Shape check of a saved workspace. Business consistency is checked by `integrityProblems`. */
@@ -24,8 +32,17 @@ export const stateSchema = z.object({
   orgs: z.record(z.string(), z.object({ id: z.string(), name: z.string() }).passthrough()),
   users: z.record(z.string(), z.object({ id: z.string(), name: z.string() }).passthrough()),
   db: z.record(z.string(), record),
-  catalogue: z.object({ added: z.array(z.any()), history: z.record(z.string(), z.any()), proposals: z.array(z.any()), favorites: z.record(z.string(), z.array(z.string())) }),
-  session: z.object({ orgId: z.string().nullable(), projectId: z.string().nullable(), actor: z.object({ type: z.enum(['human', 'agent', 'system']) }).passthrough() }),
+  catalogue: z.object({
+    added: z.array(z.any()),
+    history: z.record(z.string(), z.any()),
+    proposals: z.array(z.any()),
+    favorites: z.record(z.string(), z.array(z.string())),
+  }),
+  session: z.object({
+    orgId: z.string().nullable(),
+    projectId: z.string().nullable(),
+    actor: z.object({ type: z.enum(['human', 'agent', 'system']) }).passthrough(),
+  }),
   prefs: z.object({ mode: z.enum(['explorer', 'focus']) }).passthrough(),
   demo: z.object({ timeOffsetMs: z.number(), nextFailure: z.enum(['tool-error', 'inconclusive']).nullable() }),
   drafts: z.record(z.string(), z.any()),
@@ -43,9 +60,12 @@ export function integrityProblems(s: AppState): string[] {
     if (!s.db.product[p.productId]) out.push(`Le projet ${p.id} référence un produit absent.`);
   }
   for (const q of Object.values(s.db.quest)) if (!s.db.project[q.projectId]) out.push(`La quête ${q.id} référence un projet absent.`);
-  for (const d of Object.values(s.db.deliverable)) if (!d.versions?.some((v) => v.number === d.current)) out.push(`Le livrable ${d.id} n’a pas de version courante.`);
-  for (const t of Object.values(s.db.task)) for (const dep of t.dependsOn ?? []) if (!s.db.task[dep]) out.push(`La tâche ${t.id} dépend d’une tâche absente.`);
-  for (const [id, e] of Object.entries(s.db.event)) if (!s.orgs[e.orgId]) out.push(`L’événement ${id} appartient à une organisation absente.`);
+  for (const d of Object.values(s.db.deliverable))
+    if (!d.versions?.some((v) => v.number === d.current)) out.push(`Le livrable ${d.id} n’a pas de version courante.`);
+  for (const t of Object.values(s.db.task))
+    for (const dep of t.dependsOn ?? []) if (!s.db.task[dep]) out.push(`La tâche ${t.id} dépend d’une tâche absente.`);
+  for (const [id, e] of Object.entries(s.db.event))
+    if (!s.orgs[e.orgId]) out.push(`L’événement ${id} appartient à une organisation absente.`);
   return out.slice(0, 12);
 }
 
@@ -70,7 +90,11 @@ export function loadWorkspace(store: KeyValueStore = defaultStore()): LoadResult
   try {
     text = store.getItem(STORAGE_KEY);
   } catch {
-    return { state: emptyState(), problem: 'Le stockage local est inaccessible (navigation privée ou stockage bloqué). Vos actions fonctionneront mais ne seront pas conservées après fermeture.' };
+    return {
+      state: emptyState(),
+      problem:
+        'Le stockage local est inaccessible (navigation privée ou stockage bloqué). Vos actions fonctionneront mais ne seront pas conservées après fermeture.',
+    };
   }
   if (!text) return { state: emptyState() };
   try {
@@ -78,10 +102,20 @@ export function loadWorkspace(store: KeyValueStore = defaultStore()): LoadResult
     const { state, errors } = parseWorkspace(envelope.state);
     if (state) return { state, savedAt: envelope.savedAt };
     store.setItem(`${STORAGE_KEY}.illisible`, text);
-    return { state: emptyState(), problem: `La sauvegarde locale est illisible (${errors[0]}). Une copie a été conservée sous « ${STORAGE_KEY}.illisible » ; vous repartez d’un espace vide.` };
+    return {
+      state: emptyState(),
+      problem: `La sauvegarde locale est illisible (${errors[0]}). Une copie a été conservée sous « ${STORAGE_KEY}.illisible » ; vous repartez d’un espace vide.`,
+    };
   } catch {
-    try { store.setItem(`${STORAGE_KEY}.illisible`, text); } catch { /* ignore */ }
-    return { state: emptyState(), problem: 'La sauvegarde locale est corrompue. Une copie a été conservée ; vous repartez d’un espace vide.' };
+    try {
+      store.setItem(`${STORAGE_KEY}.illisible`, text);
+    } catch {
+      /* ignore */
+    }
+    return {
+      state: emptyState(),
+      problem: 'La sauvegarde locale est corrompue. Une copie a été conservée ; vous repartez d’un espace vide.',
+    };
   }
 }
 
@@ -91,7 +125,12 @@ export function saveWorkspace(state: AppState, store: KeyValueStore = defaultSto
     return { ok: true };
   } catch (e) {
     const quota = e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22);
-    return { ok: false, reason: quota ? 'Quota de stockage local atteint : la dernière modification n’est pas enregistrée. Exportez une sauvegarde puis réinitialisez les données de démonstration.' : `Enregistrement impossible : ${(e as Error).message}` };
+    return {
+      ok: false,
+      reason: quota
+        ? 'Quota de stockage local atteint : la dernière modification n’est pas enregistrée. Exportez une sauvegarde puis réinitialisez les données de démonstration.'
+        : `Enregistrement impossible : ${(e as Error).message}`,
+    };
   }
 }
 
@@ -101,7 +140,13 @@ export function clearWorkspace(store: KeyValueStore = defaultStore()) {
 
 /* ---------------------------------------------------------------- backups */
 
-export interface BackupPreview { ok: boolean; errors: string[]; state?: AppState; orgs: { id: string; name: string; conflict: boolean; counts: Record<string, number> }[]; exportedAt?: string }
+export interface BackupPreview {
+  ok: boolean;
+  errors: string[];
+  state?: AppState;
+  orgs: { id: string; name: string; conflict: boolean; counts: Record<string, number> }[];
+  exportedAt?: string;
+}
 
 export function backupOf(state: AppState): string {
   return JSON.stringify({ format: BACKUP_FORMAT, exportedAt: new Date().toISOString(), schema: SCHEMA_VERSION, state }, null, 1);
@@ -110,13 +155,25 @@ export function backupOf(state: AppState): string {
 /** Validates an imported backup without touching the current workspace (RG-41). */
 export function previewBackup(text: string, current: AppState): BackupPreview {
   let data: { format?: string; exportedAt?: string; state?: unknown };
-  try { data = JSON.parse(text); } catch (e) { return { ok: false, errors: [`Fichier JSON illisible : ${(e as Error).message}`], orgs: [] }; }
-  if (data.format !== BACKUP_FORMAT) return { ok: false, errors: [`Format inattendu « ${data.format ?? 'absent'} » (attendu : ${BACKUP_FORMAT}).`], orgs: [] };
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    return { ok: false, errors: [`Fichier JSON illisible : ${(e as Error).message}`], orgs: [] };
+  }
+  if (data.format !== BACKUP_FORMAT)
+    return { ok: false, errors: [`Format inattendu « ${data.format ?? 'absent'} » (attendu : ${BACKUP_FORMAT}).`], orgs: [] };
   const { state, errors } = parseWorkspace(data.state);
   if (!state) return { ok: false, errors, orgs: [] };
   const orgs = Object.values(state.orgs).map((o) => ({
-    id: o.id, name: o.name, conflict: !!current.orgs[o.id],
-    counts: Object.fromEntries(['project', 'quest', 'decision', 'deliverable', 'event'].map((k) => [k, Object.values(state.db[k as 'project']).filter((e) => e.orgId === o.id).length])),
+    id: o.id,
+    name: o.name,
+    conflict: !!current.orgs[o.id],
+    counts: Object.fromEntries(
+      ['project', 'quest', 'decision', 'deliverable', 'event'].map((k) => [
+        k,
+        Object.values(state.db[k as 'project']).filter((e) => e.orgId === o.id).length,
+      ]),
+    ),
   }));
   return { ok: true, errors: [], state, orgs, exportedAt: data.exportedAt };
 }
@@ -127,9 +184,13 @@ export function applyBackup(current: AppState, incoming: AppState, mode: 'replac
   const next = structuredClone(current);
   const take = Object.keys(incoming.orgs).filter((id) => !current.orgs[id] || replaceOrgIds.includes(id));
   for (const orgId of take) {
-    for (const table of Object.values(next.db)) for (const [id, e] of Object.entries(table)) if ((e as { orgId?: string }).orgId === orgId) delete (table as Record<string, unknown>)[id];
+    for (const table of Object.values(next.db))
+      for (const [id, e] of Object.entries(table))
+        if ((e as { orgId?: string }).orgId === orgId) delete (table as Record<string, unknown>)[id];
     next.orgs[orgId] = incoming.orgs[orgId];
-    for (const [kind, table] of Object.entries(incoming.db)) for (const [id, e] of Object.entries(table)) if ((e as { orgId?: string }).orgId === orgId) (next.db[kind as 'project'] as Record<string, unknown>)[id] = e;
+    for (const [kind, table] of Object.entries(incoming.db))
+      for (const [id, e] of Object.entries(table))
+        if ((e as { orgId?: string }).orgId === orgId) (next.db[kind as 'project'] as Record<string, unknown>)[id] = e;
     next.catalogue.favorites[orgId] = incoming.catalogue.favorites[orgId] ?? [];
   }
   Object.assign(next.users, incoming.users);

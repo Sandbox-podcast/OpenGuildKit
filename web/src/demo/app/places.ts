@@ -7,10 +7,8 @@ import type { AppState } from '@/demo/domain/types';
 
 type PlaceCount = { n: number; tone: 'danger' | 'warning' | 'info'; label: string };
 
-
 const count = (n: number, tone: PlaceCount['tone'], singular: string, plural = singular): PlaceCount | null =>
   n > 0 ? { n, tone, label: n === 1 ? singular : plural } : null;
-
 
 export function placeCounts(s: AppState, notices = notifications(s)): Partial<Record<PlaceKey, PlaceCount | null>> {
   const stats = kingdomStats(s);
@@ -23,10 +21,16 @@ export function placeCounts(s: AppState, notices = notifications(s)): Partial<Re
     forge: count(runs, 'info', 'exécution à suivre', 'exécutions à suivre'),
     tour: count(stats.failed.length + stats.stale.length, 'danger', 'contrôle à revoir', 'contrôles à revoir'),
     observatoire: count(signals, 'info', 'signal à évaluer', 'signaux à évaluer'),
-    intendance: count(notices.filter((notice) => notice.id.startsWith('int:')).length, 'warning', 'intégration en alerte', 'intégrations en alerte'),
+    intendance: count(
+      notices.filter((notice) => notice.id.startsWith('int:')).length,
+      'warning',
+      'intégration en alerte',
+      'intégrations en alerte',
+    ),
   };
 }
-export const placeOf = (path: string) => PLACES.find((p) => path.startsWith(p.route)) ?? (path.startsWith('/projets') ? PLACES[0] : path.startsWith('/decisions') ? PLACES[3] : undefined);
-
+export const placeOf = (path: string) =>
+  PLACES.find((p) => path.startsWith(p.route)) ??
+  (path.startsWith('/projets') ? PLACES[0] : path.startsWith('/decisions') ? PLACES[3] : undefined);
 
 export { PLACES, PLACE_GROUPS, type Place };

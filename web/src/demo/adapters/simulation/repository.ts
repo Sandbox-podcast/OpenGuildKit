@@ -4,11 +4,19 @@
  */
 import type { RepoObservation } from '@/demo/domain/types';
 
-export interface RepoScenario { key: string; label: string; address: string; description: string; observations: Omit<RepoObservation, 'id'>[] }
+export interface RepoScenario {
+  key: string;
+  label: string;
+  address: string;
+  description: string;
+  observations: Omit<RepoObservation, 'id'>[];
+}
 
 export const REPO_SCENARIOS: RepoScenario[] = [
   {
-    key: 'crm-api', label: 'API d’un CRM multi-clients (TypeScript)', address: 'demo://depots/crm-api',
+    key: 'crm-api',
+    label: 'API d’un CRM multi-clients (TypeScript)',
+    address: 'demo://depots/crm-api',
     description: 'Service Node.js avec PostgreSQL, partitionné par client.',
     observations: [
       { topic: 'langages', label: 'Langage principal', value: 'TypeScript (82 %), SQL (11 %)', provenance: 'observed' },
@@ -16,13 +24,20 @@ export const REPO_SCENARIOS: RepoScenario[] = [
       { topic: 'dépendances', label: 'Base de données', value: 'PostgreSQL (client pg)', provenance: 'observed' },
       { topic: 'tests', label: 'Tests', value: 'Vitest, 214 cas ; aucun test multi-clients', provenance: 'observed' },
       { topic: 'documentation', label: 'Documentation', value: 'README et OpenAPI partielle', provenance: 'observed' },
-      { topic: 'structure', label: 'Architecture', value: 'Monolithe modulaire (modules contacts, comptes, activités)', provenance: 'inferred' },
+      {
+        topic: 'structure',
+        label: 'Architecture',
+        value: 'Monolithe modulaire (modules contacts, comptes, activités)',
+        provenance: 'inferred',
+      },
       { topic: 'configuration', label: 'Multi-clients', value: 'Colonne tenant_id sur les tables métier', provenance: 'inferred' },
       { topic: 'configuration', label: 'Données personnelles', value: 'Probables (champs email, phone)', provenance: 'inferred' },
     ],
   },
   {
-    key: 'billing', label: 'Service de facturation (Python)', address: 'demo://depots/billing',
+    key: 'billing',
+    label: 'Service de facturation (Python)',
+    address: 'demo://depots/billing',
     description: 'API FastAPI et tâches planifiées.',
     observations: [
       { topic: 'langages', label: 'Langage principal', value: 'Python 3.12', provenance: 'observed' },
@@ -30,11 +45,18 @@ export const REPO_SCENARIOS: RepoScenario[] = [
       { topic: 'tests', label: 'Tests', value: 'pytest, couverture non mesurée', provenance: 'observed' },
       { topic: 'documentation', label: 'Documentation', value: 'Aucun guide utilisateur', provenance: 'observed' },
       { topic: 'structure', label: 'Architecture', value: 'Service unique avec workers', provenance: 'inferred' },
-      { topic: 'configuration', label: 'Données de paiement', value: 'Référencées par un prestataire externe (probable)', provenance: 'inferred' },
+      {
+        topic: 'configuration',
+        label: 'Données de paiement',
+        value: 'Référencées par un prestataire externe (probable)',
+        provenance: 'inferred',
+      },
     ],
   },
   {
-    key: 'portal', label: 'Portail client (React)', address: 'demo://depots/portal',
+    key: 'portal',
+    label: 'Portail client (React)',
+    address: 'demo://depots/portal',
     description: 'Application web consommant une API.',
     observations: [
       { topic: 'langages', label: 'Langage principal', value: 'TypeScript, React 19', provenance: 'observed' },
@@ -47,7 +69,11 @@ export const REPO_SCENARIOS: RepoScenario[] = [
   },
 ];
 
-export function analyzeRepository(address: string): { scenario: string | null; observations: Omit<RepoObservation, 'id'>[]; message: string } {
+export function analyzeRepository(address: string): {
+  scenario: string | null;
+  observations: Omit<RepoObservation, 'id'>[];
+  message: string;
+} {
   const s = REPO_SCENARIOS.find((r) => r.address === address.trim() || r.key === address.trim());
   if (!s) {
     return {
@@ -56,5 +82,9 @@ export function analyzeRepository(address: string): { scenario: string | null; o
       message: `Aucun dépôt de démonstration ne correspond à « ${address.trim() || '(vide)'} ». Aucune analyse n’a été effectuée : choisissez un dépôt de démonstration ou renseignez les informations à la main.`,
     };
   }
-  return { scenario: s.key, observations: s.observations, message: `Analyse simulée du dépôt de démonstration « ${s.label} ». Les observations sont modifiables.` };
+  return {
+    scenario: s.key,
+    observations: s.observations,
+    message: `Analyse simulée du dépôt de démonstration « ${s.label} ». Les observations sont modifiables.`,
+  };
 }

@@ -4,7 +4,11 @@
  */
 import { useEffect, useSyncExternalStore } from 'react';
 
-export interface Route { path: string; parts: string[]; query: URLSearchParams }
+export interface Route {
+  path: string;
+  parts: string[];
+  query: URLSearchParams;
+}
 
 const parse = (): Route => {
   const raw = window.location.hash.slice(1) || '/';
@@ -24,7 +28,8 @@ let navigationFocus: { hash: string; target: HTMLElement } | undefined;
 const listeners = new Set<() => void>();
 const dirty = new Set<string>();
 
-const DIRTY_MESSAGE = 'Des modifications ne sont pas enregistrées. Quitter cette vue quand même ? Les brouillons enregistrés restent disponibles.';
+const DIRTY_MESSAGE =
+  'Des modifications ne sont pas enregistrées. Quitter cette vue quand même ? Les brouillons enregistrés restent disponibles.';
 
 if (typeof window !== 'undefined') {
   window.addEventListener('hashchange', () => {
@@ -44,20 +49,37 @@ if (typeof window !== 'undefined') {
       focus.focus();
     } else if (pathChanged) {
       const main = document.getElementById('main');
-      if (main) { main.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
+      if (main) {
+        main.focus({ preventScroll: true });
+        window.scrollTo({ top: 0 });
+      }
     }
   });
-  window.addEventListener('beforeunload', (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => {
+    if (dirty.size) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 }
 
-export const useRoute = () => useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => route);
+export const useRoute = () =>
+  useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => route,
+  );
 
 export function navigate(to: string, opts: { replace?: boolean; focus?: HTMLElement } = {}) {
   const hash = `#${to.startsWith('/') ? to : `/${to}`}`;
   if (hash === window.location.hash) return;
   navigationFocus = opts.focus ? { hash, target: opts.focus } : undefined;
-  if (opts.replace) { history.replaceState(null, '', hash); window.dispatchEvent(new HashChangeEvent('hashchange')); }
-  else window.location.hash = hash;
+  if (opts.replace) {
+    history.replaceState(null, '', hash);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  } else window.location.hash = hash;
 }
 
 /** Updates query parameters of the current route (filters, tabs) without losing the rest. */
@@ -71,7 +93,10 @@ export function setQuery(patch: Record<string, string | null | undefined>) {
 /** Registers a form as dirty while `isDirty` is true. */
 export function useDirtyGuard(key: string, isDirty: boolean) {
   useEffect(() => {
-    if (isDirty) dirty.add(key); else dirty.delete(key);
-    return () => { dirty.delete(key); };
+    if (isDirty) dirty.add(key);
+    else dirty.delete(key);
+    return () => {
+      dirty.delete(key);
+    };
   }, [key, isDirty]);
 }

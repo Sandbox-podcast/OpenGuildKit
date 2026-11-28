@@ -17,5 +17,20 @@ const OUTLINES: Record<PlaceKey, string> = {
 };
 
 export function NavigationIcon({ place }: { place: PlaceKey }) {
-  return <svg width="19" height="19" viewBox="0 0 24 24" className="nav-line-icon" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={OUTLINES[place]} /></svg>;
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      className="nav-line-icon"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={OUTLINES[place]} />
+    </svg>
+  );
 }

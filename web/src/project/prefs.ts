@@ -7,15 +7,26 @@ import { useSyncExternalStore } from 'react';
 import { persistSingleKeyShortcuts, setSingleKeyShortcuts } from '@/shared/shortcuts';
 import { currentSession, savePrefs, type ServerPrefs } from './api';
 
-export interface Prefs { mode: 'explorer' | 'focus'; motion: 'system' | 'reduced' }
+export interface Prefs {
+  mode: 'explorer' | 'focus';
+  motion: 'system' | 'reduced';
+}
 const KEY = 'ogk-ui:prefs';
 const read = (): Prefs => {
-  try { return { mode: 'explorer', motion: 'system', ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } as Prefs; }
-  catch { return { mode: 'explorer', motion: 'system' }; }
+  try {
+    return { mode: 'explorer', motion: 'system', ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } as Prefs;
+  } catch {
+    return { mode: 'explorer', motion: 'system' };
+  }
 };
 let prefs = read();
 const listeners = new Set<() => void>();
-const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+};
 const notify = () => listeners.forEach((l) => l());
 
 /** Sends a change to the project; a refusal (a name too long) or a stopped server leaves this browser's copy. */
@@ -25,7 +36,11 @@ function keep(patch: ServerPrefs) {
 
 function store(patch: Partial<Prefs>) {
   prefs = { ...prefs, ...patch };
-  try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode: keep it for this visit */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(prefs));
+  } catch {
+    /* private mode: keep it for this visit */
+  }
   notify();
 }
 
@@ -41,18 +56,29 @@ const names = new Map<string, string>();
 const typing = new Map<string, ReturnType<typeof setTimeout>>();
 export function rememberedName(key: string, initial = '') {
   if (!names.has(key)) {
-    try { names.set(key, localStorage.getItem(`ogk-ui:${key}`) ?? initial); } catch { names.set(key, initial); }
+    try {
+      names.set(key, localStorage.getItem(`ogk-ui:${key}`) ?? initial);
+    } catch {
+      names.set(key, initial);
+    }
   }
   return names.get(key)!;
 }
 export function rememberName(key: string, value: string, send = true) {
   names.set(key, value);
-  try { localStorage.setItem(`ogk-ui:${key}`, value); } catch { /* private mode */ }
+  try {
+    localStorage.setItem(`ogk-ui:${key}`, value);
+  } catch {
+    /* private mode */
+  }
   notify();
   if (!send || !(NAMES as readonly string[]).includes(key)) return;
   // A name is typed letter by letter: the project receives it once the typing pauses.
   clearTimeout(typing.get(key));
-  typing.set(key, setTimeout(() => keep({ [key]: value }), 600));
+  typing.set(
+    key,
+    setTimeout(() => keep({ [key]: value }), 600),
+  );
 }
 export const useRememberedName = (key: string, initial = '') => useSyncExternalStore(subscribe, () => rememberedName(key, initial));
 

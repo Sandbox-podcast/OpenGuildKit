@@ -1,13 +1,13 @@
 # What is not formatted: build output, generated or data files, documents, and the style sheets, whose one rule
 # per line is deliberate.
 node_modules
-dist
-dist-demo
-test-results
-playwright-report
-public
-docs
-data
+/dist
+/dist-demo
+/test-results
+/playwright-report
+/public
+/docs
+/data
 package-lock.json
 *.md
 *.css
