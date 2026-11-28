@@ -113,6 +113,7 @@ class RefusalTests(AuditCase):
         self.assertIn("is written by the openguildkit commands", error)
 
     def test_the_variable_names_a_file_of_the_audit_folder_and_nothing_else(self):
+        # OGK-AUDIT-002
         self.init(guard="enforce")
         with patch.dict(os.environ, {audit_log.VARIABLE: "soc.jsonl"}):
             self.refuse()
@@ -126,6 +127,7 @@ class RefusalTests(AuditCase):
     @POSIX_LINKS
     def test_a_link_in_place_of_the_folder_or_the_file_is_never_followed(self):
         """A write outside the project (SECURITY.md) must not come from a link in the audit folder."""
+        # OGK-AUDIT-003, OGK-AUDIT-004
         self.init(guard="enforce")
         outside = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, outside, ignore_errors=True)
@@ -292,6 +294,7 @@ class VerifyTests(AuditCase):
                       "'guard.seen'", error)
 
     def test_an_unreadable_path_is_one_line(self):
+        # OGK-AUDIT-001
         _, error = self.run_cli("audit", "verify", self.root / "missing.jsonl", code=1)
         self.assertEqual(len(error.strip().splitlines()), 1)
 
@@ -320,6 +323,7 @@ class ExportTests(AuditCase):
         self.assertEqual(self.run_cli("audit", "export", "--since", "2999-01-01")[0], "")
 
     def test_since_is_a_day(self):
+        # OGK-AUDIT-005
         self.init()
         _, error = self.run_cli("audit", "export", "--since", "yesterday", code=1)
         self.assertIn("YYYY-MM-DD", error)
@@ -342,6 +346,7 @@ class SealTests(AuditCase):
 
     def test_changing_the_date_of_a_local_approval_breaks_its_seal(self):
         """Issue #454: decision.at was under neither the seal nor a signature."""
+        # OGK-DECISION-007
         task = self.sealed_task()
         self.assertEqual(task["decision"]["signed_at"], signing_time_of(task["decision"]["at"]))
         self.assertEqual(check_decision_seal(task)["signed_at"], task["decision"]["signed_at"])

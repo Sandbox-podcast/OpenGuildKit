@@ -55,6 +55,7 @@ class ManualReasonTests(unittest.TestCase):
         cls.catalog = load_catalog()
 
     def test_a_rule_names_why_only_a_person_can_verify_it_or_carries_a_check(self):
+        # OGK-CATALOG-031
         validate_entry("packs", pack([{"id": "a", "instruction": "Ask the owner.", "verification": "Link it.",
                                         "manual": "The register lives outside the repository."}]))
         check = {"kind": "file-exists", "paths": ["SECURITY.md"]}

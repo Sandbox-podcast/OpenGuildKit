@@ -1,4 +1,4 @@
-"""Pin the catalog records a project uses so a new OpenGuildKit release cannot change its rules silently.
+"""Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog.
 
 The lock holds a copy of every bundled pack, board, sector and pattern the profile
 uses. Commands read the locked copy instead of the bundled one. `openguildkit update`
@@ -21,9 +21,11 @@ from .catalog import (
     validate_dependencies,
     validate_entry,
 )
+from .errors import OgkError
 from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
 from .project import selected_packs
+from .records import Catalog, Profile
 from .startup import package_version
 from .storage import file_signature, read_json, write_json
 
@@ -58,21 +60,21 @@ def read_lock(state: Path) -> dict | None:
 def _validated_lock(path: Path) -> dict:
     lock = read_json(path)
     if lock.get("schema_version") != 1 or not isinstance(lock.get("records"), dict):
-        raise ValueError(f"Unsupported catalog lock: {path}. Run openguildkit update --apply.")
+        raise OgkError("OGK-CORE-015", f"Unsupported catalog lock: {path}. Run openguildkit update --apply.")
     records = lock["records"]
     for collection, entries in records.items():
         if collection not in COLLECTIONS or not isinstance(entries, dict):
-            raise ValueError(f"Unknown collection {collection!r} in {path}.")
+            raise OgkError("OGK-CORE-016", f"Unknown collection {collection!r} in {path}.")
         for record_id, record in entries.items():
             if not isinstance(record, dict):
-                raise ValueError(f"{path}: {collection}/{record_id} is not an object. Restore the file from Git, or delete it and "
+                raise OgkError("OGK-CORE-004", f"{path}: {collection}/{record_id} is not an object. Restore the file from Git, or delete it and "
                                  "run openguildkit update --apply, which locks the catalog installed on this machine.")
             try:
                 validate_entry(collection, {key: value for key, value in record.items() if key != "policy_commit"})
             except CatalogError as error:
-                raise ValueError(f"{path}: {collection}/{record_id}: {error}") from error
+                raise OgkError("OGK-CORE-017", f"{path}: {collection}/{record_id}: {error}") from error
             if record.get("id") != record_id:
-                raise ValueError(f"{path}: {collection}/{record_id} has a different id.")
+                raise OgkError("OGK-CORE-018", f"{path}: {collection}/{record_id} has a different id.")
     if "organization" in lock:
         validate_pin(lock["organization"], str(path))
     if "organization_history" in lock:
@@ -85,13 +87,13 @@ def central_policy(args) -> tuple[str, dict] | None:
     and for a caller without command-line arguments (args None), such as the web page."""
     repo, commit = (args.policy_repo, args.policy_commit) if args is not None else (None, None)
     if (repo is None) != (commit is None):
-        raise ValueError("Supply --policy-repo and --policy-commit together.")
+        raise OgkError("OGK-CORE-019", "Supply --policy-repo and --policy-commit together.")
     from .ci import read_policy_pack  # Not for the edit hook, which reads the lock (#539).
 
     return None if repo is None else (commit, read_policy_pack(repo, commit))
 
 
-def _live_catalog(args, state: Path, lock: dict | None) -> dict:
+def _live_catalog(args, state: Path, lock: dict | None) -> Catalog:
     """The installed catalog with the organization's records, if the lock pins an organization catalog, and the
     project's additions."""
     organization = organization_in(lock, state)
@@ -103,7 +105,7 @@ def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
     return _live_catalog(args, state, read_lock(state)), bundled_ids()
 
 
-def project_catalog(args, state: Path) -> dict:
+def project_catalog(args, state: Path) -> Catalog:
     """The catalog in force for the project: locked records take precedence over installed ones."""
     lock = read_lock(state)
     return apply_lock(_live_catalog(args, state, lock), lock)
@@ -116,7 +118,7 @@ LOCK_OLDER = (
 )
 
 
-def require_instructions(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def require_instructions(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """Refuse out-of-date instructions, naming update rather than sync when they follow a newer installed catalog."""
     from .project_instructions import RuleError, check_instructions  # Not for the edit hook (#539).
 
@@ -125,11 +127,11 @@ def require_instructions(args, root: Path, state: Path, profile: dict, catalog: 
     except ValueError as error:
         lock = read_lock(state)
         if lock is not None and _instructions_match(root, profile, update_target(installed_catalog(args, state)[0], lock)):
-            raise RuleError(LOCK_OLDER, "instructions-ahead-of-lock", getattr(error, "files", ())) from None
+            raise RuleError("OGK-CORE-022", LOCK_OLDER, "instructions-ahead-of-lock", getattr(error, "files", ())) from None
         raise
 
 
-def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
+def _instructions_match(root: Path, profile: Profile, catalog: Catalog) -> bool:
     from .project_instructions import check_instructions
 
     try:
@@ -139,7 +141,7 @@ def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
     return True
 
 
-def apply_lock(catalog: dict, lock: dict | None) -> dict:
+def apply_lock(catalog: Catalog, lock: dict | None) -> Catalog:
     """Return the catalog with the project's locked records in place of the bundled ones. It holds the lock's records,
     not copies: pass a lock read for this call (read_lock gives each call its own copy)."""
     if not lock:
@@ -155,11 +157,11 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
     try:
         validate_dependencies(effective["packs"])
     except CatalogError as error:
-        raise ValueError(f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
+        raise OgkError("OGK-CORE-020", f"The catalog lock is inconsistent: {error}. Run openguildkit update.") from error
     return effective
 
 
-def used_ids(profile: dict, catalog: dict) -> dict[str, list[str]]:
+def used_ids(profile: Profile, catalog: Catalog) -> dict[str, list[str]]:
     patterns = [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
     return {
         "packs": selected_packs(profile, catalog),
@@ -175,7 +177,7 @@ def _lockable(bundled: dict[str, set[str]], lock: dict | None) -> dict[str, set[
     return {collection: bundled[collection] | set(pinned.get(collection, {})) for collection in COLLECTIONS}
 
 
-def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
+def locked_records(profile: Profile, catalog: Catalog, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     """The bundled or already locked records the profile uses, taken from the given catalog."""
     used = used_ids(profile, catalog)
     lockable = _lockable(bundled, lock)
@@ -191,7 +193,7 @@ def locked_records(profile: dict, catalog: dict, bundled: dict[str, set[str]], l
     }
 
 
-def build_lock(profile: dict, catalog: dict, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
+def build_lock(profile: Profile, catalog: Catalog, bundled: dict[str, set[str]], lock: dict | None = None) -> dict:
     """The lock of the records the profile uses; the organization catalog it pins, if any, stays pinned."""
     built = {
         "schema_version": 1,
@@ -218,7 +220,7 @@ def write_lock(state: Path, lock: dict) -> None:
     write_json(lock_path(state), lock)
 
 
-def lock_is_current(lock: dict | None, profile: dict, catalog: dict, bundled: dict[str, set[str]]) -> bool:
+def lock_is_current(lock: dict | None, profile: Profile, catalog: Catalog, bundled: dict[str, set[str]]) -> bool:
     """A project without a lock predates it; a lock must cover exactly what the profile uses."""
     return lock is None or lock["records"] == locked_records(profile, catalog, bundled, lock)
 
@@ -299,7 +301,7 @@ def update_target(live: dict, lock: dict) -> dict:
     return target
 
 
-def catalog_changes(lock: dict, live: dict, target: dict, profile: dict, bundled: dict[str, set[str]]) -> list[dict]:
+def catalog_changes(lock: dict, live: dict, target: dict, profile: Profile, bundled: dict[str, set[str]]) -> list[dict]:
     """Compare the locked records with what the installed catalog would now write."""
     changes = []
     current = locked_records(profile, target, bundled, lock)

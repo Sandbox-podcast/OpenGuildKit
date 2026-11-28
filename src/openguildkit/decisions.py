@@ -1,4 +1,5 @@
-"""Bind an approval to the consultation, the review, the rules in force and the project revision.
+"""Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads
+exported records.
 
 Every approval carries a seal: a SHA-256 over what was approved. The handoff refuses a
 decision whose seal no longer matches the task record. A project can also require a
@@ -15,10 +16,14 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from . import clock
+from .errors import OgkError
+from .records import Profile, Task
 from .storage import canonical_sha256, read_json
 
 # The edit hook loads this module: git is imported in the functions that use it (#539).
@@ -43,7 +48,7 @@ def changed_paths_since(root: Path, commit: str) -> list[str]:
 
     change = git.names(root, "diff", "--name-only", "--no-renames", commit, "--")
     if change is None:
-        raise ValueError("Could not compare the project files with the approved Git revision.")
+        raise OgkError("OGK-DECISION-012", "Could not compare the project files with the approved Git revision.")
     return change
 
 
@@ -56,7 +61,7 @@ def exported_boards(review: dict) -> list[dict]:
     ]
 
 
-def exported_rounds(task: dict) -> list[dict]:
+def exported_rounds(task: Task) -> list[dict]:
     """The earlier rounds as an exported record shows them: who decided what and why, and a revised brief."""
     return [
         {"consultation_id": previous.get("consultation", {}).get("id"),
@@ -76,7 +81,7 @@ def shared_digest(brief: str, summary: str, boards: list[dict], rounds: list[dic
     return canonical_sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
 
 
-def task_shared_digest(task: dict) -> str:
+def task_shared_digest(task: Task) -> str:
     return shared_digest(task["brief"], task["review"]["summary"], exported_boards(task["review"]), exported_rounds(task))
 
 
@@ -106,10 +111,10 @@ def signing_time(value: str | None, *, now_ok: bool = False) -> str | None:
     if now_ok and value == "now":
         return current.strftime("%Y-%m-%dT%H:%M:%SZ")
     if not _SIGNED_AT.fullmatch(value):
-        raise ValueError(f"--signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. "
+        raise OgkError("OGK-DECISION-001", f"--signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. "
                          "Nothing was written.")
     if datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=current.tzinfo) > current + CLOCK_SKEW:
-        raise ValueError(f"--signed-at {value} is in the future: the signature cannot have been made yet.")
+        raise OgkError("OGK-DECISION-002", f"--signed-at {value} is in the future: the signature cannot have been made yet.")
     return value
 
 
@@ -138,11 +143,11 @@ def verify_time(payload: dict) -> str | None:
     if moment is None:
         return None
     if not isinstance(moment, str) or not _SIGNED_AT.fullmatch(moment):
-        raise ValueError(f"signed_at must be a UTC time written {SIGNED_AT_FORMAT}.")
+        raise OgkError("OGK-DECISION-003", f"signed_at must be a UTC time written {SIGNED_AT_FORMAT}.")
     return re.sub(r"[-:T]", "", moment)
 
 
-def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
+def decision_payload(task: Task, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
                      separate: bool = False, signed_at: str | None = None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode. separate says that the profile
     separated the requester from the approver when it was given (requester.py). signed_at, when the approver gives
@@ -185,7 +190,7 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
     return payload
 
 
-def payload_text(payload: dict) -> str:
+def payload_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, ensure_ascii=False, indent=2) + "\n"
 
 
@@ -193,7 +198,7 @@ def seal(payload: dict) -> str:
     return canonical_sha256(payload)
 
 
-def approval_policy(profile: dict) -> dict:
+def approval_policy(profile: Profile) -> dict:
     return profile.get("approval") or {"mode": "local"}
 
 
@@ -209,19 +214,19 @@ def committed_signers(root: Path, relative: str) -> str:
     retry = "Have the person review and commit it, then sign again."
     inside = git.text(root, "rev-parse", "--is-inside-work-tree")
     if inside is None or inside.strip() != "true":
-        raise ValueError(f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
+        raise OgkError("OGK-DECISION-013", f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
                          "Signed approvals need the project and this file in Git.")
     tracked = git.text(root, "ls-files", "--error-unmatch", "--", relative)
     committed = git.text(root, "show", f"HEAD:./{relative}")
     if tracked is None or committed is None:
-        raise ValueError(f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
+        raise OgkError("OGK-DECISION-004", f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
     if git.text(root, "diff", "--quiet", "HEAD", "--", relative) is None:
-        raise ValueError(f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
+        raise OgkError("OGK-DECISION-005", f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
                          f"verified against the committed file, never against a working copy. {retry}")
     return committed
 
 
-class SignerNotCurrent(ValueError):
+class SignerNotCurrent(OgkError):
     """The signer is not among the current approvers, or the current signers file does not verify their signature."""
 
 
@@ -234,11 +239,11 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
     the current time, or with at_signing at the signed_at of the payload when it has one.
     """
     if signer not in policy["approvers"]:
-        raise SignerNotCurrent(f"{signer} is not an approver for this project. "
+        raise SignerNotCurrent("OGK-DECISION-009", f"{signer} is not an approver for this project. "
                                f"Approvers: {', '.join(policy['approvers'])}.")
     allowed = (root / policy["allowed_signers"]).resolve()
     if not allowed.is_file() or root.resolve() not in allowed.parents:
-        raise ValueError(f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
+        raise OgkError("OGK-DECISION-014", f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
     signers = committed_signers(root, Path(policy["allowed_signers"]).as_posix()) if committed else None
     _ssh_verify(allowed.read_text(encoding="utf-8") if signers is None else signers, payload, signature, signer,
                 verify_time(payload) if at_signing else None)
@@ -248,7 +253,7 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: st
     """Verify the signature of the payload for signer, against the text of an allowed signers file, at the time `at`
     (ssh-keygen's YYYYMMDDHHMMSSZ) instead of now when it is given."""
     if shutil.which("ssh-keygen") is None:
-        raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
+        raise OgkError("OGK-DECISION-015", "Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
     import tempfile  # Only a signature check needs it: the edit hook starts without it (#539).
 
     with tempfile.TemporaryDirectory() as directory:
@@ -262,7 +267,7 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: st
             input=payload_text(payload).encode("utf-8"), capture_output=True, check=False,
         )
     if result.returncode:
-        raise SignerNotCurrent(f"The signature does not verify for {signer}: "
+        raise SignerNotCurrent("OGK-DECISION-010", f"The signature does not verify for {signer}: "
                                f"{result.stderr.decode(errors='replace').strip()}")
 
 
@@ -347,7 +352,7 @@ def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature
         if recorded is None or signer not in recorded[0]:
             unmerged = history is None and signers_at_approval(source, payload)
             if unmerged and signer in unmerged[0]:
-                raise SignerNotCurrent(f"{current}{_not_merged(source, payload)}") from None
+                raise SignerNotCurrent("OGK-DECISION-011", f"{current}{_not_merged(source, payload)}") from None
             raise
         try:
             _ssh_verify(recorded[1], payload, signature, signer, verify_time(payload))
@@ -411,11 +416,11 @@ def history_message(task_id: str, changes: list[str] | None = None, sealed: bool
     return f"Task {task_id} was completed under earlier rules{detail}; its record stays as history."
 
 
-def check_decision_seal(task: dict) -> dict:
+def check_decision_seal(task: Task) -> dict:
     """Check the seal without launching Git or verifying an SSH signature."""
     decision = task["decision"]
     if "seal" not in decision:
-        raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
+        raise OgkError("OGK-DECISION-006", f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
     for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version,
@@ -423,13 +428,13 @@ def check_decision_seal(task: dict) -> dict:
                                    signed_at=decision.get("signed_at"))
         if seal(payload) == decision["seal"]:
             if date_moved(decision, payload):
-                raise ValueError(f"The date of the approval of {task['id']} was changed after it was sealed. "
+                raise OgkError("OGK-DECISION-007", f"The date of the approval of {task['id']} was changed after it was sealed. "
                                  f"{reconsult_hint(task['id'])}")
             return payload
-    raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
+    raise OgkError("OGK-DECISION-008", f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 
 
-def base_commit(task: dict) -> str | None:
+def base_commit(task: Task) -> str | None:
     """The commit an approval was given at, when the project was a Git repository then."""
     base = (task.get("decision") or {}).get("base_revision")
     return base.get("commit") if isinstance(base, dict) and isinstance(base.get("commit"), str) else None
@@ -456,7 +461,7 @@ def outside_history_message(task_id: str, commit: str) -> str:
             f"squash or an amended commit replaced it. {reconsult_hint(task_id)}")
 
 
-def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[str] | None = None) -> tuple | None:
+def decision_problem(task: Task, root: Path | None, profile: Profile, outside: set[str] | None = None) -> tuple | None:
     """What breaks an approval besides its rules: the seal, the signature, the approved revision. (kind, message).
 
     Without the project root, only the seal is checked. outside holds the revisions already known to be out of the
@@ -474,7 +479,7 @@ def decision_problem(task: dict, root: Path | None, profile: dict, outside: set[
 EARLIER_SIGNERS = "earlier-signers"
 
 
-def signature_or_history_problem(task: dict, root: Path, profile: dict, payload: dict,
+def signature_or_history_problem(task: Task, root: Path, profile: Profile, payload: dict,
                                  outside: set[str] | None = None) -> tuple | None:
     """The signature a signed project requires, then the approved revision, for an approval whose seal holds.
 
@@ -502,8 +507,8 @@ def signature_or_history_problem(task: dict, root: Path, profile: dict, payload:
     return None
 
 
-def check_decision(task: dict, root: Path, profile: dict) -> None:
+def check_decision(task: Task, root: Path, profile: Profile) -> None:
     """Refuse an approval that no longer matches the record, its signature or the project history."""
     problem = decision_problem(task, root, profile)
     if problem and problem[0] != EARLIER_SIGNERS:
-        raise ValueError(problem[1])
+        raise OgkError("OGK-DECISION-016", problem[1])

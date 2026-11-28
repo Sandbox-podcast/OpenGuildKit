@@ -1,5 +1,5 @@
-"""Deciding and closing a task: the decision and its withdrawal, the authorizations of external actions, the result,
-the evidence handed to a follow-up task, and the points left open at the closing.
+"""Deciding and closing a task: the decision and its withdrawal, authorizations of external actions, the result,
+evidence handed to a follow-up task, and the points left open.
 
 Entry: record_decision, revoke_approval, record_authorization, record_result, complete_task, points_left_open
 Tests: tests/test_blocker_clearances.py, tests/test_blockers.py, tests/test_closing_points.py,
@@ -12,6 +12,8 @@ from pathlib import Path
 from . import clock, delivered_review
 from .approval_check import DONE_STATUSES
 from .decisions import decision_payload, seal, signing_time_of
+from .errors import OgkError
+from .records import Profile, Task, as_dict
 from .relevance import sensitive_area
 from .result_form import validate_result
 from .results import (
@@ -41,7 +43,7 @@ from .workflow import (
 CHANGED_EVIDENCE_GROUP = "Evidence changed since it was accepted"
 
 
-def accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
+def accepted_evidence(task: Task) -> list[tuple[str, str, str | None]]:
     """Each evidence a clearance or a passed named evidence cites: the evidence, what it was accepted for and its
     fingerprint, None for one recorded before fingerprints."""
     cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
@@ -51,7 +53,7 @@ def accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
                     if item["check"].startswith("evidence:") and item["status"] == "passed" and "evidence" in item]
 
 
-def evidence_states(task: dict, root: Path) -> list[dict]:
+def evidence_states(task: Task, root: Path) -> list[dict]:
     """Each evidence a clearance or a passed named evidence cites, with its state now, once one has a fingerprint:
     a task recorded before fingerprints lists none."""
     cited = accepted_evidence(task)
@@ -61,7 +63,7 @@ def evidence_states(task: dict, root: Path) -> list[dict]:
             for value, name, fingerprint in cited]
 
 
-def changed_evidence(task: dict, root: Path) -> list[str]:
+def changed_evidence(task: Task, root: Path) -> list[str]:
     """The evidence changed or gone since it was accepted, with who accepted it and when: an open point of the
     closing and a line of task list. guard --ci does not read it (question Q2 of the plan is not decided)."""
     accepted = {f"blocker {item['id']}": f"cleared on {item['resolution'].get('at', '')[:10]} by {item['resolution']['by']}"
@@ -77,51 +79,54 @@ def changed_evidence(task: dict, root: Path) -> list[str]:
     return points
 
 
-def record_result(task: dict, profile: dict, payload: dict, source: str = "report", relevance: dict | None = None,
-                  root: Path | None = None, *, changed: list[str] | None = None) -> dict:
+def record_result(task: Task, profile: Profile, payload: dict, source: str = "report", relevance: dict | None = None,
+                  root: Path | None = None, *, changed: list[str] | None = None) -> Task:
     """Add a delivery report to an approved task; later reports update earlier checks.
 
     A named evidence that cannot be recorded is held back under "_held" (for the caller to print and
     drop) and the rest is recorded: the task then waits for that evidence from its owner.
     """
     if task["status"] != "approved":
-        raise TaskStateError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("OGK-TASK-105", "Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated, source)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
-        raise ValueError(
+        raise OgkError("OGK-TASK-049",
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
         )
-    updated = {**task, "result": result}
+    updated: Task = {**task, "result": result}
     for key, value in (("waiting_for", waiting_evidence(updated, profile, relevance)),
                        ("warnings", result_warnings(updated, profile, relevance))):
         result.pop(key, None)
         if value:
             result[key] = value
-    return {**_with_wait(updated), "_held": held}
+    closed = _with_wait(updated)
+    closed["_held"] = held
+    return closed
 
 
-def _with_wait(task: dict) -> dict:
+def _with_wait(task: Task) -> Task:
     """Next to the status, the evidence an approved task waits for, so task show and the export say it too."""
-    task = {key: value for key, value in task.items() if key != "waiting_for"}
+    task = task.copy()
+    task.pop("waiting_for", None)
     waiting = task.get("result", {}).get("waiting_for", [])
     if waiting:
         task["waiting_for"] = [f"{item['title']} ({item['check']}) from {item['owner']}" for item in waiting]
     return task
 
 
-def defer_evidence(task: dict, profile: dict, deferrals: list[tuple[str, dict]], by: str,
-                   relevance: dict | None = None) -> dict:
+def defer_evidence(task: Task, profile: Profile, deferrals: list[tuple[str, Task]], by: str,
+                   relevance: dict | None = None) -> Task:
     """Hand named evidence that is still awaited to a follow-up task, recorded on behalf of its owner."""
     waiting = {item["check"]: item for item in waiting_evidence(task, profile, relevance)}
     entries = []
     for check_id, follow_up in deferrals:
         if check_id not in waiting:
             listed = ", ".join(waiting) or "none"
-            raise ValueError(f"{check_id} is not a named evidence this task waits for. Awaited: {listed}.")
+            raise OgkError("OGK-TASK-126", f"{check_id} is not a named evidence this task waits for. Awaited: {listed}.")
         if follow_up.get("follows", {}).get("task") != task["id"]:
-            raise ValueError(f"Task {follow_up['id']} does not follow {task['id']}: open it with "
+            raise OgkError("OGK-TASK-127", f"Task {follow_up['id']} does not follow {task['id']}: open it with "
                              f'openguildkit task new "BRIEF" --follows {task["id"]}.')
         entries.append({"check": check_id, "task": follow_up["id"], "owner": waiting[check_id]["owner"],
                         "by": by, "at": timestamp()})
@@ -130,8 +135,8 @@ def defer_evidence(task: dict, profile: dict, deferrals: list[tuple[str, dict]],
     return _with_wait({**task, "result": result})
 
 
-def complete_task(task: dict, profile: dict, root: Path | None = None, relevance: dict | None = None,
-                  by: str | None = None, *, changed: list[str] | None = None) -> dict:
+def complete_task(task: Task, profile: Profile, root: Path | None = None, relevance: dict | None = None,
+                  by: str | None = None, *, changed: list[str] | None = None) -> Task:
     """Close the task: done when nothing is left open, done-with-reservations otherwise.
 
     Closing over a skipped or failed data protection, security or AI rule that concerns the task
@@ -142,11 +147,11 @@ def complete_task(task: dict, profile: dict, root: Path | None = None, relevance
                    if item.get("phase") != "verification"]
                 + completion_problems(task, profile, relevance, changed=changed, root=root))
     if problems:
-        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
+        raise OgkError("OGK-TASK-050", "The task cannot be declared done:\n- " + "\n- ".join(problems))
     groups = points_left_open(task, profile, relevance, root)
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
-        raise ValueError(
+        raise OgkError("OGK-TASK-051",
             f"{plural(len(sensitive['points']), 'data protection, security or AI point')} "
             f"{'is' if len(sensitive['points']) == 1 else 'are'} skipped, failed or declared not "
             "applicable as a pack. A person "
@@ -171,7 +176,7 @@ NO_COMMAND = ("No project check command ran for this task: the profile lists non
               ".openguildkit/project.json), so nothing was run to verify the change.")
 
 
-def _open_disagreements(task: dict) -> list[str]:
+def _open_disagreements(task: Task) -> list[str]:
     """Each disagreement left open with its point and its two boards, then the decision the person takes."""
     deliberation = task.get("deliberation", {})
     objections = {item["id"]: item for item in deliberation.get("objections", [])}
@@ -185,7 +190,7 @@ def _open_disagreements(task: dict) -> list[str]:
     return points
 
 
-def _blocks_not_lifted(task: dict) -> list[str]:
+def _blocks_not_lifted(task: Task) -> list[str]:
     """A board that said block, approved over blockers that were waived or left open rather than cleared."""
     points = []
     for entry in task.get("review", {}).get("boards", []):
@@ -201,7 +206,7 @@ def _blocks_not_lifted(task: dict) -> list[str]:
     return points
 
 
-def points_left_open(task: dict, profile: dict, relevance: dict | None = None, root: Path | None = None) -> list[dict]:
+def points_left_open(task: Task, profile: Profile, relevance: dict | None = None, root: Path | None = None) -> list[dict]:
     """What a closed task leaves open, grouped by nature, most serious first; empty groups are left out. With the
     project root, evidence changed since it was accepted too."""
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
@@ -249,15 +254,15 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None, r
     return found
 
 
-def record_deliberation(task: dict, payload: dict) -> dict:
+def record_deliberation(task: Task, payload: dict) -> Task:
     return {**task, "deliberation": validate_deliberation(task, payload)}
 
 
 def record_decision(
-    task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
+    task: Task, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
     confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
     dated: bool = False,
-) -> dict:
+) -> Task:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
     says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
     when the approver signed a payload that carries it, is recorded and sealed with the approval. dated has a local
@@ -266,22 +271,22 @@ def record_decision(
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
-            raise ValueError(decided)
-        raise TaskStateError("Record the boards' review before deciding.")
+            raise OgkError("OGK-TASK-052", decided)
+        raise TaskStateError("OGK-TASK-106", "Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
-        raise ValueError(
+        raise OgkError("OGK-TASK-128",
             f"Approval cancelled: the removal of the {', '.join(unconfirmed)} board was not confirmed. Type its name "
             "at the approval prompt, or request changes and consult again with it."
         )
     open_blockers = unresolved_blockers(task)
     if approve and open_blockers:
-        raise ValueError(
+        raise OgkError("OGK-TASK-053",
             f"Resolve each blocker before approving: {', '.join(open_blockers)}. Clear it with evidence "
             "(task clear), waive it if the project allows (task waive), or request changes."
         )
     if not by.strip() or not reason.strip():
-        raise ValueError("Supply the decision owner and a reason.")
+        raise OgkError("OGK-TASK-129", "Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     at = clock.real_timestamp()
@@ -302,24 +307,24 @@ def record_decision(
     return {**task, "status": status, "decision": decision}
 
 
-def revoke_approval(task: dict, by: str, reason: str) -> dict:
+def revoke_approval(task: Task, by: str, reason: str) -> Task:
     """Withdraw an approval: the task goes back to changes requested, and the approval goes to the rounds with who
     withdrew it, when and why. The person does it at their terminal, as they approved; the guard stops counting the
     task at once."""
     task_id, status = task["id"], task["status"]
     if status in DONE_STATUSES:
-        raise ValueError(decided_message(task))
+        raise OgkError("OGK-TASK-054", decided_message(task))
     if status != "approved":
-        raise TaskStateError("Only an approved task has an approval to withdraw.")
+        raise TaskStateError("OGK-TASK-107", "Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Name the person who withdraws the approval with --by and say why with --reason.")
+        raise OgkError("OGK-TASK-130", "Name the person who withdraws the approval with --by and say why with --reason.")
     at = clock.real_timestamp()
     archived = {**archived_round(task), "revoked": {"by": by.strip(), "reason": reason.strip(), "at": at}}
     decision = {"outcome": "changes-requested", "by": by.strip(), "reason": f"Approval withdrawn: {reason.strip()}",
                 "at": at, "withdraws": task["decision"]["at"]}
-    result = {**task, "status": "changes-requested", "decision": decision, "rounds": [*task["rounds"], archived]}
+    result: Task = {**task, "status": "changes-requested", "decision": decision, "rounds": [*task["rounds"], archived]}
     for key in (resolution_field("verification"), "result", "waiting_for", "completed_at"):
-        result.pop(key, None)
+        as_dict(result).pop(key, None)
     return result
 
 
@@ -327,14 +332,14 @@ ACTIONS = ("public-research", "external-api", "send-message", "publish", "instal
 _TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}")
 
 
-def record_authorization(task: dict, action: str, target: str, allow: bool, by: str, reason: str) -> dict:
+def record_authorization(task: Task, action: str, target: str, allow: bool, by: str, reason: str) -> Task:
     """Record a person's decision on an external action outside the authorized scope."""
     if action not in ACTIONS:
-        raise ValueError(f"Choose the action from {', '.join(ACTIONS)}.")
+        raise OgkError("OGK-TASK-131", f"Choose the action from {', '.join(ACTIONS)}.")
     if not _TARGET.fullmatch(target) or "?" in target or "@" in target:
-        raise ValueError("Name the target as a host or tool name, without a query, an address or private details.")
+        raise OgkError("OGK-TASK-055", "Name the target as a host or tool name, without a query, an address or private details.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Supply the decision owner and a reason.")
+        raise OgkError("OGK-TASK-132", "Supply the decision owner and a reason.")
     entry = {
         "action": action, "target": target, "decision": "allow" if allow else "deny",
         "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp(),

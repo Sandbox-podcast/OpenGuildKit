@@ -1,5 +1,4 @@
-"""Route a task to the boards: read the brief and the answers (triggers, negations, concepts, audience and stack),
-then apply the project's required boards and the requester's changes.
+"""Routes a task to boards from its brief and answers, then applies required boards and the requester's changes.
 
 Routing changes with each edition of the catalog's triggers; the consultation (consultation.py) and the rest of
 the workflow read its result.
@@ -10,10 +9,14 @@ Tests: tests/test_short_lane.py
 
 import re
 import unicodedata
+from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any
 
 from . import lazy_re
+from .errors import OgkError
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
+from .records import Catalog, Profile, Task
 
 _STRUCTURED_ROUTES = {
     "kind": {
@@ -524,7 +527,7 @@ _AUDIENCE_WORDS = frozenset((
 ))
 
 
-def _audience_routes(profile: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+def _audience_routes(profile: Profile, task: Task, answers: dict, enabled: set[str]) -> dict[str, str]:
     """Boards of the project's declared roles that the task's audience names, with the passage. The affected
     answer names the audience; the brief and the context name it after "for", "audience" or "pour"."""
     roles = [role for role in profile.get("roles", []) if role in enabled]
@@ -562,7 +565,7 @@ def _stack_words(boards: dict, role: str, stack: list[str]) -> list[str]:
     return trigger_matches({role: boards[role]}, ", ".join(stack)).get(role, [])
 
 
-def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enabled: set[str]) -> dict[str, str]:
+def _stack_routes(profile: Profile, boards: dict, task: Task, answers: dict, enabled: set[str]) -> dict[str, str]:
     """Boards of the project's declared roles that the task's stack calls for, with the reason: the role whose board
     the stack of a touched component names (named in the answers, or a path of the brief), and the frontend or
     backend role when the task touches the surface it serves and the project's stack names its frameworks."""
@@ -585,12 +588,12 @@ def _stack_routes(profile: dict, boards: dict, task: dict, answers: dict, enable
     return found
 
 
-def _task_parts(task: dict, answers: dict) -> list[str]:
+def _task_parts(task: Mapping[str, Any], answers: dict) -> list[str]:
     """The brief and each free-text answer, read one at a time so that a quote never spans two of them."""
     return [text for text in (task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))) if text]
 
 
-def _task_text(task: dict, answers: dict) -> str:
+def _task_text(task: Mapping[str, Any], answers: dict) -> str:
     return " ".join([task["brief"], *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))])
 
 
@@ -602,7 +605,7 @@ def text_routes(boards: dict, brief: str, answers: dict | None = None,
     return _text_reasons(boards, {"brief": brief}, answers or {}, set(boards if enabled is None else enabled))[0]
 
 
-def _text_reasons(boards: dict, task: dict, answers: dict, enabled: set[str]) -> tuple[dict, dict]:
+def _text_reasons(boards: dict, task: Mapping[str, Any], answers: dict, enabled: set[str]) -> tuple[dict, dict]:
     """The reasons the brief and answers give each board, and the passages that exclude boards."""
     reasons: dict[str, list[str]] = {}
     excluded: dict[str, list[str]] = {}
@@ -623,7 +626,7 @@ def _text_reasons(boards: dict, task: dict, answers: dict, enabled: set[str]) ->
     return reasons, {board_id: passages for board_id, passages in excluded.items() if board_id not in reasons}
 
 
-def _route_boards(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
+def _route_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict) -> dict:
     boards = catalog["boards"]
     enabled = set(profile.get("boards") or boards)
     reasons = {}
@@ -668,7 +671,7 @@ def _left_out_reason(board: dict, declared: bool, answers: dict) -> str:
             f"data {answers['data']}) do not call for it and the brief names none of its subjects, such as {examples}")
 
 
-def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) -> list[dict]:
+def suggested_patterns(profile: Profile, catalog: Catalog, task: Task, answers: dict) -> list[dict]:
     """Patterns that the task's concepts call for and the project has not selected yet."""
     # A pattern scoped to components is recorded as {"id": ..., "components": [...]}.
     active = {entry["id"] if isinstance(entry, dict) else entry for entry in profile.get("patterns", [])}
@@ -680,7 +683,7 @@ def suggested_patterns(profile: dict, catalog: dict, task: dict, answers: dict) 
     return [{"id": pattern_id, "reason": reason} for pattern_id, reason in suggestions.items()]
 
 
-def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selection: dict | None = None,
+def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict, selection: dict | None = None,
                   proposed: dict | None = None) -> dict:
     """Apply the project's required boards and the requester's changes to the proposed routing.
 
@@ -697,7 +700,7 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
     delegations = dict(selection.get("delegate") or {})
     unknown = sorted(set(delegations) - set(required))
     if unknown:
-        raise ValueError(f"Only a required board can be delegated: {', '.join(unknown)}.")
+        raise OgkError("OGK-ROUTE-001", f"Only a required board can be delegated: {', '.join(unknown)}.")
     missing = []
     for board_id in required:
         if board_id in enabled:
@@ -708,25 +711,25 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
         else:
             missing.append(board_id)
     if missing:
-        raise ValueError(
+        raise OgkError("OGK-ROUTE-002",
             f"Required reviews are unavailable: {', '.join(missing)} not enabled in the profile. Enable them, "
             "or name the person who will review with --delegate BOARD=NAME."
         )
     adjustments = []
     reason = (selection.get("reason") or "").strip()
     if (selection.get("add") or selection.get("remove")) and not reason:
-        raise ValueError("Give a --reason for adding or removing a board.")
+        raise OgkError("OGK-ROUTE-003", "Give a --reason for adding or removing a board.")
     for board_id in selection.get("add") or []:
         if board_id not in enabled:
-            raise ValueError(f"Board {board_id!r} is not enabled for this project.")
+            raise OgkError("OGK-ROUTE-004", f"Board {board_id!r} is not enabled for this project.")
         if board_id not in routing:
             routing[board_id] = [f"Added by the requester: {reason}"]
             adjustments.append({"action": "add", "board": board_id, "reason": reason})
     for board_id in selection.get("remove") or []:
         if board_id not in routing:
-            raise ValueError(f"Board {board_id!r} was not proposed for this task.")
+            raise OgkError("OGK-ROUTE-006", f"Board {board_id!r} was not proposed for this task.")
         if board_id in required:
-            raise ValueError(f"The project requires the {board_id} review; it cannot be removed.")
+            raise OgkError("OGK-ROUTE-005", f"The project requires the {board_id} review; it cannot be removed.")
         adjustment = {"action": "remove", "board": board_id, "reason": reason}
         protected = _STRUCTURED_ROUTES["data"].get(answers["data"], {}).get(board_id)
         if answers["data"] in PROTECTED_DATA and protected in routing[board_id]:
@@ -734,7 +737,7 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
         del routing[board_id]
         adjustments.append(adjustment)
     if not routing:
-        raise ValueError("Keep at least one board for the consultation.")
+        raise OgkError("OGK-ROUTE-007", "Keep at least one board for the consultation.")
     _, negated = _text_reasons(boards, task, answers, enabled)
     excluded = {board_id: passages for board_id, passages in sorted(negated.items()) if board_id not in routing}
     removed = {item["board"] for item in adjustments if item["action"] == "remove"}
@@ -750,7 +753,7 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
             "not_selected": not_selected, "expected_not_selected": expected}
 
 
-def touched_components(scope: dict, profile: dict) -> set[str]:
+def touched_components(scope: dict, profile: Profile) -> set[str]:
     """Components the task names in its answers, or whose folder a path of the brief falls in."""
     named = set(as_list(scope["answers"].get("components")))
     text = " ".join([scope["brief"], *(scope["answers"].get(key, "") for key in ("context", *FOLLOW_UPS))])

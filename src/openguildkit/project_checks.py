@@ -1,4 +1,4 @@
-"""Propose the project's test commands at setup, and say why a check command failed.
+"""Proposes the project's test commands at setup and explains why a check command failed.
 
 Nothing is run here: the person confirms each proposed command before it becomes a project check.
 

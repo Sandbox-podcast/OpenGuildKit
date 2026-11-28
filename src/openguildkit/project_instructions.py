@@ -1,4 +1,4 @@
-"""Render, merge, sync and check the repository instructions: the managed block of AGENTS.md and its imports.
+"""Renders the managed block of `AGENTS.md`, syncs the instruction files and checks that they are current.
 
 Entry: render_instructions, sync_instructions, check_instructions, managed_block_lines
 Tests: tests/test_chaosfolk.py, tests/test_components.py, tests/test_gemini_host.py, tests/test_host_scan.py
@@ -10,6 +10,7 @@ from pathlib import Path
 from . import lazy_re
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
+from .errors import OgkError
 from .patterns import pattern_selection
 from .project import STATE_DIR, pattern_ids, rules_in_force, state_path
 from .project_rules import (
@@ -19,6 +20,7 @@ from .project_rules import (
     resolved_profile,
     rule_conflicts,
 )
+from .records import Catalog, Profile
 from .rule_checks import describe_check
 from .storage import write_json, write_text
 from .wording import plural
@@ -53,7 +55,7 @@ def rule_text(rule: dict) -> tuple[str, str]:
     )
 
 
-def profile_decision_lines(profile: dict, catalog: dict) -> list[str]:
+def profile_decision_lines(profile: Profile, catalog: Catalog) -> list[str]:
     """The declined patterns and the patterns adopted by a command, with who, when and why when recorded."""
     lines = []
     for entry in profile.get("declined", []):
@@ -83,7 +85,7 @@ def _scope_text(components: dict, scope: list[str] | None) -> str:
     return ", ".join(names)
 
 
-def _component_sections(profile: dict, catalog: dict, components: dict) -> list[str]:
+def _component_sections(profile: Profile, catalog: Catalog, components: dict) -> list[str]:
     """The components of the project and the patterns it selected, each with the components it applies to."""
     lines: list[str] = []
     if components:
@@ -102,7 +104,7 @@ def _component_sections(profile: dict, catalog: dict, components: dict) -> list[
     return lines
 
 
-def _rule_decision_section(profile: dict, catalog: dict) -> list[str]:
+def _rule_decision_section(profile: Profile, catalog: Catalog) -> list[str]:
     """The rule conflicts the profile resolved: which packs apply instead of which, and why."""
     lines: list[str] = []
     applied = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"]]
@@ -121,7 +123,7 @@ def _rule_decision_section(profile: dict, catalog: dict) -> list[str]:
     return lines
 
 
-def _policy_sections(profile: dict) -> list[str]:
+def _policy_sections(profile: Profile) -> list[str]:
     """The approval, requester, waiver, guard and review policies of the profile, its conventions and checks."""
     lines: list[str] = []
     if profile.get("approval", {}).get("mode") == "signed":
@@ -152,13 +154,13 @@ def _policy_sections(profile: dict) -> list[str]:
             "Every consultation includes these boards: "
             + ", ".join(f"`{board_id}`" for board_id in profile["required_boards"]) + "."
         )
-    for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
-        if profile[field]:
-            lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
+    for title, items in (("Team conventions", profile["conventions"]), ("Project checks", profile["checks"])):
+        if items:
+            lines.extend(["", f"### {title}", "", *_bullets(items)])
     return lines
 
 
-def _pack_sections(profile: dict, catalog: dict, resolved: dict, components: dict) -> list[str]:
+def _pack_sections(profile: Profile, catalog: Catalog, resolved: Profile, components: dict) -> list[str]:
     """The rule packs in force, each with the components it applies to, its policy commit and its rules."""
     lines: list[str] = []
     scopes = pack_scopes(profile, catalog) if components else {}
@@ -174,7 +176,7 @@ def _pack_sections(profile: dict, catalog: dict, resolved: dict, components: dic
     return lines
 
 
-def render_instructions(profile: dict, catalog: dict) -> str:
+def render_instructions(profile: Profile, catalog: Catalog) -> str:
     require_resolved_conflicts(profile, catalog)
     resolved = resolved_profile(profile, catalog)
     sector = catalog["sectors"][profile["sector"]]
@@ -249,17 +251,17 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"
     if any(_MARKER_LINE.fullmatch(line.strip()) for line in generated.splitlines()):
-        raise ValueError("Project instructions contain a reserved OpenGuildKit marker.")
+        raise OgkError("OGK-PROJECT-078", "Project instructions contain a reserved OpenGuildKit marker.")
     matches, open_fence = _scan_markers(current)
     block = newline.join([BEGIN, generated.replace("\n", newline), END])
     if not matches:
         if open_fence is not None:
             # Appending would put the rules inside the code block, and each sync would add another copy.
-            raise ValueError(f"{label} ends inside an unclosed code block at line {open_fence}. Close it and retry.")
+            raise OgkError("OGK-PROJECT-029", f"{label} ends inside an unclosed code block at line {open_fence}. Close it and retry.")
         separator = newline if current.endswith(newline) else newline * 2
         return current + (separator if current else "") + block + newline
     if [kind for kind, _, _ in matches] != [BEGIN, END]:
-        raise ValueError(f"{label} has malformed OpenGuildKit markers. Repair the marked block and retry.")
+        raise OgkError("OGK-PROJECT-030", f"{label} has malformed OpenGuildKit markers. Repair the marked block and retry.")
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
@@ -283,13 +285,13 @@ def hand_edits(current: str, generated: str) -> list[str]:
 def _read_instructions(path: Path) -> tuple[str, bool]:
     """Read an instructions file and report whether it starts with a UTF-8 byte order mark."""
     if path.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project instructions: {path}")
+        raise OgkError("OGK-PROJECT-031", f"Refusing a symbolic link as project instructions: {path}")
     if not path.exists():
         return "", False
     try:
         text = path.read_bytes().decode("utf-8")
     except UnicodeDecodeError as error:
-        raise ValueError(f"{path.name} is not UTF-8 (byte {error.start + 1}): convert it to UTF-8 and retry.") from error
+        raise OgkError("OGK-PROJECT-032", f"{path.name} is not UTF-8 (byte {error.start + 1}): convert it to UTF-8 and retry.") from error
     return (text[1:], True) if text.startswith(BOM) else (text, False)
 
 
@@ -334,11 +336,11 @@ def _gemini_instructions(current: str) -> str:
     return _import_instructions(current, GEMINI_FILE, "@./AGENTS.md")
 
 
-def _wants_gemini_file(root: Path, profile: dict) -> bool:
+def _wants_gemini_file(root: Path, profile: Profile) -> bool:
     return profile.get("host") == "gemini-cli" and not _links_to_agents(root, GEMINI_FILE)
 
 
-def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
+def sync_instructions(root: Path, profile: Profile, catalog: Catalog) -> list[str]:
     """Write the managed instructions; returns the lines a person had edited in the block, which it replaces."""
     state = state_path(root)
     instructions = root / "AGENTS.md"
@@ -369,24 +371,25 @@ def sync_instructions(root: Path, profile: dict, catalog: dict) -> list[str]:
     return replaced
 
 
-def initialize(root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def initialize(root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     path = state / "project.json"
     if path.exists():
-        raise ValueError(ALREADY_INITIALIZED)
+        raise OgkError("OGK-PROJECT-079", ALREADY_INITIALIZED)
     sync_instructions(root, profile, catalog)
     write_json(path, profile)
 
 
-class RuleError(ValueError):
+class RuleError(OgkError):
     """A problem `check` reports under a rule of docs/sarif.md.
 
-    `code` is the rule's stable code, None when the findings were already reported one by one; `files` are the files
-    the problem concerns, relative to the project root. The message is the one the command prints.
+    `code` is the error's stable code (#487); `rule` is the finding ID of the rule, None when the findings were already
+    reported one by one; `files` are the files the problem concerns, relative to the project root. The message is the
+    one the command prints.
     """
 
-    def __init__(self, message: str, code: str | None, files: tuple[str, ...] | list[str] = ()):
-        super().__init__(message)
-        self.code = code
+    def __init__(self, code: str, message: str, rule: str | None, files: tuple[str, ...] | list[str] = ()):
+        super().__init__(code, message)
+        self.rule = rule
         self.files = tuple(files)
 
 
@@ -410,7 +413,7 @@ def _outdated_files(generated: str, current: str, claude: str, linked: bool, ign
     return [name for name, test in checks if _outdated(test)]
 
 
-def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
+def check_instructions(root: Path, profile: Profile, catalog: Catalog) -> None:
     current = _instruction_text(root / "AGENTS.md")
     linked = _claude_links_to_agents(root)
     claude = "" if linked else _instruction_text(root / "CLAUDE.md")
@@ -419,7 +422,7 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     generated = render_instructions(profile, catalog)
     edited = hand_edits(current, generated)
     if edited:
-        raise RuleError(
+        raise RuleError("OGK-PROJECT-076",
             f"The OpenGuildKit block of AGENTS.md was edited by hand ({plural(len(edited), 'line')}, first: {edited[0][:80]}). "
             "openguildkit sync replaces the block: move your own text outside the markers first.",
             "instructions-edited", ["AGENTS.md"],
@@ -430,5 +433,5 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
         or (gemini is not None and gemini != _gemini_instructions(gemini))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):
-        raise RuleError("OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
+        raise RuleError("OGK-PROJECT-077", "OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
                         _outdated_files(generated, current, claude, linked, ignore, gemini))

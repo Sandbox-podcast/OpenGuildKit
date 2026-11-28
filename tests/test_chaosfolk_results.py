@@ -72,6 +72,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         self.assertEqual(run["summary"], "qa-results/summary.json")
 
     def test_a_file_that_is_not_a_summary_is_refused(self):
+        # OGK-RESULT-028
         bad = self.root / "bad.json"
         write_json(bad, {"results": []})
         stderr = io.StringIO()
@@ -93,6 +94,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         self.assertIn("chaosfolk:login failed", self.complete_error())
 
     def test_a_scenario_missing_from_the_last_replay_is_not_counted_as_passed(self):
+        # OGK-TASK-050
         self.replay(("a.json", "passed", ""), ("b.json", "passed", ""))
         output = self.replay(("b.json", "passed", ""))
         self.assertIn("chaosfolk:a.json: missing", output)

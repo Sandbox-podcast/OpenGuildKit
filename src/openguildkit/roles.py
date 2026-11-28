@@ -1,4 +1,5 @@
-"""Roles by board (#475), off by default: who may clear a board's blockers and approve what a board blocked.
+"""Roles by board, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with
+`profile set approver-roles`.
 
 `approval.roles` maps a board to the people of its role, set by `profile set approver-roles BOARD NAME...`. A blocker a
 board raised is then cleared or waived only by a member of its role, and a task on which a board with a role gave a
@@ -11,10 +12,11 @@ Entry: members, clearance_problem, blocking_boards, approval_problem, record_pro
 Tests: tests/test_roles.py
 """
 
+from .records import Profile, Task
 from .requester import same_person
 
 
-def members(profile: dict, board: str) -> list[str] | None:
+def members(profile: Profile, board: str) -> list[str] | None:
     """The people of the board's role; None when the profile gives the board none."""
     roles = (profile.get("approval") or {}).get("roles")
     names = roles.get(board) if isinstance(roles, dict) else None
@@ -31,7 +33,7 @@ def _role(names: list[str], boards: list[str], signed: bool) -> str:
     return f"{'a signer' if signed else 'a person'} of role {' or '.join(boards)} ({', '.join(names)})"
 
 
-def clearance_problem(profile: dict, blocker: dict, by: str, signer: str | None = None,
+def clearance_problem(profile: Profile, blocker: dict, by: str, signer: str | None = None,
                       waiver: bool = False) -> str | None:
     """Why this person may not clear or waive the blocker, or None. signer is the verified signer of a signed
     clearance: the role is read from it. A waiver is not signed: it is read from --by."""
@@ -44,17 +46,17 @@ def clearance_problem(profile: dict, blocker: dict, by: str, signer: str | None 
     return f"{blocker['id']} was raised by the {blocker['board']} board: {role}. {who} is not one of them."
 
 
-def blocking_boards(profile: dict, boards: list[dict], blockers: list[dict]) -> list[str]:
+def blocking_boards(profile: Profile, boards: list[dict], blockers: list[dict]) -> list[str]:
     """The boards with a role that blocked: a block verdict, or at least one blocker. boards hold id and verdict."""
     blocked = {item["board"] for item in blockers} | {item["id"] for item in boards if item.get("verdict") == "block"}
     return sorted(board for board in blocked if members(profile, board))
 
 
-def _admitted(profile: dict, boards: list[str]) -> list[str]:
+def _admitted(profile: Profile, boards: list[str]) -> list[str]:
     return list(dict.fromkeys(name for board in boards for name in members(profile, board) or []))
 
 
-def approval_problem(task: dict, profile: dict, by: str, signer: str | None = None) -> str | None:
+def approval_problem(task: Task, profile: Profile, by: str, signer: str | None = None) -> str | None:
     """Why this approval is refused: a board with a role blocked the task and the approver is of none of those roles."""
     from .workflow import blocker_list  # Only task decide needs it.
 
@@ -70,7 +72,7 @@ def approval_problem(task: dict, profile: dict, by: str, signer: str | None = No
             f"{task['id']}: {role}. {who} is not one of them.")
 
 
-def record_problems(record: dict, profile: dict) -> list[str]:
+def record_problems(record: dict, profile: Profile) -> list[str]:
     """What guard --ci refuses in a record the base revision does not carry, by the roles of the base revision: a
     blocker cleared or waived outside the role of its board, an approval outside the roles of the boards that blocked."""
     problems = []

@@ -1,4 +1,4 @@
-"""Install the agent skill and the subagents (board, market analyst, dependency watch) shipped with this version.
+"""Installs the agent skill and the subagents shipped with this version.
 
 Entry: packaged_file, install_agent_files
 Tests: tests/test_gemini_host.py
@@ -7,6 +7,7 @@ Tests: tests/test_gemini_host.py
 from pathlib import Path
 
 from .catalog import package_file
+from .errors import OgkError
 from .lock import package_version
 from .storage import write_text
 
@@ -53,7 +54,7 @@ def install_agent_files(base: Path, host: str, force: bool = False) -> list[dict
     """Copy the packaged files under base (a project or the home folder). Modified files are kept
     unless force is set, in which case the previous version is saved next to them."""
     if host not in HOST_FILES:
-        raise ValueError(f"Choose the host from {', '.join(HOST_FILES)}.")
+        raise OgkError("OGK-CI-007", f"Choose the host from {', '.join(HOST_FILES)}.")
     report = []
     # One version note per folder of files, next to SKILL.md for the skill: not one in references/.
     kept: dict[Path, list[str]] = {_version_folder(path): [] for path in HOST_FILES[host].values()}
@@ -61,7 +62,7 @@ def install_agent_files(base: Path, host: str, force: bool = False) -> list[dict
         target = base / relative
         content = packaged_file(name)
         if target.is_symlink():
-            raise ValueError(f"Refusing to replace a symbolic link: {target}")
+            raise OgkError("OGK-CI-008", f"Refusing to replace a symbolic link: {target}")
         if not target.exists():
             write_text(target, content)
             report.append({"file": str(relative), "action": "installed"})

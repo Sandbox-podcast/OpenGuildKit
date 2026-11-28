@@ -1,4 +1,4 @@
-"""What __main__ reads before it imports the rest of the package: the version, and the guard mode a profile declares.
+"""What `__main__` reads before importing the rest of the package: the version, and the guard mode a profile declares.
 
 Both need only the standard library and storage, so that `openguildkit --version`, and the edit hook of a project whose guard
 is off, answer without importing the CLI or the guard (#539).

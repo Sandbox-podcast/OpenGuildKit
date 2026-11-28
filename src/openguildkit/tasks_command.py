@@ -1,4 +1,5 @@
-"""The one argument of every task action that acts on a task: the command line, the project and the task record.
+"""The one argument of every task action that acts on a task: the command line, the project, its profile and catalog,
+and the task record.
 
 Entry: TaskCommand
 Tests: tests/test_approval_lifecycle.py, tests/test_next_steps.py
@@ -7,6 +8,8 @@ Tests: tests/test_approval_lifecycle.py, tests/test_next_steps.py
 from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
+
+from .records import Catalog, Profile, Task
 
 
 @dataclass(frozen=True)
@@ -17,6 +20,6 @@ class TaskCommand:
     args: Namespace
     root: Path
     state: Path
-    profile: dict
-    catalog: dict
-    task: dict
+    profile: Profile
+    catalog: Catalog
+    task: Task

@@ -1,4 +1,5 @@
-"""The short lane: a shorter way through the workflow for a change a person declares trivial.
+"""The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules,
+dependencies, the profile, agent instructions) and the one board its paths call for.
 
 A profile that names `light_paths` (folder or file globs such as `docs/**` and `tests/**`) lets a task be opened with
 `task new ID --lane light --paths GLOB...`. The lane drops what has no meaning for one reviewing board: the
@@ -15,6 +16,9 @@ Tests: tests/e2e/test_short_lane.py
 """
 
 import re
+
+from .errors import OgkError
+from .records import Catalog, Profile, Task
 
 # The edit hook loads this module: doc_links and wording are imported in the functions that use them (#539).
 
@@ -52,7 +56,7 @@ _MANIFEST_TEXT = re.compile(r"(?:requirements|constraints)[\w.-]*\.txt")
 NEVER = "rules, dependencies, the profile and the instructions of agents"
 
 
-class ExcludedPath(ValueError):
+class ExcludedPath(OgkError):
     """A path the lane never covers, named with what it is."""
 
 
@@ -108,7 +112,7 @@ def normalize_entry(entry: object) -> str:
     """A path or glob as the lane keeps it: inside the project, with `*`, `?` and `**` as the only wildcards, and not
     the whole project. A trailing slash names a folder."""
     if not isinstance(entry, str) or not entry.strip():
-        raise ValueError(f"{entry!r} is not a path: write a folder or file glob such as docs/** or README.md.")
+        raise OgkError("OGK-LANE-001", f"{entry!r} is not a path: write a folder or file glob such as docs/** or README.md.")
     text = entry.strip()
     if text.endswith("/"):
         text += "**"
@@ -125,7 +129,7 @@ def normalize_entry(entry: object) -> str:
     elif segments[0] == "**":
         problem = "that is the whole project: start from a folder or a file name, as in docs/**"
     if problem:
-        raise ValueError(f"{entry!r} is not a path of the short lane: {problem}.")
+        raise OgkError("OGK-LANE-002", f"{entry!r} is not a path of the short lane: {problem}.")
     return text
 
 
@@ -135,14 +139,14 @@ def normalize_entries(values: object, label: str) -> list[str]:
     from .doc_links import doc_link
 
     if not isinstance(values, list) or not values:
-        raise ValueError(f"{label} needs a list of at least one path, such as docs/**.")
+        raise OgkError("OGK-LANE-003", f"{label} needs a list of at least one path, such as docs/**.")
     entries = sorted({normalize_entry(item) for item in values})
     if len(entries) > MAX_PATHS:
-        raise ValueError(f"{label} lists {len(entries)} paths: at most {MAX_PATHS}; use folders such as docs/**.")
+        raise OgkError("OGK-LANE-004", f"{label} lists {len(entries)} paths: at most {MAX_PATHS}; use folders such as docs/**.")
     for entry in entries:
         reason = declared_excluded(entry)
         if reason:
-            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
+            raise ExcludedPath("OGK-LANE-011", f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
                                f"({doc_link('docs/workflow.md', 'short-lane')}).")
     return entries
 
@@ -283,41 +287,41 @@ def _usable(paths: list[str] | None) -> list[str]:
         return list(DEFAULT_PATHS)
 
 
-def declare(lane: str | None, paths: list[str] | None, profile: dict) -> dict:
+def declare(lane: str | None, paths: list[str] | None, profile: Profile) -> dict:
     """The lane fields of a new task: {} for the full path, {"lane": "light", "paths": [...]} for the short lane.
 
     Refuses a lane the profile has not turned on (with the command a person types), a path the lane never covers, and
     a path the profile's light_paths do not cover (with the command of the full path)."""
     if lane is None:
         if paths:
-            raise ValueError("--paths belongs to the short lane: add --lane light, or leave --paths out for the full path.")
+            raise OgkError("OGK-LANE-005", "--paths belongs to the short lane: add --lane light, or leave --paths out for the full path.")
         return {}
     light = profile.get("light_paths") or []
     if not light:
-        raise ValueError(
+        raise OgkError("OGK-LANE-006",
             "the short lane is off in this project: its profile names no paths it may cover (light_paths). A person "
             f"turns it on at their terminal: {activation_command(_usable(paths))}; a task opened without --lane takes the "
             "full path.")
     if not paths:
-        raise ValueError(f"Name the paths a short-lane task may change: --paths GLOB..., inside {', '.join(light)}.")
+        raise OgkError("OGK-LANE-007", f"Name the paths a short-lane task may change: --paths GLOB..., inside {', '.join(light)}.")
     try:
         entries = normalize_entries(list(paths), "--paths")
     except ExcludedPath as error:
-        raise ValueError(f"{error} Open the task on the full path: {FULL_PATH}.") from None
+        raise OgkError("OGK-LANE-008", f"{error} Open the task on the full path: {FULL_PATH}.") from None
     outside = outside_light_paths(entries, light)
     if outside:
-        raise ValueError(
+        raise OgkError("OGK-LANE-009",
             f"the short lane of this project covers only {', '.join(light)}; these paths are outside it: "
             f"{', '.join(outside)}. Open the task on the full path ({FULL_PATH}, without --lane), or have a person "
             f"widen the lane at their terminal: {activation_command(sorted({*light, *outside}))}.")
     return {"lane": LANE, "paths": entries}
 
 
-def is_light(task: dict) -> bool:
+def is_light(task: Task) -> bool:
     return task.get("lane") == LANE
 
 
-def lane_problem(task: dict, profile: dict) -> str | None:
+def lane_problem(task: Task, profile: Profile) -> str | None:
     """Why a short-lane task no longer fits the profile (the lane was turned off or narrowed after the task was
     opened), or None. A task of the full path has none."""
     if not is_light(task):
@@ -339,7 +343,7 @@ def lane_problem(task: dict, profile: dict) -> str | None:
 DEFAULTS = "maintenance work, no sensitive data, local research, no particular topic"
 
 
-def default_answers(task: dict) -> dict:
+def default_answers(task: Task) -> dict:
     """The answers of a short-lane task, in place of the questionnaire: the careful ones. Maintenance work, no
     sensitive data, local research and no particular topic leave the rules of every other surface open (surface other
     is an open answer), so the lane asks the closing no less than a person's unsure would."""
@@ -348,14 +352,14 @@ def default_answers(task: dict) -> dict:
                        f"may change only {', '.join(task['paths'])}."}
 
 
-def proposed_routing(task: dict, profile: dict, catalog: dict) -> dict | None:
+def proposed_routing(task: Task, profile: Profile, catalog: Catalog) -> dict | None:
     """The routing of a short-lane task, one board by its paths (routing.select_boards then adds the project's
     required boards); None for the full path. A board the project has not enabled is named, never replaced."""
     if not is_light(task):
         return None
     board, reason = board_for(task["paths"])
     if board not in set(profile.get("boards") or catalog["boards"]):
-        raise ValueError(
+        raise OgkError("OGK-LANE-010",
             f"The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not "
             f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS "
             f"--reason WHY), or the work takes the full path ({FULL_PATH}).")
@@ -378,7 +382,7 @@ def no_route_message(task_id: str) -> str:
             f"consult {task_id} convenes it and prints the request.")
 
 
-def decision_lines(task: dict) -> list[str]:
+def decision_lines(task: Task) -> list[str]:
     """What the person reads before approving a short-lane task: the lane and its paths come with the approval."""
     if not is_light(task):
         return []
@@ -389,7 +393,7 @@ def decision_lines(task: dict) -> list[str]:
             f"instructions are never in the lane. Approving also approves the lane and these paths."]
 
 
-def handoff_note(task: dict) -> str:
+def handoff_note(task: Task) -> str:
     if not is_light(task):
         return ""
     return (f" Short lane: change only {', '.join(task['paths'])}; the guard, task complete and guard --ci refuse "

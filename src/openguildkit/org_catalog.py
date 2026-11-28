@@ -1,4 +1,5 @@
-"""An organization catalog that several repositories follow (RFC #446): an option, off by default.
+"""Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network;
+fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one.
 
 A person pins, in `catalog.lock.json`, a commit of a local Git copy of the organization's catalog. Its packs,
 patterns, brains and sectors, in the format of a project catalog, add to the bundled catalog; the project's own
@@ -22,6 +23,8 @@ from pathlib import Path
 from typing import NoReturn
 
 from . import lazy_re
+from .errors import OgkError
+from .records import Catalog
 
 # The edit hook loads this module: git and shell are imported in the functions that use them (#539).
 
@@ -81,7 +84,7 @@ def parse_copies(items: list[str] | None) -> dict[str, str]:
     for item in items or []:
         name, _, path = item.partition("=")
         if not NAME.fullmatch(name) or not path:
-            raise ValueError(f"--org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}.")
+            raise OgkError("OGK-ORG-001", f"--org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}.")
         copies[name] = str(Path(path).resolve())
     return copies
 
@@ -100,7 +103,7 @@ def _named_folder(name: str, named: dict[str, str]) -> Path:
     """The copy of the catalog a lock names: the folder given for guard --ci, else the variable of this machine."""
     given = named.get(name) or os.environ.get(variable_name(name))
     if not given:
-        raise ValueError(f"This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to "
+        raise OgkError("OGK-ORG-002", f"This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to "
                          f"your Git copy of it (guard --ci: --org-catalog {name}=PATH).")
     return Path(given).resolve()
 
@@ -113,7 +116,7 @@ def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
     listing = git.required(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE, needs=_NEEDS_GIT,
                            offline=True)
     if listing.returncode:
-        raise ValueError(f"Git could not list the files of {commit[:12]} in {repo}.")
+        raise OgkError("OGK-ORG-013", f"Git could not list the files of {commit[:12]} in {repo}.")
     files = []
     for item in listing.stdout.split(b"\0"):
         if not item:
@@ -137,7 +140,7 @@ def _contents(repo: Path, objects: list[str]) -> list[bytes]:
     result = git.required(repo, "cat-file", "--batch", stdin="".join(f"{obj}\n" for obj in objects).encode("ascii"),
                           needs=_NEEDS_GIT, offline=True)
     if result.returncode:
-        raise ValueError(f"Git could not read the organization catalog in {repo}.")
+        raise OgkError("OGK-ORG-014", f"Git could not read the organization catalog in {repo}.")
     output, position, contents = result.stdout, 0, []
     for _ in objects:
         end = output.index(b"\n", position)
@@ -163,7 +166,7 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
     from .shell import shell_word
 
     if not FULL_COMMIT.fullmatch(commit):
-        raise ValueError(f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
+        raise OgkError("OGK-ORG-003", f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
                          f"{shell_word(repo)} rev-parse COMMIT prints it.")
     named = folder is not None
     folder = folder or repo_folder(repo, root)
@@ -172,12 +175,12 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
         return _READ[key]
     shown = repo if str(folder) == repo else f"{repo} ({'the copy at' if named else 'resolved to'} {folder.resolve()})"
     if not _is_repository(folder):
-        raise ValueError(f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
+        raise OgkError("OGK-ORG-004", f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
                          f"path, or point the project at your copy at a terminal: {SET_COMMAND}.")
     found = git.required(folder, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}", needs=_NEEDS_GIT,
                          offline=True)
     if found.returncode or found.stdout.strip() != commit.encode("ascii"):
-        raise ValueError(f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
+        raise OgkError("OGK-ORG-005", f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
                          f"{shell_word(str(folder) if named else repo)} fetch, then the command again, or "
                          f"pin a commit the copy has at a terminal: {SET_COMMAND}.")
     listed = _listed_files(folder, commit)
@@ -194,7 +197,7 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
 def validate_pin(pin: object, where: str) -> None:
     """The "organization" entry of a catalog lock."""
     def refuse(problem: str) -> NoReturn:
-        raise ValueError(f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
+        raise OgkError("OGK-ORG-015", f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
                          f"catalog again at a terminal: {SET_COMMAND}.")
 
     if not isinstance(pin, dict) or not {"commit", "fingerprint", "pinned"} <= pin.keys() <= PIN_FIELDS \
@@ -222,7 +225,7 @@ def validate_history(history: object, where: str) -> None:
     if not isinstance(history, list) or not all(
             isinstance(item, dict) and item.keys() == HISTORY_FIELDS and item["action"] in ("pinned", "stopped")
             and all(isinstance(item[key], str) for key in HISTORY_FIELDS) for item in history):
-        raise ValueError(f"{where}: organization_history must list pinned and stopped entries with action, commit, "
+        raise OgkError("OGK-ORG-016", f"{where}: organization_history must list pinned and stopped entries with action, commit, "
                          f"by, reason and on. Restore the file from Git.")
 
 
@@ -238,13 +241,13 @@ def organization_in(lock: dict | None, state: Path) -> dict | None:
     else:
         read = read_files(pin["repo"], pin["commit"], root)
     if read["fingerprint"] != pin["fingerprint"]:
-        raise ValueError(f"The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint "
+        raise OgkError("OGK-ORG-006", f"The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint "
                          f"pinned in {LOCK_NAME}. Restore the lock from Git, or review the commit and pin it again "
                          f"at a terminal: {SET_COMMAND}.")
     return read
 
 
-def records_of(catalog: dict) -> dict[str, dict]:
+def records_of(catalog: Catalog) -> dict[str, dict]:
     """The organization records of a catalog, by collection/id."""
     provided = catalog.get("organization", {}).get("records", {})
     return {f"{collection}/{record_id}": catalog[collection][record_id]
@@ -264,7 +267,7 @@ def changes(before: dict[str, dict], after: dict[str, dict]) -> dict:
             "changed": changed}
 
 
-def replacements(catalog: dict, lock: dict | None) -> list[dict]:
+def replacements(catalog: Catalog, lock: dict | None) -> list[dict]:
     """The project records that replace an organization record, each with the acceptance that covers it, or None.
     An acceptance covers the organization record it was given for: a new edition of it needs a new one."""
     replaced = catalog.get("organization", {}).get("replaced", {})
@@ -278,7 +281,7 @@ def replacements(catalog: dict, lock: dict | None) -> list[dict]:
     return rows
 
 
-def unaccepted_replacements(catalog: dict, lock: dict | None) -> dict[str, str]:
+def unaccepted_replacements(catalog: Catalog, lock: dict | None) -> dict[str, str]:
     """The line check prints for each replacement no person accepted, by collection/id."""
     return {row["record"]: (f"the project catalog replaces {row['record']} of the organization catalog "
                             f"(.openguildkit/catalog/{row['record']}.json). If a person agrees, openguildkit "

@@ -1,7 +1,7 @@
 """Exports an approval decision and its withdrawal as a signed record, and names the conflicts between records.
 
 Entry: export_decision, record_of_another_task, record_shape, conflict_message, withdrawal_of, export_withdrawal,
-untracked_files, changes_since_approval, RECORD_VERSION
+untracked_files, changes_since_approval, RECORD_VERSION, print_written
 Tests: tests/test_audit_log.py, tests/test_before_delivered_review.py, tests/test_delivered_review.py,
 tests/test_evidence_fingerprints.py, tests/test_exit_codes.py, tests/test_gemini_host.py,
 tests/test_managed_settings.py, tests/test_org_catalog.py, tests/test_record_lifecycle.py, tests/test_requester.py,
@@ -22,11 +22,13 @@ from .decisions import (
     exported_boards,
     exported_rounds,
 )
+from .errors import OgkError
 from .project import STATE_DIR
-from .storage import read_json, write_json
+from .records import Profile, Task
+from .storage import print_json, read_json, write_json
 
 
-def export_decision(root: Path, state: Path, task: dict, profile: dict, output: Path | None = None) -> Path:
+def export_decision(root: Path, state: Path, task: Task, profile: Profile, output: Path | None = None) -> Path:
     """Write a shareable record of an approved decision: no evidence details, no internal notes.
 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
@@ -34,7 +36,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     from .workflow import TaskStateError, mock_evidence
 
     if task["status"] not in ("approved", "done", "done-with-reservations"):
-        raise TaskStateError("Only an approved or completed task can be exported.")
+        raise TaskStateError("OGK-GUARD-017", "Only an approved or completed task can be exported.")
     check_decision(task, root, profile)
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     _refuse_foreign_record(root, path, task)
@@ -81,14 +83,14 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 RECORD_VERSION = 2
 
 
-def _exported_result(task: dict) -> dict:
+def _exported_result(task: Task) -> dict:
     """The result part of an exported record: the checks and their exceptions, the journals, the evidence declared
     or supplied, the criteria and how each was verified."""
     from .results import verification_of
 
     # A decision task closes without a result file: its result holds only the closing.
     checks = task["result"].get("checks", [])
-    result = {
+    result: dict = {
         key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
     }
     result["checks"] = {item["check"]: item["status"] for item in checks}
@@ -128,7 +130,7 @@ def _exported_result(task: dict) -> dict:
     return result
 
 
-def _export_extras(root: Path, task: dict, record: dict) -> None:
+def _export_extras(root: Path, task: Task, record: dict) -> None:
     """Add to the record what the task gathered besides its result: blockers, evidence states, the task it follows,
     the declined scope, the review of the delivered diff."""
     from .delivered_review import exported_review
@@ -165,7 +167,7 @@ def changed_files(root: Path, base_revision: dict | None) -> list[str] | None:
     return sorted({path for path in changed_paths_since(root, base_revision["commit"]) if not path.startswith(prefix)})
 
 
-def _same_task(record: object, task: dict) -> bool:
+def _same_task(record: object, task: Task) -> bool:
     """Whether an existing record is this task's own earlier export: same ID, same creation time when the record
     names it, and an approval of one of this task's consultations (each has its own random ID)."""
     if not isinstance(record, dict) or record.get("task") != task["id"]:
@@ -179,7 +181,7 @@ def _same_task(record: object, task: dict) -> bool:
     return isinstance(consultation, str) and consultation in ids
 
 
-def record_of_another_task(state: Path, task: dict) -> Path | None:
+def record_of_another_task(state: Path, task: Task) -> Path | None:
     """The exported record that uses this local task's ID while it belongs to another task, if any."""
     path = state / DECISIONS_DIR / f"{task['id']}.json"
     if not path.is_file():
@@ -191,7 +193,7 @@ def record_of_another_task(state: Path, task: dict) -> Path | None:
     return None if _same_task(record, task) else path
 
 
-def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
+def _refuse_foreign_record(root: Path, path: Path, task: Task) -> None:
     """Never replace a record that another task wrote, such as a teammate's decision with the same ID.
 
     Only a regular file can hold a record: a device such as /dev/null, given with --output, receives it as is.
@@ -206,8 +208,8 @@ def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
         shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
         conflict = conflict_message(path, shown) if existing is None else None
         if conflict:
-            raise ValueError(conflict)
-        raise ValueError(f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
+            raise OgkError("OGK-GUARD-009", conflict)
+        raise OgkError("OGK-GUARD-010", f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
                          f"it is left as it is. Read it with openguildkit task list --decisions; export this task "
                          "with --output to another file, or open it again under another ID.")
 
@@ -242,7 +244,7 @@ def record_shape(record: dict, relative: str) -> None:
             isinstance(record["withdrawn"].get(key), str) for key in ("by", "reason", "at"))):
         problem = "withdrawn must name who withdrew the approval, why and when (by, reason, at)"
     if problem:
-        raise ValueError(f"{relative} is not a decision record written by openguildkit task export: {problem}. "
+        raise OgkError("OGK-GUARD-011", f"{relative} is not a decision record written by openguildkit task export: {problem}. "
                          "Export the decision again or remove the file.")
 
 
@@ -278,7 +280,7 @@ def conflict_message(path: Path, relative: str) -> str | None:
             f"another ID, and export it again (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
-def withdrawal_of(task: dict, record: dict) -> dict | None:
+def withdrawal_of(task: Task, record: dict) -> dict | None:
     """Who withdrew, why and when, from the round of the task that holds the approval the record carries."""
     for previous in task.get("rounds", []):
         if isinstance(previous.get("revoked"), dict) and \
@@ -287,7 +289,7 @@ def withdrawal_of(task: dict, record: dict) -> dict | None:
     return None
 
 
-def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None = None) -> Path:
+def export_withdrawal(root: Path, state: Path, task: Task, output: Path | None = None) -> Path:
     """Write the withdrawal of an approval into the record that task export wrote of it, so that CI refuses it.
 
     The record keeps the approval as it was, with who withdrew it, why and when; its digest is computed again.
@@ -297,16 +299,16 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
     if not any(isinstance(item.get("revoked"), dict) for item in task.get("rounds", [])):
-        raise TaskStateError("Only an approved or completed task can be exported, or one whose approval was withdrawn.")
+        raise TaskStateError("OGK-GUARD-018", "Only an approved or completed task can be exported, or one whose approval was withdrawn.")
     if not path.is_file():
-        raise ValueError(f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
+        raise OgkError("OGK-GUARD-012", f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
                          "record to write the withdrawal into, and nothing for guard --ci to accept.")
     _refuse_foreign_record(root, path, task)
     record = read_json(path)
     record_shape(record, shown)
     withdrawn = withdrawal_of(task, record)
     if withdrawn is None:
-        raise ValueError(f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
+        raise OgkError("OGK-GUARD-021", f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
     record = {key: value for key, value in record.items() if key != "record_sha256"}
     record["withdrawn"] = withdrawn
     record["record_sha256"] = export_digest(record)
@@ -323,8 +325,17 @@ def untracked_files(root: Path) -> list[str]:
                   if not path.startswith(prefix))
 
 
-def changes_since_approval(root: Path, task: dict) -> list[str] | None:
+def changes_since_approval(root: Path, task: Task) -> list[str] | None:
     """The files Git tracks that changed since the task's approval, committed or not, and the new files it does not
     track yet (the decision records left out); None when the approval named no Git revision."""
     files = changed_files(root, (task.get("decision") or {}).get("base_revision"))
     return None if files is None else sorted({*files, *untracked_files(root)})
+
+
+def print_written(args, root: Path, path: Path, withdrawn: bool) -> None:
+    """The path of the record task export wrote, relative to the project when it is inside, or as JSON with --json."""
+    shown = path.relative_to(root).as_posix() if root in path.parents else str(path)
+    if args.json:
+        print_json({"task": args.id, "path": shown, "withdrawn": withdrawn})
+    else:
+        print(shown)

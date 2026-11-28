@@ -76,7 +76,7 @@ EXAMPLES = [
     Example("bare", "completion bash"), Example("bare", "completion zsh"),
     # Setting up and keeping a project.
     Example("bare", "init --questions"), Example("bare", "init --answers $example/profile.json"),
-    Example("init", "sync"), Example("init", "check"), Example("claude", "check --format sarif", code=1),
+    Example("init", "sync"), Example("init", "check"), Example("init", "check --json"), Example("claude", "check --format sarif", code=1),
     Example("init", "update"), Example("init", "update --json"),
     Example("git", "guard --ci --base HEAD"), Example("git", "guard --ci --base HEAD --format sarif"),
     Example("init", "guard"), Example("init", "guard --json"),
@@ -201,11 +201,12 @@ EXAMPLES = [
             typed=TASK),
     Example("reviewed", "task decision-payload request-status --by CM --reason Agreed"),
     Example("reviewed", "task decide request-status --approve --by CM --reason Agreed", typed=TASK),
+    Example("reviewed", "task decide request-status --approve --by CM --reason Agreed --json", typed=TASK),
     Example("approved", "task handoff request-status"),
     Example("approved", "task show request-status"), Example("approved", "task show request-status --json"),
     Example("approved", "task show request-status --summary"),
     Example("approved", "task checks request-status"), Example("approved", "task checks request-status --json"),
-    Example("approved", "task verify request-status"),
+    Example("approved", "task verify request-status"), Example("approved", "task verify request-status --json"),
     Example("approved", "task result request-status --template"),
     Example("approved", "task alerts request-status"), Example("alerted", "task alerts request-status --json"),
     Example("approved", "task authorize request-status --action publish --target staging --allow --by CM --reason Launch",
@@ -214,7 +215,7 @@ EXAMPLES = [
     Example("replayed", "task runs request-status"), Example("replayed", "task runs request-status --json"),
     Example("resulted", "task complete request-status --by CM", typed=TASK),
     Example("done", "task show request-status --closing"),
-    Example("done", "task export request-status"),
+    Example("done", "task export request-status"), Example("done", "task export request-status --json"),
     # The boards' review of the delivered diff, in a project in Git.
     Example("delivered", "task diff-review request-status"),
     Example("delivered", "task diff-review request-status --json"),
@@ -680,6 +681,7 @@ class CommandOutputBudgetTests(unittest.TestCase):
         assert_within_budget(example.command, self.measure(example), budget_of(example.command))
 
     def test_every_command_prints_at_most_its_budget(self):
+        # OGK-CORE-006
         for example in EXAMPLES:
             with self.subTest(command=example.command):
                 self.check(example)

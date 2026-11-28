@@ -123,6 +123,7 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertEqual(self.lock()["organization"]["commit"], second)
 
     def test_a_removed_record_the_profile_uses_is_refused_with_what_to_do(self):
+        # OGK-ORG-008
         self.pin(self.first)
         self.cli("profile", "add", "pack", "org-logging", "--by", "CM", "--reason", "Logs")
         (self.org / "packs" / "org-logging.json").unlink()
@@ -133,6 +134,7 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertEqual(self.lock()["organization"]["commit"], self.first)
 
     def test_check_fails_when_the_copy_or_the_commit_is_missing_and_says_how_to_fix_it(self):
+        # OGK-ORG-005
         self.pin(self.first)
         moved = self.base / "elsewhere"
         shutil.move(self.org, moved)
@@ -148,6 +150,7 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertIn("git -C ../org fetch", unknown.stderr)
 
     def test_files_that_differ_from_the_pinned_fingerprint_stop_every_command(self):
+        # OGK-ORG-006
         self.pin(self.first)
         lock = self.lock()
         lock["organization"]["fingerprint"] = "sha256:" + "0" * 64
@@ -184,6 +187,7 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertIn("catalog-org-replaced", rules)
 
     def test_organization_records_pass_the_project_checks_and_never_run_commands(self):
+        # OGK-CATALOG-008, OGK-CATALOG-060, OGK-CATALOG-064
         cases = {
             "command": pack("org-run", rules=[{"id": "run", "check": {"kind": "command", "command": "true"}}]),
             "bundled": pack("secure-sdlc"),
@@ -201,6 +205,7 @@ class OrgCatalogTests(unittest.TestCase):
                 self.commit(f"Drop {name}")
 
     def test_a_short_or_unknown_commit_is_refused(self):
+        # OGK-ORG-003, OGK-ORG-004
         refused = self.cli("org-catalog", "set", "--repo", self.org, "--commit", self.first[:12], code=1)
         self.assertIn("full", refused.stderr)
         absent = self.cli("org-catalog", "set", "--repo", self.base / "absent", "--commit", self.first, code=1)
@@ -270,6 +275,7 @@ class OrgCatalogTests(unittest.TestCase):
 
     def test_issue_457_a_named_pin_keeps_no_path_and_each_machine_points_at_its_own_copy(self):
         """Issue #457: the committed lock held the path of the person who pinned, the same for every machine."""
+        # OGK-ORG-007
         refused = self.cli("org-catalog", "set", "--name", "Not A Name", "--repo", self.org, "--commit", self.first,
                            "--by", "CM", "--reason", "x", typed=self.first[:12], code=1)
         self.assertIn("name", refused.stderr)
@@ -296,6 +302,7 @@ class OrgCatalogTests(unittest.TestCase):
 
     def test_issue_457_guard_ci_takes_the_copy_of_a_named_pin_from_the_flag_or_the_variable(self):
         """Issue #457: guard --ci had no way to be told where the organization catalog is on a runner."""
+        # OGK-ORG-001, OGK-ORG-002
         self.pin_named(self.first)
         self.commit_project()
         problem = ["The changes come with no exported decision (openguildkit task export ID)."]

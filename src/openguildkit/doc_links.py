@@ -1,4 +1,5 @@
-"""The address of a documentation page, for a message that sends the reader to it.
+"""The https address of a documentation page for a message that cites it, at the tag of the installed version (`main`
+for a source checkout).
 
 A workstation installed from a wheel has no `docs/` folder, so a message gives the page on GitHub, at the tag of the
 installed version (`main` for a source checkout or a development version, which no tag names).

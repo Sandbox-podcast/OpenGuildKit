@@ -52,7 +52,7 @@ class TaskListTests(CapturedCli, unittest.TestCase):
                 with self.subTest(option=option, value=value):
                     result = run_cli(self.root, "task", "list", option, value, expect=1)
                     self.assertEqual(result.stdout, "")
-                    self.assertTrue(result.stderr.startswith(f"OpenGuildKit: {option}: "), result.stderr)
+                    self.assertTrue(result.stderr.startswith(f"OpenGuildKit [OGK-TASK-006]: {option}: "), result.stderr)
                     self.assertIn("YYYY-MM-DD", result.stderr)
                     self.assertNotIn("Traceback", result.stderr)
 

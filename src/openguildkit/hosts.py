@@ -1,4 +1,5 @@
-"""Report and apply the project rules that a host agent can enforce itself.
+"""Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay
+instructions.
 
 OpenGuildKit cannot stop a host agent from using its tools. Some hosts can, through
 their own project settings. This module writes those settings for the hosts it knows
@@ -17,7 +18,9 @@ import tomllib
 from pathlib import Path
 
 from . import audit_log
+from .errors import OgkError
 from .project import restricted_paths
+from .records import Profile
 from .storage import load_json, write_text
 
 # The edit hook loads this module: doc_links is imported in the functions that use it (#539).
@@ -78,7 +81,7 @@ CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
 OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
 
 
-def restricted_rules(profile: dict) -> list[str]:
+def restricted_rules(profile: Profile) -> list[str]:
     """The Claude Code rules for those paths: its file tools may neither read nor edit them."""
     return _path_rules(restricted_paths(profile))
 
@@ -91,7 +94,7 @@ def _path_rules(paths: list[str]) -> list[str]:
 LIFTED = "lifted:"
 
 
-def lifted_rules(profile: dict) -> list[str]:
+def lifted_rules(profile: Profile) -> list[str]:
     """The Read and Edit rules of the paths a `profile set restricted-paths` lifted, as the history of the profile
     names them, and that the profile does not close again: host apply wrote them, so it removes them. A path lifted by
     an edit of project.json, by hand or in the web page, is not in that history: its rules stay until a person removes
@@ -109,7 +112,7 @@ def lifted_rules(profile: dict) -> list[str]:
     return _path_rules([path for path in dict.fromkeys(lifted) if path not in now])
 
 
-def signers_rule(profile: dict) -> str | None:
+def signers_rule(profile: Profile) -> str | None:
     """The deny rule that keeps Claude Code's file tools away from the allowed signers file of a signed project."""
     approval = profile.get("approval") or {}
     if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
@@ -131,9 +134,9 @@ def _read_settings(path: Path) -> dict:
     try:
         settings = load_json(path)
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+        raise OgkError("OGK-HOST-002", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(settings, dict):
-        raise ValueError(f"{path.as_posix()} must hold a JSON object.")
+        raise OgkError("OGK-HOST-003", f"{path.as_posix()} must hold a JSON object.")
     _check_hook_groups(settings.get("hooks"), path)
     return settings
 
@@ -151,7 +154,7 @@ def _check_hook_groups(hooks: object, path: Path) -> None:
     for event, groups in hooks.items() if isinstance(hooks, dict) else ():
         for index, group in enumerate(groups if isinstance(groups, list) else []):
             if isinstance(group, dict) and not isinstance(group.get("hooks", []), list):
-                raise ValueError(f"{path.as_posix()}: hooks.{event}[{index}].hooks must be a list of handlers. "
+                raise OgkError("OGK-HOST-004", f"{path.as_posix()}: hooks.{event}[{index}].hooks must be a list of handlers. "
                                  "Fix or remove it, then run openguildkit host apply.")
 
 
@@ -168,7 +171,7 @@ def _codex_config(root: Path) -> dict:
     try:
         return tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
+        raise OgkError("OGK-HOST-011", f"{path.as_posix()} is not valid TOML: {error}") from error
 
 
 def _top_level_positions(text: str) -> list[int]:
@@ -200,7 +203,7 @@ def _codex_disable_web_search(path: Path, current: str, config: dict) -> str:
         updated = text[:position] + CODEX_WEB_SEARCH_LINE + newline + text[position:]
         if _parses_as(updated, expected):
             return updated
-    raise ValueError(f'Could not add web_search = "disabled" to {path.as_posix()} safely. Add it at the top of the file yourself.')
+    raise OgkError("OGK-HOST-005", f'Could not add web_search = "disabled" to {path.as_posix()} safely. Add it at the top of the file yourself.')
 
 
 def _codex_lift_web_search(path: Path, current: str, config: dict) -> str | None:
@@ -211,7 +214,7 @@ def _codex_lift_web_search(path: Path, current: str, config: dict) -> str | None
         return None
     updated = "".join(kept)
     if not _parses_as(updated, {key: value for key, value in config.items() if key != "web_search"}):
-        raise ValueError(f"Could not remove the OpenGuildKit web_search line from {path.as_posix()} safely. Remove it yourself.")
+        raise OgkError("OGK-HOST-012", f"Could not remove the OpenGuildKit web_search line from {path.as_posix()} safely. Remove it yourself.")
     return updated
 
 
@@ -347,7 +350,7 @@ def _gemini_hooks_present(hooks: object) -> bool:
 def _gemini_hooks_config(settings: dict, path: Path) -> dict:
     config = settings.get("hooksConfig", {})
     if not isinstance(config, dict):
-        raise ValueError(f"{path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply.")
+        raise OgkError("OGK-HOST-006", f"{path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply.")
     return config
 
 
@@ -364,7 +367,7 @@ def _gemini_disabled(settings: dict) -> bool:
     return isinstance(listed, list) and any(item in listed for pair in GEMINI_HOOK_NAMES.items() for item in pair)
 
 
-def _apply_gemini(root: Path, profile: dict) -> list[str]:
+def _apply_gemini(root: Path, profile: Profile) -> list[str]:
     """Declare the guard hooks in .gemini/settings.json and leave every other key of the file as it is."""
     path = root / GEMINI_SETTINGS_FILE
     settings = _read_settings(path)
@@ -456,7 +459,7 @@ def board_control(root: Path, host: str, guard: str) -> dict:
     return _board_control(root, host, guard)
 
 
-def approval_warning(profile: dict) -> str | None:
+def approval_warning(profile: Profile) -> str | None:
     """One line when the guard enforces but approvals are only sealed locally."""
     from .doc_links import doc_link
 
@@ -473,7 +476,7 @@ _PUBLIC_TITLE = "Public research stays available when the policy is public-sourc
 _APPROVAL_TITLE = "The agent cannot run the approval command"
 
 
-def _claude_controls(root: Path, profile: dict, local_only: bool) -> list[dict]:
+def _claude_controls(root: Path, profile: Profile, local_only: bool) -> list[dict]:
     """The research and approval controls of Claude Code: the deny rules of its project settings."""
     controls = []
     denied = _claude_denied(root)
@@ -550,7 +553,7 @@ def _other_host_controls(local_only: bool) -> list[dict]:
     return controls
 
 
-def _restricted_control(root: Path, profile: dict, host: str) -> list[dict]:
+def _restricted_control(root: Path, profile: Profile, host: str) -> list[dict]:
     """Whether the paths the team closes to the agent are denied to its file tools, when the profile names some."""
     controls = []
     paths = restricted_paths(profile)
@@ -572,7 +575,7 @@ def _restricted_control(root: Path, profile: dict, host: str) -> list[dict]:
     return controls
 
 
-def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
+def host_controls(root: Path, profile: Profile, other_tools: bool = True) -> list[dict]:
     """Say, for each project rule, whether the host enforces it, could but does not, or cannot. With other_tools, also
     one line for each tool of UNHOOKED_TOOLS whose files the project holds (host check; a consultation leaves them)."""
     host = profile.get("host", "other")
@@ -601,17 +604,17 @@ def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[d
     return controls
 
 
-def _apply_claude(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+def _apply_claude(root: Path, profile: Profile, local_only: bool, host: str) -> list[str]:
     """Write the deny rules and the hooks of Claude Code's project settings. Returns the file written."""
     written = []
     path = root / CLAUDE_SETTINGS_FILE
     settings = _claude_settings(root)
     permissions = settings.setdefault("permissions", {})
     if not isinstance(permissions, dict):
-        raise ValueError(f"{path.as_posix()}: permissions must be a JSON object.")
+        raise OgkError("OGK-HOST-013", f"{path.as_posix()}: permissions must be a JSON object.")
     deny = permissions.setdefault("deny", [])
     if not isinstance(deny, list):
-        raise ValueError(f"{path.as_posix()}: permissions.deny must be a list.")
+        raise OgkError("OGK-HOST-014", f"{path.as_posix()}: permissions.deny must be a list.")
     wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
     if signers_rule(profile):
         wanted.append(signers_rule(profile))
@@ -633,7 +636,7 @@ def _apply_claude(root: Path, profile: dict, local_only: bool, host: str) -> lis
     return written
 
 
-def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> list[str]:
     """Write the rules, the hooks and the web search setting of Codex. Returns the files written."""
     written = []
     write_text(root / CODEX_RULES_FILE, _codex_rules())
@@ -649,17 +652,17 @@ def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list
     current = path.read_bytes().decode("utf-8-sig") if path.is_file() else ""
     if local_only:
         if "web_search" in config and config["web_search"] != "disabled":
-            raise ValueError(f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
+            raise OgkError("OGK-HOST-007", f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
         sandbox = config.get("sandbox_workspace_write", {})
         if isinstance(sandbox, dict) and sandbox.get("network_access") is True:
-            raise ValueError(f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
+            raise OgkError("OGK-HOST-015", f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
         if "web_search" not in config:
             write_text(path, _codex_disable_web_search(path, current, config))
             written.append(CODEX_CONFIG_FILE.as_posix())
     elif config.get("web_search") == "disabled":
         updated = _codex_lift_web_search(path, current, config)
         if updated is None:
-            raise ValueError(
+            raise OgkError("OGK-HOST-008",
                 f'{path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. '
                 "Remove it yourself, or set research to local-only."
             )
@@ -668,7 +671,7 @@ def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list
     return written
 
 
-def apply_host_settings(root: Path, profile: dict) -> list[str]:
+def apply_host_settings(root: Path, profile: Profile) -> list[str]:
     """Write the host settings that enforce the project's rules. Returns the files written."""
     host = profile.get("host", "other")
     local_only = profile.get("research", "local-only") == "local-only"

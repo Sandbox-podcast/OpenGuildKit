@@ -111,8 +111,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-/** Message of a failed command: the CLI writes "OpenGuildKit: …" on stderr. */
-export const cliMessage = (r: CliResult) => (r.stderr || r.stdout).trim().replace(/^OpenGuildKit:\s*/gm, '') || `Code de sortie ${r.code}`;
+/** Message of a failed command: the CLI writes "OpenGuildKit: …" on stderr, or "OpenGuildKit [OGK-TASK-004]: …" with the code of the error. */
+export const CLI_PREFIX = /^OpenGuildKit(?: \[OGK-[A-Z]+-\d{3}\])?:\s*/gm;
+export const cliMessage = (r: CliResult) => (r.stderr || r.stdout).trim().replace(CLI_PREFIX, '') || `Code de sortie ${r.code}`;
 /** The error of a failed command, in the CLI's English, with the command and refusal code the server added. */
 export const cliError = (r: CliResult) =>
   new ApiError(cliMessage(r), 200, {

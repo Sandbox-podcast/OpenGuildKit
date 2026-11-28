@@ -380,7 +380,8 @@ class StartupTests(unittest.TestCase):
                     self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
                     loaded = imported(result.stderr)
                     self.assertEqual(sorted(name for name in loaded if name.startswith("openguildkit.")),
-                                     ["openguildkit.startup", "openguildkit.storage", "openguildkit.terminal"])
+                                     ["openguildkit.errors", "openguildkit.startup", "openguildkit.storage",
+                                      "openguildkit.terminal"])
 
     def test_the_active_edit_hook_leaves_out_tempfile_and_the_deferred_commands(self):
         """Issue #539: the hook imported tempfile, and with it shutil's compressors and random, to write nothing."""
@@ -415,7 +416,7 @@ class StartupTests(unittest.TestCase):
                        "requester", "git", "shell", "doc_links", "wording", "stack_versions"):
             with self.subTest(module=module):
                 self.assertNotIn(f"openguildkit.{module}", loaded)
-        self.assertLessEqual(len(loaded), 20, sorted(loaded))
+        self.assertLessEqual(len(loaded), 22, sorted(loaded))  # records.py (#507) and errors.py (#487) are two.
 
     def test_issue_539_the_edit_hook_covered_by_an_approved_task_leaves_out_the_task_commands(self):
         """Issue #539: with an approved task, the hook imported tasks, tasks_status and their consultation, workflow
@@ -443,7 +444,7 @@ class StartupTests(unittest.TestCase):
                        "workflow", "results", "sensitive", "delivered_review", "detect", "routing"):
             with self.subTest(module=module):
                 self.assertNotIn(f"openguildkit.{module}", loaded)
-        self.assertLessEqual(len(loaded), 24, sorted(loaded))
+        self.assertLessEqual(len(loaded), 26, sorted(loaded))  # records.py (#507) and errors.py (#487) are two.
 
     def test_version_answers_without_the_cli(self):
         """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""

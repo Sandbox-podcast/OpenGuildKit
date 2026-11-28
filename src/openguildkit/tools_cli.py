@@ -1,4 +1,4 @@
-"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks.
+"""The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks.
 
 Entry: add_parser, run
 Tests: tests/test_exit_codes.py, tests/test_gemini_host.py
@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import TextIO
 
 from .command import Command
+from .errors import OgkError
 from .mcp_mock import MockError, call_tool, describe, example_arguments, is_generic, serve, signature
 from .project import load_profile
+from .records import Catalog, Profile
 from .sensitive import looks_like_credential
 from .shell import shell_command
-from .storage import json_text, project_lock, write_text
+from .storage import json_text, print_json, project_lock, write_text
 from .task_files import read_task
 from .terminal import interactive
 from .tool_connections import (
@@ -102,21 +104,21 @@ def _pairs(values: list[str], separator: str, label: str) -> dict:
     for value in values:
         left, equals, right = value.partition("=")
         if not equals or not left or not right:
-            raise ValueError(f"Write {label}.")
+            raise OgkError("OGK-TOOLS-028", f"Write {label}.")
         if separator:
             tool, dot, name = left.partition(separator)
             if not dot or not tool or not name:
-                raise ValueError(f"Write {label}.")
+                raise OgkError("OGK-TOOLS-029", f"Write {label}.")
             parsed.setdefault(tool.casefold(), {})[name] = right
         else:
             parsed[left.casefold()] = right
     return parsed
 
 
-def _host(args, profile: dict) -> str:
+def _host(args, profile: Profile) -> str:
     host = args.host or profile.get("host")
     if host not in HOSTS:
-        raise ValueError(
+        raise OgkError("OGK-TOOLS-013",
             f"OpenGuildKit writes MCP settings for {' and '.join(HOSTS)}, and the project's host is {host or 'not set'}. "
             f"Add --host {HOSTS[0]} or --host {HOSTS[1]} to this command to write them for that agent, "
             "or change the project's host with openguildkit profile set host. For another agent, "
@@ -183,13 +185,13 @@ def _confirm_live(plan: list[dict], args, host: str, tools: dict) -> None:
     if not live or args.yes:
         return
     if not interactive():
-        raise ValueError(f"Review the plan of {', '.join(live)} (openguildkit tools plan), then write it with: "
+        raise OgkError("OGK-TOOLS-014", f"Review the plan of {', '.join(live)} (openguildkit tools plan), then write it with: "
                          + _apply_command(args, host, plan, tools) + " --yes")
     _print_plan(items, host, sys.stderr if args.json else None)
     print(f"Type yes to write the live servers {', '.join(live)} to the host file [y/N]: ", end="", file=sys.stderr,
           flush=True)
     if input().strip().casefold() not in ("y", "yes"):
-        raise ValueError("Nothing written: the plan was not accepted.")
+        raise OgkError("OGK-TOOLS-015", "Nothing written: the plan was not accepted.")
 
 
 def _apply_command(args, host: str, plan: list[dict], tools: dict) -> str:
@@ -238,11 +240,11 @@ def _apply_exit_code(result: dict) -> int:
     return 2 if result["applied"] else 1
 
 
-def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
+def _scenario(args, root: Path, state: Path, tools: dict, profile: Profile) -> int:
     """Write the starting scenario from the bundled records of the project's tools."""
     path = state / "catalog" / "tool-mocks" / SCENARIO
     if path.exists() and not args.force:
-        raise ValueError(f".openguildkit/catalog/tool-mocks/{SCENARIO} exists. Edit it, or pass --force to replace it.")
+        raise OgkError("OGK-TOOLS-016", f".openguildkit/catalog/tool-mocks/{SCENARIO} exists. Edit it, or pass --force to replace it.")
     if args.tool:
         wanted = [resolve_tool(name, tools) for name in args.tool]
     else:
@@ -254,7 +256,7 @@ def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
     if not served:
         examined = (f"None of these tools has a mock with records: {', '.join(wanted)}." if wanted else
                     "The profile names no tool and no tool is connected as a mock.")
-        raise ValueError(f"{examined} Name the tools: openguildkit tools scenario TOOL [TOOL ...] "
+        raise OgkError("OGK-TOOLS-017", f"{examined} Name the tools: openguildkit tools scenario TOOL [TOOL ...] "
                          f"(those with a mock: openguildkit tools list --mocks).")
     brief = read_task(state, args.task)["brief"] if args.task else (args.brief or "")
     scenario = scenario_records(served, profile.get("name") or root.name, tools, args.task, brief)
@@ -277,13 +279,13 @@ def _scenario(args, root: Path, state: Path, tools: dict, profile: dict) -> int:
 
 def _print_mock_listing(mock: dict) -> None:
     """The tools of a mock as JSON, for a page that offers them: names only come from the mock, never from prose."""
-    print(json.dumps({
+    print_json({
         "tool": mock["tool"],
         "instructions": mock.get("instructions", ""),
         "generic": is_generic(mock) and bool(mock.get("records")),
         "tools": [{"name": tool["name"], "read_only": tool.get("read_only", False), "description": tool["description"],
                    "arguments": signature(tool), "example": example_arguments(mock, tool)} for tool in mock["tools"]],
-    }, indent=2, ensure_ascii=False))
+    })
 
 
 def _call(args, mock_dir: Path) -> int:
@@ -297,16 +299,16 @@ def _call(args, mock_dir: Path) -> int:
             print("\n".join(describe(mock)))
         return 0
     if args.json:
-        raise ValueError(f"--json lists the tools of the mock: run openguildkit tools call {args.id} --json, "
+        raise OgkError("OGK-TOOLS-018", f"--json lists the tools of the mock: run openguildkit tools call {args.id} --json, "
                          "without a tool name.")
     try:
         arguments = json.loads(args.args)
     except ValueError as error:
-        raise ValueError(f"--args is not valid JSON: {error}") from error
+        raise OgkError("OGK-TOOLS-019", f"--args is not valid JSON: {error}") from error
     try:
         answer = call_tool(mock, args.name, arguments)
     except MockError as error:
-        raise ValueError(f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
+        raise OgkError("OGK-TOOLS-030", f"{error}. Run openguildkit tools call {args.id} to list the tools.") from error
     tool = next(item for item in mock["tools"] if item["name"] == args.name)
     print(answer["content"][0]["text"])
     if not tool.get("read_only") and not answer["isError"]:
@@ -318,17 +320,17 @@ def _call(args, mock_dir: Path) -> int:
     return 1 if answer["isError"] else 0
 
 
-def _list(args, tools: dict, mocks: set, catalog: dict) -> int:
+def _list(args, tools: dict, mocks: set, catalog: Catalog) -> int:
     """tools list: the registry, filtered by category, brain or mock."""
     if args.brain and args.brain not in catalog["boards"]:
-        raise ValueError(f"Unknown brain: {args.brain}. Run openguildkit brains.")
+        raise OgkError("OGK-TOOLS-031", f"Unknown brain: {args.brain}. Run openguildkit brains.")
     entries = [
         tool for tool in tools.values()
         if (not args.category or tool["category"] == args.category)
         and (not args.brain or args.brain in tool["brains"]) and (not args.mocks or tool["id"] in mocks)
     ]
     if args.json:
-        print(json.dumps([{**tool, "mock": tool["id"] in mocks} for tool in entries], indent=2, ensure_ascii=False))
+        print_json([{**tool, "mock": tool["id"] in mocks} for tool in entries])
         return 0
     for tool in entries:
         server = choose_server(tool, community=True)
@@ -342,7 +344,7 @@ def _show(args, tools: dict, mocks: set) -> int:
     """tools show: one tool, its servers and what each needs."""
     tool = tools[resolve_tool(args.id, tools)]
     if args.json:
-        print(json.dumps({**tool, "mock": tool["id"] in mocks}, indent=2, ensure_ascii=False))
+        print_json({**tool, "mock": tool["id"] in mocks})
         return 0
     print(f"{tool['title']} ({tool['vendor']}), {tool['category']}")
     print(tool["summary"])
@@ -368,7 +370,7 @@ def _show(args, tools: dict, mocks: set) -> int:
     return 0
 
 
-def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: dict) -> int:
+def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: Profile) -> int:
     """tools recommend: the tools of the profile and the repository, and how each is connected."""
     result = recommend_tools(profile, root, tools)
     configured, unconnected = {}, {}
@@ -386,7 +388,7 @@ def _recommend(args, root: Path, state: Path, tools: dict, mocks: set, profile: 
     result["requested_not_connected"] = [{"id": tool_id, **entry} for tool_id, entries in unconnected.items()
                                          for entry in entries]
     if args.json:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        print_json(result)
         return 0
     for item in result["tools"]:
         origin = "named in the profile" if item["named"] else "seen in the repository: " + ", ".join(item["signals"])
@@ -413,7 +415,7 @@ def _status(args, root: Path, state: Path) -> int:
     """tools status: each recorded connection and whether it holds."""
     status = connection_status(root, state)
     if args.json:
-        print(json.dumps(status, indent=2, ensure_ascii=False))
+        print_json(status)
         return 0
     for item in status:
         if "reason" in item:
@@ -471,7 +473,7 @@ def run(command: Command) -> int:
     )
     if action == "plan":
         if args.json:
-            print(json.dumps(plan, indent=2, ensure_ascii=False))
+            print_json(plan)
         elif generic:
             _print_plan(plan, GENERIC)
             print(f"Nothing is written. The project's host is {profile.get('host', 'other')}: copy each mcpServers block "
@@ -496,7 +498,7 @@ def _apply(args, root: Path, state: Path, host: str, plan: list, tools: dict) ->
         result = apply_connections(root, state, host, plan)
     exit_code = _apply_exit_code(result)
     if args.json:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        print_json(result)
         return exit_code
     _print_plan([item for item in plan if "skipped" not in item], host)
     for item in [] if args.mock else result["skipped"]:

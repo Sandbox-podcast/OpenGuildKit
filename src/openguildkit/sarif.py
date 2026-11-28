@@ -1,4 +1,5 @@
-"""Write findings as SARIF 2.1.0, the OASIS standard that code scanning dashboards read (#420).
+"""Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints,
+the same bytes at every run.
 
 A finding is the same dict for every command that reports in SARIF: `finding(code, level, message, path, line)`.
 `code` names a rule, `level` is `error`, `warning` or `note`, `path` is a file relative to the project root with `/`
@@ -19,6 +20,7 @@ from collections import Counter
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
+from .errors import OgkError
 from .storage import json_text
 
 SARIF_VERSION = "2.1.0"
@@ -46,10 +48,10 @@ def _clean_path(path) -> str:
         return DEFAULT_PATH
     posix = path.replace("\\", "/") if isinstance(path, str) else ""
     if not posix.strip() or posix.startswith("/") or _DRIVE.match(posix) or ".." in posix.split("/"):
-        raise ValueError(f"A finding's path must be relative to the project root, without '..': {path!r}.")
+        raise OgkError("OGK-CHECK-007", f"A finding's path must be relative to the project root, without '..': {path!r}.")
     clean = PurePosixPath(posix).as_posix()
     if clean == ".":
-        raise ValueError(f"A finding's path must be relative to the project root and name a file: {path!r}.")
+        raise OgkError("OGK-CHECK-016", f"A finding's path must be relative to the project root and name a file: {path!r}.")
     return clean
 
 
@@ -107,13 +109,13 @@ def fingerprint(item: dict) -> str:
 def _prepared(item: dict, rules: dict, root: Path | None) -> dict:
     code, level, message, line = item.get("code"), item.get("level"), item.get("message"), item.get("line")
     if code not in rules:
-        raise ValueError(f"No rule describes the finding code {code!r}: add it to the rules the command passes.")
+        raise OgkError("OGK-CHECK-008", f"No rule describes the finding code {code!r}: add it to the rules the command passes.")
     if level not in LEVELS:
-        raise ValueError(f"The level of a finding must be error, warning or note, not {level!r} ({code}).")
+        raise OgkError("OGK-CHECK-009", f"The level of a finding must be error, warning or note, not {level!r} ({code}).")
     if not isinstance(message, str) or not message.strip():
-        raise ValueError(f"A finding needs a message ({code}).")
+        raise OgkError("OGK-CHECK-010", f"A finding needs a message ({code}).")
     if line is not None and (isinstance(line, bool) or not isinstance(line, int) or line < 1):
-        raise ValueError(f"The line of a finding must be a positive whole number, not {line!r} ({code}).")
+        raise OgkError("OGK-CHECK-011", f"The line of a finding must be a positive whole number, not {line!r} ({code}).")
     return {"code": code, "level": level, "message": _without_machine(message, root),
             "path": _clean_path(item.get("path")), "line": line}
 
@@ -121,9 +123,9 @@ def _prepared(item: dict, rules: dict, root: Path | None) -> dict:
 def _rule(code: str, rule: dict) -> dict:
     for key in ("name", "description", "help"):
         if not isinstance(rule.get(key), str) or not rule[key].strip():
-            raise ValueError(f"The rule {code} lacks its {key}.")
+            raise OgkError("OGK-CHECK-012", f"The rule {code} lacks its {key}.")
     if "#" not in rule["help"]:
-        raise ValueError(f"The help of the rule {code} must name a page and an anchor, as PAGE.md#anchor.")
+        raise OgkError("OGK-CHECK-017", f"The help of the rule {code} must name a page and an anchor, as PAGE.md#anchor.")
     return {"id": code, "name": rule["name"], "shortDescription": {"text": rule["description"]},
             "helpUri": DOCS_URI + rule["help"]}
 
@@ -138,7 +140,7 @@ def to_sarif(findings: list[dict], *, rules: dict[str, dict], tool_version: str,
     folder, taken out of the messages.
     """
     if not isinstance(tool_version, str) or not tool_version.strip():
-        raise ValueError("The SARIF document needs the version of the tool.")
+        raise OgkError("OGK-CHECK-018", "The SARIF document needs the version of the tool.")
     prepared = [_prepared(item, rules, root) for item in findings]
     unique = {(item["code"], item["path"], item["line"], item["message"], item["level"]): item for item in prepared}
     ordered = sorted(unique.values(), key=lambda item: (item["path"], item["line"] or 0, item["code"], item["message"],

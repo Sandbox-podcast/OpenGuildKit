@@ -1,4 +1,5 @@
-"""The `org-catalog` commands: follow an organization catalog pinned at a commit of a local Git copy (RFC #446).
+"""The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a
+local replacement, off.
 
 `show` says what the project follows; `set` shows what a commit brings and, with --by and --reason at a terminal,
 pins it in the catalog lock (with --name, under a name that carries no path); `accept` records that a person accepts a
@@ -17,6 +18,7 @@ from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
 from .command import Command
+from .errors import OgkError
 from .lock import (
     COLLECTIONS,
     apply_lock,
@@ -91,7 +93,7 @@ def _person(args) -> dict:
     for name in ("by", "reason"):
         value = getattr(args, name)
         if not value.strip() or "\n" in value or "\r" in value:
-            raise ValueError(f"--{name} must be a non-empty single line.")
+            raise OgkError("OGK-ORG-017", f"--{name} must be a non-empty single line.")
     return {"by": args.by.strip(), "reason": args.reason.strip(), "on": today().isoformat()}
 
 
@@ -174,9 +176,9 @@ def _print_changes(found: dict, commit: str) -> None:
 
 def _set(args, root: Path, state: Path) -> int:
     if (args.by is None) != (args.reason is None):
-        raise ValueError("Supply --by and --reason together to pin the commit, or neither to see what it brings.")
+        raise OgkError("OGK-ORG-018", "Supply --by and --reason together to pin the commit, or neither to see what it brings.")
     if args.name is not None and not NAME.fullmatch(args.name):
-        raise ValueError("--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
+        raise OgkError("OGK-ORG-007", "--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
     folder = args.repo.resolve()
     stored = args.name or _stored_repo(args.repo, root)
     read = read_files(stored, args.commit, root, folder if args.name else None)
@@ -243,7 +245,7 @@ def _write_pinned(root: Path, state: Path, args, lock: dict | None, read: dict |
             profile = load_profile(state, catalog)
         except ValueError as error:
             remedy = "" if pin is None else ", or pin another commit"
-            raise ValueError(f"{error} Without it, the profile uses a record the catalog no longer provides: remove it "
+            raise OgkError("OGK-ORG-008", f"{error} Without it, the profile uses a record the catalog no longer provides: remove it "
                              f"from the profile first (openguildkit profile remove pack ID {PERSON}){remedy}. Nothing "
                              "was written.") from None
         touched = tasks_touched(state, profile, catalog)
@@ -261,12 +263,12 @@ def _accept(args, state: Path) -> int:
     person = _person(args)
     lock = read_lock(state)
     if not (lock or {}).get("organization"):
-        raise ValueError("The project follows no organization catalog: openguildkit org-catalog show.")
+        raise OgkError("OGK-ORG-019", "The project follows no organization catalog: openguildkit org-catalog show.")
     catalog = installed_catalog(args, state)[0]
     replaced = catalog["organization"]["replaced"]
     if args.record not in replaced:
         listed = ", ".join(replaced) or "none"
-        raise ValueError(f"{args.record} is not a project record that replaces an organization record (replaced now: "
+        raise OgkError("OGK-ORG-020", f"{args.record} is not a project record that replaces an organization record (replaced now: "
                          f"{listed}). openguildkit org-catalog show lists them.")
     _confirm(args.record, "accept this replacement")
     with project_lock(state):

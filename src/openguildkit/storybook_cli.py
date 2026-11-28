@@ -1,5 +1,4 @@
-"""The storybook command: compose the company Storybook, record its stories, and extract a design system from an
-existing React application.
+"""The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs.
 
 The Storybook modules load when the command runs, so the other commands start without them.
 
@@ -12,6 +11,7 @@ import sys
 from pathlib import Path
 
 from .command import Command
+from .errors import InternalError
 from .stack_versions import STORYBOOK_VERSION
 from .storage import print_json, project_lock, write_json
 
@@ -150,7 +150,7 @@ def run(command: Command) -> int | None:
         if any(path.endswith(".stories.tsx") for path in result["written"]):
             lines.append(f"The stories use the Storybook framework {result['framework']}; --framework sets another.")
     else:
-        raise ValueError(f"Unknown storybook action {args.action}.")
+        raise InternalError(f"Unknown storybook action {args.action}.")
     if args.json:
         print_json(result)
     else:

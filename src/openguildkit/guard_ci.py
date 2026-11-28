@@ -15,10 +15,12 @@ from pathlib import Path, PurePosixPath
 
 from . import incident, short_lane
 from .decisions import CLOCK_SKEW, DECISIONS_DIR, approval_policy
+from .errors import OgkError
 from .guard import guard_mode
 from .guard_export import conflict_message, record_shape
 from .guard_records import record_check
 from .project import STATE_DIR, load_profile
+from .records import Profile
 from .results import changed_journals
 from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json
@@ -32,7 +34,7 @@ def _git_lines(root: Path, command: str, *args: str) -> list[str]:
 
     result = git.required(root, command, "-z", *args, needs=_NEEDS_GIT)
     if result.returncode:
-        raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
+        raise OgkError("OGK-GUARD-020", f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
     return [line for line in git.split_names(result.stdout) if line.strip()]
 
 
@@ -226,7 +228,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
 
 
 def _judge_record(root: Path, base: str, relative: str, prefix: str, flag, *, fingerprint, policy: dict,
-                  base_root: Path, earlier: dict, profile: dict) -> tuple[list[str], dict | None]:
+                  base_root: Path, earlier: dict, profile: Profile) -> tuple[list[str], dict | None]:
     """The problems of one decision record the change brings, in the order guard --ci reports them, and the record
     when it covers its files (None when it is missing, invalid or faulty)."""
     from . import requester, roles
@@ -361,7 +363,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     from .project_rules import Fingerprints
 
     if git.required(root, "rev-parse", "--is-inside-work-tree", needs=_NEEDS_GIT).returncode:
-        raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
+        raise OgkError("OGK-GUARD-007", "guard --ci needs a Git repository: the project folder is not inside one.")
     report = findings if findings is not None else []
 
     def flag(code: str, message: str, path: str | None = None, level: str = "error") -> str:
@@ -369,7 +371,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         return message
 
     if git.required(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", needs=_NEEDS_GIT).returncode:
-        raise ValueError(f"base revision {base} not found: pass --base REF")
+        raise OgkError("OGK-GUARD-008", f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]

@@ -1,6 +1,5 @@
-"""What the commands say of an organization policy (RFC #452, org_policy.py): `org-catalog policy`, the lines `check`
-fails on, the policy a commit brings in `org-catalog set`, and the options `guard --ci --org-policy PATH --org-commit
-SHA`. A project whose organization catalog has no policy, or that follows none, sees nothing of it.
+"""`org-catalog policy`, the lines `check` fails on, the policy a commit brings in `org-catalog set`, and the options of
+`guard --ci`.
 
 Entry: add_parser, add_guard_options, check_policy, run
 Tests: tests/test_org_policy.py
@@ -9,10 +8,12 @@ Tests: tests/test_org_policy.py
 import sys
 from pathlib import Path
 
+from .errors import OgkError
 from .lock import project_catalog, read_lock
 from .org_policy import findings, from_read, pinned
 from .project import STATE_DIR, load_profile
 from .project_instructions import RuleError
+from .records import Catalog, Profile
 from .storage import print_json
 
 __all__ = ["add_guard_options", "add_parser", "check_policy", "ci_copy", "from_read", "print_summary", "run"]
@@ -35,7 +36,7 @@ def add_guard_options(guard) -> None:
 def ci_copy(args) -> tuple[str, str] | None:
     """(PATH, SHA) of --org-policy and --org-commit, or None without them."""
     if (args.org_policy is None) != (args.org_commit is None):
-        raise ValueError("Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog "
+        raise OgkError("OGK-ORG-011", "Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog "
                          "--org-commit SHA.")
     return None if args.org_policy is None else (args.org_policy, args.org_commit)
 
@@ -56,14 +57,14 @@ def print_summary(read: dict) -> None:
           + (" It freezes every repository." if policy["frozen"] else ""))
 
 
-def check_policy(state: Path, profile: dict, catalog: dict, report) -> None:
+def check_policy(state: Path, profile: Profile, catalog: Catalog, report) -> None:
     """In check: each unmet requirement and the freeze, on standard error and in the report, then a failure."""
     found = findings(profile, catalog, pinned(read_lock(state), state))
     for code, message in found:
         print(f"OpenGuildKit: {message[0].upper()}{message[1:]}", file=sys.stderr)
         report.add(code, "error", message, PROFILE)
     if found:
-        raise RuleError("The project does not meet the organization policy: each line above says what it requires.",
+        raise RuleError("OGK-ORG-012", "The project does not meet the organization policy: each line above says what it requires.",
                         None)
 
 

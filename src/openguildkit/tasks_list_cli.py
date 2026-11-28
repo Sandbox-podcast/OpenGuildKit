@@ -1,21 +1,25 @@
-"""The task actions that read the tasks: list, show and retro, with the exported records of a teammate and the
-warnings on what the team does not share.
+"""The task actions that read the tasks: list, show and retro, with a teammate's exported records and what the team does
+not share.
 
 Entry: run_list, run_show, run_retro, sharing_issues
 Tests: tests/test_next_steps.py, tests/test_retro.py, tests/test_task_index.py
 """
 
 import sys
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from .approval_check import DONE_STATUSES
 from .clock import today
 from .decisions import DECISIONS_DIR, export_digest, exported_records, ignored_by_git
 from .doc_links import doc_link
+from .errors import OgkError
 from .guard_export import record_of_another_task
 from .guard_records import exported_decisions
 from .project import STATE_DIR
 from .project_rules import Fingerprints
+from .records import Catalog, Profile, Task
 from .retro import (
     DEFAULT_MINIMUM,
     draft_pack,
@@ -38,7 +42,7 @@ from .wording import plural
 from .workflow import TaskStateError
 
 
-def show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str, closing: bool = False) -> None:
+def show_exported(root: Path, state: Path, profile: Profile, catalog: Catalog, task_id: str, closing: bool = False) -> None:
     """Show a task known here only by its exported record, with whether that record still holds."""
     row = next(item for item in exported_decisions(root, state, profile, Fingerprints(profile, catalog))
                if item["path"].endswith(f"/{task_id}.json"))
@@ -47,17 +51,17 @@ def show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id
         print(f"OpenGuildKit: {row['problem']['message']}", file=sys.stderr)
     record = read_json(root / row["path"])
     if closing and not isinstance((record.get("result") or {}).get("closing"), dict):
-        raise ValueError(f"The exported record of {task_id} has no closing: the task was not completed when it was "
+        raise OgkError("OGK-TASK-144", f"The exported record of {task_id} has no closing: the task was not completed when it was "
                          "exported.")
     print_json(_closing_points(record, task_id) if closing else record)
 
 
-def _closing_points(task: dict, task_id: str) -> dict:
+def _closing_points(task: Mapping[str, Any], task_id: str) -> dict:
     """What a completed task left open, without the rest of its record: task list points here for a task done with
     reservations, whose whole record can weigh a hundred kilobytes."""
     closing = (task.get("result") or {}).get("closing")
     if not isinstance(closing, dict):
-        raise TaskStateError("Only a completed task has a closing with its open points.")
+        raise TaskStateError("OGK-TASK-108", "Only a completed task has a closing with its open points.")
     return {"id": task_id, "status": task.get("status"),
             **{key: closing[key] for key in ("by", "verification", "open_points") if key in closing}}
 
@@ -152,7 +156,7 @@ def unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str
     return issues
 
 
-def run_list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def run_list(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """The project's tasks with their status and next open point, or the exported decisions."""
     if args.decisions:
         rows = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
@@ -203,12 +207,12 @@ def _retro_record(root: Path, state: Path, task_id: str) -> dict:
     record = read_json(path)
     where = path.relative_to(root).as_posix()
     if not isinstance(record, dict) or record.get("record_sha256") != export_digest(record):
-        raise ValueError(f"The exported record {where} does not match its digest: it was changed after it was "
+        raise OgkError("OGK-TASK-145", f"The exported record {where} does not match its digest: it was changed after it was "
                          "exported. Restore it from git, or run openguildkit check to see what it reports.")
     try:
         return facts_of_record(record)
     except ValueError:
-        raise ValueError(f"The exported record {where} was written before task {task_id} was completed, so it has no "
+        raise OgkError("OGK-TASK-074", f"The exported record {where} was written before task {task_id} was completed, so it has no "
                          "closing to read. Look at it with openguildkit task list --decisions; once the task is "
                          f"closed, openguildkit task export {task_id} writes it.") from None
 
@@ -237,21 +241,21 @@ def _closed_facts(state: Path) -> tuple[list[dict], dict]:
     return facts, ignored
 
 
-def run_retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def run_retro(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """The retrospective of one closed task, or with --all of the project: read from the records, never written."""
     if bool(args.id) == args.all:
-        raise ValueError("Name the closed task to read, openguildkit task retro ID, or count the whole project with "
+        raise OgkError("OGK-TASK-075", "Name the closed task to read, openguildkit task retro ID, or count the whole project with "
                          "openguildkit task retro --all (task retro ID reads one task and --all counts them all)."
                          if not args.id else
                          "task retro ID reads one task and --all counts the project: give one of them.")
     if args.minimum is not None and not args.all:
-        raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+        raise OgkError("OGK-TASK-076", "--min counts tasks across the project: use it with openguildkit task retro --all.")
     if args.draft_rules is not None and not args.all:
-        raise ValueError("--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
+        raise OgkError("OGK-TASK-077", "--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
                          "task retro --all.")
     minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
     if minimum < 1:
-        raise ValueError("--min counts tasks: give a number of 1 or more.")
+        raise OgkError("OGK-TASK-078", "--min counts tasks: give a number of 1 or more.")
     if args.all:
         facts, ignored = _closed_facts(state)
         summary = project_summary(facts, minimum, profile, catalog, ignored)
@@ -270,7 +274,7 @@ def run_retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> No
         task = read_task(state, args.id)
         if task["status"] not in DONE_STATUSES:
             # Said without judging the approval, which would ask Git: the retrospective starts no process.
-            raise ValueError(state_refusal(task, "Only a closed task has a retrospective."))
+            raise OgkError("OGK-TASK-079", state_refusal(task, "Only a closed task has a retrospective."))
         record = facts_of_task(task)
     elif (state / DECISIONS_DIR / f"{args.id}.json").is_file():
         record = _retro_record(root, state, args.id)
@@ -283,7 +287,7 @@ def run_retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> No
         print("\n".join(render_task(retro)))
 
 
-def _summary(task: dict, profile: dict) -> str:
+def _summary(task: Task, profile: Profile) -> str:
     """What task show --summary prints: a screen, whatever the size of the record."""
     decided = decision_words(task)
     lines = [f"{task['id']} [{task['status']}{', ' + decided if decided else ''}] {task['brief'].splitlines()[0][:100]}",
@@ -304,7 +308,7 @@ def run_show(command: TaskCommand) -> None:
     """The task record as JSON, only the open points its closing left, or a summary."""
     args, profile, task = command.args, command.profile, command.task
     if args.summary and args.json:
-        raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
+        raise OgkError("OGK-TASK-146", "--summary and --json exclude each other: one is a screen, the other the whole record.")
     if args.summary:
         print(_summary(task, profile))
     else:

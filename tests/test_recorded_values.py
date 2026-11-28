@@ -47,6 +47,7 @@ class RecordedValueTests(unittest.TestCase):
         self.assertNotIn("records", checks["rule:llm-evaluations/record-evaluation-setup"])
 
     def test_a_passed_or_failed_outcome_needs_the_value_with_its_unit(self):
+        # OGK-CATALOG-003
         check = "rule:llm-evaluations/compare-evaluation-baselines"
         payload = {"revision": "abc1234", "checks": [outcome(check)]}
         with self.assertRaisesRegex(ValueError, "regression-budget.*value"):
@@ -58,6 +59,7 @@ class RecordedValueTests(unittest.TestCase):
         self.assertEqual(validate_result(self.task, {}, payload)["checks"][0]["value"], "2 percentage points")
 
     def test_a_recorded_number_must_fall_within_the_bounds_its_rule_declares(self):
+        # OGK-CATALOG-004
         def record(check, value):
             payload = {"revision": "abc1234", "checks": [outcome(check, value=value)]}
             return validate_result(self.task, {}, payload)["checks"][0]["value"]
@@ -98,9 +100,11 @@ class RecordedValueTests(unittest.TestCase):
         self.assertEqual(recorded_value(task_with(old), "rule:llm-evaluations/evaluate-user-outcomes"), {})
 
     def test_the_catalog_refuses_a_malformed_records_attribute(self):
+        # OGK-CATALOG-011, OGK-CATALOG-026, OGK-CATALOG-027
         rule = {"id": "set-threshold", "instruction": "Agree on a threshold.", "verification": "Check it.",
                 "records": {"name": "threshold", "description": "The agreed threshold."}}
         _validate_rule(rule, "rules[0]", False)
+        # OGK-CATALOG-025
         for records, message in (({"name": "threshold"}, "missing fields: description"),
                                  ({**rule["records"], "min": 0, "above": 0}, "not both"),
                                  ({**rule["records"], "above": 100, "max": 100}, "greater than"),

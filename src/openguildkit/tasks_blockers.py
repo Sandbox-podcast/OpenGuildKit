@@ -9,10 +9,13 @@ tests/test_evidence_fingerprints.py
 import re
 from datetime import date, datetime
 from pathlib import Path
+from typing import cast
 
 from . import clock, roles
 from .approval_check import DONE_STATUSES
 from .decisions import approval_policy, seal, verify_signature
+from .errors import OgkError
+from .records import Profile, Task, as_dict
 from .results import evidence_fingerprint
 from .tasks_approval import revoke_command
 from .workflow import TaskStateError, blocker_list, resolution_field
@@ -20,7 +23,7 @@ from .workflow import TaskStateError, blocker_list, resolution_field
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def waiver_policy(profile: dict) -> dict | None:
+def waiver_policy(profile: Profile) -> dict | None:
     return profile.get("waivers")
 
 
@@ -42,7 +45,7 @@ def expired_waivers(blockers: list) -> list[dict]:
     return [item for item in blockers if isinstance(item, dict) and expired_on(item.get("resolution"))]
 
 
-def expired_waiver_step(task: dict, item: dict) -> str:
+def expired_waiver_step(task: Task, item: dict) -> str:
     """What the person does about a waiver that expired on an approved task. A condition of approval is resolved
     again; a blocker the approval rested on is under its seal, so the approval is withdrawn."""
     task_id, blocker_id, until = task["id"], item["id"], item["resolution"]["until"]
@@ -79,12 +82,12 @@ def _clearing_evidence(value: str, root: Path) -> str:
     path = (project / value).resolve()
     if path.exists() and (path == project or project in path.parents):
         return path.relative_to(project).as_posix() or "."
-    raise ValueError(
+    raise OgkError("OGK-TASK-025",
         f"Clearing evidence must be an existing file or folder of the project, or an https link: {value}."
     )
 
 
-def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
+def _clearance_payload(task: Task, blocker_id: str, entry: dict) -> dict:
     return {
         "kind": "blocker-clearance",
         "task": task["id"],
@@ -95,25 +98,25 @@ def _clearance_payload(task: dict, blocker_id: str, entry: dict) -> dict:
     }
 
 
-def _check_clearance_signature(task: dict, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
+def _check_clearance_signature(task: Task, blocker_id: str, entry: dict, policy: dict, root: Path) -> None:
     """A signed clearance follows the rule of a signed approval: --by names the person, as it does for task decide, and
     the signature must verify for --signer, an approver of the project; both are recorded."""
     if not entry.get("signer") or not entry.get("signature"):
-        raise ValueError("This project requires a signed clearance. Run task clear with --payload FILE, "
+        raise OgkError("OGK-TASK-026", "This project requires a signed clearance. Run task clear with --payload FILE, "
                          "sign the payload, then pass --signature FILE --signer PRINCIPAL.")
     verify_signature(root, policy, _clearance_payload(task, blocker_id, entry), entry["signature"], entry["signer"])
 
 
-def require_blocker_status(task: dict) -> None:
+def require_blocker_status(task: Task) -> None:
     """Blockers come from the boards' review: a person resolves them once it is recorded, before the decision or,
     for a condition of approval, before completion."""
     if task["status"] not in ("reviewed", "approved"):
-        raise TaskStateError("A blocker is resolved once the boards' review is recorded, before the decision, or "
+        raise TaskStateError("OGK-TASK-103", "A blocker is resolved once the boards' review is recorded, before the decision, or "
                              "after the approval for a condition of approval.")
 
 
-def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict, root: Path,
-                    *, signing_payload: bool = False) -> dict:
+def resolve_blocker(task: Task, blocker_id: str, resolution: dict, profile: Profile, root: Path,
+                    *, signing_payload: bool = False) -> Task:
     """Clear a blocker with evidence, or cover it with a waiver the project's policy allows.
 
     The record says whether the command ran at a terminal, so the approver knows when an agent cleared it.
@@ -122,81 +125,83 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
     known = {item["id"]: item for item in blocker_list(task)}
     if blocker_id not in known:
         listed = ", ".join(known) or "none"
-        raise ValueError(f"Unknown blocker {blocker_id}. Blockers: {listed}.")
+        raise OgkError("OGK-TASK-027", f"Unknown blocker {blocker_id}. Blockers: {listed}.")
     blocker = known[blocker_id]
     first = blocker["resolution"]
     expired = expired_on(first)
     if first and not expired:
-        raise ValueError(f"Blocker {blocker_id} already has a resolution: {first['kind']} by {first['by']} on "
+        raise OgkError("OGK-TASK-028", f"Blocker {blocker_id} already has a resolution: {first['kind']} by {first['by']} on "
                          f"{first.get('at', '')[:10]}. It stays as recorded; see task blockers.")
     verification = blocker.get("phase") == "verification"
     if expired and not verification and task["status"] == "approved":
-        raise ValueError(expired_waiver_step(task, blocker))
+        raise OgkError("OGK-TASK-029", expired_waiver_step(task, blocker))
     if verification and task["status"] != "approved":
-        raise ValueError("Resolve a verification blocker after approval and before completion.")
+        raise OgkError("OGK-TASK-030", "Resolve a verification blocker after approval and before completion.")
     if not verification and task["status"] != "reviewed":
-        raise ValueError("Resolve approval blockers after the review is recorded and before the decision.")
+        raise OgkError("OGK-TASK-113", "Resolve approval blockers after the review is recorded and before the decision.")
     by = resolution.get("by", "").strip()
     if not by:
-        raise ValueError("Name the person who resolves the blocker.")
+        raise OgkError("OGK-TASK-114", "Name the person who resolves the blocker.")
     entry = {"kind": resolution["kind"], "by": by, "at": clock.real_timestamp(),
              "recorded_from": "terminal" if resolution.get("terminal") else "no terminal"}
     if resolution["kind"] == "cleared":
         for field in ("evidence", "supports"):
             if not resolution.get(field, "").strip():
-                raise ValueError(f"Clearing a blocker needs --{field}.")
+                raise OgkError("OGK-TASK-115", f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
         entry["fingerprint"] = evidence_fingerprint(root, entry["evidence"])
         policy = approval_policy(profile)
         if signing_payload:
             if policy["mode"] != "signed":
-                raise ValueError("A clearance payload is signed: it belongs to a project with signed approvals.")
-            return _clearance_payload(task, blocker_id, entry)
+                raise OgkError("OGK-TASK-116", "A clearance payload is signed: it belongs to a project with signed approvals.")
+            return cast(Task, _clearance_payload(task, blocker_id, entry))  # The payload to sign, not a task.
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
             _check_clearance_signature(task, blocker_id, entry, policy, root)
         # The role of the board that raised the blocker (roles.py): the verified signer, or the name typed.
         if problem := roles.clearance_problem(profile, blocker, by, entry.get("signer")):
-            raise ValueError(problem)
+            raise OgkError("OGK-TASK-031", problem)
     else:
         waivers = waiver_policy(profile)
         if not waivers:
             clear = (f"Clear {blocker_id} with its evidence at the person's terminal (openguildkit task clear "
                      f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by INITIALS)")
             if verification:
-                raise ValueError(f"The project's policy allows no waiver. {clear}; if it cannot be met, the person "
+                raise OgkError("OGK-TASK-032", f"The project's policy allows no waiver. {clear}; if it cannot be met, the person "
                                  f"withdraws the approval: {revoke_command(task['id'])}.")
-            raise ValueError(f"The project's policy allows no waiver. {clear}, or the person requests changes: "
+            raise OgkError("OGK-TASK-033", f"The project's policy allows no waiver. {clear}, or the person requests changes: "
                              f"openguildkit task decide {task['id']} --request-changes --by INITIALS --reason TEXT.")
         if by not in waivers["allowed_by"]:
-            raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(waivers['allowed_by'])}.")
+            raise OgkError("OGK-TASK-034", f"{by} cannot grant waivers. Allowed: {', '.join(waivers['allowed_by'])}.")
         if problem := roles.clearance_problem(profile, blocker, by, waiver=True):
-            raise ValueError(problem)
+            raise OgkError("OGK-TASK-035", problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
-            raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
+            raise OgkError("OGK-TASK-117", "Give the waiver's end date as YYYY-MM-DD.")
         days = (datetime.fromisoformat(until).date() - clock.real_now().date()).days
         if days < 1 or days > waivers["max_days"]:
-            raise ValueError(f"A waiver lasts between 1 and {waivers['max_days']} days.")
+            raise OgkError("OGK-TASK-036", f"A waiver lasts between 1 and {waivers['max_days']} days.")
         for field in ("reason", "scope"):
             if not resolution.get(field, "").strip():
-                raise ValueError(f"A waiver needs --{field}.")
+                raise OgkError("OGK-TASK-118", f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
     if expired:
         # The expired waiver stays in the record, under the resolution that replaces it.
         entry["replaces"] = first
     field = resolution_field(blocker.get("phase"))
-    return {**task, field: {**task.get(field, {}), blocker_id: entry}}
+    result = task.copy()
+    as_dict(result)[field] = {**as_dict(task).get(field, {}), blocker_id: entry}
+    return result
 
 
-def unresolved_blockers(task: dict) -> list[str]:
+def unresolved_blockers(task: Task) -> list[str]:
     return [item["id"] for item in blocker_list(task)
             if (not item["resolution"] or expired_on(item["resolution"])) and item.get("phase") != "verification"]
 
 
-def verification_blocker_problems(task: dict, profile: dict, root: Path | None = None) -> list[str]:
+def verification_blocker_problems(task: Task, profile: Profile, root: Path | None = None) -> list[str]:
     policy = approval_policy(profile)
     problems = []
     for item in blocker_list(task):

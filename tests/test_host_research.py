@@ -87,6 +87,7 @@ class HostResearchTests(CapturedCli, unittest.TestCase):
         self.assertEqual(len(self.web_search_lines()), 1)
 
     def test_apply_refuses_to_write_when_the_result_does_not_disable_search(self):
+        # OGK-HOST-005
         original = 'model = "gpt-5"\n' + MULTILINE
         self.init("codex", original)
         inside_string = original.index("  [1]")
@@ -134,6 +135,7 @@ class HostResearchTests(CapturedCli, unittest.TestCase):
         report, _ = self.run_cli("host", "check", code=1)
         self.assertIn("[missing] Public research stays available", report)
         _, error = self.run_cli("host", "apply", code=1)
+        # OGK-HOST-008
         self.assertIn('sets web_search = "disabled"', error)
         self.assertEqual(self.config.read_text(encoding="utf-8"), 'web_search = "disabled"\n')
 
@@ -153,6 +155,7 @@ class ResearchDecisionTests(unittest.TestCase):
         self.assertNotIn("needs no task authorize", local)
 
     def test_the_skill_says_it_for_every_policy_the_profile_accepts(self):
+        # OGK-TASK-014
         skill = (REPO / "src/openguildkit/agent_files/skills/openguildkit/SKILL.md").read_text(encoding="utf-8")
         for policy in ("local-only", "public-sources"):
             self.assertIn(consultation.research_decision(policy), skill)

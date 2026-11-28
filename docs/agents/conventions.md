@@ -32,7 +32,7 @@ Today 65 modules of 65 have a docstring, none names a test file, 3 name their en
 
 **Check.** `tests/test_architecture.py`, to extend: the `Tests:` paths exist and the `Entry:` names are defined at the top level of the module.
 
-**Today.** Every module carries the two lines; `ModuleShapeTests` in `tests/test_architecture.py` checks them, and `scripts/build_map.py` reads them. The role is still written in the map.
+**Today.** Every module carries the two lines; `ModuleShapeTests` in `tests/test_architecture.py` checks them, and `scripts/build_map.py` reads them, with the role from the first paragraph of the docstring.
 Issue #502.
 
 ### `generated-repo-map`
@@ -44,7 +44,7 @@ It covers `web/src`, `integrations/ci/lib` and `scripts`, and holds an index of 
 
 **Check.** `python scripts/build_map.py --check`, to add: regenerates in memory, compares with the committed file, exits 1 with the entries that differ.
 
-**Today.** `scripts/build_map.py` takes each module's entry points and test files from its `Entry:` and `Tests:` lines, adds the tests that import it, the fixtures and the `commands` section, and `--check` runs in `tests/test_agent_native.py`; role and documentation page are still written in the map.
+**Today.** `scripts/build_map.py` takes each module's entry points and test files from its `Entry:` and `Tests:` lines, adds the tests that import it, the fixtures and the `commands` section, takes each role from the module's docstring and writes the table of `docs/architecture.md` from it, and `--check` runs in `tests/test_agent_native.py`; the documentation page is still written in the map.
 Issue #502.
 
 ### `map-query-command`
@@ -154,7 +154,7 @@ A code is found by one search and returns one line.
 
 **Check.** A test that walks the AST of `src/openguildkit`, requires a code for each error shown, uniqueness, an entry in the register and a test that cites the code.
 
-**Today.** No code; only the web page has refusal codes (`REFUSALS` in `webui.py`).
+**Today.** `errors.OgkError` carries the code, `cli.main` prints `OpenGuildKit [OGK-TASK-004]: ...`, and `scripts/build_errors.py` writes [`errors.json`](errors.json) and `docs/errors.md`; `tests/test_error_codes.py` refuses a code raised twice or cited by no test, a `ValueError` without code in `tasks.py` and `tasks_cli.py`, and a rise of the 717 left elsewhere.
 Issue #487.
 
 ### `json-envelope`
@@ -167,7 +167,7 @@ Under `--json`, an error is a sentence on standard error: the agent falls back t
 
 **Check.** A test that loads each `--json` example of `tests/test_command_output_budget.py` and requires an object with `schema_version`, and an error example with `error.code`.
 
-**Today.** `schema_version` only in the task record.
+**Today.** With `OPENGUILDKIT_JSON_ENVELOPE=1`, `storage.print_json` puts every `--json` answer in `{schema_version, command, data}`, off by default so that the web page and scripts keep the shape they read; under `--json` an error is JSON on standard output with `error.code`, `error.message` and `error.next`. `tests/test_json_output.py` runs each `--json` example of the budget test with the envelope and refuses JSON printed around `print_json`.
 Issue #484.
 
 ### `declared-state-machine`
@@ -317,7 +317,7 @@ Issues #501 and #515.
 
 **Check.** The type checker of `lint-and-type-ratchet`, with a ratchet on the parameters annotated `dict`.
 
-**Today.** Absent.
+**Today.** `records.py` declares `Task` and `Profile` as `TypedDict` and `Catalog` as a mapping of collections; the readers, the task actions and every parameter named `task`, `profile` or `catalog` take them, and `tests/test_records.py` refuses a bare `dict` there and runs `mypy` on an unknown key of a task.
 Issue #507.
 
 ## Measure

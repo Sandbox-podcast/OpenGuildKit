@@ -1,4 +1,4 @@
-"""Turn verified work into documentation pages and keep track of who it is shared with.
+"""Exports verified work as documentation pages for Documentalist and keeps the share register.
 
 The export writes a Markdown tree that Documentalist imports from a Git repository:
 `reference/` for the Reference tab, `learn/` for Learn, `blog/` for dated release notes, each
@@ -22,15 +22,18 @@ import json
 import posixpath
 import re
 import uuid
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from . import clock
 from .deliverables import project_path
-from .errors import unknown
+from .errors import OgkError, unknown
 from .project_instructions import rule_text
 from .project_rules import pack_scopes, rule_plan
+from .records import Catalog, Profile
 from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
 from .task_files import read_task
@@ -49,7 +52,7 @@ MAX_SHARE_DAYS = 366
 _DEFAULT_PORTS = {"https": 443, "http": 80}
 
 
-def _title(task: dict) -> str:
+def _title(task: Mapping[str, Any]) -> str:
     return task["brief"].strip().splitlines()[0].rstrip(".")[:120]
 
 
@@ -57,11 +60,11 @@ def _frontmatter(fields: dict) -> str:
     return "---\n" + "".join(f"{key}: {json.dumps(value, ensure_ascii=False)}\n" for key, value in fields.items()) + "---\n\n"
 
 
-def _criteria(task: dict) -> list[str]:
+def _criteria(task: Mapping[str, Any]) -> list[str]:
     return [item["criterion"] for item in task.get("result", {}).get("criteria", []) if item["status"] == "met"]
 
 
-def _body(task: dict, title: str) -> list[str]:
+def _body(task: Mapping[str, Any], title: str) -> list[str]:
     """Keep any brief text that does not fit in the title."""
     lines = task["brief"].strip().splitlines()
     if lines[0].rstrip(".") == title:
@@ -70,7 +73,7 @@ def _body(task: dict, title: str) -> list[str]:
     return [rest, ""] if rest else []
 
 
-def _behaviour(task: dict) -> list[str]:
+def _behaviour(task: Mapping[str, Any]) -> list[str]:
     """The expected outcome and the criteria met, each said once."""
     seen, lines = set(), []
     for text in [task.get("answers", {}).get("outcome") or "", *_criteria(task)]:
@@ -81,7 +84,7 @@ def _behaviour(task: dict) -> list[str]:
     return lines
 
 
-def _verification(task: dict) -> str:
+def _verification(task: Mapping[str, Any]) -> str:
     """What was verified, what did not apply and what stayed open, so the page does not overstate the checks."""
     checks = task.get("result", {}).get("checks", [])
     passed = sum(item["status"] == "passed" for item in checks)
@@ -98,7 +101,7 @@ def _verification(task: dict) -> str:
     return line
 
 
-def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
+def _pages(task: Mapping[str, Any], position: int, version: str, sections: tuple[str, ...]) -> dict[str, str]:
     title = _title(task)
     result = task.get("result", {})
     delivered = result.get("pull_request") or result.get("revision") or "not recorded"
@@ -127,7 +130,7 @@ def _pages(task: dict, position: int, version: str, sections: tuple[str, ...]) -
     return pages
 
 
-def project_overview(profile: dict, catalog: dict) -> dict:
+def project_overview(profile: Profile, catalog: Catalog) -> dict:
     """What the Project page shows: profile fields, active packs with their rules, and boards.
 
     Component paths, check commands and anything outside the profile and catalog stay out.
@@ -179,12 +182,12 @@ def _exported_files(manifest_path: Path) -> list[str]:
         return []
     files = read_json(manifest_path).get("files")
     if not isinstance(files, list) or not all(isinstance(path, str) for path in files):
-        raise ValueError(f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
+        raise OgkError("OGK-PUBLISH-001", f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
                          f"Restore {manifest_path.as_posix()} from git, or export to an empty folder.")
     return files
 
 
-def _task_pages(tasks: list[dict], version: str, sections: tuple[str, ...]) -> tuple[dict, list[str], dict]:
+def _task_pages(tasks: Sequence[Mapping[str, Any]], version: str, sections: tuple[str, ...]) -> tuple[dict, list[str], dict]:
     """The pages of each task, with what may hold a credential replaced; the warnings on what they replaced and on
     the personal data they show; and each task as published."""
     pages, warnings, published = {}, [], {}
@@ -203,7 +206,7 @@ def _task_pages(tasks: list[dict], version: str, sections: tuple[str, ...]) -> t
     return pages, warnings, published
 
 
-def _summary_page(tasks: list[dict], pages: dict, published: dict, project: str, version: str,
+def _summary_page(tasks: Sequence[Mapping[str, Any]], pages: dict, published: dict, project: str, version: str,
                   sections: tuple[str, ...], overview: dict | None) -> str:
     """The SUMMARY.md of the export, adding the project page to pages when the project section is asked."""
     summary = [f"# {project}", ""]
@@ -227,15 +230,15 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     """Write the selected completed tasks, and the project page when given, as documentation pages."""
     unknown = sorted(set(sections) - set(SECTIONS))
     if unknown or not sections:
-        raise ValueError(f"Choose sections among {', '.join(SECTIONS)}.")
+        raise OgkError("OGK-PUBLISH-016", f"Choose sections among {', '.join(SECTIONS)}.")
     tasks = [read_task(state, task_id) for task_id in task_ids]
     not_done = [task["id"] for task in tasks if task["status"] not in ("done", "done-with-reservations")]
     if not_done:
-        raise ValueError(f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
+        raise OgkError("OGK-PUBLISH-002", f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
     manifest_path = output / MANIFEST
     previous = _exported_files(manifest_path)
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
-        raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
+        raise OgkError("OGK-PUBLISH-003", f"{output} is not empty and was not created by openguildkit docs export.")
     pages, warnings, published = _task_pages(tasks, version, sections)
     pages["SUMMARY.md"] = _summary_page(tasks, pages, published, project, version, sections, overview)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
@@ -243,10 +246,10 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         try:
             pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
         except UnicodeError as error:
-            raise ValueError(f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
+            raise OgkError("OGK-PUBLISH-004", f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
     escaping = sorted(path for path in pages if not _inside(output, path))
     if escaping:
-        raise ValueError(f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
+        raise OgkError("OGK-PUBLISH-005", f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
     for relative, content in pages.items():
         write_text(output / relative, content)
     stale = [path for path in previous if isinstance(path, str) and path not in pages]
@@ -274,10 +277,10 @@ def _shared_item(state: Path, deliverable: str) -> str:
     target = project_path(state.parent, state, deliverable, "--deliverable")
     shown = Path(deliverable).as_posix()
     if not target.exists():
-        raise ValueError(f"--deliverable {shown} does not exist. Name the file you share, or the folder that "
+        raise OgkError("OGK-PUBLISH-006", f"--deliverable {shown} does not exist. Name the file you share, or the folder that "
                          "openguildkit docs export wrote.")
     if target.is_dir() and not (target / MANIFEST).is_file():
-        raise ValueError(f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
+        raise OgkError("OGK-PUBLISH-007", f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
                          "share, or the folder that openguildkit docs export wrote.")
     return target.relative_to(state.parent.resolve()).as_posix()
 
@@ -305,11 +308,11 @@ def portal_space(portal: str) -> str:
         host = port = None
     secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and is_loopback(host))
     if not host or not secure:
-        raise ValueError("Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
+        raise OgkError("OGK-PUBLISH-008", "Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
                          "(http only for an instance on this machine: localhost, 127.0.0.1 or ::1).")
     parts = address.path.split("/")
     if len(parts) < 3 or parts[1] != "p" or not parts[2]:
-        raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
+        raise OgkError("OGK-PUBLISH-009", f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
                          "the recipients see every published page of that space.")
     shown = f"[{host}]" if ":" in host else host
     return f"{shown}{f':{port}' if port and port != _DEFAULT_PORTS[address.scheme] else ''}/p/{parts[2]}"
@@ -357,11 +360,11 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     the same deliverable through a dedicated space is dedicated as well.
     """
     if not deliverable.strip() or not by.strip():
-        raise ValueError("Name the deliverable and the owner of the share.")
+        raise OgkError("OGK-PUBLISH-017", "Name the deliverable and the owner of the share.")
     shared = _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
-        raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
+        raise OgkError("OGK-PUBLISH-010", f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
     refuse_link_credentials(portal, "--portal")
     space = portal_space(portal)
@@ -412,12 +415,12 @@ def _check_dedication(neighbours: list[dict], share: dict) -> None:
     claimed = [item for item in neighbours if item.get("dedicated")]
     if claimed:
         owner = claimed[0]
-        raise ValueError(f"Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its "
+        raise OgkError("OGK-PUBLISH-011", f"Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its "
                          f"readers would see {share['deliverable']} too. Publish {share['deliverable']} in a space of its "
                          "own and give its portal address.")
     if share.get("dedicated") and neighbours:
         listed = ", ".join(f"{item['deliverable']} (share {item['id']})" for item in neighbours)
-        raise ValueError(f"Space {share['space']} already carries {listed}: its readers would see "
+        raise OgkError("OGK-PUBLISH-012", f"Space {share['space']} already carries {listed}: its readers would see "
                          f"{share['deliverable']} too, so it cannot be dedicated to it. Use a new space, or revoke those "
                          "shares and remove their pages from the space first.")
 
@@ -434,12 +437,12 @@ def _share_end(until: str) -> date:
     except ValueError:
         end = None
     if end is None:
-        raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
+        raise OgkError("OGK-PUBLISH-013", f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
     today = clock.real_today()
     if end <= today:
-        raise ValueError("A share ends after today.")
+        raise OgkError("OGK-PUBLISH-014", "A share ends after today.")
     if end > today + timedelta(days=MAX_SHARE_DAYS):
-        raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
+        raise OgkError("OGK-PUBLISH-015", f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end
 
 
@@ -462,14 +465,14 @@ def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
     """Record that the access was removed in Documentalist; the first revocation stays. Returns it with its space."""
     if not by.strip():
-        raise ValueError("Name the person who removed the access with --by.")
+        raise OgkError("OGK-PUBLISH-018", "Name the person who removed the access with --by.")
     with project_lock(state):
         shares = load_shares(state)
         share = next((item for item in shares if item["id"] == share_id), None)
         if share is None:
-            raise ValueError(unknown("share", share_id, "docs share list"))
+            raise OgkError("OGK-PUBLISH-019", unknown("share", share_id, "docs share list"))
         if share["revoked_at"]:
-            raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
+            raise OgkError("OGK-PUBLISH-020", f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
         share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})

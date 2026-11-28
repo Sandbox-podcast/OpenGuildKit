@@ -1,5 +1,5 @@
-"""The commands that read the catalog in force: catalog, references, patterns, brains, detect, preview, recommend
-and update.
+"""The commands that read the catalog in force: `catalog`, `references`, `patterns`, `brains`, `detect`, `preview`,
+`recommend` and `update`.
 
 Entry: run.
 Tests: tests/test_upgrades.py, tests/test_references.py, tests/test_brain_knowledge.py.
@@ -10,7 +10,7 @@ from pathlib import Path
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .command import Command
 from .detect import detect_stack
-from .errors import unknown
+from .errors import OgkError, unknown
 from .lock import (
     apply_lock,
     build_lock,
@@ -28,6 +28,7 @@ from .project import load_profile, profile_recommendations
 from .project_instructions import sync_instructions
 from .project_rules import rule_conflicts, rule_plan
 from .project_setup import complete_answers, setup_profile
+from .records import Catalog
 from .references import english_title, find_references, load_references, with_pattern_references
 from .rule_plan_text import print_recommendations, print_rule_plan
 from .storage import print_json, project_lock, read_json
@@ -118,7 +119,7 @@ def _print_update(result: dict, as_json: bool) -> None:
     print_touched(result["stale_tasks"])
 
 
-def print_catalog(catalog: dict, as_json: bool) -> None:
+def print_catalog(catalog: Catalog, as_json: bool) -> None:
     groups = ("packs", "boards", "sectors")
     if as_json:
         print_json({group: catalog[group] for group in groups})
@@ -132,7 +133,7 @@ def print_catalog(catalog: dict, as_json: bool) -> None:
             print(f"  {entry['id']:<{width}} {entry['title']}{suffix}")
 
 
-def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
+def _sector_packs(catalog: Catalog, sector_id: str) -> list[str]:
     """The packs of the patterns that a sector preselects without a stack."""
     return [
         pack_id
@@ -142,7 +143,7 @@ def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
     ]
 
 
-def print_references(args, state: Path, catalog: dict) -> None:
+def print_references(args, state: Path, catalog: Catalog) -> None:
     families = with_pattern_references(load_references(state / "catalog" / "references", catalog), catalog["patterns"])
     if not args.json and all(value is None for value in (args.query, args.family, args.id)):
         print(f"{sum(len(family['references']) for family in families.values())} references")
@@ -187,13 +188,13 @@ def _source_line(source: dict) -> str:
 def print_patterns(args, patterns: dict) -> None:
     roles = role_choices(patterns)
     if args.role and args.role not in roles:
-        raise ValueError(f"Unknown role: {args.role}. Available roles: {', '.join(roles)}.")
+        raise OgkError("OGK-CATALOG-110", f"Unknown role: {args.role}. Available roles: {', '.join(roles)}.")
     matches = [
         pattern for pattern in patterns.values()
         if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])
     ]
     if args.id and not matches:
-        raise ValueError(unknown("pattern", args.id, "patterns"))
+        raise OgkError("OGK-CATALOG-001", unknown("pattern", args.id, "patterns"))
     if args.json:
         print_json(matches)
         return
@@ -234,10 +235,10 @@ def print_detection(detected: dict, as_json: bool) -> None:
             print(f"  {item['name']}: {version} [{item['evidence']}{note}]")
 
 
-def print_brains(args, catalog: dict, families: dict) -> int:
+def print_brains(args, catalog: Catalog, families: dict) -> int:
     boards = catalog["boards"]
     if args.id and args.id not in boards:
-        raise ValueError(f"Unknown brain: {args.id}. Run openguildkit brains.")
+        raise OgkError("OGK-CATALOG-002", f"Unknown brain: {args.id}. Run openguildkit brains.")
     if args.check:
         gaps = knowledge_gaps(catalog, families)
         for gap in gaps:
@@ -291,7 +292,7 @@ def print_brains(args, catalog: dict, families: dict) -> int:
     return 0
 
 
-def new_brain(args, state: Path, catalog: dict) -> int:
+def new_brain(args, state: Path, catalog: Catalog) -> int:
     """Write a project brain's skeleton and say which tasks the new brain makes stale."""
     with project_lock(state):
         written = write_brain_skeleton(state / "catalog", args.new, catalog)

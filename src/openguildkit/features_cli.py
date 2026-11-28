@@ -1,4 +1,4 @@
-"""The `openguildkit features` commands: list the features, turn an option on or off, with who and why.
+"""The `features` commands: list the features, turn an option on or off through the profile's path.
 
 Turning an option on or off changes the profile's tools by the profile commands' path (profile_changes), so the change
 is recorded with who, when and why, and the instructions follow. Connecting the tool's MCP server stays with
@@ -8,14 +8,16 @@ Entry: add_parser, run
 Tests: tests/test_cli_coverage.py, tests/test_features.py
 """
 
-import json
 from pathlib import Path
 
 from . import profile_changes
 from .cli_surface import add_by
 from .command import Command
+from .errors import OgkError
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
+from .records import Catalog, Profile
+from .storage import print_json
 from .tool_connections import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status
 from .tool_registry import load_tools
 from .tools import resolve_tool
@@ -57,7 +59,7 @@ def _targets(names: list[str], features: list[dict], tools: dict) -> list[str]:
         key = name.strip().casefold()
         found = options[key] if key in options else options.get(resolve_tool(name.strip(), tools))
         if not found:
-            raise ValueError(f"{name} is not an option of a feature. Run openguildkit features list, or add any tool "
+            raise OgkError("OGK-FEATURE-001", f"{name} is not an option of a feature. Run openguildkit features list, or add any tool "
                              "of the registry with openguildkit profile add tool.")
         targets.extend(tool for tool in found if tool not in targets)
     return targets
@@ -66,17 +68,17 @@ def _targets(names: list[str], features: list[dict], tools: dict) -> list[str]:
 def _edit(args, features: list[dict], tools: dict):
     enable = args.features_action == "enable"
 
-    def edit(profile: dict, catalog: dict) -> tuple[dict, str]:
+    def edit(profile: Profile, catalog: Catalog) -> tuple[dict, str]:
         names = list(profile.get("tools", []))
         for tool_id in _targets(args.names, features, tools):
             present = profile_names(profile, tool_id, tools)
             if enable and present or not enable and not present:
                 state = "already on" if enable else "not on"
-                raise ValueError(f"{tool_id} is {state}. Nothing was written.")
+                raise OgkError("OGK-FEATURE-002", f"{tool_id} is {state}. Nothing was written.")
             uses = [feature["id"] for feature in features
                     if any(option["tool"] == tool_id for option in feature["options"])]
             if not enable and len(uses) > 1:
-                raise ValueError(
+                raise OgkError("OGK-FEATURE-003",
                     f"{tools[tool_id]['title']} serves several features: {', '.join(uses)}. "
                     "Nothing was written. Use profile remove tool to remove it from the whole profile.")
             names = [*names, tools[tool_id]["title"]] if enable else [name for name in names if name not in present]
@@ -85,7 +87,7 @@ def _edit(args, features: list[dict], tools: dict):
 
 
 def _refuse(change: str, weakened: list, voided: list) -> None:
-    raise ValueError(f"'{change}' would weaken a protection; turning a feature on or off never should. "
+    raise OgkError("OGK-FEATURE-012", f"'{change}' would weaken a protection; turning a feature on or off never should. "
                      "Nothing was written.")
 
 
@@ -121,7 +123,7 @@ def run(command: Command) -> int:
     if args.features_action == "list":
         view = features_view(features, tools, load_profile(state, catalog))
         if args.json:
-            print(json.dumps(view, indent=2, ensure_ascii=False))
+            print_json(view)
         else:
             _print(view)
         return 0

@@ -1,4 +1,5 @@
-"""An organization policy: the minimum every repository keeps (RFC #452), an option, off by default.
+"""Reads the organization policy (`policy.json` of the organization catalog) at the pinned commit, or at the commit
+`guard --ci --org-policy` is given, and lists where a profile is under its minimum or frozen.
 
 The security or platform team writes `policy.json` at the root of the organization catalog (org_catalog.py). A
 project reads it at the commit a person pinned at a terminal with `org-catalog set`, and `guard --ci` reads it at the
@@ -18,13 +19,15 @@ Tests: tests/test_org_policy.py
 
 import json
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 
 from . import requester
+from .errors import OgkError
 from .lock import read_lock
 from .org_catalog import POLICY_FILE, copies_read_from, organization_in, read_files
 from .project import STATE_DIR
 from .project_rules import resolved_profile
+from .records import Catalog, Profile
 from .storage import read_json
 
 GUARD_ORDER = ("off", "observe", "enforce")
@@ -40,10 +43,10 @@ def parse(data: bytes, commit: str) -> dict:
     try:
         policy = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
-        raise ValueError(f"{where} is not valid JSON. Fix it in the organization catalog.") from None
+        raise OgkError("OGK-ORG-021", f"{where} is not valid JSON. Fix it in the organization catalog.") from None
 
     def refuse(problem: str) -> NoReturn:
-        raise ValueError(f"{where}: {problem}. Fix it in the organization catalog, then pin the new commit.")
+        raise OgkError("OGK-ORG-009", f"{where}: {problem}. Fix it in the organization catalog, then pin the new commit.")
 
     if not isinstance(policy, dict) or policy.get("schema_version") != 1:
         refuse('it must be an object with "schema_version": 1')
@@ -82,19 +85,19 @@ def given(path: str, commit: str, root: Path) -> dict:
     folder = Path(path).resolve()
     policy = from_read(read_files(path, commit, root, folder))
     if policy is None:
-        raise ValueError(f"Commit {commit[:12]} of {path} has no {POLICY_FILE}: give the commit of the organization "
+        raise OgkError("OGK-ORG-022", f"Commit {commit[:12]} of {path} has no {POLICY_FILE}: give the commit of the organization "
                          "policy to --org-commit.")
     return policy
 
 
-def _packs(profile: dict, catalog: dict) -> set[str]:
+def _packs(profile: Profile, catalog: Catalog) -> set[str]:
     try:
         return set(resolved_profile(profile, catalog)["packs"])
     except (KeyError, TypeError, ValueError, AttributeError):  # A head profile CI cannot resolve: its own list.
         return {item for item in profile.get("packs", []) if isinstance(item, str)}
 
 
-def gaps(profile: dict, catalog: dict, policy: dict) -> dict[str, str]:
+def gaps(profile: Profile, catalog: Catalog, policy: dict) -> dict[str, str]:
     """Each setting of the profile under the policy's minimum, with what it requires and the command that meets it."""
     at = f"the organization policy at {policy['commit'][:12]} requires"
     minimum, found = policy["minimum"], {}
@@ -125,7 +128,7 @@ def frozen_text(policy: dict) -> str | None:
         f"{frozen['since']}: {frozen['reason']}. Only a commit of the organization policy lifts it")
 
 
-def findings(profile: dict, catalog: dict, policy: dict | None) -> list[tuple[str, str]]:
+def findings(profile: Profile, catalog: Catalog, policy: dict | None) -> list[tuple[str, str]]:
     """(code of docs/sarif.md, message) for the freeze and each gap; none without a policy."""
     if policy is None:
         return []
@@ -134,7 +137,7 @@ def findings(profile: dict, catalog: dict, policy: dict | None) -> list[tuple[st
             *[("policy-below-floor", message) for message in gaps(profile, catalog, policy).values()]]
 
 
-def refuse_lowering(before: dict, after: dict, catalog: dict, lock: dict | None, state: Path) -> None:
+def refuse_lowering(before: Profile, after: Profile, catalog: Catalog, lock: dict | None, state: Path) -> None:
     """Refuse a profile change that leaves the policy's minimum, even from a person at a terminal. A change that keeps
     a gap the profile already had, or closes one, goes on: the floor is never a reason to refuse raising a setting."""
     policy = pinned(lock, state)
@@ -143,11 +146,11 @@ def refuse_lowering(before: dict, after: dict, catalog: dict, lock: dict | None,
     new = {key: message for key, message in gaps(after, catalog, policy).items()
            if key not in gaps(before, catalog, policy)}
     if new:
-        raise ValueError(f"Refused: {' '.join(new.values())} A repository may be stricter than the organization "
+        raise OgkError("OGK-ORG-010", f"Refused: {' '.join(new.values())} A repository may be stricter than the organization "
                          "policy, never less strict. Nothing was written.")
 
 
-def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, profile: dict, catalog: dict,
+def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, profile: Profile, catalog: Catalog,
                 copies: dict[str, str], changed: bool) -> list[tuple[str, str]]:
     """What guard --ci fails on: the policy the option names (else the one the base revision pins) unmet by the base
     profile or by the profile the change brings, and a freeze, which fails every change."""
@@ -162,6 +165,6 @@ def ci_problems(copy: tuple[str, str] | None, root: Path, base_state: Path, prof
         head = None
     if isinstance(head, dict) and head != profile:
         problems += [("policy-below-floor", f"The change brings a profile under the minimum: {message}")
-                     for key, message in gaps(head, catalog, policy).items()
+                     for key, message in gaps(cast(Profile, head), catalog, policy).items()  # As committed.
                      if key not in gaps(profile, catalog, policy)]
     return problems

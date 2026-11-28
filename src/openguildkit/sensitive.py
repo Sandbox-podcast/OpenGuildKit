@@ -1,4 +1,4 @@
-"""Recognize credentials and personal data in what people and agents give the CLI.
+"""Recognizes credentials and personal data in what people and agents give the CLI.
 
 CREDENTIAL_SHAPES is the one table that decides what looks like a credential. Tool settings, task briefs and
 answers, review entries and public evidence all go through it, without reading the environment or the network.
@@ -13,6 +13,7 @@ from ipaddress import ip_address
 from urllib.parse import parse_qsl, urlsplit
 
 from . import lazy_re
+from .errors import OgkError
 
 # A value written in place of a secret, not the secret: a variable (${X}, $X, %X%, {{ x }}), a placeholder (<x>,
 # [credential], YOUR_TOKEN) or an ellipsis.
@@ -195,7 +196,7 @@ def refuse_link_credentials(ref: str, field: str) -> None:
     except ValueError:
         return
     if _carries_credentials(url):
-        raise ValueError(f"{field}: the link must carry no user name, password or token: the address is recorded as "
+        raise OgkError("OGK-GUARD-014", f"{field}: the link must carry no user name, password or token: the address is recorded as "
                          f"written, and {WHERE}.")
 
 
@@ -208,9 +209,9 @@ def public_evidence_url(ref: str, field: str) -> None:
     except ValueError:
         hostname = None
     if not hostname or url.scheme != "https" or any(char.isspace() for char in ref):
-        raise ValueError(f"{field}: a public source needs an https link in ref.")
+        raise OgkError("OGK-GUARD-023", f"{field}: a public source needs an https link in ref.")
     if _carries_credentials(url):
-        raise ValueError(f"{field}: a public source must use a link without credentials.")
+        raise OgkError("OGK-GUARD-015", f"{field}: a public source must use a link without credentials.")
     host = hostname.rstrip(".")
     try:
         address = ip_address(host)
@@ -221,4 +222,4 @@ def public_evidence_url(ref: str, field: str) -> None:
     else:
         if address.is_global and not address.is_multicast and not address.is_reserved:
             return
-    raise ValueError(f"{field}: a public source needs a public host. Cite internal evidence as a project file or tool.")
+    raise OgkError("OGK-GUARD-016", f"{field}: a public source needs a public host. Cite internal evidence as a project file or tool.")

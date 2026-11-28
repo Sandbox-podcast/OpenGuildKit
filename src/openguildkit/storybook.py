@@ -1,5 +1,4 @@
-"""Storybook for a project: reference the company's Storybook, compare it with the project's own,
-and extract a design system from an existing React application.
+"""References the company's Storybook, compares it with the project's, and writes extraction proposals.
 
 The CLI never runs npm and never opens the network. It writes the refs file that the project's
 .storybook/main imports, reads Storybook index.json files the team built or downloaded, and records
@@ -21,6 +20,7 @@ from urllib.parse import urlsplit
 
 from . import clock
 from .detect import walk
+from .errors import OgkError
 from .sensitive import refuse_link_credentials
 from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
 from .storage import file_sha256, project_lock, read_json, write_json
@@ -90,7 +90,7 @@ def committed_path(root: Path, path: Path) -> str:
 
 def ref_id(value: str) -> str:
     if not isinstance(value, str) or not _REF_ID.fullmatch(value) or len(value) > 40:
-        raise ValueError("Use a Storybook ref ID of lowercase letters, digits and hyphens.")
+        raise OgkError("OGK-STORY-014", "Use a Storybook ref ID of lowercase letters, digits and hyphens.")
     return value
 
 
@@ -106,22 +106,22 @@ def read_index(path: Path) -> list[dict]:
     path = index_file(path)
     data = read_json(path)
     if "entries" not in data and "stories" in data:
-        raise ValueError(f"{path} is a Storybook 6 stories.json. Build the Storybook with version 7 or later.")
+        raise OgkError("OGK-STORY-001", f"{path} is a Storybook 6 stories.json. Build the Storybook with version 7 or later.")
     if data.get("v") not in INDEX_VERSIONS or not isinstance(data.get("entries"), dict):
-        raise ValueError(f"{path} is not a Storybook index.json (format version 4 or 5).")
+        raise OgkError("OGK-STORY-015", f"{path} is not a Storybook index.json (format version 4 or 5).")
     entries = []
     for key, entry in data["entries"].items():
         if not isinstance(entry, dict) or entry.get("id") != key or not key or any(
                 character.isspace() or character in "/_:" for character in key):
-            raise ValueError(f"{path}: unexpected Storybook entry {key!r}.")
+            raise OgkError("OGK-STORY-002", f"{path}: unexpected Storybook entry {key!r}.")
         if not all(isinstance(entry.get(field), str) and entry[field].strip() for field in ("title", "name")):
-            raise ValueError(f"{path}: entry {key} needs a title and a name.")
+            raise OgkError("OGK-STORY-016", f"{path}: entry {key} needs a title and a name.")
         kind = entry.get("type", "story")
         if kind not in ("story", "docs"):
-            raise ValueError(f"{path}: entry {key} has an unknown type {kind!r}.")
+            raise OgkError("OGK-STORY-017", f"{path}: entry {key} has an unknown type {kind!r}.")
         tags = entry.get("tags", [])
         if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
-            raise ValueError(f"{path}: entry {key} has invalid tags.")
+            raise OgkError("OGK-STORY-018", f"{path}: entry {key} has invalid tags.")
         item = {"id": key, "title": entry["title"].strip(), "name": entry["name"].strip(), "type": kind, "tags": tags}
         if isinstance(entry.get("importPath"), str):
             item["importPath"] = entry["importPath"]
@@ -259,10 +259,10 @@ def _check_ref_url(url: object) -> None:
     except ValueError:
         netloc = ""
     if "@" in netloc:
-        raise ValueError("Remove the user name and password from the URL: the refs file is committed. "
+        raise OgkError("OGK-STORY-003", "Remove the user name and password from the URL: the refs file is committed. "
                          "Let the Storybook host handle authentication, with its own sign-in.")
     if not netloc or not re.fullmatch(r"(https://[^\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?(/[^\s]*)?)", url):
-        raise ValueError("The composed Storybook needs an https URL, or http://localhost while testing.")
+        raise OgkError("OGK-STORY-004", "The composed Storybook needs an https URL, or http://localhost while testing.")
     refuse_link_credentials(url, "The composed Storybook URL")
 
 
@@ -271,28 +271,28 @@ def compose(root: Path, ref: str, url: str | None, title: str | None = None, rem
     """Add, update or remove one composed Storybook in the refs file that .storybook/main imports."""
     ref = ref_id(ref)
     if ref == PROJECT_REF:
-        raise ValueError(f"{PROJECT_REF} is reserved for the project's own Storybook.")
+        raise OgkError("OGK-STORY-005", f"{PROJECT_REF} is reserved for the project's own Storybook.")
     directory = (root / config_dir).resolve()
     if root.resolve() not in (directory, *directory.parents):
-        raise ValueError("The Storybook configuration folder must be inside the project.")
+        raise OgkError("OGK-STORY-019", "The Storybook configuration folder must be inside the project.")
     if not directory.is_dir():
-        raise ValueError(f"No Storybook configuration in {config_dir}. Create the project Storybook first, "
+        raise OgkError("OGK-STORY-006", f"No Storybook configuration in {config_dir}. Create the project Storybook first, "
                          f"with npm create storybook@{STORYBOOK_VERSION}, or create the {config_dir} folder and run "
                          "this command again: it prints a minimal main.ts.")
     path = directory / REFS_FILE
     refs = read_json(path) if path.exists() else {}
     if any(not isinstance(item, dict) or not isinstance(item.get("url"), str) for item in refs.values()):
-        raise ValueError(f"{path.name} is managed by openguildkit storybook compose and holds refs only.")
+        raise OgkError("OGK-STORY-007", f"{path.name} is managed by openguildkit storybook compose and holds refs only.")
     if remove:
         if ref not in refs:
-            raise ValueError(f"No composed Storybook named {ref} in {path.name}.")
+            raise OgkError("OGK-STORY-008", f"No composed Storybook named {ref} in {path.name}.")
         del refs[ref]
     else:
         _check_ref_url(url)
         current = refs.get(ref, {})
         title = (title or current.get("title") or ref).strip()
         if not title or len(title.splitlines()) != 1:
-            raise ValueError("The title is a single line of text.")
+            raise OgkError("OGK-STORY-020", "The title is a single line of text.")
         refs[ref] = {**current, "title": title, "url": url.rstrip("/")}
     write_json(path, dict(sorted(refs.items())))
     main = next((directory / name for name in MAIN_FILES if (directory / name).is_file()), None)
@@ -313,27 +313,27 @@ def compose(root: Path, ref: str, url: str | None, title: str | None = None, rem
 def _validate_story(item: object) -> dict:
     if not isinstance(item, dict) or item.keys() != {"id", "title", "name"} or not all(
             isinstance(item[key], str) and item[key].strip() for key in item):
-        raise ValueError("Each recorded story needs id, title and name.")
+        raise OgkError("OGK-STORY-021", "Each recorded story needs id, title and name.")
     return dict(item)
 
 
 def validate_record(record: dict) -> dict:
     if not isinstance(record, dict) or record.get("schema_version") != 1 or not isinstance(record.get("indexes"), list):
-        raise ValueError(f"{RECORD} needs schema_version 1 and a list of indexes.")
+        raise OgkError("OGK-STORY-022", f"{RECORD} needs schema_version 1 and a list of indexes.")
     refs = set()
     indexes = []
     for index in record["indexes"]:
         if not isinstance(index, dict) or index.keys() != {"ref", "source", "sha256", "recorded", "stories"}:
-            raise ValueError("Each recorded index needs ref, source, sha256, recorded and stories.")
+            raise OgkError("OGK-STORY-023", "Each recorded index needs ref, source, sha256, recorded and stories.")
         ref = index["ref"] if index["ref"] == PROJECT_REF else ref_id(index["ref"])
         if ref in refs:
-            raise ValueError(f"The Storybook index {ref} is recorded twice.")
+            raise OgkError("OGK-STORY-024", f"The Storybook index {ref} is recorded twice.")
         refs.add(ref)
         if not isinstance(index["recorded"], str) or not _DAY.fullmatch(index["recorded"]):
-            raise ValueError("recorded must be a date written YYYY-MM-DD.")
+            raise OgkError("OGK-STORY-025", "recorded must be a date written YYYY-MM-DD.")
         date.fromisoformat(index["recorded"])
         if not isinstance(index["stories"], list):
-            raise ValueError("stories must be a list.")
+            raise OgkError("OGK-STORY-026", "stories must be a list.")
         indexes.append({**index, "stories": [_validate_story(item) for item in index["stories"]]})
     return {"schema_version": 1, "indexes": indexes}
 
@@ -368,7 +368,7 @@ def source_files(sources: list[Path]):
             for path in sorted(files, key=lambda item: item.as_posix()):
                 yield base, path
         else:
-            raise ValueError(f"No such file or folder: {base.name}. Give a --src path that exists.")
+            raise OgkError("OGK-STORY-027", f"No such file or folder: {base.name}. Give a --src path that exists.")
 
 
 def _newer_story_source(root: Path, index: Path, entries: list[dict]) -> Path | None:
@@ -403,11 +403,11 @@ def import_indexes(root: Path, state: Path, project_index: Path | None = None, c
     today = today or clock.real_today()
     ref = ref_id(ref)
     if ref == PROJECT_REF:
-        raise ValueError(f"{PROJECT_REF} is reserved for the project's own Storybook.")
+        raise OgkError("OGK-STORY-028", f"{PROJECT_REF} is reserved for the project's own Storybook.")
     if project_index is None and (root / "storybook-static" / "index.json").is_file():
         project_index = root / "storybook-static"
     if project_index is None and company_index is None:
-        raise ValueError("Give --project-index, --company-index or both. Build the project Storybook with "
+        raise OgkError("OGK-STORY-029", "Give --project-index, --company-index or both. Build the project Storybook with "
                          "npm run build-storybook to get storybook-static/index.json.")
     indexes = {}
     report: dict = {}
@@ -525,7 +525,7 @@ def _token_name(token: dict, short: bool = True) -> str:
 
 def _check_name(name: object, field: str) -> str:
     if not isinstance(name, str) or not name.strip() or len(name.strip().splitlines()) != 1:
-        raise ValueError(f"{field} needs a name on one line.")
+        raise OgkError("OGK-STORY-030", f"{field} needs a name on one line.")
     return name.strip()
 
 
@@ -533,7 +533,7 @@ def validate_proposals(data: dict) -> dict:
     """Check the proposals file the team edits: one status and one name per item."""
     if not isinstance(data, dict) or data.get("schema_version") != 1 or not all(
             isinstance(data.get(field), list) for field in ("components", "variants", "tokens")):
-        raise ValueError("Proposals need schema_version 1 and lists of components, variants and tokens.")
+        raise OgkError("OGK-STORY-031", "Proposals need schema_version 1 and lists of components, variants and tokens.")
     _check_proposal_items(data)
     for item in data["components"]:
         _check_proposed_component(item)
@@ -542,7 +542,7 @@ def validate_proposals(data: dict) -> dict:
         if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
                 isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
                 for prop, value in item["props"].items()):
-            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
+            raise OgkError("OGK-STORY-032", f"{item['key']}: a variant names one of the components and gives props with literal values.")
     _check_proposed_tokens(data["tokens"])
     return data
 
@@ -554,10 +554,10 @@ def _check_proposal_items(data: dict) -> None:
     for field in ("components", "variants", "tokens"):
         for item in data[field]:
             if not isinstance(item, dict) or not isinstance(item.get("key"), str) or item["key"] in keys:
-                raise ValueError(f"Each item of {field} needs a unique key.")
+                raise OgkError("OGK-STORY-033", f"Each item of {field} needs a unique key.")
             keys.add(item["key"])
             if item.get("status") not in STATUSES:
-                raise ValueError(f"{item['key']}: status must be proposed, validated or rejected.")
+                raise OgkError("OGK-STORY-009", f"{item['key']}: status must be proposed, validated or rejected.")
             item["name"] = _check_name(item.get("name"), item["key"])
             if item.get("basis") == "preview":
                 item["confidence"] = "hypothesis"
@@ -568,13 +568,13 @@ def _check_proposed_component(item: dict) -> None:
     if item.get("export", "named") not in ("named", "default") or not (
             "public" not in item or (isinstance(item["public"], str) and JS_IDENTIFIER.fullmatch(item["public"])
                                      and item["public"] != "default")):
-        raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
+        raise OgkError("OGK-STORY-010", f"{item['key']}: export is named or default, and public is the JavaScript name "
                          "the component is exported under.")
     if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
-        raise ValueError(f"{item['key']}: args and sample_args must be objects.")
+        raise OgkError("OGK-STORY-034", f"{item['key']}: args and sample_args must be objects.")
     callbacks = item.get("callback_props", [])
     if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
-        raise ValueError(f"{item['key']}: callback_props lists prop names.")
+        raise OgkError("OGK-STORY-035", f"{item['key']}: callback_props lists prop names.")
 
 
 def _check_proposed_tokens(tokens: list) -> None:
@@ -582,12 +582,12 @@ def _check_proposed_tokens(tokens: list) -> None:
     for item in tokens:
         segments = item["name"].split(".")
         if any(not segment or segment.startswith("$") or "{" in segment or "}" in segment for segment in segments):
-            raise ValueError(f"{item['key']}: a token name is a dotted path whose parts do not start with $ "
+            raise OgkError("OGK-STORY-011", f"{item['key']}: a token name is a dotted path whose parts do not start with $ "
                              "and contain no braces.")
     validated = [item["name"] for item in tokens if item["status"] == "validated"]
     for name in validated:
         if validated.count(name) > 1 or any(other.startswith(name + ".") for other in validated):
-            raise ValueError(f"Validated token {name} is used twice or is also a group.")
+            raise OgkError("OGK-STORY-012", f"Validated token {name} is used twice or is also a group.")
 
 
 def _proposed_component(item: dict) -> dict:
@@ -633,7 +633,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
     proposals_path = proposals_path or state / PROPOSALS
     inventory = read_json(inventory_path)
     if inventory.get("schema_version") != 1:
-        raise ValueError(f"{inventory_path} is not an OpenGuildKit Storybook inventory. Run storybook extract.")
+        raise OgkError("OGK-STORY-036", f"{inventory_path} is not an OpenGuildKit Storybook inventory. Run storybook extract.")
     previous = validate_proposals(read_json(proposals_path)) if proposals_path.exists() else {
         "components": [], "variants": [], "tokens": []}
     short = [_token_name(item) for item in inventory["tokens"]]

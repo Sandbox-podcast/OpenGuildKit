@@ -1,5 +1,4 @@
-"""Prepare a board consultation: the scope snapshot of the task, the review request for the host agent, and each
-board's brief with the rules that concern the task.
+"""Prepares the consultation: scope snapshot and review request; `board_brief.py` writes each board's brief.
 
 Entry: profile_settings, json_section, research_decision, answer_lines, scope_lines, code_not_found
 Tests: tests/test_agent_native.py, tests/test_assumptions.py, tests/test_cli_surface.py, tests/test_pass_relevance.py,
@@ -15,14 +14,16 @@ from uuid import uuid4
 
 from . import short_lane
 from .code_lookup import MAX_SCANNED_FILES, code_lookup
+from .errors import OgkError
 from .patterns import is_stack_pattern, pattern_selection
 from .project import rules_in_force
 from .questionnaire import ASSUMPTIONS, as_list, open_points, validate_answers
+from .records import Catalog, Profile, Task
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
 
 
-def profile_settings(profile: dict) -> dict:
+def profile_settings(profile: Profile) -> dict:
     """The project settings besides the packs and checks that decide which boards review a task and which rules it is
     asked. A change of one voids the approvals (project_rules.profile_fingerprint), and the message names it."""
     return {
@@ -33,7 +34,7 @@ def profile_settings(profile: dict) -> dict:
     }
 
 
-def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> dict:
+def _scope_snapshot(profile: Profile, catalog: Catalog, task: Task, answers: dict) -> dict:
     research = "local-only"
     if profile.get("research") == "public-sources" and answers["research"] == "public":
         research = "public-sources"
@@ -98,7 +99,7 @@ def research_decision(policy: str, answer: str | None = None) -> str:
         return (f"Research policy local-only{_LOCAL_CAUSES.get(answer, '')}: a public search is outside this task's "
                 "scope, so the person decides first and records it with openguildkit task authorize ID --action "
                 "public-research --target HOST.")
-    raise ValueError(f"Unknown research policy: {policy}")
+    raise OgkError("OGK-TASK-014", f"Unknown research policy: {policy}")
 
 
 # Outputs an agent reads in full: long lists show this many items, then count the rest and name the command
@@ -374,7 +375,7 @@ def _board_template(board: dict, reviewer: str | None = None, surfaces: list[str
 _SPECIFICITY = {"answered": -1, "touched": 0, "stack": 1, "regulation": 2, "method": 3, "selected": 3, "baseline": 4}
 
 
-def _pack_order(profile: dict, catalog: dict, touched: set[str], relevance: dict | None = None) -> dict[str, int]:
+def _pack_order(profile: Profile, catalog: Catalog, touched: set[str], relevance: dict | None = None) -> dict[str, int]:
     """How specific each pack in force is to the task, from the way it reached the project and from the answers
     that select it (relevance.py)."""
     relevance = relevance or {}
@@ -492,7 +493,7 @@ def code_not_found(text: str, root: Path) -> list[str]:
 
 
 def consult(
-    profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None,
+    profile: Profile, catalog: Catalog, task: Task, selection: dict | None = None, host_controls: list[dict] | None = None,
     market: dict | None = None, storybook: dict | None = None, knowledge: Mapping[str, dict] | None = None,
     tools: list[dict] | None = None, code_not_found: list[str] | None = None,
     code_not_searched: list[str] | None = None,
@@ -518,7 +519,7 @@ def consult(
     boards = catalog["boards"]
     # The same relevance as the results: which packs concern this task, from how they reached the project, then
     # which of their rules, as task checks will ask them.
-    routed = {**task, "answers": answers, "consultation": {"scope": scope, "boards": list(routing)}}
+    routed: Task = {**task, "answers": answers, "consultation": {"scope": scope, "boards": list(routing)}}
     relevance = pack_relevance(routed, profile, catalog, None)
     rules = judge_rules(routed, profile, {"packs": relevance})
     order = _pack_order(profile, catalog, touched_components(scope, profile), relevance)

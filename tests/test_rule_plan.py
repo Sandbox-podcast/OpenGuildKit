@@ -42,6 +42,7 @@ class RulePlanTests(unittest.TestCase):
         conflicts = rule_plan(profile, self.conflicting)["conflicts"]
         self.assertEqual(conflicts[0]["packs"], ["kanban-delivery", "scrum-delivery"])
         self.assertIsNone(conflicts[0]["resolution"])
+        # OGK-RULE-001
         with self.assertRaisesRegex(ValueError, "Conflicting rule packs: kanban-delivery and scrum-delivery"):
             render_instructions(profile, self.conflicting)
 
@@ -92,6 +93,7 @@ class RulePlanTests(unittest.TestCase):
         self.assertIn("both apply. Reason: Scrum with a Kanban board.", instructions)
 
     def test_invalid_resolutions_and_conflict_declarations_are_rejected(self):
+        # OGK-CATALOG-022, OGK-PROJECT-015
         with self.assertRaisesRegex(ValueError, "keep must list"):
             validate_profile({"name": "x", "resolutions": [{"packs": ["kanban-delivery", "scrum-delivery"],
                                                             "keep": ["python"], "reason": "x"}]}, self.catalog)

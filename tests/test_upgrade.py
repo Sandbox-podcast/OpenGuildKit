@@ -65,7 +65,8 @@ class UpgradeTestCase(CliTestCase):
         self.assertEqual(rows["open-draft"]["status"], "draft")
         self.assertEqual(self.run_cli("task", "show", self.approved).stdout.count('"status": "approved"'), 1)
         handoff = self.run_cli("task", "handoff", self.approved, expect=1)
-        self.assertEqual(handoff.stderr.strip(), self.old_approval_line().replace(f"{self.approved}: ", "", 1))
+        self.assertEqual(handoff.stderr.strip(), self.old_approval_line().replace(f"OpenGuildKit: {self.approved}: ",
+                                                                                   "OpenGuildKit [OGK-TASK-012]: ", 1))
         self.assertEqual(json.loads(self.run_cli("guard", "--json").stdout)["covered_by"], [])
 
     def assert_old_draft_continues(self):
@@ -134,7 +135,7 @@ class FirstReleaseTests(UpgradeTestCase):
         for command in (("check",), ("update",), ("task", "list")):
             result = self.run_cli(*command, expect=1)
             self.assertEqual(result.stderr.strip(), (
-                "OpenGuildKit: .openguildkit/project.json names the sector 'retired-sector', which neither this release "
+                "OpenGuildKit [OGK-PROJECT-027]: .openguildkit/project.json names the sector 'retired-sector', which neither this release "
                 "nor the catalog lock provides: choose one listed by openguildkit catalog, set it in "
                 ".openguildkit/project.json, then run openguildkit sync."))
             self.assertNotIn("Traceback", result.stderr)

@@ -1,4 +1,4 @@
-"""Local state helpers shared by the profile and task commands.
+"""Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock.
 
 Entry: parse_json, load_json, unique_fields, read_bytes, read_json, file_signature, json_text, print_json
 Tests: tests/test_storage.py
@@ -9,10 +9,12 @@ import json
 import os
 import stat
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+from .errors import OgkError
 
 # Windows refuses to replace a file while another process reads it, and to read it while it is
 # being replaced; POSIX systems do neither.
@@ -32,12 +34,12 @@ def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"duplicate JSON field {key!r}")
+            raise OgkError("OGK-CORE-008", f"duplicate JSON field {key!r}")
         result[key] = value
     return result
 
 
-class NestedTooDeeply(ValueError):
+class NestedTooDeeply(OgkError):
     """JSON nested deeper than the parser can follow: refused even where invalid JSON is left aside."""
 
 
@@ -47,7 +49,7 @@ def _loads(content: bytes, pairs: Callable | None) -> Any:
     try:
         return json.loads(content.decode("utf-8-sig"), object_pairs_hook=pairs)
     except RecursionError as error:
-        raise NestedTooDeeply("JSON nested too deeply") from error
+        raise NestedTooDeeply("OGK-CORE-021", "JSON nested too deeply") from error
 
 
 def load_json(path: Any, *, pairs: Callable | None = None) -> Any:
@@ -61,9 +63,9 @@ def parse_json(content: bytes, label: str) -> dict:
     try:
         data = _loads(content, unique_fields)
     except ValueError as error:
-        raise ValueError(f"Invalid JSON in {label}: {error}") from error
+        raise OgkError("OGK-CORE-009", f"Invalid JSON in {label}: {error}") from error
     if not isinstance(data, dict):
-        raise ValueError(f"Expected a JSON object in {label}")
+        raise OgkError("OGK-CORE-010", f"Expected a JSON object in {label}")
     return data
 
 
@@ -120,8 +122,29 @@ def json_text(data) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
+# The version of the shape of a --json answer and of an error under --json (#484). With OPENGUILDKIT_JSON_ENVELOPE=1,
+# a --json answer comes inside {"schema_version", "command", "data"}; without it, as it always came.
+SCHEMA_VERSION = 1
+ENVELOPE_VARIABLE = "OPENGUILDKIT_JSON_ENVELOPE"
+_ANSWERING: list[str | None] = [None]
+
+
+@contextmanager
+def answering(command: str | None):
+    """Inside the block, print_json answers the --json of `command` (its words, such as "task checks"); None when the
+    command was not asked for JSON, whose JSON output (a template to fill in) never takes the envelope."""
+    before, _ANSWERING[0] = _ANSWERING[0], command
+    try:
+        yield
+    finally:
+        _ANSWERING[0] = before
+
+
 def print_json(data) -> None:
-    """Print a command's JSON answer on standard output, as every command with --json does."""
+    """Print a command's JSON answer on standard output, as every command with --json does, in the envelope when
+    OPENGUILDKIT_JSON_ENVELOPE is 1."""
+    if _ANSWERING[0] is not None and os.environ.get(ENVELOPE_VARIABLE) == "1":
+        data = {"schema_version": SCHEMA_VERSION, "command": _ANSWERING[0], "data": data}
     print(json_text(data), end="")
 
 
@@ -140,7 +163,7 @@ def _replace(source: Path, target: Path) -> None:
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink() and (not path.exists() or path.is_file() or path.is_dir()):
-        raise ValueError(f"Refusing to replace a symbolic link: {path}")
+        raise OgkError("OGK-CORE-011", f"Refusing to replace a symbolic link: {path}")
     if path.exists() and not path.is_file() and not path.is_dir():
         # A device or a pipe, such as /dev/null, cannot be replaced by a renamed file: write to it.
         with path.open("wb") as handle:
@@ -167,7 +190,7 @@ def write_text(path: Path, content: str) -> None:
             temporary_path.unlink(missing_ok=True)
 
 
-def write_json(path: Path, data: dict) -> None:
+def write_json(path: Path, data: Mapping[str, Any]) -> None:
     write_text(path, json_text(data))
 
 
@@ -177,7 +200,7 @@ def project_lock(directory: Path):
     directory.mkdir(parents=True, exist_ok=True)
     lock_file = directory / ".lock"
     if lock_file.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project lock: {lock_file}")
+        raise OgkError("OGK-CORE-024", f"Refusing a symbolic link as project lock: {lock_file}")
     try:
         with _held_lock(lock_file):
             yield
@@ -206,7 +229,7 @@ def lock_timeout() -> float:
     except ValueError:
         seconds = -1.0
     if not 0 <= seconds <= 3600:
-        raise ValueError(f"Set {LOCK_TIMEOUT_VARIABLE} to a number of seconds between 0 and 3600, or unset it.")
+        raise OgkError("OGK-CORE-014", f"Set {LOCK_TIMEOUT_VARIABLE} to a number of seconds between 0 and 3600, or unset it.")
     return seconds
 
 
@@ -250,7 +273,7 @@ def _held_lock(lock_file: Path):
         handle.seek(0)
         while not _try_lock(handle):
             if time.monotonic() >= deadline:
-                raise ValueError("Another OpenGuildKit command is writing this project. Try again.")
+                raise OgkError("OGK-CORE-012", "Another OpenGuildKit command is writing this project. Try again.")
             time.sleep(LOCK_POLL_SECONDS)
         try:
             yield

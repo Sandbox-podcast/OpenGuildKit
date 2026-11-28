@@ -1,4 +1,4 @@
-"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project.
+"""The `alerts` commands and `task alerts`: import scanner reports and review alerts.
 
 Entry: add_parser, run, task_command, consultation_task
 Tests: tests/test_architecture.py, tests/test_requester.py
@@ -31,7 +31,9 @@ from .alerts import (
 from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
-from .storage import json_text, project_lock, read_json, write_json
+from .errors import OgkError
+from .records import Task
+from .storage import print_json, project_lock, read_json, write_json
 from .task_files import read_task, task_path
 from .tasks import create_task
 from .terminal import typed
@@ -84,7 +86,7 @@ def _confirm_person(alert_id: str, what: str) -> None:
 
 def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
     if as_json:
-        print(json_text({**data, "alerts": alerts}), end="")
+        print_json({**data, "alerts": alerts})
         return
     for item in data.get("imports", []):
         print(f"Imported {plural(item['alerts'], 'alert')} from {item['tool']} ({item['file']}, sha256 {item['sha256'][:12]})")
@@ -100,7 +102,7 @@ def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
 
 def _print_changes(changes: dict, as_json: bool) -> None:
     if as_json:
-        print(json_text(changes), end="")
+        print_json(changes)
         return
     scope = f" (scope {changes['scope']})" if changes.get("scope") else ""
     print(f"{changes['tool']}{scope}: {plural(len(changes['reported']), 'alert')} reported, {len(changes['new'])} new, "
@@ -159,7 +161,7 @@ def _alert_tasks(args, state: Path) -> None:
         if args.open and rows:
             save_register(state, register)
     if args.json:
-        print(json_text(rows), end="")
+        print_json(rows)
     elif not rows:
         print("No confirmed alert waits for a task.")
     for row in [] if args.json else rows:
@@ -214,7 +216,7 @@ def run(command: Command) -> None:
         print(f"{alert['id']}: {alert['status']}{severity}" + (" (accepted)" if alert.get("accepted") else ""))
 
 
-def task_command(args, state: Path, task: dict) -> None:
+def task_command(args, state: Path, task: Task) -> None:
     """`task alerts ID`: import, review or link alerts in the register for one task, then list them."""
     with project_lock(state):
         current = read_task(state, args.id)
@@ -225,7 +227,7 @@ def task_command(args, state: Path, task: dict) -> None:
             register = link_alert(register, args.link, args.id)
         if args.alert_id:
             if not args.status:
-                raise ValueError("Give --status with --set.")
+                raise OgkError("OGK-ALERTS-018", "Give --status with --set.")
             register = _review(register, args.alert_id, args.status, args.by or "", args.reason)
         if migrated != current or args.import_file or args.link or args.alert_id:
             save_register(state, register)
@@ -238,7 +240,7 @@ def task_command(args, state: Path, task: dict) -> None:
         _consult_again_note(migrated, task_alerts(register, migrated), args.json)
 
 
-def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
+def _consult_again_note(task: Task, active: list[dict], as_json: bool) -> None:
     """The boards read a task's alerts when it is consulted: say so when its consultation lacks an active one."""
     held = {alert["id"] for alert in task.get("consultation", {}).get("scope", {}).get("dependency_alerts", [])}
     if "consultation" in task and task["status"] not in DONE_STATUSES and not as_json and any(
@@ -247,7 +249,7 @@ def _consult_again_note(task: dict, active: list[dict], as_json: bool) -> None:
               f"{task['id']} --reuse-answers so the boards see its alerts.")
 
 
-def consultation_task(state: Path, task: dict) -> dict:
+def consultation_task(state: Path, task: Task) -> Task:
     """The task as a consultation sees it: only its open and confirmed alerts."""
     alerts = task_alerts(load_register(state), task)
     return {**task, "dependency_alerts": {"alerts": alerts}}

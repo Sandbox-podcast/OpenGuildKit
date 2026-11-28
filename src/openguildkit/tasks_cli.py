@@ -1,4 +1,5 @@
-"""The task command: take a task from the request to its closing.
+"""The `task` command: its parser, `task new`, and the table that runs each action, with a refusal that names the
+command to run next.
 
 add_parser adds the task actions to the CLI's parser and run runs one of them, as tools_cli and the other command
 modules do. Each action reads the task, checks what its status allows, and writes the record under the project
@@ -13,6 +14,7 @@ tests/test_evidence_fingerprints.py, tests/test_next_steps.py, tests/test_perfor
 tests/test_short_lane.py, tests/test_task_dependencies.py, tests/test_task_index.py, tests/test_unhooked_hosts.py
 """
 
+import contextlib
 import sys
 from pathlib import Path
 
@@ -22,11 +24,13 @@ from .approval_check import approval_problem
 from .cli_surface import add_by
 from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
+from .errors import OgkError
 from .lock import require_instructions
 from .project import WORK_DIR
+from .records import Catalog, Profile
 from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
-from .storage import project_lock
+from .storage import print_json, project_lock
 from .task_files import read_task, task_path
 from .tasks import create_task, waiting_for, waits_line
 from .tasks_close_cli import (
@@ -350,26 +354,26 @@ ACTION_OPTIONS = {
     "clear": (_blocker_options, _clear_options),
     "waive": (_blocker_options, _waive_options),
     "blockers": (_json_option("Print the blockers as JSON."),),
-    "export": (_export_options,),
+    "export": (_export_options, _json_option("Print the record written as JSON.")),
     "checks": (_json_option("Print the checks as JSON."), _all_rules_option),
     "result": (_all_rules_option, _result_source_options),
     "complete": (_complete_options,),
-    "verify": (_verify_options,),
+    "verify": (_verify_options, _json_option("Print the recorded result as JSON; the text goes to standard error.")),
     "alerts": (_alerts_options,),
     "runs": (_json_option("Print the comparison as JSON."),),
     "respond": (_file_option("Completed deliberation JSON."),),
     "progress": (_json_option("Print the progress as JSON."),),
     "authorize": (_authorize_options,),
-    "decide": (_decide_options,),
+    "decide": (_decide_options, _json_option("Print the decision recorded as JSON.")),
     "revoke": (_revoke_options,),
     "decision-payload": (_payload_options,),
 }
 
 
-def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def _new(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """Create a task draft and print its ID; the next step goes to the agent on standard error."""
     if (args.brief is None) == (args.file is None):
-        raise ValueError("Supply either a task brief or --file PATH.")
+        raise OgkError("OGK-TASK-007", "Supply either a task brief or --file PATH.")
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = short_lane.declare(args.lane, args.paths, profile)
@@ -377,9 +381,9 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
-            raise ValueError(f"Task ID {args.id} is already used by the exported decision "
-                             f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
-                             f"with openguildkit task show {args.id}, and choose another ID.")
+            raise OgkError("OGK-TASK-008", f"Task ID {args.id} is already used by the exported decision "
+                           f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it "
+                           f"with openguildkit task show {args.id}, and choose another ID.")
         task_id = create_task(state, brief, args.id, args.follows, lane, args.after, requested_by)
         statuses = {name: read_task(state, name)["status"] for name in dict.fromkeys(args.after or [])}
     print(task_id)
@@ -411,7 +415,14 @@ def run_waive(command: TaskCommand) -> None:
 
 
 def run_verify(command: TaskCommand) -> int | None:
-    return run_outcome(command)
+    """task verify; with --json, its text goes to standard error and the result it recorded to standard output."""
+    if not command.args.json:
+        return run_outcome(command)
+    with contextlib.redirect_stdout(sys.stderr):
+        code = run_outcome(command)
+    task = read_task(command.state, command.args.id)
+    print_json({"task": task["id"], "status": task["status"], "result": task["result"]})
+    return code
 
 
 def run_result(command: TaskCommand) -> int | None:
@@ -448,10 +459,10 @@ def run(command: Command) -> int | None:
         return _run(args, root, state, profile, catalog)
     except TaskStateError as error:
         task = read_task(state, args.id)
-        raise ValueError(state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
+        raise OgkError("OGK-TASK-009", state_refusal(task, str(error), approval_problem(task, profile, catalog, root))) from None
 
 
-def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:
+def _run(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int | None:
     action = args.action
     if action == "new":
         _new(args, root, state, profile, catalog)
@@ -466,23 +477,23 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
             if args.summary:
-                raise ValueError(f"Task {args.id} exists here only as the exported record, which has no summary: run "
-                                 f"openguildkit task show {args.id}.")
+                raise OgkError("OGK-TASK-010", f"Task {args.id} exists here only as the exported record, which has "
+                                               f"no summary: run openguildkit task show {args.id}.")
             show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
-        raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "
-                         f"a teammate's task or an earlier one: read it with openguildkit task show {args.id} or "
-                         "openguildkit task list --decisions.")
+        raise OgkError("OGK-TASK-011", f"Task {args.id} exists here only as the exported record "
+                                       f"{record.relative_to(root).as_posix()}, a teammate's task or an earlier one: "
+                                       f"read it with openguildkit task show {args.id} or openguildkit task list "
+                                       "--decisions.")
     task = read_task(state, args.id)
     if action in READ_APPROVAL:
         # One answer for every reader: an error stops the action; a note (a completed task's history) is shown.
         problem = approval_problem(task, profile, catalog, root)
-        if problem and problem["severity"] == "error" and action not in ("show", "checks"):
-            raise ValueError(problem["message"])
         # An approval verified by the signers of the revision it was signed at holds: every reader says so.
-        if problem and (action in ("show", "checks", "export") or problem["kind"] == EARLIER_SIGNERS):
+        shown = problem and (action in ("show", "checks", "export") or problem["kind"] == EARLIER_SIGNERS)
+        if problem and (problem["severity"] == "error" and action not in ("show", "checks") or not shown):
+            raise OgkError("OGK-TASK-012", problem["message"])
+        if problem:
             print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
-        elif problem:
-            raise ValueError(problem["message"])
     handler = run_result_template if action == "result" and args.template else HANDLERS[action]
     return handler(TaskCommand(args, root, state, profile, catalog, task))

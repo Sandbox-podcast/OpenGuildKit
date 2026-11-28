@@ -137,6 +137,7 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertNotIn("Applies to", instructions)
 
     def test_profile_rejects_unknown_component_scopes_and_unsafe_paths(self):
+        # OGK-PROJECT-004, OGK-PROJECT-014
         components = [{"id": "web", "path": "apps/web", "stack": ["React"]}]
         with self.assertRaisesRegex(ValueError, "unknown components"):
             validate_profile({"personal_data": "no", "name": "x", "components": components,
@@ -145,6 +146,7 @@ class ComponentPatternTests(unittest.TestCase):
             validate_profile({"personal_data": "no", "name": "x", "components": [{"id": "web", "path": "../web", "stack": ["React"]}]}, self.catalog)
 
     def test_catalog_checks_minimum_versions(self):
+        # OGK-CATALOG-045, OGK-CATALOG-046
         pattern = json.loads(json.dumps(self.catalog["patterns"]["nextjs-react"]))
         pattern["match"]["min_versions"] = {"vue": "3"}
         with self.assertRaisesRegex(CatalogError, "not a stack alias"):

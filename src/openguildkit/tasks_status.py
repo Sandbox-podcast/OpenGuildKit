@@ -1,5 +1,5 @@
-"""The next step of a task and the command that takes it, what its status refuses, the words that describe its
-decision, and the line the task list shows for it, kept while nothing it was built from changed.
+"""The next step of a task and the command that takes it, what its status refuses, and the line of the task list, kept
+while nothing it was built from changed.
 
 Entry: next_step, next_command, state_refusal, task_row, kept_line
 Tests: tests/test_closing_points.py
@@ -15,6 +15,7 @@ from . import short_lane, task_index
 from .approval_check import DONE_STATUSES, STALE_DAYS, days_since
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
 from .project_rules import Fingerprints
+from .records import Profile, Task
 from .storage import file_signature
 from .tasks_approval import decided_message, revoke_command, stale_review_message
 from .tasks_blockers import expired_waiver_step, expired_waivers, unresolved_blockers, waiver_policy
@@ -25,7 +26,7 @@ from .wording import plural
 from .workflow import blocker_list, is_decision_task
 
 
-def next_step(task: dict, profile: dict | None = None) -> str:
+def next_step(task: Task, profile: Profile | None = None) -> str:
     """The open point that keeps a task from moving on; with the profile, whether a waiver can still close it."""
     status = task["status"]
     if status == "draft":
@@ -60,7 +61,7 @@ _STATUS_WORDS = {"draft": "a draft, not consulted yet", "consulting": "being con
                  "reviewed": "reviewed and waits for the person's decision"}
 
 
-def next_command(task: dict) -> str:
+def next_command(task: Task) -> str:
     """The command that moves a task on from its status, said to the agent: a refusal ends with it, so that a refused
     command leads to one that runs."""
     task_id, status = task["id"], task["status"]
@@ -98,7 +99,7 @@ def next_command(task: dict) -> str:
     return f'open a follow-up task: openguildkit task new "BRIEF" --follows {task_id}'
 
 
-def passes_left(task: dict) -> str:
+def passes_left(task: Task) -> str:
     """After an entry is recorded: how many passes are left and the command that comes next."""
     left = [item for item in pass_progress(task) if item["status"] != "done"]
     if not left:
@@ -106,7 +107,7 @@ def passes_left(task: dict) -> str:
     return f"{len(left)} {'pass' if len(left) == 1 else 'passes'} left: {next_command(task)}."
 
 
-def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
+def state_refusal(task: Task, refused: str, problem: dict | None = None) -> str:
     """A refused action on a task whose status it does not fit: what is refused, then the status and the next
     command that runs. A decided task says who decided and what fits next (decided_message, with the task's
     approval_problem when an approval no longer holds)."""
@@ -117,7 +118,7 @@ def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
     return f"{refused} Task {task['id']} is {words}: next, {next_command(task)}."
 
 
-def _conditions_step(task: dict, profile: dict | None) -> str:
+def _conditions_step(task: Task, profile: Profile | None) -> str:
     """The conditions of approval still open and, without a waiver policy, the way out if one cannot be met; then the
     waivers that expired since, each with what the person can do."""
     waiting = [item["id"] for item in blocker_list(task)
@@ -133,7 +134,7 @@ def _conditions_step(task: dict, profile: dict | None) -> str:
     return text + expired
 
 
-def _abandoned_step(task: dict) -> str:
+def _abandoned_step(task: Task) -> str:
     """An old approval with nothing recorded since still lets every edit through the guard: name the way to end it."""
     age = days_since(task["decision"].get("at"))
     if task.get("result") or is_decision_task(task) or age is None or age <= STALE_DAYS:
@@ -142,7 +143,7 @@ def _abandoned_step(task: dict) -> str:
             f"approved: if the work is abandoned, the person withdraws the approval: {revoke_command(task['id'])}.")
 
 
-def _approved_step(task: dict) -> str:
+def _approved_step(task: Task) -> str:
     """The next step of an approved task, from what its result already holds."""
     task_id = task["id"]
     if is_decision_task(task):
@@ -170,7 +171,7 @@ def _approved_step(task: dict) -> str:
     return f"Result recorded: run task verify {task_id} to list what remains, then task complete {task_id}."
 
 
-def task_row(task: dict, problem: dict | None, profile: dict | None, fingerprints: Fingerprints | None,
+def task_row(task: Task, problem: dict | None, profile: Profile | None, fingerprints: Fingerprints | None,
              root: Path | None) -> dict:
     """A task's line of task list, but for the tasks it waits for, which depend on the others; problem is its
     approval_problem, fingerprints those of the profile when the approval is judged."""
@@ -224,7 +225,7 @@ def _code_stamp() -> str | None:
     return hashlib.sha256(repr(modules).encode()).hexdigest()
 
 
-def line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
+def line_to_keep(state: Path, task: Task, row: dict, problem: dict | None,
                  fingerprints: Fingerprints | None) -> dict | None:
     """What the status index keeps of a closed task's line: the row, the fingerprint of the rules it was approved
     under and the signature of its exported record (None without one). None when the line depends on more than the
@@ -260,7 +261,7 @@ def kept_line(state: Path, entry: dict, task_id: str, fingerprints: Fingerprints
     return line if fingerprints.holds(line["fingerprint"]) else None
 
 
-def decision_words(task: dict, problem: dict | None = None) -> str | None:
+def decision_words(task: Task, problem: dict | None = None) -> str | None:
     """Who took the task's current decision, in the words task list prints: "approved by X", "changes requested by
     X", "withdrawn by X (approved by Y)", or that the approval no longer holds (problem is its approval_problem)."""
     decision = task.get("decision")

@@ -30,6 +30,7 @@ The first line after the title of every page names its reader.
 - [Professional brains](brains.md), [business deliverables](deliverables.md), [dependency alerts](alerts.md), [market dossiers](market.md) and [Storybook](storybook.md).
 - [Glossary](glossary.md), in English and French.
 - [Command reference](cli.md): every command and option with its help, written from the parser.
+- [Error codes](errors.md): each coded error, the function that raises it and the tests that cite it.
 - [Exit codes](exit-codes.md) and [troubleshooting](troubleshooting.md).
 
 ## Contributor

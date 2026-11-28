@@ -1,4 +1,4 @@
-"""The commands that take a task's work to readers: deliverable, and docs export and share.
+"""The `deliverable` and `docs` commands: drafts from approved tasks, documentation export and its shares.
 
 Entry: run.
 Tests: tests/test_deliverables.py, tests/test_publishing.py.
@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .command import Command
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link
-from .errors import unknown
+from .errors import OgkError, unknown
 from .publishing import (
     add_share,
     export_docs,
@@ -21,12 +21,13 @@ from .publishing import (
     shared_addresses,
     space_neighbours,
 )
+from .records import Catalog, Profile
 from .storage import print_json, project_lock, write_json
 from .task_files import read_task, task_path
 from .wording import plural
 
 
-def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def deliverable(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     templates = load_deliverables(catalog, state / "catalog" / "deliverables")
     action = args.deliverable_action
     if action == "list":
@@ -44,10 +45,10 @@ def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> 
         try:
             text = path.read_text(encoding="utf-8-sig")
         except UnicodeError as error:
-            raise ValueError(f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
+            raise OgkError("OGK-DOCS-001", f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
-            raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")
+            raise OgkError("OGK-DOCS-026", f"{args.path} is not a draft written by openguildkit deliverable new.")
         problems = draft_problems(templates[match.group(1)], text)
         for problem in problems:
             print(f"- {problem}")
@@ -55,7 +56,7 @@ def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> 
             print("Ready for review by " + ", ".join(templates[match.group(1)]["brains"]))
         return 1 if problems else 0
     if args.id not in templates:
-        raise ValueError(unknown("deliverable", args.id, "deliverable list"))
+        raise OgkError("OGK-DOCS-002", unknown("deliverable", args.id, "deliverable list"))
     template = templates[args.id]
     if action == "show":
         print(f"{template['title']} [{template['id']}]\n{template['description']}\nBefore starting the tool:")
@@ -78,7 +79,7 @@ def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> 
     return 0
 
 
-def _docs_export(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def _docs_export(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     """docs export: write the documentation pages of the tasks, and say what was written, removed or kept."""
     tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
     sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
@@ -100,7 +101,7 @@ def _docs_export(args, root: Path, state: Path, profile: dict, catalog: dict) ->
 def _share_add(args, state: Path) -> int:
     """docs share add: record a share, and warn about the readers it really reaches."""
     if not (args.deliverable and args.until and args.portal and args.by):
-        raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
+        raise OgkError("OGK-DOCS-027", "docs share add needs --deliverable, --recipient, --until, --portal and --by.")
     share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
     _print_share_added(share)
     for given in dict.fromkeys(args.recipient):
@@ -124,7 +125,7 @@ def _share_add(args, state: Path) -> int:
 def _share_revoke(args, state: Path) -> int:
     """docs share revoke: record the end of a share, and name the other shares the same access ended."""
     if not args.share_id or not args.by:
-        raise ValueError("docs share revoke needs --id and --by.")
+        raise OgkError("OGK-DOCS-028", "docs share revoke needs --id and --by.")
     share = revoke_share(state, args.share_id, args.by)
     print("revoked")
     space = share["space"] or f"of the portal {share['portal']}"
@@ -144,7 +145,7 @@ def _share_revoke(args, state: Path) -> int:
 def _share_verify(args, state: Path) -> int:
     """docs share verify: compare the register with the accesses the portal reports."""
     if not args.portal or not args.user:
-        raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
+        raise OgkError("OGK-DOCS-005", "docs share verify needs --portal and --user; the password is requested at the terminal.")
     from .portal_verification import verify_portal
     report = verify_portal(state, args.portal, args.user)
     if args.json:
@@ -162,7 +163,7 @@ def _share_verify(args, state: Path) -> int:
     return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
 
 
-def docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+def docs(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> int:
     if args.docs_action == "export":
         return _docs_export(args, root, state, profile, catalog)
     if args.share_action == "add":

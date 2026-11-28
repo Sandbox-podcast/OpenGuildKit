@@ -61,6 +61,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         self.run_cli("check")
 
     def test_profile_text_refuses_every_kind_of_line_break(self):
+        # OGK-PROJECT-002
         catalog = load_catalog()
         for value in ("line one\rline two", "Python\r" + END, "one two"):
             with self.assertRaisesRegex(ValueError, "single line"):
@@ -80,6 +81,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
 
     @unittest.skipUnless(hasattr(os, "symlink") and os.name == "posix", "symbolic links need POSIX here")
     def test_other_symbolic_links_are_still_refused(self):
+        # OGK-PROJECT-031
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)
         target = Path(outside.name) / "CLAUDE.md"
@@ -89,6 +91,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         self.assertIn("symbolic link", error)
 
     def test_marker_errors_name_the_file_in_question(self):
+        # OGK-PROJECT-030
         self.run_cli("init", "--answers", self.answers)
         (self.root / "CLAUDE.md").write_text(f"{END}\n@AGENTS.md\n", encoding="utf-8")
         _, error = self.run_cli("sync", code=1)

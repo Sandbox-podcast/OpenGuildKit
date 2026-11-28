@@ -1,7 +1,7 @@
 """What the local web interface refuses to run or to read: commands that need a person at a terminal, paths outside the
 project, secrets, and the project files it may show or write.
 
-Entry: Refused, terminal_command, named_command, terminal_reason, check_request, check_paths, ProjectFiles, MAX_FILE,
+Entry: Refused, terminal_command, terminal_reason, check_request, check_paths, ProjectFiles, MAX_FILE,
 REFUSALS, HUMAN_ONLY_TEXT
 Tests: tests/test_approval_lifecycle.py, tests/test_cli_surface.py, tests/test_next_steps.py, tests/test_org_catalog.py,
 tests/test_projects.py, tests/test_webui.py
@@ -15,6 +15,7 @@ import re
 from http import HTTPStatus
 from pathlib import Path
 
+from .errors import InternalError
 from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
@@ -98,20 +99,22 @@ HUMAN_ONLY_TEXT = "A person runs this command in their own terminal: the interfa
 
 
 class Refused(Exception):
-    """A request the interface will not run. `reason` is its code in REFUSALS; `command` is what a person can type
-    instead."""
+    """A request the interface will not run. `code` is its stable error code (OGK-WEB-NNN, #487); `reason` is its
+    kind in REFUSALS, which the page translates; `command` is what a person can type instead. It derives from
+    Exception, not ValueError, so that code catching ValueError does not catch a refusal."""
 
-    def __init__(self, message: str, command: str | None = None, status: HTTPStatus = HTTPStatus.FORBIDDEN, *,
-                 reason: str):
+    def __init__(self, code: str, message: str, command: str | None = None,
+                 status: HTTPStatus = HTTPStatus.FORBIDDEN, *, reason: str):
         if reason not in REFUSALS:
-            raise ValueError(f"Unknown refusal code: {reason}")
+            raise InternalError(f"Unknown refusal code: {reason}")
         super().__init__(message)
+        self.code = code
         self.command = command
         self.status = status
         self.reason = reason
 
     def answer(self) -> dict:
-        return {"error": str(self), "command": self.command, "reason": self.reason}
+        return {"error": str(self), "code": self.code, "command": self.command, "reason": self.reason}
 
 
 def _subcommand(args) -> str | None:
@@ -126,23 +129,6 @@ def _subcommand(args) -> str | None:
 def terminal_command(root: Path, argv: list[str]) -> str:
     """The command the page asks the person to run at their terminal, quoted as the CLI quotes its own."""
     return shell_command(["openguildkit", "--project", str(root), *argv])
-
-
-def named_command(message: str) -> list[str] | None:
-    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by INITIALS, at a terminal."),
-    up to the end of its clause, or None when it names none."""
-    match = re.search(r"\bopenguildkit (.+)", message)
-    if match is None:
-        return None
-    words = []
-    for word in match.group(1).split():
-        words.append(word.rstrip(",;."))
-        if word.endswith((",", ";", ".")):
-            break
-    words = [word for word in words if word]
-    if "--project" in words[:1]:
-        words = words[2:]
-    return words or None
 
 
 def terminal_reason(args) -> str:
@@ -170,23 +156,23 @@ def check_request(args, argv: list[str], root: Path) -> None:
     """Refuse what only a person at a terminal may record, and what does not belong in a page."""
     command = args.command
     if command in DENIED_COMMANDS:
-        raise Refused(DENIED_COMMANDS[command], reason="not-in-page")
+        raise Refused("OGK-WEB-003", DENIED_COMMANDS[command], reason="not-in-page")
     action = _subcommand(args)
     if _needs_person(args):
         reason = terminal_reason(args)
-        raise Refused(f"{REFUSALS[reason]} {HUMAN_ONLY_TEXT}", terminal_command(root, argv), reason=reason)
+        raise Refused("OGK-WEB-004", f"{REFUSALS[reason]} {HUMAN_ONLY_TEXT}", terminal_command(root, argv), reason=reason)
     if command == "guard" and args.hook:
-        raise Refused("guard --hook reads a host hook's input and runs inside the agent host.", reason="not-in-page")
+        raise Refused("OGK-WEB-005", "guard --hook reads a host hook's input and runs inside the agent host.", reason="not-in-page")
     if command == "tools" and action == "mock":
-        raise Refused("tools mock runs an MCP server on stdio for the agent host; use tools call from the page.",
+        raise Refused("OGK-WEB-006", "tools mock runs an MCP server on stdio for the agent host; use tools call from the page.",
                       reason="not-in-page")
     if command == "integrations" and args.user:
-        raise Refused("The interface only installs agent files in this project, not in the home folder.",
+        raise Refused("OGK-WEB-007", "The interface only installs agent files in this project, not in the home folder.",
                       reason="not-in-page")
     if command == "init" and not (args.questions or args.answers):
-        raise Refused(REFUSALS["send-setup-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-setup-answers")
+        raise Refused("OGK-WEB-008", REFUSALS["send-setup-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-setup-answers")
     if command == "task" and action == "consult" and not args.answers:
-        raise Refused(REFUSALS["send-task-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-task-answers")
+        raise Refused("OGK-WEB-009", REFUSALS["send-task-answers"], status=HTTPStatus.BAD_REQUEST, reason="send-task-answers")
 
 
 def _out_of_reach(root: Path, value: Path | str, uploads: set[Path]) -> str | None:
@@ -207,7 +193,7 @@ def _resolved(path: Path) -> Path:
     try:
         return path.resolve()
     except ValueError:
-        raise Refused("A path holds a character no file name can hold, such as a NUL.", status=HTTPStatus.BAD_REQUEST,
+        raise Refused("OGK-WEB-010", "A path holds a character no file name can hold, such as a NUL.", status=HTTPStatus.BAD_REQUEST,
                       reason="bad-request") from None
 
 
@@ -235,10 +221,10 @@ def check_paths(args, root: Path, uploads: set[Path]) -> None:
             path_like = isinstance(item, Path) or (name in ("log", "config_dir") and isinstance(item, str))
             reason = _out_of_reach(root, item, uploads) if path_like else None
             if reason == "outside-project":
-                raise Refused(f"--{name.replace('_', '-')} must name a file inside the project: {item}",
+                raise Refused("OGK-WEB-011", f"--{name.replace('_', '-')} must name a file inside the project: {item}",
                               status=HTTPStatus.BAD_REQUEST, reason=reason)
             if reason:
-                raise Refused(f"--{name.replace('_', '-')} names a path the interface does not read, because its name "
+                raise Refused("OGK-WEB-012", f"--{name.replace('_', '-')} names a path the interface does not read, because its name "
                               f"suggests a secret or it is inside .git: {item}", reason=reason)
 
 
@@ -249,19 +235,19 @@ class ProjectFiles:
         self.root = root
 
     def _resolve(self, relative: str) -> Path:
-        if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or "\\" in relative:
-            raise Refused("Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
+        if not isinstance(relative, str) or not relative or relative.startswith("/") or Path(relative).is_absolute() or "\\" in relative:
+            raise Refused("OGK-WEB-013", "Give a path relative to the project, with forward slashes.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
         target = _resolved(self.root / relative)
         try:
             parts = target.relative_to(self.root).parts
         except ValueError:
-            raise Refused("The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
+            raise Refused("OGK-WEB-014", "The path leaves the project.", status=HTTPStatus.BAD_REQUEST,
                           reason="outside-project") from None
         if _in_git(parts):
-            raise Refused("The interface does not read or write inside .git.", reason="secret-file")
+            raise Refused("OGK-WEB-015", "The interface does not read or write inside .git.", reason="secret-file")
         if _secret(parts):
-            raise Refused("The name of this path suggests a secret: the interface does not read it.",
+            raise Refused("OGK-WEB-016", "The name of this path suggests a secret: the interface does not read it.",
                           reason="secret-file")
         return target
 
@@ -282,45 +268,45 @@ class ProjectFiles:
     def read(self, relative: str) -> dict:
         target = self._resolve(relative)
         if target.suffix.lower() not in READABLE_SUFFIXES:
-            raise Refused(REFUSALS["not-readable"], reason="not-readable")
+            raise Refused("OGK-WEB-017", REFUSALS["not-readable"], reason="not-readable")
         if not target.exists():
             # A file a project has not created yet (proposals, a dossier) is an answer, not an error.
             return {"path": relative, "text": None, "missing": True}
         if not target.is_file():
-            raise Refused(f"{relative} is not a file.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+            raise Refused("OGK-WEB-018", f"{relative} is not a file.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         if target.stat().st_size > MAX_FILE:
-            raise Refused("The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            raise Refused("OGK-WEB-019", "The file is larger than 2 MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                           reason="too-large")
         text = target.read_text(encoding="utf-8", errors="replace")
         # A cloud key keeps its generated name, and a setting holds a token in clear: the text decides too. The file is
         # refused whole, as a secret name is, rather than masked: the page saves back what it reads.
         kind = credential_kind(text)
         if kind:
-            raise Refused(f"{relative} holds what looks like {kind}: the interface does not read it.",
+            raise Refused("OGK-WEB-020", f"{relative} holds what looks like {kind}: the interface does not read it.",
                           reason="secret-file")
         return {"path": relative, "text": text}
 
     def write(self, relative: str, text: str) -> dict:
         if relative not in WRITABLE_FILES:
-            raise Refused("The interface only writes the Storybook proposals; the commands write everything else.",
+            raise Refused("OGK-WEB-021", "The interface only writes the Storybook proposals; the commands write everything else.",
                           reason="not-in-page")
         if not isinstance(text, str):
-            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+            raise Refused("OGK-WEB-022", "text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         try:
             text.encode("utf-8")
         except UnicodeEncodeError:
-            raise Refused("text holds a character UTF-8 cannot encode.", status=HTTPStatus.BAD_REQUEST,
+            raise Refused("OGK-WEB-023", "text holds a character UTF-8 cannot encode.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request") from None
         try:
             json.loads(text)
         except ValueError as error:
-            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
+            raise Refused("OGK-WEB-024", f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
         target = self._resolve(relative)
         # storybook propose writes the same file under the project lock.
         with contextlib.ExitStack() as held:
             try:
                 held.enter_context(project_lock(self.root / ".openguildkit"))
             except ValueError as error:
-                raise Refused(str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
+                raise Refused("OGK-WEB-025", str(error), status=HTTPStatus.CONFLICT, reason="project-busy") from None
             write_text(target, text if text.endswith("\n") else text + "\n")
         return {"path": relative, "written": True}

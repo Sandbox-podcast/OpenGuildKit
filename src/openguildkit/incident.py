@@ -1,4 +1,5 @@
-"""Response to an incident (#481): a freeze that stops edits and a longest age of an approval, both off by default.
+"""Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an
+approval, both set with `profile set`.
 
 `openguildkit profile set freeze on --by INITIALS --reason WHY` writes `frozen` (who, when, why) in the profile: the edit
 hook then refuses every edit inside the project, even under an approved task, and `guard --ci` refuses every change
@@ -10,12 +11,15 @@ Entry: frozen, frozen_text, max_age_days, expired_problem, lifts_freeze
 Tests: tests/test_incident.py
 """
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from . import clock
 from .decisions import reconsult_hint
 from .project import STATE_DIR
+from .records import Profile, Task
 from .storage import read_json
 
 LIFT = ("Only a person lifts it, at a terminal: openguildkit profile set freeze off --by INITIALS --reason WHY. "
@@ -26,7 +30,7 @@ PROFILE = f"{STATE_DIR}/project.json"
 LIFTING_FILES = (PROFILE, f"{STATE_DIR}/catalog.lock.json")
 
 
-def frozen(profile: dict) -> dict | None:
+def frozen(profile: Profile) -> dict | None:
     """Who froze the project, when and why; None when it is not frozen."""
     found = profile.get("frozen")
     return found if isinstance(found, dict) else None
@@ -36,12 +40,12 @@ def frozen_text(found: dict) -> str:
     return f"the project is frozen by {found['by']} since {found['on']}: {found['reason']}"
 
 
-def max_age_days(profile: dict) -> int | None:
+def max_age_days(profile: Profile) -> int | None:
     limit = (profile.get("approval") or {}).get("max_age_days")
     return limit if type(limit) is int else None
 
 
-def expired_problem(task: dict, profile: dict) -> dict | None:
+def expired_problem(task: Task, profile: Profile) -> dict | None:
     """The approval_problem of an approval older than the project's limit, or None. An approval whose time cannot be
     read cannot be shown to be recent."""
     limit = max_age_days(profile)
@@ -73,7 +77,7 @@ def lifts_freeze(base_file: Path, head_file: Path, changed: list[str], records: 
     except (OSError, ValueError, AttributeError):
         return False
 
-    def rest(profile: dict) -> dict:
+    def rest(profile: Mapping[str, Any]) -> dict:
         return {key: value for key, value in profile.items() if key not in ("frozen", "changes")}
 
     return ("frozen" in before and "frozen" not in after and rest(before) == rest(after)

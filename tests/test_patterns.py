@@ -66,6 +66,7 @@ class PatternTests(unittest.TestCase):
                 self.assertIn("api-design", resolved_profile(profile, self.catalog)["packs"])
 
     def test_sector_and_exclusive_groups_control_the_recommendation(self):
+        # OGK-CORE-007
         catalog = {"patterns": {
             "alternative-one": {
                 "id": "alternative-one", "roles": ["engineering"],

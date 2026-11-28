@@ -12,6 +12,7 @@ class BoardPassTests(CliTestCase):
         return {entry["id"]: entry for entry in review["boards"]}
 
     def test_each_board_gets_its_brief_and_a_failed_pass_is_retried_alone(self):
+        # OGK-BOARD-001
         self.consult_example()
         entries = self.entries()
         boards = list(entries)
@@ -64,6 +65,7 @@ class BoardPassTests(CliTestCase):
         self.assertTrue(all(item["status"] == "missing" for item in progress))
 
     def test_one_submission_reports_every_problem_and_the_corrected_file_goes_through(self):
+        # OGK-BOARD-003
         self.consult_example()
         entry = copy.deepcopy(self.entries()["security"])
         for board_id in ("security", " security "):

@@ -287,20 +287,25 @@ class RefusalTests(unittest.TestCase):
             self.assertIn(fragment, str(caught.exception))
 
     def test_a_code_without_a_rule_is_refused_by_name(self):
+        # OGK-CHECK-008
         self.refused([make("demo-nothing")], "demo-nothing", "No rule describes")
 
     def test_a_level_the_standard_does_not_have_is_refused(self):
+        # OGK-CHECK-009
         self.refused([make(level="fatal")], "fatal", "error, warning or note")
 
     def test_a_message_must_say_something(self):
+        # OGK-CHECK-010
         self.refused([make(message="  ")], "message")
 
     def test_an_absolute_path_or_a_path_outside_the_project_is_refused(self):
+        # OGK-CHECK-007
         for path in ("/etc/passwd", "C:\\Users\\me\\AGENTS.md", "c:/work/AGENTS.md", "../outside.md", "docs/../../x"):
             with self.subTest(path=path):
                 self.refused([make(path=path)], "relative to the project root")
 
     def test_a_line_must_be_a_positive_whole_number(self):
+        # OGK-CHECK-011
         for line in (0, -3, 2.5, "7", True):
             with self.subTest(line=line):
                 self.refused([make(line=line)], "line")
@@ -310,6 +315,7 @@ class RefusalTests(unittest.TestCase):
         self.assertEqual(item["locations"][0]["physicalLocation"]["artifactLocation"]["uri"], "docs/guide.md")
 
     def test_a_rule_that_lacks_a_field_is_refused_by_name(self):
+        # OGK-CHECK-012
         with self.assertRaises(ValueError) as caught:
             to_sarif([make()], rules={"demo-drift": {"name": "Only a name"}}, tool_version="1")
         self.assertIn("demo-drift", str(caught.exception))

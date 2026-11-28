@@ -1,4 +1,5 @@
-"""The policy of a workstation: one JSON file that its administrator deploys, read by the guard hook and the audit log.
+"""Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its
+equivalents), for the guard hook and the audit log.
 
 The file is `/etc/openguildkit/config.json` (macOS also `/Library/Application Support/OpenGuildKit/config.json`, Windows
 `%ProgramData%\\OpenGuildKit\\config.json`). No variable moves it: an agent that can set the environment of a command
@@ -13,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import load_json
 
 KEYS = ("audit_log", "no_profile")
@@ -37,9 +39,9 @@ def policy() -> dict:
         try:
             found = load_json(path)
         except (OSError, ValueError) as error:
-            raise ValueError(f"{path.as_posix()} cannot be read as the workstation policy: {error}") from error
+            raise OgkError("OGK-HOST-009", f"{path.as_posix()} cannot be read as the workstation policy: {error}") from error
         if not isinstance(found, dict) or set(found) - set(KEYS):
-            raise ValueError(f"{path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only.")
+            raise OgkError("OGK-HOST-010", f"{path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only.")
         return found
     return {}
 

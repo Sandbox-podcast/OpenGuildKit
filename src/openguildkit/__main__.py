@@ -1,4 +1,5 @@
-"""Start openguildkit, as python -m openguildkit and as the installed openguildkit command.
+"""Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard
+without importing the rest of the CLI.
 
 Host hooks run openguildkit guard --hook before every edit an agent makes. That call goes straight to the guard,
 without importing the rest of the CLI, and ends before importing the guard when the profile declares it off; a bare

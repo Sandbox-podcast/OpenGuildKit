@@ -43,7 +43,7 @@ class TraceTests(unittest.TestCase):
             with self.subTest(value=value):
                 shown = run_cli(self.root, "task", "show", "nope", expect=1, env={} if value is None else {"OPENGUILDKIT_DEBUG": value})
                 self.assertNotIn("Traceback", shown.stderr)
-                self.assertTrue(shown.stderr.startswith("OpenGuildKit: "))
+                self.assertTrue(shown.stderr.startswith("OpenGuildKit [OGK-TASK-021]: "))
                 self.assertEqual(len(shown.stderr.splitlines()), 1)
 
     def test_a_command_without_an_error_prints_no_trace(self):

@@ -1,4 +1,5 @@
-"""Put the board in front of every change: in the agent, before file edits, and in CI.
+"""Says whether an approved task covers the work, for the host hooks before a request or an edit; `guard --ci` runs in
+`guard_ci.py`.
 
 `openguildkit guard` says whether an approved task covers the work in progress. Host
 hooks run it when a request arrives and before a file edit. In CI, it checks that a
@@ -19,9 +20,11 @@ from pathlib import Path, PurePosixPath
 from . import incident, lazy_re, short_lane
 from .catalog import load_catalog
 from .decisions import DECISIONS_DIR, base_commit, revisions_outside_history
+from .errors import InternalError, OgkError
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
+from .records import Catalog, Profile, Task
 from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
 from .startup import UNKNOWN_MODE, declared_mode
 from .task_index import tasks_with_status
@@ -44,17 +47,17 @@ HOST_PROTECTED = {"gemini-cli": (".gemini/settings.json",)}
 STATE_WORK = (f"{STATE_DIR}/alerts.json", f"{STATE_DIR}/catalog/")
 
 
-def guard_mode(profile: dict) -> str:
+def guard_mode(profile: Profile) -> str:
     return profile.get("guard", "off")
 
 
-def _age_days(moment: str) -> int | None:
+def _age_days(moment: str | None) -> int | None:
     from .approval_check import days_since
 
     return days_since(moment)
 
 
-def read_task_lazily(state: Path, task_id: str) -> dict:
+def read_task_lazily(state: Path, task_id: str) -> Task:
     """task_files.read_task, imported on the first call: the hook reads records only when one may be approved."""
     from .task_files import read_task as read
 
@@ -66,7 +69,7 @@ def read_task_lazily(state: Path, task_id: str) -> dict:
 NOT_COVERING = ("draft", "consulting", "reviewed", "changes-requested", "done", "done-with-reservations")
 
 
-def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
+def covering_approvals(root: Path, state: Path, profile: Profile, catalog: Catalog) -> list[dict]:
     """Approved tasks, not yet done, whose approval still holds (approval_check.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
@@ -116,20 +119,20 @@ def edited_paths(hook_input: object) -> list[str]:
     Raise ValueError when the input does not say which files change, so the hook can refuse.
     """
     if not isinstance(hook_input, dict) or not isinstance(hook_input.get("tool_input"), dict):
-        raise ValueError("the hook input names no tool input")
+        raise OgkError("OGK-GUARD-003", "the hook input names no tool input")
     tool_input = hook_input["tool_input"]
     paths = []
     for key in ("file_path", "notebook_path", "path"):
         if key in tool_input:
             if not isinstance(tool_input[key], str):
-                raise ValueError(f"tool_input.{key} is not a file path")
+                raise OgkError("OGK-GUARD-004", f"tool_input.{key} is not a file path")
             paths.append(tool_input[key])
     for key in ("patch", "input", "command"):
         value = tool_input.get(key)
         if isinstance(value, str):
             paths.extend(match.strip() for match in _PATCH_FILE.findall(value))
     if not paths:
-        raise ValueError("the hook input names no file to edit")
+        raise OgkError("OGK-GUARD-005", "the hook input names no file to edit")
     return paths
 
 
@@ -154,7 +157,7 @@ def _protected(relative: str, host: str | None = None) -> bool:
     return _listed(relative, PROTECTED + HOST_PROTECTED.get(host, ()))
 
 
-def signers_file(root: Path, profile: dict) -> str | None:
+def signers_file(root: Path, profile: Profile) -> str | None:
     """The allowed signers file of a project with signed approvals, as a project path; None otherwise."""
     approval = profile.get("approval") or {}
     if approval.get("mode") != "signed" or not isinstance(approval.get("allowed_signers"), str):
@@ -256,7 +259,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     observe lets it through and says it is flagged.
     """
     if outcome not in HOOK_OUTCOMES:
-        raise ValueError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
+        raise InternalError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)
@@ -298,7 +301,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     return 0, _context(event, message, dialect), ""
 
 
-def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict, hook_input: object) -> tuple[int, str, str]:
+def guard_hook(event: str, root: Path, state: Path, profile: Profile, catalog: Catalog, hook_input: object) -> tuple[int, str, str]:
     """Return the exit code, stdout and stderr for a host hook."""
     mode = guard_mode(profile)
     if mode == "off":
@@ -374,11 +377,11 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
         root, state, profile, catalog = load()
         mode = guard_mode(profile)
         if raw is None:
-            raise ValueError("the hook input could not be read")
+            raise OgkError("OGK-GUARD-019", "the hook input could not be read")
         try:
             hook_input = json.loads(raw) if raw.strip() or event == "pre-edit" else {}
         except ValueError as error:
-            raise ValueError("the hook input is not JSON") from error
+            raise OgkError("OGK-GUARD-006", "the hook input is not JSON") from error
         dialect = hook_dialect(hook_input)
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.

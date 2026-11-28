@@ -1,4 +1,5 @@
-"""Know each task's status without parsing every record, so the edit hook reads only the tasks that can cover it.
+"""Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit, and
+task list skips the records it does not list and lists closed tasks from the line it kept.
 
 The index lives with the task records (ignored by git, refused to agent edits) and maps each record file to its
 status, to the date of its latest approval (earlier rounds included) and to the size, times and inode the file had

@@ -1,4 +1,4 @@
-"""Read a single OpenGuildKit project's metadata over local MCP.
+"""Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes.
 
 Entry: serve_project
 Tests: tests/test_project_mcp.py
@@ -10,10 +10,12 @@ from pathlib import Path
 
 from .approval_check import approval_problem
 from .catalog import COLLECTION_FIELDS, ID_PATTERN
+from .errors import OgkError
 from .lock import lock_path, package_version, project_catalog
 from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
 from .project import load_profile
 from .project_rules import Fingerprints, rule_plan
+from .records import Catalog, Profile, Task
 from .result_form import RESULT_STATUSES
 from .sensitive import redact_credentials
 from .task_files import read_task, task_path
@@ -87,10 +89,10 @@ TOOLS = [
 
 def _check_path(path: Path, state: Path) -> None:
     if path.resolve() != path or not path.is_relative_to(state):
-        raise ValueError("Project metadata must stay inside the project state directory.")
+        raise OgkError("OGK-PROJECT-033", "Project metadata must stay inside the project state directory.")
 
 
-def _project(state: Path) -> tuple[dict, dict]:
+def _project(state: Path) -> tuple[Profile, Catalog]:
     """The profile and the catalog in force, read only from inside the project state directory."""
     _check_path(state / "project.json", state)
     _check_path(lock_path(state), state)
@@ -102,12 +104,12 @@ def _project(state: Path) -> tuple[dict, dict]:
         for path in directory.glob("*.json"):
             _check_path(path, state)
             if not path.is_file():
-                raise ValueError("Catalog entries must be files.")
+                raise OgkError("OGK-PROJECT-080", "Catalog entries must be files.")
     catalog = project_catalog(None, state)
     return load_profile(state, catalog), catalog
 
 
-def _plan(state: Path) -> tuple[dict, list[dict]]:
+def _plan(state: Path) -> tuple[Profile, list[dict]]:
     profile, catalog = _project(state)
     return profile, rule_plan(profile, catalog)["packs"]
 
@@ -133,7 +135,7 @@ def _rule(state: Path, pack_id: str, rule_id: str) -> dict:
     raise ProtocolError(INVALID_PARAMS, "No matching active rule. Use project_profile to find active packs.")
 
 
-def _load_task(state: Path, task_id: str) -> dict:
+def _load_task(state: Path, task_id: str) -> Task:
     if not task_path(state, task_id).is_file():
         raise ProtocolError(INVALID_PARAMS, "No matching task ID in this project.")
     return read_task(state, task_id)
@@ -165,11 +167,11 @@ def _results(state: Path, task_id: str) -> dict:
             "omitted": len(omitted), "failed_omitted": omitted.count("failed")}
 
 
-def _without_free_text(task: dict) -> dict:
+def _without_free_text(task: Task) -> Task:
     """The task without what a person or a command wrote that next_step quotes: a change request's reason, a failed
     check's command line and output. The open point keeps the same words otherwise."""
     pointer = f"the person's reason is in openguildkit task show {task['id']}"
-    cleaned = dict(task)
+    cleaned = task.copy()
     if task["status"] == "changes-requested" and "decision" in task:
         cleaned["decision"] = {**task["decision"], "reason": pointer}
     if isinstance(task.get("result"), dict):
@@ -182,7 +184,7 @@ def _without_free_text(task: dict) -> dict:
     return cleaned
 
 
-def _open_point(row: dict, task: dict | None, profile: dict) -> str:
+def _open_point(row: dict, task: Task | None, profile: Profile) -> str:
     """task list's next open point, with the free text it may quote replaced by where to read it."""
     if task is None:
         return "The task record cannot be read. Run openguildkit check in this project."

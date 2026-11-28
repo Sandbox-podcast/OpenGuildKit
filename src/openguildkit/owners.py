@@ -1,4 +1,5 @@
-"""The code owners of the paths a task touches, read from the project's CODEOWNERS with GitHub's syntax.
+"""Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the
+decision brief and the handoff; never written into a record.
 
 Shown in the decision brief and the handoff, never written into a task or a decision record: the owners are often
 people's names or emails (docs/personal-data.md), and whether a record may keep them is still an open decision.
@@ -16,6 +17,8 @@ Tests: tests/test_owners.py
 
 import re
 from pathlib import Path, PurePosixPath
+
+from .records import Task
 
 LOCATIONS = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
 MAX_BYTES = 3 * 1024 * 1024
@@ -109,7 +112,7 @@ def _lane_path(entry: str) -> tuple[str, bool]:
     return "/".join(fixed), entry.endswith("/")
 
 
-def touched_paths(root: Path, task: dict) -> list[tuple[str, str, bool]]:
+def touched_paths(root: Path, task: Task) -> list[tuple[str, str, bool]]:
     """What the task touches, as (label, path, is folder): its short-lane paths, the folders of the components it
     names, and the project paths its brief and answers name. None of them: the whole project."""
     touched: dict[str, tuple[str, bool]] = {}
@@ -117,7 +120,7 @@ def touched_paths(root: Path, task: dict) -> list[tuple[str, str, bool]]:
         if isinstance(entry, str) and entry.strip():
             touched[entry] = _lane_path(entry)
     scope = task.get("consultation", {}).get("scope", {})
-    answers = task.get("answers") if isinstance(task.get("answers"), dict) else scope.get("answers", {})
+    answers: dict = task["answers"] if isinstance(task.get("answers"), dict) else scope.get("answers", {})
     named = set(answers.get("components", [])) if isinstance(answers.get("components"), list) else set()
     for component in scope.get("components", []):
         folder = (component.get("path") or "").strip("/") if isinstance(component, dict) else ""
@@ -135,7 +138,7 @@ def touched_paths(root: Path, task: dict) -> list[tuple[str, str, bool]]:
     return [(label, path, folder) for label, (path, folder) in touched.items()] or [("whole project", "", True)]
 
 
-def owner_line(root: Path, task: dict) -> str | None:
+def owner_line(root: Path, task: Task) -> str | None:
     """One line naming the owners of each touched path, or None when the project has no CODEOWNERS."""
     found = read_codeowners(root)
     if found is None:

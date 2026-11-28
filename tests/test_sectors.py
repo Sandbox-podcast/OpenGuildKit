@@ -84,6 +84,7 @@ class SectorPreselectionTests(unittest.TestCase):
         self.assertNotIn("patterns", chosen)
 
     def test_a_declined_pattern_is_recorded_and_not_proposed_again(self):
+        # OGK-PROJECT-008, OGK-PROJECT-019
         answers = {"name": "Ledger", "sector": "financial-services", "declined": ["dora-financial-entity"]}
         profile = validate_profile(answers, self.catalog)
         self.assertEqual(profile["declined"], ["dora-financial-entity"])
@@ -181,6 +182,7 @@ class SectorCatalogTests(unittest.TestCase):
             self.assertIn(pack_id, line)
 
     def test_a_pattern_can_match_on_its_sector_alone_but_not_on_nothing(self):
+        # OGK-CATALOG-039, OGK-CATALOG-040, OGK-CATALOG-041, OGK-CATALOG-042
         record = {
             "id": "retail-banking-rules", "title": "Retail banking", "description": "Sector rules.", "sources": [],
             "roles": ["legal"], "packs": ["dora"], "kind": "regulation", "match": {"sectors": ["general"]},

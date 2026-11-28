@@ -1,4 +1,4 @@
-"""Ask questions to a person at a terminal: the setup questionnaire of init and the task questions of task consult.
+"""Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`.
 
 Entry: prompt_choices, prompt_questions
 Tests: tests/test_clean_errors.py, tests/test_first_run.py, tests/test_proportionate_setup.py
@@ -6,6 +6,7 @@ Tests: tests/test_clean_errors.py, tests/test_first_run.py, tests/test_proportio
 
 import sys
 
+from .errors import OgkError
 from .project_setup import unsure_answers
 from .terminal import interactive
 
@@ -34,7 +35,7 @@ def prompt_choices(question: dict, value: str):
         elif item.isascii() and item.isdecimal() and 1 <= int(item) <= len(ids):
             selected.append(ids[int(item) - 1])
         else:
-            raise ValueError(f"Unknown choice: {item}")
+            raise OgkError("OGK-BOARD-028", f"Unknown choice: {item}")
     return selected if question.get("type") == "multi-select" else selected[0]
 
 
@@ -121,7 +122,7 @@ def _ask_until_answered(question: dict, kind: str, hidden: int, answers: dict) -
 def prompt_questions(questions: list[dict], command: str) -> dict:
     """Ask each question in turn and return the answers; Enter keeps a default, ? applies the unsure answer."""
     if not interactive():
-        raise ValueError(f"{command} needs a terminal or --answers PATH.")
+        raise OgkError("OGK-BOARD-029", f"{command} needs a terminal or --answers PATH.")
     answers: dict = {}
     for question in questions:
         hidden, kind = _print_question(question)

@@ -1,13 +1,16 @@
-"""The setup questionnaire of init and the completion of its answers into a profile.
+"""Builds the setup questionnaire of `init` and completes its answers into a profile.
 
 Entry: is_norm, norm_reason, init_questions, unsure_answers, complete_answers, setup_profile
 Tests: tests/test_rule_checks.py
 """
 
 import json
+from collections.abc import Mapping
+from typing import Any
 
 from .clock import today
 from .doc_links import doc_link
+from .errors import OgkError
 from .patterns import pattern_selection, recommend_patterns, role_choices, technology_key
 from .project import (
     catalog_ids,
@@ -19,6 +22,7 @@ from .project import (
     recommendation_inputs,
     validate_profile,
 )
+from .records import Catalog, Profile
 
 
 def _select(question_id, prompt, choices, default=None, multiple=False):
@@ -103,7 +107,7 @@ def norm_reason(pattern: dict) -> str:
     return " or ".join(reasons)
 
 
-def _norms_question(catalog: dict) -> dict:
+def _norms_question(catalog: Catalog) -> dict:
     """One sub-question per norm, asked only when its condition holds; a no is recorded in declined.
 
     The help is the pattern's description, which says when the norm does not apply, with the sources behind it,
@@ -181,7 +185,7 @@ def _checks_question(proposed: list[dict]) -> dict:
 
 
 def init_questions(
-    catalog: dict, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
+    catalog: Catalog, project_name: str, detected: list[dict] | None = None, tools: list[dict] | None = None,
     host: str | None = None, proposed_checks: list[dict] | None = None,
 ) -> list[dict]:
     """The setup questionnaire, in the order it is asked. Every question has a default or is marked required.
@@ -339,27 +343,27 @@ def unsure_answers(answers: dict, questions: list[dict]) -> tuple[dict, list[str
     return answers, notes
 
 
-def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
+def _norm_answers(value, catalog: Catalog) -> dict[str, dict | None]:
     """The answers to the norms question: "yes" (or true) accepts a norm; a no names who and why,
     {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
     if not isinstance(value, dict):
-        raise ValueError('norms must be an object such as {"gdpr-personal-data": "yes"}')
+        raise OgkError("OGK-PROJECT-034", 'norms must be an object such as {"gdpr-personal-data": "yes"}')
     answers: dict[str, dict | None] = {}
     for pattern_id, answer in value.items():
         if pattern_id not in catalog["patterns"] or not is_norm(catalog["patterns"][pattern_id]):
-            raise ValueError(f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
+            raise OgkError("OGK-PROJECT-035", f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
         if answer in ("yes", True):
             answers[pattern_id] = None
         elif isinstance(answer, dict) and answer.get("answer") == "no" and set(answer) == {"answer", "by", "reason"}:
             answers[pattern_id] = {"id": pattern_id, **decision_record({**answer, "on": today().isoformat()},
                                                                  f"norm {pattern_id}")}
         elif answer in ("no", False) or isinstance(answer, dict):
-            raise ValueError(
+            raise OgkError("OGK-PROJECT-036",
                 f'Declining norm {pattern_id} records who and why: write {{"answer": "no", "by": "NAME", '
                 '"reason": "WHY"}, with the name of the person who decided.'
             )
         else:
-            raise ValueError(f"The answer for norm {pattern_id} must be yes or no")
+            raise OgkError("OGK-PROJECT-037", f"The answer for norm {pattern_id} must be yes or no")
     return answers
 
 
@@ -371,7 +375,7 @@ def _merged_stack(detected: list[str], written: list) -> list[str]:
     return merged + [item for item in written if technology_key(item) in by_key]
 
 
-def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
+def unanswered_norms(answers: Mapping[str, Any], catalog: Catalog, norms: dict) -> list[dict]:
     """The norms whose condition the answers meet and that no answer accepts, lists or declines."""
     sector, stack, roles, components = project_context(answers, catalog)
     inputs = recommendation_inputs(answers, catalog)
@@ -381,13 +385,13 @@ def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
             and entry["id"] not in norms and entry["id"] not in chosen]
 
 
-def complete_answers(answers: object, questions: list[dict], catalog: dict) -> tuple[dict, list[dict], list[str]]:
+def complete_answers(answers: object, questions: list[dict], catalog: Catalog) -> tuple[dict, list[dict], list[str]]:
     """Give each omitted question its default and record the norms answered no in declined.
 
     Returns the answers, the detected components left aside and the norms answered yes.
     """
     if not isinstance(answers, dict):
-        raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
+        raise OgkError("OGK-PROJECT-081", "Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
     completed = unsure_answers(answers, questions)[0]
     defaults = {question["id"]: question["default"] for question in questions if "default" in question}
     detected = defaults.pop("components", [])
@@ -410,7 +414,7 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     return completed, left_aside, [pattern_id for pattern_id, decline in norms.items() if decline is None]
 
 
-def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tuple[dict, list[dict]]:
+def setup_profile(answers: object, catalog: Catalog, questions: list[dict]) -> tuple[Profile, list[dict]]:
     """The profile that init writes from setup answers, and the detected components the answers leave aside.
 
     Unlike a saved profile, setup answers add their packs to the recommended ones unless
@@ -420,7 +424,7 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
     missing = unanswered_norms(completed, catalog, {pattern_id: True for pattern_id in kept_norms})
     if missing:
         listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
-        raise ValueError(
+        raise OgkError("OGK-PROJECT-038",
             f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
             'Add this line to the answers file, "yes" for a norm that applies, or {"answer": "no", "by": "NAME", '
             f'"reason": "WHY"}} to decline it: "norms": {json.dumps({entry["id"]: "yes" for entry in missing})}. '
@@ -428,7 +432,7 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
         )
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):
-        raise ValueError("replace_default_packs must be true or false")
+        raise OgkError("OGK-PROJECT-039", "replace_default_packs must be true or false")
     sector, stack, roles, components = project_context(completed, catalog)
     if "patterns" not in completed:
         inputs = recommendation_inputs(completed, catalog)

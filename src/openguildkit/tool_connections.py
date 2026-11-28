@@ -12,6 +12,7 @@ import os
 import tomllib
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import NestedTooDeeply, load_json, read_json, write_json, write_text
 
 HOSTS = ("claude-code", "codex")
@@ -41,7 +42,7 @@ def read_manifest(state: Path) -> dict:
         return {"schema_version": 1, "connections": []}
     manifest = read_json(path)
     if not isinstance(manifest.get("connections"), list):
-        raise ValueError(f"{path} is damaged: connections must be a list.")
+        raise OgkError("OGK-TOOLS-032", f"{path} is damaged: connections must be a list.")
     if "unconnected_mocks" in manifest:
         manifest.setdefault(UNCONNECTED, manifest.pop("unconnected_mocks"))
     unconnected = manifest.get(UNCONNECTED, [])
@@ -49,7 +50,7 @@ def read_manifest(state: Path) -> dict:
         not isinstance(item, dict) or any(not isinstance(item.get(field), str) for field in ("host", "tool", "reason"))
         or item["host"] not in HOSTS or item.get("mode", "mock") not in ("mock", "live") for item in unconnected
     ):
-        raise ValueError(f"{path} is damaged: {UNCONNECTED} must contain a host, tool, mode and reason per request.")
+        raise OgkError("OGK-TOOLS-033", f"{path} is damaged: {UNCONNECTED} must contain a host, tool, mode and reason per request.")
     return manifest
 
 
@@ -71,7 +72,7 @@ def _split_codex(text: str, path: Path) -> tuple[str, str]:
     """The person's own configuration, before and after the managed block."""
     start, end = text.find(CODEX_BLOCK_START), text.find(CODEX_BLOCK_END)
     if (start == -1) != (end == -1) or end < start:
-        raise ValueError(f"{path}: the OpenGuildKit tools block is damaged. Remove its marker lines and apply again.")
+        raise OgkError("OGK-TOOLS-034", f"{path}: the OpenGuildKit tools block is damaged. Remove its marker lines and apply again.")
     if start == -1:
         return text, ""
     return text[:start], text[end + len(CODEX_BLOCK_END):]
@@ -83,9 +84,9 @@ def _mcp_file(path: Path) -> dict:
     try:
         data = load_json(path) if path.is_file() else {}
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+        raise OgkError("OGK-TOOLS-001", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
-        raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
+        raise OgkError("OGK-TOOLS-035", f"{path.as_posix()} must hold a JSON object with mcpServers.")
     return data
 
 
@@ -109,11 +110,11 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     try:
         own = tomllib.loads(before + after)
     except tomllib.TOMLDecodeError as error:
-        raise ValueError(f"{path.as_posix()} is not valid TOML: {error}") from error
+        raise OgkError("OGK-TOOLS-036", f"{path.as_posix()} is not valid TOML: {error}") from error
     taken = own.get("mcp_servers", {}) if isinstance(own.get("mcp_servers", {}), dict) else {}
     clash = sorted(set(managed) & set(taken))
     if clash:
-        raise ValueError(f"{path} already defines mcp_servers.{clash[0]} outside the OpenGuildKit block. Rename or remove it first.")
+        raise OgkError("OGK-TOOLS-002", f"{path} already defines mcp_servers.{clash[0]} outside the OpenGuildKit block. Rename or remove it first.")
     block = ""
     if managed:
         block = CODEX_BLOCK_START + "\n".join(_codex_table(key, managed[key]) for key in sorted(managed)) + CODEX_BLOCK_END
@@ -129,7 +130,7 @@ def check_settings(plan: list[dict]) -> None:
     blocked = [f"{item['tool']}: provide {', '.join(item['needs']['settings'])}"
                for item in plan if "skipped" not in item and item["needs"]["settings"]]
     if blocked:
-        raise ValueError("Settings are missing. " + "; ".join(blocked) + ".")
+        raise OgkError("OGK-TOOLS-003", "Settings are missing. " + "; ".join(blocked) + ".")
 
 
 def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> dict:
@@ -145,7 +146,7 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
             existing = _mcp_file(path)["mcpServers"]
             for item in accepted:
                 if item["key"] in existing and (host, item["key"]) not in connections and existing[item["key"]] != item["entry"]:
-                    raise ValueError(f"{path} already defines {item['key']} with other settings. Rename or remove it first.")
+                    raise OgkError("OGK-TOOLS-004", f"{path} already defines {item['key']} with other settings. Rename or remove it first.")
     for item in accepted:
         record = {key: item[key] for key in ("key", "tool", "server", "mode", "entry") if key in item}
         record["host"] = host
@@ -182,7 +183,7 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
     unconnected = manifest.get(UNCONNECTED, [])
     forgotten = {item["tool"] for item in unconnected if item["host"] == host and item["tool"] in wanted}
     if not removed and not forgotten:
-        raise ValueError(f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
+        raise OgkError("OGK-TOOLS-037", f"No connection to remove for {', '.join(names)} on {host}. Run openguildkit tools status.")
     if forgotten:
         kept = [item for item in unconnected if not (item["host"] == host and item["tool"] in forgotten)]
         if kept:
@@ -207,7 +208,7 @@ def _host_entries(root: Path, host: str) -> dict:
             return _mcp_file(path)["mcpServers"]
         except ValueError as error:
             if isinstance(error.__cause__, NestedTooDeeply):
-                raise ValueError(f"{path.as_posix()}: {error.__cause__}") from error
+                raise OgkError("OGK-TOOLS-005", f"{path.as_posix()}: {error.__cause__}") from error
             return {}
     path = root / CODEX_CONFIG_FILE
     if not path.is_file():

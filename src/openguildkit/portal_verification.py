@@ -1,4 +1,5 @@
-"""Compare a local share register with one Documentalist instance on explicit request.
+"""`docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's
+reader invitations and compares their end dates with the share register.
 
 The observation describes the server's invitation policy, not a live reader session.
 Credentials are requested at a terminal, held in memory and never saved in the register.
@@ -20,6 +21,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from . import clock
+from .errors import OgkError
 from .publishing import is_loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 from .terminal import interactive
@@ -28,7 +30,7 @@ from .terminal import interactive
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         fp.close()
-        raise ValueError("Documentalist redirected the request; no credentials were forwarded.")
+        raise OgkError("OGK-PORTAL-001", "Documentalist redirected the request; no credentials were forwarded.")
 
 
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -72,7 +74,7 @@ def _origin(portal: str) -> tuple[str, str, str]:
     space = portal_space(portal)
     address = urlsplit(portal.strip())
     if address.username is not None or address.password is not None:
-        raise ValueError("Remove credentials from --portal. Enter the password at the prompt.")
+        raise OgkError("OGK-PORTAL-004", "Remove credentials from --portal. Enter the password at the prompt.")
     slug = address.path.split("/")[2]
     # Written as a browser writes an Origin: the host in lower case, without the default port of the scheme.
     return f"{address.scheme}://{space.partition('/p/')[0]}", space, slug
@@ -87,10 +89,10 @@ def _json(opener, origin: str, path: str, payload=None) -> dict:
     with opener.open(request, timeout=10) as response:
         content = response.read(2_000_001)
     if len(content) > 2_000_000:
-        raise ValueError("The Documentalist response exceeded the size limit.")
+        raise OgkError("OGK-PORTAL-005", "The Documentalist response exceeded the size limit.")
     data = json.loads(content.decode("utf-8"))
     if not isinstance(data, dict):
-        raise ValueError("The Documentalist response is not an object.")
+        raise OgkError("OGK-PORTAL-006", "The Documentalist response is not an object.")
     return data
 
 
@@ -163,9 +165,9 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     origin, space, slug = _origin(portal)
     shares = load_shares(state)
     if not any(share_space(share) == space for share in shares):
-        raise ValueError(f"The local register has no shares for {space}.")
+        raise OgkError("OGK-PORTAL-002", f"The local register has no shares for {space}.")
     if not interactive():
-        raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
+        raise OgkError("OGK-PORTAL-003", "Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
     opener = _opener(origin)
     logged_in = False
@@ -177,13 +179,13 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
         listing = _json(opener, origin, "/api/spaces")
         spaces = listing.get("spaces")
         if not isinstance(spaces, list):
-            raise ValueError("The instance did not return a space list.")
+            raise OgkError("OGK-PORTAL-007", "The instance did not return a space list.")
         found = [item for item in spaces if isinstance(item, dict) and item.get("slug") == slug]
         if len(found) != 1 or not isinstance(found[0].get("id"), str):
-            raise ValueError("The selected space is not visible to this account.")
+            raise OgkError("OGK-PORTAL-008", "The selected space is not visible to this account.")
         data = _json(opener, origin, f"/api/spaces/{quote(found[0]['id'], safe='')}/access/invites")
         if not isinstance(data.get("emails"), list) or not all(isinstance(v, str) for v in data["emails"]):
-            raise ValueError("The instance did not return its invitation list.")
+            raise OgkError("OGK-PORTAL-009", "The instance did not return its invitation list.")
         if "expirations" not in data:
             no_end_dates = True
             problem = "This Documentalist version keeps no end date per reader; remove each access by hand after its last day."

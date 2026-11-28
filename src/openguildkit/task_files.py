@@ -13,8 +13,11 @@ import marshal
 import re
 import time
 from pathlib import Path
+from typing import cast
 
 from . import task_index
+from .errors import OgkError
+from .records import Task, as_dict
 from .storage import file_signature, read_json
 from .tasks_record import task_record_problem
 
@@ -26,12 +29,12 @@ WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
 
 def task_path(state: Path, task_id: str) -> Path:
     if task_id in WINDOWS_RESERVED_NAMES:
-        raise ValueError(f"{task_id} is a reserved file name on Windows. Choose another task ID.")
+        raise OgkError("OGK-TASK-019", f"{task_id} is a reserved file name on Windows. Choose another task ID.")
     if len(task_id) > 64 or not ID_PATTERN.fullmatch(task_id):
-        raise ValueError("Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
+        raise OgkError("OGK-TASK-020", "Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
     path = state / "tasks" / f"{task_id}.json"
     if path.resolve() != path:
-        raise ValueError(f"Task records must stay inside their project: {path}")
+        raise OgkError("OGK-TASK-110", f"Task records must stay inside their project: {path}")
     return path
 
 
@@ -53,11 +56,11 @@ class KeptRecords:
         self.size = 0
         self.entries: dict[Path, tuple[tuple, bytes, int]] = {}
 
-    def get(self, path: Path, signature: tuple | None) -> dict | None:
+    def get(self, path: Path, signature: tuple | None) -> Task | None:
         kept = self.entries.get(path)
         return marshal.loads(kept[1]) if kept is not None and signature is not None and kept[0] == signature else None
 
-    def settled(self, path: Path, stat: tuple | None) -> dict | None:
+    def settled(self, path: Path, stat: tuple | None) -> Task | None:
         """The record kept for a file whose size, times and inode are unchanged and whose modification was settled
         when it was read (older than the racy window of task_index): no need to read the file for its digest."""
         kept = self.entries.get(path)
@@ -65,10 +68,10 @@ class KeptRecords:
             return None
         return marshal.loads(kept[1])
 
-    def put(self, path: Path, signature: tuple | None, record: dict, read_at: int = 0) -> None:
+    def put(self, path: Path, signature: tuple | None, record: Task, read_at: int = 0) -> None:
         if signature is None:
             return
-        blob = marshal.dumps(record)
+        blob = marshal.dumps(as_dict(record))
         before = self.entries.pop(path, None)
         self.size -= len(before[1]) if before else 0
         if self.size + len(blob) <= self.limit:
@@ -91,10 +94,10 @@ def keeping_records(kept: KeptRecords):
         _KEPT = before
 
 
-def read_task(state: Path, task_id: str) -> dict:
+def read_task(state: Path, task_id: str) -> Task:
     path = task_path(state, task_id)
     if not path.is_file():
-        raise ValueError(_unknown_task(state, task_id))
+        raise OgkError("OGK-TASK-021", _unknown_task(state, task_id))
     kept = _KEPT
     if kept is None:
         return _validated_task(state, path, task_id)
@@ -111,14 +114,14 @@ def read_task(state: Path, task_id: str) -> dict:
     return task
 
 
-def _validated_task(state: Path, path: Path, task_id: str) -> dict:
-    task = read_json(path)
+def _validated_task(state: Path, path: Path, task_id: str) -> Task:
+    task = cast(Task, read_json(path))  # Checked below: task_record_problem names the first field that departs.
     if task.get("schema_version") != 1 or task.get("id") != task_id:
-        raise ValueError(f"Unsupported or mismatched task record: {path}")
+        raise OgkError("OGK-TASK-022", f"Unsupported or mismatched task record: {path}")
     problem = task_record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
-        raise ValueError(
+        raise OgkError("OGK-TASK-023",
             f"Task record {task_id} is damaged: {problem}. Restore {path.relative_to(state.parent).as_posix()} from a "
             "backup, or delete that file and open a new task with openguildkit task new."
         )

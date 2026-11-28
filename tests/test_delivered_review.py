@@ -48,6 +48,7 @@ class DeliveredReviewCase(ApprovalCase):
 class BriefTests(DeliveredReviewCase):
     def test_the_diff_is_reviewed_once_the_delivered_revision_is_recorded(self):
         _, error = self.run_cli("task", "diff-review", "sx", code=1)
+        # OGK-RESULT-009
         self.assertIn("Record the delivered revision first: openguildkit task verify sx", error)
 
     def test_the_overview_names_the_files_and_one_command_per_board(self):
@@ -89,6 +90,7 @@ class BriefTests(DeliveredReviewCase):
     def test_an_unknown_board_is_refused_with_the_task_boards(self):
         self.deliver()
         _, error = self.run_cli("task", "diff-review", "sx", "--board", "finance", code=1)
+        # OGK-RESULT-010
         self.assertIn("Board finance did not review this task. Its boards: " + ", ".join(self.boards()), error)
 
     def test_new_files_left_out_of_git_are_named_when_the_working_tree_is_delivered(self):
@@ -109,6 +111,7 @@ class FindingTests(DeliveredReviewCase):
         self.deliver()
 
     def test_a_malformed_file_is_refused_with_every_problem_and_nothing_is_recorded(self):
+        # OGK-RESULT-011, OGK-TASK-048
         _, error = self.submit({"board": "security", "findings": [
             {"file": "notes.md", "line": 0, "severity": "critical", "action": "fix", "finding": ""},
             {"file": "status.py", "line": 4, "severity": "important", "action": "defer", "finding": "Later."}]},
@@ -174,6 +177,7 @@ class FindingTests(DeliveredReviewCase):
         self.assertEqual(output.splitlines()[0], "done")
 
     def test_the_review_is_refused_after_the_closing(self):
+        # OGK-RESULT-032
         self.run_cli("task", "complete", "sx")
         _, error = self.run_cli("task", "diff-review", "sx", code=1)
         self.assertIn("after task result and before task complete", error)

@@ -1,4 +1,4 @@
-"""The commands that connect a project to other tools: integrations, mcp, ui and ci-check.
+"""The `integrations`, `mcp`, `ui` and `ci-check` commands, which connect a project to other tools.
 
 Entry: run.
 Tests: tests/test_integrations.py, tests/test_webui.py, tests/test_cli_coverage.py.
@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .ci import check_export
 from .command import Command
+from .errors import OgkError
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import package_version
 from .storage import print_json
@@ -25,10 +26,10 @@ def _integrations(command: Command) -> None:
 def _mcp(command: Command) -> int:
     args = command.args
     if args.project is None:
-        raise ValueError("Supply --project PATH to open a project MCP server.")
+        raise OgkError("OGK-INIT-001", "Supply --project PATH to open a project MCP server.")
     state = command.state
     if args.policy_repo is not None or args.policy_commit is not None:
-        raise ValueError("The MCP server reads the project catalog in force without policy overrides.")
+        raise OgkError("OGK-INIT-006", "The MCP server reads the project catalog in force without policy overrides.")
     from .project_mcp import serve_project  # Only this command serves MCP.
 
     return serve_project(state)

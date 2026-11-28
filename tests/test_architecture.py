@@ -211,7 +211,7 @@ class ModuleShapeTests(unittest.TestCase):
                 self.assertEqual(list(inspect.signature(run).parameters), ["command"])
         text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
         self.assertNotIn("_on_first_call", text)
-        self.assertEqual(text.count("args.command =="), 2)  # The exit code 2 of ci-check, in main.
+        self.assertEqual(text.count("args.command =="), 1)  # The exit code 2 of ci-check, in _failed (#484).
         for path in [PACKAGE / "cli.py", *(PACKAGE / f"{module}.py" for module in ("init_cli", "catalog_cli",
                                                                                   "check_cli", "docs_cli"))]:
             with self.subTest(module=path.name):

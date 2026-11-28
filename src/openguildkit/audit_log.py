@@ -1,4 +1,5 @@
-"""The audit log: what OpenGuildKit itself did, one JSON event per line, chained by SHA-256, off by default.
+"""The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies
+the chain and rebuilds events from the records.
 
 A person turns it on with OPENGUILDKIT_AUDIT_LOG (1, or the name of a file) or `audit_log` in the workstation policy
 (workstation.py). The file lives in .openguildkit/audit/, which the guard protects and Git ignores: a collector reads it
@@ -18,6 +19,7 @@ from datetime import date
 from pathlib import Path
 
 from . import clock
+from .errors import InternalError, OgkError
 
 VARIABLE = "OPENGUILDKIT_AUDIT_LOG"
 VERSION = 1
@@ -56,7 +58,7 @@ def log_path(root: Path) -> Path | None:
         return None
     name = DEFAULT_FILE if value.lower() in ("1", "true", "on", "yes") else value
     if not _NAME.fullmatch(name):
-        raise ValueError(f"{VARIABLE} is 1 or the name of a file in {FOLDER}/ (letters, digits, dot, dash), not {value[:40]!r}")
+        raise OgkError("OGK-AUDIT-002", f"{VARIABLE} is 1 or the name of a file in {FOLDER}/ (letters, digits, dot, dash), not {value[:40]!r}")
     return root / FOLDER / name
 
 
@@ -83,11 +85,11 @@ def _append(path: Path, fields: dict) -> None:
     root = path.parent.parent.parent
     folder = path.parent
     if folder.resolve() != root.resolve() / FOLDER or path.is_symlink():
-        raise ValueError(f"{FOLDER} or its file is a link or leaves the project: nothing is written")
+        raise OgkError("OGK-AUDIT-003", f"{FOLDER} or its file is a link or leaves the project: nothing is written")
     with project_lock(folder):
         ignore = folder / ".gitignore"
         if ignore.is_symlink():  # A link to a file that does not exist would have the write create it elsewhere.
-            raise ValueError(f"{FOLDER}/.gitignore is a link: nothing is written")
+            raise OgkError("OGK-AUDIT-004", f"{FOLDER}/.gitignore is a link: nothing is written")
         if not ignore.exists():
             ignore.write_text("*\n", encoding="utf-8")
         flags = os.O_RDWR | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
@@ -109,7 +111,7 @@ def record(root: Path, event: str, **fields) -> None:
         if path is None:
             return
         if event not in EVENTS:
-            raise ValueError(f"unknown event {event}")
+            raise InternalError(f"unknown event {event}")
         shown = {key: value for key, value in fields.items() if key in EVENTS[event] and value not in (None, "", [])}
         shown = {key: [_squeezed(item) for item in value[:MAX_PATHS]] if isinstance(value, list) else _squeezed(value)
                  for key, value in shown.items()}
@@ -205,7 +207,7 @@ def since_day(text: str | None) -> str | None:
 
 
 def _bad(text: str) -> str:
-    raise ValueError(f"--since is a day written YYYY-MM-DD, not {text[:40]!r}.")
+    raise OgkError("OGK-AUDIT-005", f"--since is a day written YYYY-MM-DD, not {text[:40]!r}.")
 
 
 def reconstruct(root: Path, since: str | None = None) -> list[bytes]:

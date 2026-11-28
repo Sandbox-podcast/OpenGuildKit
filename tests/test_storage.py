@@ -93,6 +93,7 @@ class LinkedOutputTests(unittest.TestCase):
 
     def test_a_link_to_a_device_is_written_through_and_a_link_to_a_file_is_refused(self):
         # /dev/stdout is such a link on Linux and macOS: an export can be printed with --output /dev/stdout.
+        # OGK-CORE-011
         device = self.root / "out"
         device.symlink_to(os.devnull)
         storage.write_json(device, {"ok": True})

@@ -56,6 +56,7 @@ class InteractiveInitTest(unittest.TestCase):
         code, screen = self.init("n")
         self.assertEqual(code, 1)
         self.assertIn(CONFIRMATION, screen)
+        # OGK-INIT-002
         self.assertIn("Setup cancelled. Nothing was written.", screen)
         self.assertEqual(self.written(), [])
 

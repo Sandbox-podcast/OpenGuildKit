@@ -192,6 +192,7 @@ class ProjectsTests(unittest.TestCase):
 
     def test_csv_prints_a_stable_header_and_one_line_per_folder(self):
         """Issue #479: the fleet could be read as text or JSON only, never as a table."""
+        # OGK-PROJECT-041
         self.unequipped()
         out = self.projects(self.code, "--surfaces", "--format", "csv")[0]
         lines = out.splitlines()
@@ -250,6 +251,7 @@ class ProjectsTests(unittest.TestCase):
                          [{"field": "project", "policy": "readable", "found": "unreadable"}])
 
     def test_a_policy_that_cannot_be_read_or_names_a_field_it_does_not_know_stops_the_command(self):
+        # OGK-PROJECT-040, OGK-PROJECT-042, OGK-PROJECT-043, OGK-PROJECT-044
         _, err = self.projects(self.code, "--policy", self.policy(guards="enforce"), code=1)
         self.assertIn("guards", err)
         self.assertIn("guard, approvals, separate_requester", err)

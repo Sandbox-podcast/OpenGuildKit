@@ -1,6 +1,6 @@
 {
   "mypy": {
-    "arg-type": 48,
+    "arg-type": 44,
     "assignment": 29,
     "attr-defined": 11,
     "call-arg": 1,
@@ -9,8 +9,8 @@
     "index": 7,
     "misc": 5,
     "operator": 2,
-    "return-value": 4,
-    "union-attr": 39,
+    "return-value": 3,
+    "union-attr": 37,
     "var-annotated": 64
   },
   "ruff": {

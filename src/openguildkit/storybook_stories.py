@@ -11,6 +11,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+from .errors import OgkError
 from .stack_versions import STORYBOOK_VERSION
 from .storage import file_sha256, json_text, project_lock, read_json, write_json, write_text
 from .storybook import (
@@ -258,7 +259,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     framework = framework or detect_framework(root)
     out = (out or root / "src" / "design-system").resolve()
     if root not in (out, *out.parents):
-        raise ValueError("Generate the design system inside the project.")
+        raise OgkError("OGK-STORY-013", "Generate the design system inside the project.")
     components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
     files: dict[Path, str] = {}
     skipped: list[dict] = []
@@ -266,7 +267,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     by_component = _variants_by_component(proposals, components, skipped)
     names = [item["key"].split(":", 1)[1] for item in components.values()]
     if len(set(name.casefold() for name in names)) != len(names):
-        raise ValueError("Two validated components share a name.")
+        raise OgkError("OGK-STORY-037", "Two validated components share a name.")
     for key, component in components.items():
         story = _component_story(key, component, by_component[key], out, root, framework, skipped, warnings)
         if story is not None:

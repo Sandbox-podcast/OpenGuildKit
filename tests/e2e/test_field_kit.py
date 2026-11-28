@@ -259,6 +259,7 @@ def run_here(root: Path, *arguments) -> tuple[int, str, str]:
 class SameScenarioTests(KitTestCase):
     def test_two_teams_that_play_the_same_scenario_get_the_same_results(self):
         # The kit starts a process per command; here the commands run in this process, as the rest of the suite.
+        # OGK-TASK-098
         with mock.patch.object(field.fingerprint_script, "run", run_here):
             result = field.cohorts(self.out, teams=2)
         self.assertEqual(sorted(result), ["s1", "s2", "s3"])
@@ -337,7 +338,7 @@ class PersonDecideTests(KitTestCase):
                              self.out / "decision.sig", "camille@example.test")
         self.assertEqual(code, 1)
         self.assertNotIn("unrecognized arguments", shown)
-        self.assertIn("OpenGuildKit:", shown)
+        self.assertRegex(shown, r"OpenGuildKit( \[OGK-[A-Z]+-\d{3}\])?:")
 
 
 if __name__ == "__main__":

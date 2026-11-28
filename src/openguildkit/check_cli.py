@@ -1,4 +1,5 @@
-"""The commands that check a project against its profile: check, guard and host.
+"""The `check`, `guard` and `host` commands: the project against its profile, the approvals that cover an edit, the host
+settings.
 
 Entry: run, check, check_status, warn_unsigned, pending_catalog_changes.
 Tests: tests/test_guard.py, tests/test_sarif_commands.py, tests/test_hosts.py, tests/test_host_scan.py.
@@ -13,6 +14,7 @@ from . import host_coverage, managed, org_policy_cli
 from .catalog_queries import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
+from .errors import OgkError, error_line
 from .guard import NO_TASK, approval_text, covering_approvals, guard_mode, hook_command, scope_note
 from .guard_ci import ci_guard
 from .guard_records import exported_decisions
@@ -32,6 +34,7 @@ from .org_catalog import unaccepted_replacements
 from .project import STATE_DIR, load_profile, state_path
 from .project_instructions import RuleError
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .references import load_references
 from .storage import print_json
 from .tasks import list_tasks
@@ -48,7 +51,7 @@ NO_HOST_SETTINGS = (
 )
 
 
-def pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
+def pending_catalog_changes(lock: dict | None, live: dict, profile: Profile, bundled: dict) -> list[str]:
     """Locked records whose rules the installed catalog changes; a source checked again changes no rule."""
     if lock is None:
         return []
@@ -75,7 +78,7 @@ def undated_project_sources(state: Path, live: dict) -> list[str]:
     return undated_sources({**live, **references})
 
 
-def warn_unsigned(profile: dict, report=None) -> None:
+def warn_unsigned(profile: Profile, report=None) -> None:
     """Say once per setup or check command, not on every command, that local approvals can be forged."""
     warning = approval_warning(profile)
     if warning:
@@ -106,17 +109,17 @@ def _require_sarif_options(args) -> None:
     the standard output, so say which one to type."""
     if args.command == "host" and args.format == "sarif":
         if args.mode != "scan":
-            raise ValueError("--format sarif writes the findings of the scan: type openguildkit host scan --format sarif.")
+            raise OgkError("OGK-CHECK-002", "--format sarif writes the findings of the scan: type openguildkit host scan --format sarif.")
         if args.json:
-            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+            raise OgkError("OGK-CHECK-003", "--format sarif and --json both print the result on the standard output: use one of them. "
                              "Type openguildkit host scan --format sarif for code scanning, or openguildkit host scan "
                              "--json for a program.")
     if args.command == "guard" and args.format == "sarif":
         if not args.ci:
-            raise ValueError("--format sarif writes the result of the CI check: type openguildkit guard --ci "
+            raise OgkError("OGK-CHECK-004", "--format sarif writes the result of the CI check: type openguildkit guard --ci "
                              "--format sarif.")
         if args.json:
-            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+            raise OgkError("OGK-CHECK-005", "--format sarif and --json both print the result on the standard output: use one of them. "
                              "Type openguildkit guard --ci --format sarif for code scanning, or openguildkit guard --ci "
                              "--json for a program.")
 
@@ -178,7 +181,7 @@ def _host(command: Command) -> int:
     args = command.args
     _require_sarif_options(args)
     if args.strict and args.mode != "scan" or args.allow and args.mode not in ("scan", "managed"):
-        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
+        raise OgkError("OGK-CHECK-006", f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     root, state = command.root, command.state
     if args.matrix:  # The coverage of every host, from the tables of the code: no project.
         return host_coverage.run(args)
@@ -220,7 +223,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     from .surfaces import render_scan, scan_exit_code, scan_report, scan_sarif  # 11 ms that only host scan needs.
 
-    profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
+    profile: Profile | dict = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
     result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
         print(scan_sarif(result, root), end="")
@@ -231,8 +234,9 @@ def _host_scan(args, root: Path, state: Path) -> int:
     return scan_exit_code(result, args.strict)
 
 
-def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dict | None = None) -> int:
-    """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output.
+def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, read: dict | None = None) -> int:
+    """`check`, in text or, with --format sarif, as the SARIF document of its problems on the standard output, or with
+    --json as an object: whether it passes and its findings, in the form SARIF reads (sarif.finding).
 
     The command stops where it stopped: a problem that ends it (instructions, host settings, catalog lock, approvals
     that no longer hold) ends it in SARIF too, with the findings gathered up to there and the same exit code. A failure
@@ -240,7 +244,12 @@ def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dic
     records a caller already read, by ID (projects), which are not read again."""
     from .check_findings import Report
 
-    report = Report(args.format == "sarif")
+    as_json = getattr(args, "json", False)
+    if as_json and args.format == "sarif":
+        raise OgkError("OGK-CHECK-001", "--format sarif and --json both print the result on the standard output: use "
+                                        "one of them. Type openguildkit check --format sarif for code scanning, or "
+                                        "openguildkit check --json for a program.")
+    report = Report(args.format == "sarif" or as_json)
     code = 0
     try:
         _check_project(args, root, state, profile, catalog, report, {} if read is None else read)
@@ -248,9 +257,12 @@ def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dic
         if not report.active:
             raise
         report.blocked(problem)
-        print(f"OpenGuildKit: {problem}", file=sys.stderr)
+        print(error_line(problem, str(problem)), file=sys.stderr)
         code = 1
-    if report.active:
+    if as_json:
+        print_json({"passes": code == 0 and not any(item["level"] == "error" for item in report.items),
+                    "findings": report.items})
+    elif report.active:
         print(report.text(root), end="")
     return code
 
@@ -271,7 +283,7 @@ def check_status(args, root: Path, read: dict) -> dict:
         return {"passes": False, "code": 1, "message": lines[-1] if lines else None}
     return {"passes": True, "code": 0, "message": None}
 
-def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report, read: dict) -> None:
+def _check_project(args, root: Path, state: Path, profile: Profile, catalog: Catalog, report, read: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate. Each problem and warning goes to the
     report too, when it gathers them. read receives the task records, by ID, and each is read once."""
@@ -301,12 +313,12 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     missing = [control for control in host_controls(root, profile) if control["status"] == "missing"]
     settings = [control["title"] for control in missing if control.get("cause") != "path"]
     if missing:
-        raise RuleError(" ".join(
+        raise RuleError("OGK-CHECK-013", " ".join(
             ([f"The host settings do not enforce: {'; '.join(settings)}. Run openguildkit host check for the cause, "
               "then openguildkit host apply."] if settings else [])
             + ([OFF_PATH] if len(settings) < len(missing) else [])), "host-settings-missing")
     if not lock_is_current(lock, profile, catalog, bundled):
-        raise RuleError("The catalog lock does not match the profile. Run openguildkit sync.", "catalog-lock-stale",
+        raise RuleError("OGK-CHECK-014", "The catalog lock does not match the profile. Run openguildkit sync.", "catalog-lock-stale",
                         [f"{STATE_DIR}/{LOCK_FILE}"])
     if not failing and not report.active:
         print("OpenGuildKit instructions match the project profile.")
@@ -330,7 +342,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     report.sharing(issues)
     org_policy_cli.check_policy(state, profile, catalog, report)
     if failing:
-        raise RuleError(f"The instructions match the project profile, but {len(failing)} "
+        raise RuleError("OGK-CHECK-015", f"The instructions match the project profile, but {len(failing)} "
                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
                         "each line above gives the command to run.", None)
 

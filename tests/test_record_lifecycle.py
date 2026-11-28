@@ -249,6 +249,7 @@ class RecordLifecycleTests(CapturedCli, unittest.TestCase):
         self.assertIn("was withdrawn by CM", self.ci(code=1)["problems"][0])
 
     def test_a_forged_withdrawal_or_one_without_a_record_is_refused(self):
+        # OGK-GUARD-012
         self.exported_on_a_branch()
         record = json.loads((self.root / RECORD).read_text())
         record["withdrawn"] = "yes"

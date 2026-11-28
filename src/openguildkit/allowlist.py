@@ -1,4 +1,5 @@
-"""The allow list of an organization: the MCP servers, models and provider addresses that `host scan --allow FILE` accepts.
+"""The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and
+matched against what a project configures.
 
 A person keeps the file, in a policy repository or in the project, and passes it to the scan: what it does not name is an
 error. A list without an axis does not restrict that axis, and an empty list allows nothing. Entries are written
@@ -15,6 +16,7 @@ Tests: tests/test_host_surfaces.py.
 import re
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import load_json
 
 AXES = ("mcp_servers", "models", "endpoints")
@@ -37,17 +39,17 @@ def load_allow(path: Path) -> dict:
     try:
         data = load_json(path)
     except (OSError, ValueError) as error:
-        raise ValueError(f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
+        raise OgkError("OGK-GUARD-001", f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
     block = data.get("allow", data) if isinstance(data, dict) else None
     if (not isinstance(block, dict) or set(block) - set(AXES)
             or any(not isinstance(items, list) or not all((_server if axis == "mcp_servers" else _is_text)(item)
                                                           for item in items) for axis, items in block.items())):
-        raise ValueError(f"The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, "
+        raise OgkError("OGK-GUARD-002", f"The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, "
                          "each a list of non-empty text, alone or under the key allow; a server may be an object with "
                          "server and name, a name of letters, digits, - and _.")
     names = [item["name"] for item in block.get("mcp_servers", []) if isinstance(item, dict)]
     if len(names) != len(set(names)):
-        raise ValueError(f"The allow list {path.as_posix()} gives one name to two servers: give each its own.")
+        raise OgkError("OGK-GUARD-022", f"The allow list {path.as_posix()} gives one name to two servers: give each its own.")
     lists = {axis: [(item["server"] if isinstance(item, dict) else item).strip() for item in items]
              for axis, items in block.items()}
     if "mcp_servers" in block:

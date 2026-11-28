@@ -144,6 +144,7 @@ class ProposalTests(unittest.TestCase):
         self.assertGreater(summary["not_observed"], 0)
 
     def test_invalid_decisions_are_refused(self):
+        # OGK-STORY-009, OGK-STORY-011, OGK-STORY-012
         propose(self.root, self.state)
         data = read_json(self.path)
         data["tokens"][0]["status"] = "maybe"
@@ -160,6 +161,7 @@ class ProposalTests(unittest.TestCase):
             validate_proposals(data)
 
     def test_generate_writes_validated_items_only_and_keeps_edited_files(self):
+        # OGK-STORY-013
         propose(self.root, self.state)
         self.assertEqual(generate(self.root, self.state)["written"], [])
         self.decide({
@@ -334,6 +336,7 @@ class GeneratedCodeTests(unittest.TestCase):
                 self.assert_imports_exist(out, path.read_text(encoding="utf-8"))
 
     def test_a_public_name_that_is_not_an_identifier_is_refused(self):
+        # OGK-STORY-010
         data = {"schema_version": 1, "variants": [], "tokens": [], "components": [
             {"key": "component:Card", "name": "Card", "status": "validated", "file": "src/Card.tsx", "line": 1,
              "export": "named", "public": "Panel } from 'x'; //"}]}

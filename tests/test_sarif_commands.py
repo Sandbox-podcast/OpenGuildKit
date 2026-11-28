@@ -105,6 +105,7 @@ class CheckSarifTests(SarifProject):
         # The command ends as it did: same exit code, same line on the standard error.
         text = self.cli("check", code=1)
         self.assertEqual(result.stderr, text.stderr)
+        # OGK-PROJECT-077
         self.assertIn("OpenGuildKit instructions are out of date. Run openguildkit sync.", result.stderr)
 
     def test_a_block_edited_by_hand_has_its_own_rule(self):
@@ -126,6 +127,7 @@ class CheckSarifTests(SarifProject):
                                                 ("instructions-drift", "error", "CLAUDE.md")])
 
     def test_instructions_that_follow_a_newer_catalog_say_update_not_sync(self):
+        # OGK-CORE-022
         self.init()
         lock_path = self.root / ".openguildkit" / "catalog.lock.json"
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -143,6 +145,7 @@ class CheckSarifTests(SarifProject):
         self.assertEqual(result.stderr, self.cli("check", code=1).stderr)
 
     def test_a_catalog_lock_that_does_not_match_the_profile_has_its_rule(self):
+        # OGK-CHECK-014
         self.init()
         lock_path = self.root / ".openguildkit" / "catalog.lock.json"
         lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -170,6 +173,7 @@ class CheckSarifTests(SarifProject):
                                                          ("decision-stale", "error", f".openguildkit/tasks/{TASK}.json")])
 
     def test_a_task_record_that_cannot_be_read_is_reported_without_the_folder_of_the_machine(self):
+        # OGK-TASK-022
         self.init()
         tasks = self.root / ".openguildkit" / "tasks"
         tasks.mkdir(exist_ok=True)
@@ -215,9 +219,10 @@ class CheckSarifTests(SarifProject):
     def test_a_failure_that_is_not_a_finding_prints_no_file(self):
         result = self.cli("check", "--format", "sarif", code=1)
         self.assertEqual(result.stdout, "")
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-PROJECT-026]: "), result.stderr)
 
     def test_the_exit_code_of_each_failure_is_the_one_of_the_text_form(self):
+        # OGK-CHECK-013
         self.init(host="claude-code")
         self.assertEqual(self.cli("check", code=1).returncode, self.cli("check", "--format", "sarif", code=1).returncode)
 
@@ -520,13 +525,14 @@ class OptionTests(SarifProject):
     def test_sarif_and_json_together_are_refused_with_what_to_type(self):
         self.init()
         result = self.cli("guard", "--ci", "--format", "sarif", "--json", code=1)
-        self.assertEqual(result.stdout, "")
+        self.assertIn("one of them", json.loads(result.stdout)["error"]["message"])  # Issue #484: JSON under --json.
         self.assertIn("--format sarif", result.stderr)
         self.assertIn("--json", result.stderr)
         self.assertIn("one of them", result.stderr)
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-CHECK-005]: "), result.stderr)
 
     def test_sarif_without_ci_is_refused_and_names_the_command_that_writes_it(self):
+        # OGK-CHECK-004
         self.init()
         for arguments in (("guard",), ("guard", "--hook", "prompt")):
             with self.subTest(arguments=arguments):
@@ -543,9 +549,10 @@ class OptionTests(SarifProject):
         refused = self.cli("check", "--format", "xml", code=2)
         self.assertIn("invalid choice: 'xml'", refused.stderr)
 
-    def test_the_check_command_has_no_json_form_to_refuse(self):
+    def test_issue_484_the_check_command_answers_in_json(self):
+        """Issue #484: check had no --json; it now prints whether it passes and its findings."""
         self.init()
-        self.assertEqual(self.cli("check", "--json", code=2).stdout, "")
+        self.assertEqual(json.loads(self.cli("check", "--json").stdout), {"passes": True, "findings": []})
 
 
 if __name__ == "__main__":

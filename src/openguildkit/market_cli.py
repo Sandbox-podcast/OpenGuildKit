@@ -1,4 +1,4 @@
-"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources.
+"""The `market` command: create, fill, check and watch market dossiers.
 
 Entry: add_parser, run
 Tests: tests/test_architecture.py, tests/test_cli_coverage.py
@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .cli_surface import add_by
 from .command import Command
+from .errors import OgkError
 from .market import (
     KINDS,
     MARKET_DIR,
@@ -28,7 +29,7 @@ from .market import (
     set_unknown,
     watch_source,
 )
-from .storage import json_text, project_lock
+from .storage import print_json, project_lock
 
 MODES = {
     "new": "create an empty dossier",
@@ -87,7 +88,7 @@ def _require(args) -> None:
     missing = [name for name in _REQUIRED.get(args.mode, ()) if not getattr(args, name)]
     if missing:
         options = ", ".join("--" + name.replace("_", "-") for name in missing)
-        raise ValueError(f"market {args.mode} needs {options}.")
+        raise OgkError("OGK-MARKET-010", f"market {args.mode} needs {options}.")
 
 
 def _changed(args, dossier: dict) -> dict:
@@ -97,7 +98,7 @@ def _changed(args, dossier: dict) -> dict:
         return describe(dossier, {name: getattr(args, name) for name in ("title", "market", "audience", "feature")})
     if mode == "competitor":
         if args.kind not in KINDS:
-            raise ValueError("A competitor's --kind is direct or substitute.")
+            raise OgkError("OGK-MARKET-011", "A competitor's --kind is direct or substitute.")
         return add_competitor(dossier, {"id": args.competitor, "name": args.name, "kind": args.kind,
                                         "url": args.url, "segment": args.segment})
     if mode == "observe":
@@ -123,7 +124,7 @@ LOCAL_ONLY_DUE = ("Research is local-only: a person reviews each page, then reco
 
 def _due(args, state: Path, research: str) -> None:
     if args.all == bool(args.dossier):
-        raise ValueError("Name one dossier, or pass --all for every dossier of the project.")
+        raise OgkError("OGK-MARKET-035", "Name one dossier, or pass --all for every dossier of the project.")
     folder = state / MARKET_DIR
     ids = sorted(path.stem for path in folder.glob("*.json")) if args.all and folder.is_dir() else [args.dossier] if args.dossier else []
     results = []
@@ -133,8 +134,8 @@ def _due(args, state: Path, research: str) -> None:
                for source in due_sources(dossier)]
         results.append({"dossier": dossier_id, "due": due, "paused": dossier.get("watch", {}).get("paused", False)})
     if args.json:
-        print(json_text(results[0] if not args.all else {"dossiers": results,
-                                                         "due": [item for result in results for item in result["due"]]}), end="")
+        print_json(results[0] if not args.all else {"dossiers": results,
+                                                         "due": [item for result in results for item in result["due"]]})
         return
     for result in results:
         if args.all:
@@ -160,7 +161,7 @@ def _person_reviews(args, dossier: dict, research: str) -> None:
     if watched is None or (args.mode == "change" and watched.get("provided_by")):
         return
     then = " first, then record the change" if args.mode == "change" else ""
-    raise ValueError(f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
+    raise OgkError("OGK-MARKET-012", f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
                      f"openguildkit market provided {args.dossier} --url {url} --by INITIALS{then}.")
 
 
@@ -169,12 +170,12 @@ def run(command: Command) -> None:
     if args.mode == "due":
         return _due(args, state, profile.get("research", "local-only"))
     if not args.dossier:
-        raise ValueError(f"Name the dossier: openguildkit market {args.mode} ID.")
+        raise OgkError("OGK-MARKET-036", f"Name the dossier: openguildkit market {args.mode} ID.")
     if args.mode == "check":
         dossier = load_dossier(state, args.dossier)
         result = {"dossier": args.dossier, "gaps": dossier_gaps(dossier, profile.get("research", "local-only"))}
         if args.json:
-            print(json_text(result), end="")
+            print_json(result)
         else:
             print("\n".join(f"- {gap}" for gap in result["gaps"]) or "No gap found.")
         return
@@ -183,7 +184,7 @@ def run(command: Command) -> None:
         if args.mode == "new":
             path = dossier_path(state, args.dossier)
             if path.exists():
-                raise ValueError(f"Market dossier {args.dossier} already exists. Update it with the other market commands.")
+                raise OgkError("OGK-MARKET-013", f"Market dossier {args.dossier} already exists. Update it with the other market commands.")
             dossier = new_dossier(args.dossier, {name: getattr(args, name) for name in ("title", "market", "audience", "feature")})
         else:
             dossier = load_dossier(state, args.dossier)

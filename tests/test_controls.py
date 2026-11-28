@@ -69,6 +69,7 @@ class RegistryTests(unittest.TestCase):
 
     def test_an_entry_of_maps_to_without_a_reference_of_the_catalog_or_without_a_checked_date_is_refused(self):
         """Issue #482: a clause written from memory looked the same as one read from the source."""
+        # OGK-CONTROL-002, OGK-CONTROL-004, OGK-CONTROL-006, OGK-CONTROL-010, OGK-CONTROL-011
         controls.validate(with_mapping(READ))
         self.assertIn("reference", refused(with_mapping({key: value for key, value in READ.items() if key != "reference"})))
         self.assertIn("not-a-framework", refused(with_mapping({**READ, "reference": "not-a-framework"})))
@@ -84,6 +85,7 @@ class RegistryTests(unittest.TestCase):
 
     def test_an_entry_says_whether_the_control_matches_the_clause_with_the_words_it_relies_on_and_the_gap(self):
         """Issue #482: a cell named a clause without saying whether the control does all it asks."""
+        # OGK-CONTROL-003, OGK-CONTROL-007, OGK-CONTROL-008, OGK-CONTROL-009
         controls.validate(with_mapping({key: value for key, value in READ.items() if key != "gap"} | {"fit": "matches"}))
         for key in ("fit", "quote"):
             self.assertIn(key, refused(with_mapping({name: value for name, value in READ.items() if name != key})))
@@ -93,12 +95,14 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("gap", refused(with_mapping({**READ, "fit": "matches"})))
 
     def test_each_framework_has_a_note_that_says_how_it_was_read_or_why_it_was_not(self):
+        # OGK-CONTROL-012
         data = copy.deepcopy(controls.load())
         self.assertEqual(list(data["framework_notes"]), data["frameworks"])
         del data["framework_notes"][data["frameworks"][-1]]
         self.assertIn("framework_notes", refused(data))
 
     def test_a_reference_the_catalog_knows_must_also_be_one_of_the_frameworks_of_the_page(self):
+        # OGK-CONTROL-005
         data = with_mapping({**READ, "reference": "owasp-top-10"})
         self.assertIn("frameworks", refused(data))
 
@@ -134,6 +138,7 @@ class RegistryTests(unittest.TestCase):
             self.assertLessEqual(set(item["in_dossier"]), set(DOSSIER_FILES), item["id"])
 
     def test_the_registry_refuses_a_control_without_what_it_does_not_cover(self):
+        # OGK-CONTROL-001, OGK-CONTROL-013
         data = copy.deepcopy(controls.load())
         data["controls"][0]["not_covered"] = " "
         self.assertIn("not_covered", refused(data))

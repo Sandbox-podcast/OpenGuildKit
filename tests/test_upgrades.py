@@ -104,6 +104,7 @@ class UpgradeTests(CapturedCli, unittest.TestCase):
         self.upgraded("check")
 
     def test_a_record_that_exists_nowhere_names_the_entry_to_remove(self):
+        # OGK-PROJECT-028
         self.lock_file.unlink()
         _, error = self.upgraded("check", code=1)
         self.assertIn(".openguildkit/project.json", error)

@@ -44,11 +44,13 @@ class BrainReviewTests(unittest.TestCase):
         self.assertIn("synthetic users", result)
 
     def test_all_specialist_lenses_must_return_a_finding(self):
+        # OGK-BOARD-012
         self.challenge["specialists"].pop()
         with self.assertRaisesRegex(ValueError, "specialist findings are missing"):
             validate_review(self.consultation, self.review)
 
     def test_observed_findings_need_a_citation(self):
+        # OGK-BOARD-016
         self.challenge["specialists"][0]["evidence_refs"] = []
         with self.assertRaisesRegex(ValueError, "needs an evidence reference"):
             validate_review(self.consultation, self.review)

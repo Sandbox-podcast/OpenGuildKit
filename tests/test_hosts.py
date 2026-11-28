@@ -106,6 +106,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         self.assertTrue(all(item["status"] in ("enforced", "partial", "human") for item in json.loads(report)))
 
     def test_codex_settings_that_open_the_network_are_left_to_the_person(self):
+        # OGK-HOST-007
         config = self.root / ".codex" / "config.toml"
         config.parent.mkdir()
         config.write_text('web_search = "live"\n', encoding="utf-8")
@@ -128,6 +129,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
                       consultation)
 
     def test_external_actions_need_a_recorded_decision(self):
+        # OGK-TASK-055, OGK-TASK-073
         self.init()
         self.run_cli("task", "new", "Show statuses.", "--id", "status")
         common = ["task", "authorize", "status", "--action", "external-api", "--by", "Camille", "--reason", "Status page"]
@@ -388,6 +390,7 @@ class RestrictedPathTests(CapturedCli, unittest.TestCase):
         self.assertIsNone(self.control(code=1))
 
     def test_a_setting_that_is_not_a_list_of_paths_is_refused_with_the_file_named(self):
+        # OGK-PROJECT-016
         self.init("claude-code")
         for bad in ("secrets/**", [{"paths": "secrets/**"}], [{"paths": []}], [{"paths": ["/etc/passwd"]}],
                     [{"paths": ["../outside/**"]}], [{"paths": ["a/**"], "boards": "legal"}], [{"class": "restricted"}]):

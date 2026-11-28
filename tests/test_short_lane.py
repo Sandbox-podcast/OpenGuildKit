@@ -29,6 +29,7 @@ DOCS_AND_TESTS = ["docs/**", "tests/**"]
 
 class PathRuleTests(unittest.TestCase):
     def test_an_entry_is_a_folder_or_file_glob_inside_the_project(self):
+        # OGK-LANE-004
         self.assertEqual(short_lane.normalize_entries(["tests/**", "docs/", " docs/** ", "README.md"], "light_paths"),
                          ["README.md", "docs/**", "tests/**"])
         for entry in ("", "  ", "/etc/passwd", "../x", "docs/../x", "docs/./x", "docs//x", "docs\\x", "**", "**/*.md",
@@ -187,7 +188,7 @@ class ActivationTests(ProjectCase):
         self.assertNotIn("light_paths", self.profile())
         before = self.profile()
         _, error = self.run_cli("task", "new", "Fix a typo", "--id", "typo", "--lane", "light", "--paths", "docs/**", code=1)
-        self.assertTrue(error.startswith("OpenGuildKit: the short lane is off in this project"), error)
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-LANE-006]: the short lane is off in this project"), error)
         self.assertIn("openguildkit profile set light-paths 'docs/**' --by INITIALS --reason WHY", error)
         self.assertIn("at their terminal", error)
         self.assertIn("without --lane", error)
@@ -265,7 +266,7 @@ class ActivationTests(ProjectCase):
             with self.subTest(entry=entry):
                 _, error = self.run_cli("profile", "set", "light-paths", entry, "--by", "Sam", "--reason", "x",
                                         typed=entry, code=1)
-                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                self.assertRegex(error, r"^OpenGuildKit \[(?:OGK-LANE-002|OGK-LANE-011)\]: ")
                 self.assertNotIn("Traceback", error)
                 self.assertNotIn("light_paths", self.profile())
         self.assertIn("rules, dependencies, the profile", self.run_cli(
@@ -276,6 +277,7 @@ class ActivationTests(ProjectCase):
         self.assertIn("takes one value", error)
         _, error = self.run_cli("profile", "set", "light-paths", "docs/**", "--signers", "keys", "--by", "Sam",
                                 "--reason", "x", typed="docs/**", code=1)
+        # OGK-PROFILE-018, OGK-PROFILE-019
         self.assertIn("--signers belongs to profile set approval signed", error)
 
     def test_the_weakening_is_named_with_the_command_a_person_types(self):
@@ -305,6 +307,7 @@ class ActivationTests(ProjectCase):
         self.assertIn("written by the openguildkit commands", result.stderr)
 
     def test_a_profile_is_checked_when_it_is_read(self):
+        # OGK-LANE-001, OGK-LANE-003
         profile = self.profile()
         for bad in ("docs/**", [3], ["docs/../x"], [".openguildkit/**"], ["**"], ["docs/**", "docs/**x"]):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
@@ -384,6 +387,7 @@ class TaskDeclarationTests(LaneCase):
 
     def test_a_path_outside_the_profile_is_refused_with_the_paths_and_the_command_of_the_full_path(self):
         _, error = self.new("wide", "docs/**", "other/a.py", "README.md", code=1)
+        # OGK-LANE-009
         self.assertIn("the short lane of this project covers only docs/**, src/**, tests/**", error)
         self.assertIn("these paths are outside it: README.md, other/a.py", error)
         self.assertIn('openguildkit task new "BRIEF" --id ID, without --lane', error)
@@ -391,6 +395,7 @@ class TaskDeclarationTests(LaneCase):
         self.assertFalse((self.root / ".openguildkit" / "tasks" / "wide.json").exists())
 
     def test_a_path_the_lane_never_covers_is_refused_with_the_command_of_the_full_path(self):
+        # OGK-LANE-008
         for entry in ("package.json", ".openguildkit/project.json", "docs/**/package.json", ".github/workflows/ci.yml",
                       "AGENTS.md", ".claude/**", "src/pyproject.toml"):
             with self.subTest(entry=entry):
@@ -401,6 +406,7 @@ class TaskDeclarationTests(LaneCase):
                 self.assertFalse((self.root / ".openguildkit" / "tasks" / "never.json").exists())
 
     def test_paths_need_a_lane_and_a_lane_needs_paths(self):
+        # OGK-LANE-005, OGK-LANE-007
         _, error = self.run_cli("task", "new", "x", "--paths", "docs/**", code=1)
         self.assertIn("--paths belongs to the short lane: add --lane light", error)
         _, error = self.run_cli("task", "new", "x", "--lane", "light", code=1)
@@ -421,6 +427,7 @@ class TaskDeclarationTests(LaneCase):
         self.assertNotIn("paths", rows["plain"])
 
     def test_the_questionnaire_and_the_route_preview_are_not_part_of_the_lane(self):
+        # OGK-TASK-057, OGK-TASK-058
         self.new("typo", "docs/**")
         _, error = self.run_cli("task", "questions", "typo", code=1)
         self.assertIn("The short lane asks no questions", error)
@@ -452,6 +459,7 @@ class ConsultationTests(LaneCase):
                 self.assertEqual([entry["id"] for entry in template["boards"]], [board])
 
     def test_the_lane_takes_no_answers_and_no_other_board(self):
+        # OGK-TASK-059
         self.new("typo", "docs/**")
         write_json(self.root / "mine.json", {"kind": "bug", "surface": ["service"], "data": "none", "research": "local",
                                              "concerns": ["none"]})
@@ -464,6 +472,7 @@ class ConsultationTests(LaneCase):
         self.assertEqual(self.task()["status"], "draft")
 
     def test_a_board_the_project_has_not_enabled_is_named_with_the_command_that_enables_it(self):
+        # OGK-LANE-010
         self.run_cli("profile", "add", "board", "qa", "engineering", "--by", "Sam", "--reason", "Two boards", typed="qa engineering")
         self.new("typo", "docs/**")
         _, error = self.run_cli("task", "consult", "typo", code=1)
@@ -488,6 +497,7 @@ class ConsultationTests(LaneCase):
         self.assertEqual(record["consultation"]["boards"], ["developer-relations-and-docs"])
 
     def test_a_lane_turned_off_after_the_task_was_opened_stops_its_consultation_and_its_approval(self):
+        # OGK-TASK-060, OGK-TASK-064
         self.new("typo", "docs/**")
         self.run_cli("profile", "set", "light-paths", "none", "--by", "Sam", "--reason", "Closed")
         _, error = self.run_cli("task", "consult", "typo", code=1)
@@ -877,6 +887,7 @@ class CompletionTests(GitCase):
         self.assertNotIn("Short-lane", self.run_cli("task", "verify", "typo")[0])
 
     def test_a_lane_turned_off_or_narrowed_before_the_closing_is_named(self):
+        # OGK-TASK-037
         self.branch()
         self.approved("typo", "docs/**")
         self.run_cli("profile", "set", "light-paths", "tests/**", "--by", "Sam", "--reason", "Narrower")

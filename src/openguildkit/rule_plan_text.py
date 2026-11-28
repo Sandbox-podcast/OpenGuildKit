@@ -1,5 +1,5 @@
-"""Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks, and the patterns
-`recommend` preselects.
+"""Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations,
+packs and conflicts), and the patterns `recommend` preselects.
 
 The plan lists the patterns with why they apply, the regulations, the packs in the order `AGENTS.md` lists them, and
 the conflicts between packs.
@@ -11,14 +11,14 @@ Tests: `tests/test_proportionate_setup.py`, `tests/test_command_output_budget.py
 import sys
 
 from .project import RULES_NOTE
-from .storage import json_text, print_json
+from .storage import print_json
 
 
 def print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
-    file = file or sys.stdout
     if as_json:
-        print(json_text(plan), end="", file=file)
+        print_json(plan)
         return
+    file = file or sys.stdout
     if plan["patterns"]:
         print("Patterns, with why they apply and their rules", file=file)
         for pattern in plan["patterns"]:

@@ -1,4 +1,5 @@
-"""What closed tasks leave to learn, read from the records that already exist and counted, never kept.
+"""The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the
+profile command a person could type.
 
 `task retro ID` says what one closed task set aside, which boards brought nothing, what it left open and which
 blockers it waived. `task retro --all` counts what comes back in several closed tasks and, for some findings, names the
@@ -15,10 +16,12 @@ import re
 from pathlib import Path
 
 from . import lazy_re
+from .errors import InternalError, OgkError
 from .patterns import pattern_selection
 from .profile_changes import check_proposal
 from .project import DRAFT_MARK
 from .project_rules import resolved_profile
+from .records import Catalog, Profile, Task
 from .shell import shell_command
 from .storage import write_json
 from .tasks_closing import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
@@ -149,7 +152,7 @@ def _not_concerned(closing: dict) -> list[dict]:
             for item in map(_dict, _list(closing.get("not_concerned"))) if isinstance(item.get("reason"), str)]
 
 
-def _committees(task: dict) -> dict | None:
+def _committees(task: Task) -> dict | None:
     """The boards convened, and those whose verdict was proceed with no blocker and no objection raised or received.
 
     The objections are those the deliberation recorded or, when it never ran, those the review gives (as task challenge
@@ -194,12 +197,12 @@ def _waivers(blockers: list) -> list[dict]:
     return sorted(found, key=lambda waiver: (waiver["until"], waiver["blocker"]))
 
 
-def _refusal(task_id: object, status: object) -> ValueError:
-    return ValueError(f"Task {task_id} is not closed (status {status}): only a task that is done or done with "
+def _refusal(task_id: object, status: object) -> OgkError:
+    return OgkError("OGK-RESULT-034", f"Task {task_id} is not closed (status {status}): only a task that is done or done with "
                       "reservations has a retrospective.")
 
 
-def facts_of_task(task: dict) -> dict:
+def facts_of_task(task: Task) -> dict:
     """What a closed task's own record says, with no field that holds a person."""
     if task.get("status") not in DONE:
         raise _refusal(task.get("id"), task.get("status"))
@@ -219,7 +222,7 @@ def facts_of_record(record: dict) -> dict:
     """What an exported decision record says of a task it holds as completed. It carries no objections between
     boards, so it cannot say which board brought nothing."""
     if not isinstance(record.get("task"), str):
-        raise ValueError("An exported record names its task: this one does not.")
+        raise OgkError("OGK-RESULT-029", "An exported record names its task: this one does not.")
     if record.get("completed") is not True or record.get("status") not in DONE:
         raise _refusal(record["task"], record.get("status"))
     result = _dict(record.get("result"))
@@ -278,7 +281,7 @@ def recurrences(all_facts: list[dict], minimum: int) -> list[dict]:
     it brought nothing, with the tasks where it was convened; a reservation by its wording.
     """
     if minimum < 1:
-        raise ValueError("--min counts tasks: give a number of 1 or more.")
+        raise InternalError("--min counts tasks: give a number of 1 or more.")  # task retro checks --min first.
     ordered = sorted(all_facts, key=lambda facts: (facts["id"], facts["created"]))
     slots, convened = {}, {}
     for facts in ordered:
@@ -297,12 +300,12 @@ def recurrences(all_facts: list[dict], minimum: int) -> list[dict]:
     return found
 
 
-def _active_patterns(profile: dict) -> list[str]:
+def _active_patterns(profile: Profile) -> list[str]:
     return sorted({pattern_selection(entry)[0] for entry in _list(profile.get("patterns"))
                    if isinstance(entry, (str, dict))})
 
 
-def _candidates(item: dict, profile: dict, catalog: dict):
+def _candidates(item: dict, profile: Profile, catalog: Catalog):
     """The profile commands that could answer a finding, as (action, field, value, pack it must stop), most direct
     first. One rule set aside in at least DEFAULT_MINIMUM tasks can be declined alone (profile decline rule, RFC #447),
     whatever --min says; no command settles a reservation or adds a committee's silence to the profile."""
@@ -353,7 +356,7 @@ def proposed_reason(item: dict) -> str:
     return reason[:MAX_REASON]
 
 
-def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powershell: bool | None) -> dict:
+def _proposal(item: dict, profile: Profile, catalog: Catalog, before: set[str], powershell: bool | None) -> dict:
     """The first command the profile accepts whose effect is the one wanted, or none; before is the packs in force.
     The command carries a prefilled reason that names the tasks; --by INITIALS stays the person's to fill in."""
     for action, field, value, pack in _candidates(item, profile, catalog):
@@ -375,7 +378,7 @@ def _proposal(item: dict, profile: dict, catalog: dict, before: set[str], powers
     return {"command": None, "needs_terminal": False, "also_drops": [], "proposed_reason": None}
 
 
-def proposals(found: list[dict], profile: dict, catalog: dict, powershell: bool | None = None) -> list[dict]:
+def proposals(found: list[dict], profile: Profile, catalog: Catalog, powershell: bool | None = None) -> list[dict]:
     """Each finding with the profile command that answers it, written and never run, or without one when the profile
     accepts none: a command is given only if the profile takes it and it does what the finding asks. The command is
     quoted for PowerShell on Windows and a POSIX shell elsewhere, unless powershell says which."""
@@ -383,7 +386,7 @@ def proposals(found: list[dict], profile: dict, catalog: dict, powershell: bool 
     return [{**item, **_proposal(item, profile, catalog, before, powershell)} for item in found]
 
 
-def project_summary(all_facts: list[dict], minimum: int, profile: dict, catalog: dict, ignored: dict) -> dict:
+def project_summary(all_facts: list[dict], minimum: int, profile: Profile, catalog: Catalog, ignored: dict) -> dict:
     """The retrospective of the project, as `task retro --all --json` prints it."""
     records = sum(1 for facts in all_facts if facts["source"] == "record")
     return {
@@ -614,7 +617,7 @@ def write_draft(root: Path, state: Path, folder: Path, pack: dict) -> str:
     path = project_path(root, state, folder, "--draft-rules") / f"{pack['id']}.json"
     shown = path.relative_to(root.resolve()).as_posix()
     if path.exists():
-        raise ValueError(f"{shown} already exists: review it, rename it or remove it before writing another draft "
+        raise OgkError("OGK-RESULT-031", f"{shown} already exists: review it, rename it or remove it before writing another draft "
                          "today. Nothing was written.")
     write_json(path, pack)
     return shown

@@ -1,5 +1,5 @@
-"""Business deliverables: a method's template, the inputs it needs, the tool actions that need
-approval and the checks a reviewer runs on the result.
+"""Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision
+record filled from a decision task.
 
 Templates live in registry/deliverables/ (and .openguildkit/catalog/deliverables/ for a
 project). `deliverable new` turns an approved task into a draft; `deliverable check` says what
@@ -26,6 +26,8 @@ from .catalog import (
     validate_sources,
     validate_text,
 )
+from .errors import OgkError
+from .records import Catalog, Task
 from .storage import write_text
 from .wording import plural
 from .workflow import blocker_list, is_decision_task, objections
@@ -62,41 +64,41 @@ def project_path(root: Path, state: Path, value: Path | str, option: str) -> Pat
     project = root.resolve()
     target = (project / Path(value)).resolve()
     if not _same_or_inside(target, project):
-        raise ValueError(f"{option} {shown} is outside the project, once links are followed. "
+        raise OgkError("OGK-RESULT-001", f"{option} {shown} is outside the project, once links are followed. "
                          "Give a path inside the project folder.")
     if _same_or_inside(target, state.resolve()):
-        raise ValueError(f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
+        raise OgkError("OGK-RESULT-002", f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
                          "the team does not share. Give a path outside .openguildkit/.")
     return target
 
 
-def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
+def _validate(record: dict, catalog: Catalog, bundled: bool = False) -> None:
     validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool", "decision"})
     for flag in ("market", "requires_tool", "decision"):
         if flag in record and not isinstance(record[flag], bool):
-            raise CatalogError(f"{flag} must be true or false")
+            raise CatalogError("OGK-RESULT-036", f"{flag} must be true or false")
     validate_id(record["id"], "id")
     for field in ("title", "description"):
         validate_text(record[field], field)
     validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
-        raise CatalogError(f"Unknown method pattern {record['method']!r}")
+        raise CatalogError("OGK-RESULT-037", f"Unknown method pattern {record['method']!r}")
     validate_list(record["brains"], "brains")
     unknown = sorted(set(record["brains"]) - catalog["boards"].keys())
     if unknown:
-        raise CatalogError(f"Unknown brains: {', '.join(unknown)}")
+        raise CatalogError("OGK-RESULT-038", f"Unknown brains: {', '.join(unknown)}")
     validate_list(record["inputs"], "inputs")
     for item in record["inputs"]:
         validate_fields(item, "input", {"id", "label", "data"})
         validate_id(item["id"], "input id")
         validate_text(item["label"], "input label")
         if item["data"] not in DATA_CLASSES:
-            raise CatalogError(f"input data must be one of {', '.join(DATA_CLASSES)}")
+            raise CatalogError("OGK-RESULT-039", f"input data must be one of {', '.join(DATA_CLASSES)}")
     validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
     for item in record["tool_actions"]:
         validate_fields(item, "tool action", {"action", "description"})
         if item["action"] not in ACTIONS:
-            raise CatalogError(f"tool action must be one of {', '.join(ACTIONS)}")
+            raise CatalogError("OGK-RESULT-040", f"tool action must be one of {', '.join(ACTIONS)}")
         validate_text(item["description"], "tool action description")
     for field in ("sections", "checks"):
         validate_list(record[field], field)
@@ -108,7 +110,7 @@ def _validate(record: dict, catalog: dict, bundled: bool = False) -> None:
                     validate_text(item[key], f"{field[:-1]} {key}")
 
 
-def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str, dict]:
+def load_deliverables(catalog: Catalog, extra_dir: Path | None = None) -> dict[str, dict]:
     roots = [package_file("registry", "deliverables")]
     if extra_dir is not None and extra_dir.is_dir():
         roots.append(extra_dir)
@@ -118,9 +120,9 @@ def load_deliverables(catalog: dict, extra_dir: Path | None = None) -> dict[str,
             try:
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
-                    raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
+                    raise CatalogError("OGK-RESULT-041", f"name the file {record['id']}.json and keep IDs unique")
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-RESULT-042", f"{path}: {error}") from error
             found[record["id"]] = record
     return dict(sorted(found.items()))
 
@@ -141,9 +143,9 @@ def utm_link(url: str, values: dict[str, str | None]) -> str:
     """
     address = urlsplit(url.strip())
     if address.scheme != "https" or not address.hostname or address.username is not None:
-        raise ValueError("Give the landing page as an https address with a host and no credentials.")
+        raise OgkError("OGK-RESULT-003", "Give the landing page as an https address with a host and no credentials.")
     if any(key.lower().startswith("utm_") for key, _ in parse_qsl(address.query, keep_blank_values=True)):
-        raise ValueError("The landing URL already carries utm_ parameters. Give the page address without them.")
+        raise OgkError("OGK-RESULT-004", "The landing URL already carries utm_ parameters. Give the page address without them.")
     tags = []
     for name in UTM_ORDER:
         value = values.get(name)
@@ -151,16 +153,16 @@ def utm_link(url: str, values: dict[str, str | None]) -> str:
             continue
         value = value.strip()
         if "@" in value:
-            raise ValueError(f"utm_{name} looks like an email address: keep personal data out of UTM values.")
+            raise OgkError("OGK-RESULT-005", f"utm_{name} looks like an email address: keep personal data out of UTM values.")
         if not _UTM_VALUE.fullmatch(value):
-            raise ValueError(f"Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, "
+            raise OgkError("OGK-RESULT-006", f"Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, "
                              f"as agreed with the analytics owner: {value!r}.")
         tags.append((f"utm_{name}", value))
     query = "&".join(part for part in (address.query, urlencode(tags)) if part)
     return urlunsplit((address.scheme, address.netloc, address.path, query, address.fragment))
 
 
-def _market_lines(deliverable: dict, task: dict) -> tuple[list[str], list[str]]:
+def _market_lines(deliverable: dict, task: Task) -> tuple[list[str], list[str]]:
     """Front matter and input lines linking a market template to the dossier the task was consulted with."""
     if not deliverable.get("market"):
         return [], []
@@ -188,7 +190,7 @@ def _day(stamp: object) -> str:
     return stamp[:10] if isinstance(stamp, str) else ""
 
 
-def _status_lines(task: dict) -> list[str]:
+def _status_lines(task: Task) -> list[str]:
     task_id, approved = task["id"], _day(task.get("decision", {}).get("at"))
     accepted = f"Accepted: decision task `{task_id}` approved on {approved}"
     closed = _day(task.get("completed_at"))
@@ -206,7 +208,7 @@ def _status_lines(task: dict) -> list[str]:
     return lines
 
 
-def _advice_lines(task: dict) -> list[str]:
+def _advice_lines(task: Task) -> list[str]:
     """Each board's verdict and recommendation, then what the deliberation left open, or the objections that
     no deliberation answered and the person decided when approving."""
     review = task.get("review", {})
@@ -236,7 +238,7 @@ def _advice_lines(task: dict) -> list[str]:
     return [*lines, *(f"- {item['id']}: {_one_line(item.get('point'))}" for item in pending)]
 
 
-def _condition_lines(task: dict) -> list[str]:
+def _condition_lines(task: Task) -> list[str]:
     """Each blocker a board set, without who owns, cleared or waived it: only the decision's own name is kept."""
     lines = []
     for item in blocker_list(task):
@@ -257,7 +259,7 @@ def _condition_lines(task: dict) -> list[str]:
     return lines or ["No condition: no board set a blocker."]
 
 
-def decision_sections(task: dict) -> dict[str, list[str]]:
+def decision_sections(task: Task) -> dict[str, list[str]]:
     """The sections of an architecture decision record, filled from a decision task. The only person named is the
     one the decision names; a section the task cannot fill says TODO with what to write."""
     task_id, answers, decision = task["id"], task.get("answers", {}), task.get("decision", {})
@@ -283,27 +285,27 @@ def decision_sections(task: dict) -> dict[str, list[str]]:
                          f"`.openguildkit/decisions/{task_id}.json`"]}
 
 
-def _decision_refusal(deliverable: dict, task: dict) -> ValueError:
+def _decision_refusal(deliverable: dict, task: Task) -> OgkError:
     kind = task.get("answers", {}).get("kind") or "unanswered"
-    return ValueError(f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
+    return OgkError("OGK-RESULT-035", f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
                       "Open a decision task (answer kind decision at task consult) for the choice to record, or pick "
                       "another template: openguildkit deliverable list.")
 
 
-def new_draft(deliverable: dict, task: dict, tool: str | None, approved_tools: list[str], output: Path) -> dict:
+def new_draft(deliverable: dict, task: Task, tool: str | None, approved_tools: list[str], output: Path) -> dict:
     """Write the draft. The tool is optional unless the template requires one: its actions are authorized one by
     one with task authorize. The draft may go to a client, so the approval stays in the task record.
     """
     if task["status"] not in ("approved", "done", "done-with-reservations"):
-        raise ValueError("Start a deliverable from an approved or completed task.")
+        raise OgkError("OGK-RESULT-007", "Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
-        raise ValueError("This template needs --tool, one of the project's approved tools.")
+        raise OgkError("OGK-RESULT-043", "This template needs --tool, one of the project's approved tools.")
     if tool is not None and approved_tools and tool not in approved_tools:
-        raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
+        raise OgkError("OGK-RESULT-008", f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if deliverable.get("decision") and not is_decision_task(task):
         raise _decision_refusal(deliverable, task)
     if output.exists():
-        raise ValueError(f"{output.as_posix()} already exists.")
+        raise OgkError("OGK-RESULT-044", f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
     filled = decision_sections(task) if deliverable.get("decision") else {}
     inputs = filled.get("_inputs")

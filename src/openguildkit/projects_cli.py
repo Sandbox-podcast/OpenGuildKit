@@ -1,4 +1,5 @@
-"""The projects command: several OpenGuildKit projects at a glance, and a search across them.
+"""The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a
+project that cannot be read, is named and the others listed. Reads only.
 
 A tech lead or a security officer who looks after several repositories sees where to act without opening each one.
 The command takes the folders each time; it registers no project anywhere. It reads each project as its own
@@ -18,18 +19,22 @@ Tests: tests/test_command_output_budget.py, tests/test_performance.py, tests/tes
 import csv
 import sys
 from collections import Counter
+from collections.abc import Mapping
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 from .alerts import LEGACY_STATUSES, load_register
 from .check_cli import check_status
 from .cli import command_parser
 from .command import Command
 from .decisions import exported_records
+from .errors import InternalError, OgkError
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
 from .project import STATE_DIR, load_profile
 from .project_setup import GUARD_MODES
+from .records import Profile, Task
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks
@@ -70,9 +75,9 @@ def run(command: Command) -> int:
     args = command.args
     policy = read_policy(args.policy) if args.policy is not None else None
     if args.strict and policy is None:
-        raise ValueError("--strict compares each project with a policy: add --policy FILE.")
+        raise OgkError("OGK-PROJECT-040", "--strict compares each project with a policy: add --policy FILE.")
     if args.format == "csv" and (args.json or args.search is not None):
-        raise ValueError("--format csv prints the projects only: use --json for the matches of --search, or for a program.")
+        raise OgkError("OGK-PROJECT-041", "--format csv prints the projects only: use --json for the matches of --search, or for a program.")
     surfaces = args.surfaces or policy is not None
     folders, others = project_folders(args.folders)
     rows = [_project(args, folder, policy, surfaces) for folder in folders]
@@ -80,7 +85,7 @@ def run(command: Command) -> int:
     result = {"projects": rows}
     if args.search is not None:
         if not args.search.strip():
-            raise ValueError("--search needs some text to find.")
+            raise OgkError("OGK-PROJECT-082", "--search needs some text to find.")
         result["matches"] = [match for folder in folders for match in _matches(folder, args.search)]
     if args.format == "csv":
         _print_csv(rows)
@@ -101,19 +106,19 @@ def read_policy(path: Path) -> dict:
     try:
         policy = read_json(path)
     except (OSError, ValueError) as error:
-        raise ValueError(f"The policy file cannot be read: {error}") from None
-    if not isinstance(policy, dict):
-        raise ValueError(f"The policy file {path.name} must hold a JSON object.")
+        raise OgkError("OGK-PROJECT-042", f"The policy file cannot be read: {error}") from None
+    if not isinstance(policy, dict):  # read_json already refuses anything but an object (OGK-PROJECT-042).
+        raise InternalError(f"The policy file {path.name} must hold a JSON object.")
     unknown = sorted(str(name) for name in policy if name not in POLICY_FIELDS)
     if unknown:
-        raise ValueError(f"The policy file {path.name} names {', '.join(unknown)}: a policy holds "
+        raise OgkError("OGK-PROJECT-043", f"The policy file {path.name} names {', '.join(unknown)}: a policy holds "
                          f"{', '.join(POLICY_FIELDS)}.")
     if "guard" in policy and policy["guard"] not in GUARD_RANK:
-        raise ValueError(f"The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}.")
+        raise OgkError("OGK-PROJECT-044", f"The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}.")
     if "approvals" in policy and policy["approvals"] != "signed":
-        raise ValueError('The approvals of the policy must be "signed".')
+        raise OgkError("OGK-PROJECT-084", 'The approvals of the policy must be "signed".')
     if "separate_requester" in policy and policy["separate_requester"] is not True:
-        raise ValueError("separate_requester in the policy must be true.")
+        raise OgkError("OGK-PROJECT-085", "separate_requester in the policy must be true.")
     return policy
 
 
@@ -180,7 +185,7 @@ def _bundled_tools() -> dict:
     return load_tools()
 
 
-def _inventory(folder: Path, profile: dict, tools: dict) -> dict:
+def _inventory(folder: Path, profile: Mapping[str, Any], tools: dict) -> dict:
     """What host scan finds in the folder, as the counts a fleet is read by: the agent tools, the MCP servers (all, those
     without a fixed version, those the registry does not know) and the permissive settings, and the state of the hooks of
     the profile's host."""
@@ -217,7 +222,7 @@ def _other(row: dict, policy: dict | None, surfaces: bool) -> dict:
     return row
 
 
-def _gaps(policy: dict, row: dict, profile: dict) -> list[dict]:
+def _gaps(policy: dict, row: dict, profile: Profile) -> list[dict]:
     """Each field of the policy the project falls short of: the policy's value and the project's."""
     gaps = []
     if "guard" in policy and GUARD_RANK.get(row["guard"], -1) < GUARD_RANK[policy["guard"]]:
@@ -229,7 +234,7 @@ def _gaps(policy: dict, row: dict, profile: dict) -> list[dict]:
     return gaps
 
 
-def _open_points(task: dict) -> int:
+def _open_points(task: Task) -> int:
     """The blockers a reviewed task still waits on, and the points a task closed with reservations left open."""
     if task["status"] == "reviewed":
         return len(unresolved_blockers(task))

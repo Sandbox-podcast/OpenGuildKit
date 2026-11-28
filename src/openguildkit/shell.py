@@ -1,4 +1,4 @@
-"""Commands printed for a person to paste: one quoting rule for the CLI, the tool commands and the local server.
+"""Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell.
 
 A word that needs quoting goes between single quotes, inside which neither a POSIX shell nor PowerShell expands
 anything: `$`, a backtick and a double quote stay as typed. Only the escape of a single quote inside differs, so

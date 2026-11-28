@@ -1,4 +1,5 @@
-"""Local web interface: the built front end and a JSON API over the CLI, on the loopback interface only.
+"""The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1; `web_requests.py`
+refuses what needs a person at a terminal.
 
 The API runs the same commands a person types, in this process, one at a time. It never runs what needs a
 person at a terminal: approving a task or clearing a blocker without a signature, waiving a blocker, allowing an
@@ -35,8 +36,9 @@ from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_changes, task_files
+from .errors import OgkError, error_line, named_command
 from .lock import package_version
-from .storage import write_text
+from .storage import SCHEMA_VERSION, write_text
 from .web_requests import (
     HUMAN_ONLY_TEXT,
     REFUSALS,
@@ -44,12 +46,13 @@ from .web_requests import (
     Refused,
     check_paths,
     check_request,
-    named_command,
     terminal_command,
     terminal_reason,
 )
 
 DEFAULT_PORT = 7311
+# The keys of a --json answer in its envelope, and of an error under --json (storage.print_json, cli._failed).
+ENVELOPE_KEYS = {"schema_version", "command", "data", "error"}
 MAX_BODY = 8 * 1024 * 1024
 # A script that starts the server for its own browser, such as the end-to-end tests, may set the key of the run.
 KEY_VARIABLE = "OPENGUILDKIT_UI_KEY"
@@ -98,7 +101,7 @@ def _without_unread(data, inside: bool = False):
 def _options(body: dict) -> dict:
     omit = body.get("omit")
     if omit is not None and (not isinstance(omit, list) or len(omit) > 20 or not all(isinstance(k, str) for k in omit)):
-        raise Refused("omit must be a list of at most 20 key names.", status=HTTPStatus.BAD_REQUEST,
+        raise Refused("OGK-WEB-026", "omit must be a list of at most 20 key names.", status=HTTPStatus.BAD_REQUEST,
                       reason="bad-request")
     return {"keep_text": bool(body.get("raw")), "omit": omit}
 
@@ -118,7 +121,7 @@ class CliRunner:
                 return cli.command_parser().parse_args(["--project", str(self.root), *argv])
             except SystemExit:
                 message = err.getvalue().strip().splitlines()
-                raise Refused(message[-1] if message else "Invalid command.", status=HTTPStatus.BAD_REQUEST,
+                raise Refused("OGK-WEB-027", message[-1] if message else "Invalid command.", status=HTTPStatus.BAD_REQUEST,
                               reason="bad-request") from None
 
     def run(self, argv: list[str], uploads: dict[str, str] | None = None, *, keep_text: bool = False,
@@ -127,10 +130,10 @@ class CliRunner:
         and the keys named in omit are removed at any depth (a page that shows a list of tasks does not
         need the text of each consultation)."""
         if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
-            raise Refused("argv must be a non-empty list of strings.", status=HTTPStatus.BAD_REQUEST,
+            raise Refused("OGK-WEB-028", "argv must be a non-empty list of strings.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
         if argv[0].startswith("-"):
-            raise Refused("Start with a command; the interface sets the project itself.", status=HTTPStatus.BAD_REQUEST,
+            raise Refused("OGK-WEB-029", "Start with a command; the interface sets the project itself.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
         # sys.stdout, sys.stderr and sys.stdin are process-wide: parsing and running hold the same lock, or a
         # concurrent request would capture another command's output.
@@ -158,6 +161,10 @@ class CliRunner:
         if stdout.lstrip()[:1] in ("{", "["):
             with contextlib.suppress(ValueError):
                 data = json.loads(stdout)
+        if isinstance(data, dict) and data.get("schema_version") == SCHEMA_VERSION and data.keys() <= ENVELOPE_KEYS:
+            # The page reads the answers as they always came, with or without OPENGUILDKIT_JSON_ENVELOPE (#484);
+            # an error under --json stays the line on standard error.
+            data = data.get("data")
         if data is not None:
             if omit:
                 data = _without(data, set(omit))
@@ -192,7 +199,7 @@ class CliRunner:
                         function()
                     except (OSError, ValueError) as error:
                         failure = error
-                        print(f"OpenGuildKit: {error}", file=sys.stderr)
+                        print(error_line(error, str(error)), file=sys.stderr)
             finally:
                 sys.stdin = saved
         return {"code": 1 if failure else 0, "stdout": out.getvalue(), "stderr": err.getvalue(), "json": None}, failure
@@ -200,17 +207,17 @@ class CliRunner:
     @staticmethod
     def _with_uploads(argv: list[str], uploads: dict[str, str], folder: Path) -> tuple[list[str], set[Path]]:
         if not isinstance(uploads, dict):
-            raise Refused("uploads must be an object of file names and texts.", status=HTTPStatus.BAD_REQUEST,
+            raise Refused("OGK-WEB-030", "uploads must be an object of file names and texts.", status=HTTPStatus.BAD_REQUEST,
                           reason="bad-request")
         written: dict[str, Path] = {}
         for name, text in uploads.items():
             if not isinstance(name, str) or not UPLOAD_NAME.match(name) or not isinstance(text, str):
-                raise Refused(f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+                raise Refused("OGK-WEB-031", f"Invalid upload: {name!r}", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
             path = folder / name
             try:
                 path.write_text(text, encoding="utf-8", newline="")
             except UnicodeEncodeError:
-                raise Refused(f"Invalid upload: {name!r} holds a character UTF-8 cannot encode.",
+                raise Refused("OGK-WEB-032", f"Invalid upload: {name!r} holds a character UTF-8 cannot encode.",
                               status=HTTPStatus.BAD_REQUEST, reason="bad-request") from None
             written[name] = path.resolve()
         result = []
@@ -218,7 +225,7 @@ class CliRunner:
             if item.startswith("@upload:"):
                 name = item.removeprefix("@upload:")
                 if name not in written:
-                    raise Refused(f"No upload named {name}.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+                    raise Refused("OGK-WEB-033", f"No upload named {name}.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
                 item = str(written[name])
             result.append(item)
         return result, set(written.values())
@@ -304,13 +311,13 @@ class Handler(BaseHTTPRequestHandler):
         if (self.headers.get("Host") or "").lower() in self.app.loopback:
             # 127.0.0.1 and localhost are shared by every local server: the session never opens there.
             if address.path.startswith("/api/"):
-                self._refuse(Refused(REFUSALS["open-printed-link"], reason="open-printed-link"))
+                self._refuse(Refused("OGK-WEB-034", REFUSALS["open-printed-link"], reason="open-printed-link"))
             else:
                 self._send(HTTPStatus.FORBIDDEN, GATE.encode("utf-8"), "text/html; charset=utf-8",
                            {"Content-Security-Policy": CSP, "Cache-Control": "no-store"})
             return
         if not self._host_allowed():
-            self._refuse(Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page"))
+            self._refuse(Refused("OGK-WEB-035", "Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page"))
             return
         key = parse_qs(address.query).get("key")
         if key and _same(key[0], self.app.key):
@@ -323,10 +330,10 @@ class Handler(BaseHTTPRequestHandler):
             if opened:
                 self._json(HTTPStatus.OK, self.app.session())
             else:
-                self._refuse(Refused(REFUSALS["open-printed-link"], reason="open-printed-link"))
+                self._refuse(Refused("OGK-WEB-036", REFUSALS["open-printed-link"], reason="open-printed-link"))
             return
         if path.startswith("/api/"):
-            self._refuse(Refused("Use POST for the API.", status=HTTPStatus.METHOD_NOT_ALLOWED, reason="bad-request"))
+            self._refuse(Refused("OGK-WEB-037", "Use POST for the API.", status=HTTPStatus.METHOD_NOT_ALLOWED, reason="bad-request"))
             return
         if not opened and path in ("", "/", "/index.html"):
             self._send(HTTPStatus.FORBIDDEN, GATE.encode("utf-8"), "text/html; charset=utf-8",
@@ -349,7 +356,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             target = front / "missing"
         if not target.is_file():
-            self._refuse(Refused("Not found.", status=HTTPStatus.NOT_FOUND, reason="not-found"))
+            self._refuse(Refused("OGK-WEB-038", "Not found.", status=HTTPStatus.NOT_FOUND, reason="not-found"))
             return
         asset = self.app.asset(target)
         cache = "no-cache" if target.name == "index.html" else "public, max-age=31536000, immutable" \
@@ -377,7 +384,7 @@ class Handler(BaseHTTPRequestHandler):
             return  # The browser closed the connection, a tab closed or reloaded: no one is left to answer.
         except Exception as error:  # noqa: BLE001 - INTENTIONAL(#522): report to the page instead of dropping the connection
             self._report(error)
-            self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
+            self._refuse(Refused("OGK-WEB-039", f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                  reason="server-error"))
 
     def _report(self, error: Exception) -> None:
@@ -397,21 +404,21 @@ class Handler(BaseHTTPRequestHandler):
             length = -1
         raw = self.rfile.read(length) if 0 <= length <= MAX_BODY else None
         if not self._host_allowed():
-            raise Refused("Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
+            raise Refused("OGK-WEB-040", "Unknown host.", status=HTTPStatus.MISDIRECTED_REQUEST, reason="foreign-page")
         if (self.headers.get("Origin") or "").lower() not in self.app.origins:
-            raise Refused("Requests must come from the interface's own page.", reason="foreign-page")
+            raise Refused("OGK-WEB-041", "Requests must come from the interface's own page.", reason="foreign-page")
         if not _same(self.headers.get("X-OGK-Token") or "", self.app.token):
-            raise Refused("Missing or invalid session token. Reload the page.", reason="stale-token")
+            raise Refused("OGK-WEB-042", "Missing or invalid session token. Reload the page.", reason="stale-token")
         if not (self.headers.get("Content-Type") or "").startswith("application/json"):
-            raise Refused("Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
+            raise Refused("OGK-WEB-043", "Send JSON.", status=HTTPStatus.UNSUPPORTED_MEDIA_TYPE, reason="bad-request")
         if raw is None:
-            raise Refused("The request is too large.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, reason="too-large")
+            raise Refused("OGK-WEB-044", "The request is too large.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE, reason="too-large")
         try:
             body = json.loads(raw or b"{}")
         except ValueError:
             body = None
         if not isinstance(body, dict):
-            raise Refused("The body is not a JSON object.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+            raise Refused("OGK-WEB-045", "The body is not a JSON object.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         return body
 
 
@@ -470,7 +477,7 @@ def launch_key() -> str:
     if not value:
         return secrets.token_urlsafe(32)
     if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", value):
-        raise ValueError(f"Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it.")
+        raise OgkError("OGK-WEB-001", f"Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it.")
     return value
 
 
@@ -558,7 +565,7 @@ class WebApp:
             if "batch" in body:
                 batch = body["batch"]
                 if not isinstance(batch, dict) or len(batch) > 40:
-                    raise Refused("batch must be an object of at most 40 commands.", status=HTTPStatus.BAD_REQUEST,
+                    raise Refused("OGK-WEB-046", "batch must be an object of at most 40 commands.", status=HTTPStatus.BAD_REQUEST,
                                   reason="bad-request")
                 options = _options(body)
                 results = {}
@@ -580,23 +587,23 @@ class WebApp:
             return self.save_profile(body.get("text"), body.get("by"), body.get("reason"))
         if path == "/api/prefs":
             return {"prefs": self.save_prefs(body.get("prefs"))}
-        raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND, reason="not-found")
+        raise Refused("OGK-WEB-047", "Unknown endpoint.", status=HTTPStatus.NOT_FOUND, reason="not-found")
 
     def save_prefs(self, patch) -> dict:
         """Merge the page's preferences into the file the project keeps for them, in .openguildkit/work/ (which the
         project's .gitignore leaves out), and return them all. Nothing is written for an unknown key, a value out of
         its bounds, a project not set up, or a folder on the way that is a link."""
         if not isinstance(patch, dict) or not patch:
-            raise Refused("prefs must be an object of preferences.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+            raise Refused("OGK-WEB-048", "prefs must be an object of preferences.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         problem = next(filter(None, (_pref_problem(key, value) for key, value in patch.items())), None)
         if problem:
-            raise Refused(problem, status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+            raise Refused("OGK-WEB-049", problem, status=HTTPStatus.BAD_REQUEST, reason="bad-request")
         state = self.root / ".openguildkit"
         if not (state / "project.json").is_file():
-            raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
+            raise Refused("OGK-WEB-050", REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
         target = self.root / PREFS_FILE
         if state.is_symlink() or target.parent.is_symlink() or target.is_symlink():
-            raise Refused(f"{PREFS_FILE.parent.as_posix()} is a link: the preferences are not written.",
+            raise Refused("OGK-WEB-051", f"{PREFS_FILE.parent.as_posix()} is a link: the preferences are not written.",
                           status=HTTPStatus.BAD_REQUEST, reason="outside-project")
         with self.runner.lock:
             prefs = {**read_prefs(self.root), **patch}
@@ -609,21 +616,21 @@ class WebApp:
         weakens a protection is the person's decision at a terminal: it is refused with the profile command to
         type. An invalid profile, or one that rewrites the history, is refused too; nothing is written then."""
         if not isinstance(text, str):
-            raise Refused("text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile")
+            raise Refused("OGK-WEB-052", "text must be a string.", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile")
         try:
             profile = json.loads(text)
             if not isinstance(profile, dict):
-                raise ValueError("the profile is a JSON object")
+                raise OgkError("OGK-WEB-002", "the profile is a JSON object")
         except ValueError as error:
-            raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile") from None
+            raise Refused("OGK-WEB-053", f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile") from None
         who = _decision_line(by, "by", "web interface")
         why = _decision_line(reason, "reason", "Saved from the web interface.")
         state = self.root / ".openguildkit"
         if not (state / "project.json").is_file():
-            raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
+            raise Refused("OGK-WEB-054", REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
         result, failure = self.runner.call(lambda: profile_changes.save_edited(self.root, state, profile, who, why))
         if isinstance(failure, profile_changes.Weakening):
-            raise Refused(f"{failure} {HUMAN_ONLY_TEXT}", terminal_command(self.root, failure.changes[0][1]),
+            raise Refused("OGK-WEB-055", f"{failure} {HUMAN_ONLY_TEXT}", terminal_command(self.root, failure.changes[0][1]),
                           reason="weakens-protection")
         # Nothing is written when the save fails: the profile on disk is still the previous one.
         result["restored"] = failure is not None
@@ -637,7 +644,7 @@ def _decision_line(value, field: str, default: str) -> str:
     if value is None:
         return default
     if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
-        raise Refused(f"{field} must be a non-empty single line.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+        raise Refused("OGK-WEB-056", f"{field} must be a non-empty single line.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
     return value.strip()
 
 

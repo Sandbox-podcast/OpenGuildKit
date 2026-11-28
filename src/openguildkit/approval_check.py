@@ -17,6 +17,7 @@ from .decisions import (
     stale_approval_message,
 )
 from .project_rules import Fingerprints
+from .records import Catalog, Profile, Task
 
 DONE_STATUSES = ("done", "done-with-reservations")
 
@@ -25,7 +26,7 @@ DONE_STATUSES = ("done", "done-with-reservations")
 STALE_DAYS = 14
 
 
-def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None = None, *,
+def approval_problem(task: Task, profile: Profile, catalog: Catalog, root: Path | None = None, *,
                      fingerprints: Fingerprints | None = None, outside: set[str] | None = None,
                      explain: bool = True) -> dict | None:
     """Whether a task's approval still holds: its seal intact, its rules, checks and boards current, its signature

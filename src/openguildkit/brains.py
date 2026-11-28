@@ -1,4 +1,4 @@
-"""What a brain knows: its specialists' methods, rule packs and reference material.
+"""Assembles what a brain knows: its specialists' methods, packs and references.
 
 A brain's knowledge is assembled from the catalog instead of being copied into each board:
 the patterns whose roles name the brain, the packs those patterns apply, and the references
@@ -16,6 +16,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from .catalog import ID_PATTERN
+from .errors import OgkError
+from .records import Catalog, Profile, Task
 
 MAX_REFERENCES_IN_BRIEF = 12
 # Text the skeleton of a project brain leaves to replace. brains --check reports it until it is gone.
@@ -69,7 +71,7 @@ _RELATED_WORDS = {
 }
 
 
-def brain_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str] | None = None) -> dict:
+def brain_knowledge(board_id: str, catalog: Catalog, families: dict, active_packs: set[str] | None = None) -> dict:
     methods = [pattern for pattern in catalog["patterns"].values() if board_id in pattern["roles"]]
     pack_ids = list(dict.fromkeys(pack_id for pattern in methods for pack_id in pattern["packs"]))
     active_packs = active_packs or set()
@@ -94,7 +96,7 @@ def brain_knowledge(board_id: str, catalog: dict, families: dict, active_packs: 
     }
 
 
-def _brain_records(board_id: str, catalog: dict, families: dict) -> list[dict]:
+def _brain_records(board_id: str, catalog: Catalog, families: dict) -> list[dict]:
     """The board and the records its knowledge comes from."""
     methods = [pattern for pattern in catalog["patterns"].values() if board_id in pattern["roles"]]
     packs = [catalog["packs"][pack_id] for pattern in methods for pack_id in pattern["packs"] if pack_id in catalog["packs"]]
@@ -103,7 +105,7 @@ def _brain_records(board_id: str, catalog: dict, families: dict) -> list[dict]:
     return [catalog["boards"][board_id], *methods, *packs, *references]
 
 
-def knowledge_gaps(catalog: dict, families: dict) -> list[str]:
+def knowledge_gaps(catalog: Catalog, families: dict) -> list[str]:
     """Brains that have no method or no reference attached."""
     gaps = []
     for board_id in catalog["boards"]:
@@ -130,7 +132,7 @@ def _words(text: str) -> frozenset[str]:
     return frozenset(words - _STOPWORDS)
 
 
-def consultation_context(task: dict, answers: dict, profile: dict, catalog: dict) -> str:
+def consultation_context(task: Task, answers: dict, profile: Profile, catalog: Catalog) -> str:
     """The words that describe a task for ranking references: brief, answers, sector and stack.
     The general sector names no domain, and active packs rank their references first on their own."""
     parts = [task.get("brief", "")]
@@ -161,7 +163,7 @@ def _rank(reference: dict, words: set[str], active_packs: set[str]) -> tuple:
     return (not set(reference.get("packs", [])) & active_packs, -overlap, not applied, reference["id"])
 
 
-def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str], context: str = "",
+def brief_knowledge(board_id: str, catalog: Catalog, families: dict, active_packs: set[str], context: str = "",
                     words: set[str] | None = None) -> dict:
     """The part of the knowledge a consultation carries: active packs first, and a reading list
     of the brain's references that best fit the task, bounded so the brief stays readable. words are the task's
@@ -185,7 +187,7 @@ class BriefKnowledge(Mapping):
     boards routing selects, not every board of the catalog. tools are the connected tools by board, added to its
     knowledge."""
 
-    def __init__(self, catalog: dict, families: dict, active_packs: set[str], context: str,
+    def __init__(self, catalog: Catalog, families: dict, active_packs: set[str], context: str,
                  tools: Callable[[str], list[dict]]):
         self._catalog, self._families, self._active, self._tools = catalog, families, active_packs, tools
         self._words = _task_words(context)
@@ -266,12 +268,12 @@ def brain_skeleton(board_id: str) -> dict[str, dict]:
     }
 
 
-def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: dict) -> list[Path]:
+def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: Catalog) -> list[Path]:
     """Write the skeleton of a new project brain; refuse an existing ID or file instead of overwriting."""
     if not isinstance(board_id, str) or not ID_PATTERN.fullmatch(board_id):
-        raise ValueError("Name the brain with lowercase letters, digits and hyphens, such as risk-office.")
+        raise OgkError("OGK-BOARD-025", "Name the brain with lowercase letters, digits and hyphens, such as risk-office.")
     if board_id in catalog["boards"]:
-        raise ValueError(
+        raise OgkError("OGK-BOARD-014",
             f"Brain {board_id} already exists. To complete it, write .openguildkit/catalog/boards/{board_id}.json "
             "with only the lenses, evidence or criteria to add."
         )
@@ -279,11 +281,11 @@ def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: dict) -> lis
     for relative, record in skeleton.items():
         collection = relative.split("/")[0]
         if collection in ("patterns", "packs") and record["id"] in catalog[collection]:
-            raise ValueError(f"The {collection[:-1]} {record['id']} already exists. Choose another brain ID.")
+            raise OgkError("OGK-BOARD-026", f"The {collection[:-1]} {record['id']} already exists. Choose another brain ID.")
     files = {catalog_dir / relative: record for relative, record in skeleton.items()}
     existing = [path.as_posix() for path in files if path.exists()]
     if existing:
-        raise ValueError(f"{existing[0]} already exists. Remove it or choose another brain ID.")
+        raise OgkError("OGK-BOARD-027", f"{existing[0]} already exists. Remove it or choose another brain ID.")
     for path, record in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

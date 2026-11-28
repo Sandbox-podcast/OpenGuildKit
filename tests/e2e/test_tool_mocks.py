@@ -170,6 +170,7 @@ class ProjectConnectionTests(unittest.TestCase):
         cli(self.project, "init", "--answers", self.project / "profile.json")
 
     def test_from_the_profile_to_a_working_mock_and_an_evidence_item(self):
+        # OGK-BOARD-008
         recommended = json.loads(cli(self.project, "tools", "recommend", "--json").stdout)
         by_id = {item["id"]: item for item in recommended["tools"]}
         self.assertEqual(set(by_id), {"jira", "snyk", "gryzzly", "github"})
@@ -280,6 +281,7 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(config.exists())
 
     def test_live_connections_for_claude_code_name_variables_only(self):
+        # OGK-TOOLS-014
         unconfirmed = cli(self.project, "tools", "apply", "jira", "--host", "claude-code", check=False, stdin="")
         self.assertEqual(unconfirmed.returncode, 1)
         self.assertIn("--yes", unconfirmed.stderr)

@@ -132,6 +132,7 @@ class BundledSourceDateTests(unittest.TestCase):
         self.assertEqual(misplaced, [])
 
     def test_the_loader_refuses_a_bundled_source_without_a_date(self):
+        # OGK-CATALOG-015
         with tempfile.TemporaryDirectory() as folder:
             registry = Path(folder) / "registry"
             shutil.copytree(REGISTRY, registry)
@@ -161,6 +162,7 @@ class BundledSourceDateTests(unittest.TestCase):
         validate_deliverable(deliverable, catalog)
 
     def test_a_malformed_date_is_refused_in_any_catalog(self):
+        # OGK-CATALOG-013
         for value in ("2026-13-01", "21/11/2026", "2026-11-21T10:00", 20261121, ""):
             record = copy.deepcopy(PACK)
             record["sources"][0]["checked"] = value
@@ -224,7 +226,10 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
                 self.assertIn("Reference 'team-change-record' names unknown brains: no-such-brain and unknown packs: "
                               "no-such-pack", err)
                 self.assertNotIn("Traceback", err)
-                self.assertNotIn("team-change-record", out)
+                if "--json" in arguments:  # Issue #484: the error itself, as JSON, and no reference.
+                    self.assertEqual(set(json.loads(out)), {"schema_version", "error"})
+                else:
+                    self.assertNotIn("team-change-record", out)
         write_json(path, {"id": "team-practices", "title": "Team practices",
                           "references": [{**record, "brains": ["security"], "packs": ["gdpr"]}]})
         self.cli("check")

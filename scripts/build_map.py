@@ -2,15 +2,17 @@
 
     python scripts/build_map.py [--check]
 
-A person writes the role, documentation page and `covers` of each module, and the `paths` entries: files and folders outside the package (scripts, web/src, integrations/ci/lib, the
+A person writes the documentation page and `covers` of each module, and the `paths` entries: files and folders outside the package (scripts, web/src, integrations/ci/lib, the
 documentation) with the tests and commands scripts/check_fast.py runs for them. The script adds what the code says:
-an entry for each module of src/openguildkit (a new one gets an empty role to write), its entry points and test files
-from the `Entry:` and `Tests:` lines of its docstring, each test file that imports a module directly, the tests that name each fixture of tests/, and the `commands` section, one entry per terminal
+an entry for each module of src/openguildkit, its role from the first paragraph of its docstring, its entry points and
+test files from the `Entry:` and `Tests:` lines of that docstring, each test file that imports a module directly, the tests that name each fixture of tests/, and the `commands` section, one entry per terminal
 command with the function that runs it, its module and the line of that function, or of the branch that
 handles the command inside a larger function. The tests of a command are those of its module. The file holds one entry per
 line, so `grep -n '"src/openguildkit/results.py"' docs/agents/map.json` prints a whole entry.
 
---check writes nothing: it names each entry that differs from docs/agents/map.json and exits 1.
+It also writes the table of the modules of docs/architecture.md from those roles (#502).
+
+--check writes nothing: it names each entry that differs from docs/agents/map.json, or the table, and exits 1.
 """
 
 import sys
@@ -26,6 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs" / "agents" / "map.json"
+ARCHITECTURE = ROOT / "docs" / "architecture.md"
+TABLE_HEAD = "| Module | Responsibility |\n|---|---|\n"
 PACKAGE = ROOT / "src" / "openguildkit"
 # Calls a command branch makes before the one that does its work: reading the profile, the answers or the catalog.
 PREPARATION = {"load_profile", "read_json", "_setup_questions", "setup_profile", "complete_answers", "project_catalog",
@@ -80,6 +84,12 @@ def fixture_entries(root: Path) -> list[dict]:
             tests = sorted(test for test, text in texts.items() if '"fixtures"' in text and folder in text)
         entries.append({"path": path.relative_to(root).as_posix(), "tests": tests, "generated": "fixture"})
     return entries
+
+
+def role(path: Path) -> str:
+    """The first paragraph of a module's docstring, on one line: the one written source of its role (#502)."""
+    text = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8"))) or ""
+    return " ".join(line.strip() for line in text.split("\n\n")[0].splitlines())
 
 
 def header(path: Path) -> tuple[list[str], list[str]]:
@@ -231,6 +241,7 @@ def build(current: dict, root: Path = ROOT) -> dict:
     for name in names:
         path = f"src/openguildkit/{name}"
         item = dict(by_module.get(path) or {"module": path, "role": "", "entry": [], "tests": [], "doc": "docs/architecture.md"})
+        item["role"] = role(root / path)
         entry, tests = header(root / path)
         item["entry"] = entry
         item["tests"] = sorted({test for test in tests if (root / test).is_file()} | importers[name])
@@ -248,6 +259,17 @@ def dumps(module_map: dict) -> str:
         lines = ",\n".join("    " + json.dumps(item, ensure_ascii=False) for item in module_map.get(key, []))
         sections.append(f'  "{key}": [\n{lines}\n  ]')
     return "{\n" + ",\n".join(sections) + "\n}\n"
+
+
+def with_table(page: str, module_map: dict) -> str:
+    """The architecture page with its table of modules written from the roles of the map."""
+    head, found, rest = page.partition(TABLE_HEAD)
+    if not found:
+        raise SystemExit(f"build_map: {ARCHITECTURE.name} has no table that starts with {TABLE_HEAD.splitlines()[0]}")
+    rows = "".join(f"| `{item['module'].rsplit('/', 1)[-1]}` | {item['role']} |\n" for item in module_map["modules"])
+    lines = rest.splitlines(keepends=True)
+    after = next((index for index, line in enumerate(lines) if not line.startswith("|")), len(lines))
+    return head + TABLE_HEAD + rows + "".join(lines[after:])
 
 
 def differences(current: dict, built: dict) -> list[str]:
@@ -275,16 +297,21 @@ def main(argv: list[str] | None = None) -> int:
     text = MAP.read_text(encoding="utf-8")
     current = json.loads(text)
     built = build(current)
+    page = ARCHITECTURE.read_text(encoding="utf-8")
+    table = with_table(page, built)
     if args.check:
         found = differences(current, built)
         if not found and dumps(built) != text:
             found = ["the layout differs: one entry per line"]
+        if table != page:
+            found.append("docs/architecture.md: the table of the modules differs from their docstrings")
         for line in found:
             print(f"build_map: {line}")
         if found:
             print("build_map: run python scripts/build_map.py and review the diff of docs/agents/map.json.")
         return 1 if found else 0
     MAP.write_text(dumps(built), encoding="utf-8")
+    ARCHITECTURE.write_text(table, encoding="utf-8")
     return 0
 
 

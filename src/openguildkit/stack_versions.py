@@ -1,5 +1,4 @@
-"""Declared versions and version ranges: the ones detection keeps in the stack, and the one reading of a range that
-pattern matching and the Storybook dependency report share.
+"""Reads declared versions and version ranges for detection, patterns and the Storybook dependency report.
 
 Entry: declared_version, version_key, parse_version, parse_range, satisfies, lower_bounds
 Tests: tests/test_detect_versions.py

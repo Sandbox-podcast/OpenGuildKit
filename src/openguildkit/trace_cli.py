@@ -1,4 +1,5 @@
-"""The trace command: from a file to the exported decisions that cover it, and whether it changed since.
+"""The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one.
+Reads only.
 
 A reviewer, a security officer or an auditor asks which decision covers a file. The exported records list the files
 of each change; this command reads them, says for each whether it still holds, and asks Git whether the file changed
@@ -14,10 +15,12 @@ from pathlib import Path
 from . import git
 from .command import Command
 from .decisions import exported_records
+from .errors import OgkError
 from .guard_records import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .results import changed_journals
 from .storage import print_json
 
@@ -54,14 +57,14 @@ def project_file(root: Path, path: Path) -> str:
     try:
         relative = target.relative_to(root)
     except ValueError:
-        raise ValueError(f"{path} is outside the project {root.as_posix()}. Name a file inside it, or run the command "
+        raise OgkError("OGK-AUDIT-006", f"{path} is outside the project {root.as_posix()}. Name a file inside it, or run the command "
                          "with --project set to the project that holds the file.") from None
     if not relative.parts:
-        raise ValueError("Name a file of the project, not its root folder.")
+        raise OgkError("OGK-AUDIT-009", "Name a file of the project, not its root folder.")
     return relative.as_posix()
 
 
-def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) -> dict:
+def trace(root: Path, state: Path, profile: Profile, catalog: Catalog, relative: str) -> dict:
     """The decisions whose record lists the file, most recent first, the records that cannot be read, and the
     commits on the file after the last decision."""
     rows = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}

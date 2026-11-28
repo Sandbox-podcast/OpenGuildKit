@@ -35,6 +35,7 @@ class AdaptiveQuestionTests(unittest.TestCase):
         self.assertTrue(any("different once this task is done" in point for point in points))
 
     def test_a_task_can_declare_several_impacts(self):
+        # OGK-RESULT-017
         answers = validate_answers({"kind": "feature", "surface": ["customer", "service"], "data": "none", "research": "local"})
         self.assertEqual(answers["surface"], ["customer", "service"])
         self.assertEqual(validate_answers({**answers, "surface": "customer"})["surface"], ["customer"])

@@ -1,4 +1,5 @@
-"""The tools of a company's stack and the MCP servers that connect an agent to them.
+"""The tools of a company's stack: matches them to a project, plans the MCP servers to connect and checks the evidence
+agents cite from them.
 
 The registry (registry/tools/, one file per category) names each tool, the review boards
 that use it and the MCP servers verified on the publisher's own documentation. From it the
@@ -23,6 +24,8 @@ from . import clock, lazy_re
 from .catalog import CatalogError, package_file
 from .detect import SKIPPED_DIRECTORIES
 from .detect_manifest import MAX_MANIFEST_BYTES
+from .errors import OgkError
+from .records import Profile
 from .sensitive import looks_like_credential
 from .storage import load_json, unique_fields
 from .tool_connections import HOSTS, read_manifest
@@ -53,10 +56,10 @@ def read_scenario(extra_dir: Path | None) -> dict | None:
     try:
         scenario = load_json(path, pairs=unique_fields)
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+        raise OgkError("OGK-TOOLS-021", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(scenario, dict) or "records" not in scenario or not scenario.keys() <= {"about", "records"} \
             or not isinstance(scenario["records"], dict):
-        raise ValueError(f"{path.as_posix()} holds about and records: records maps a tool ID to its collections.")
+        raise OgkError("OGK-TOOLS-022", f"{path.as_posix()} holds about and records: records maps a tool ID to its collections.")
     return scenario
 
 
@@ -65,7 +68,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
 
     The project's scenario file, when it gives records for this tool, replaces the bundled ones."""
     if not TOOL_ID.fullmatch(tool_id) or tool_id == SCENARIO[:-5]:
-        raise ValueError("Use a tool ID of lowercase letters, digits and hyphens.")
+        raise OgkError("OGK-TOOLS-023", "Use a tool ID of lowercase letters, digits and hyphens.")
     candidates = [package_file("registry", "tool-mocks", f"{tool_id}.json")]
     if extra_dir is not None:
         candidates.insert(0, extra_dir / f"{tool_id}.json")
@@ -76,13 +79,13 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
             try:
                 mock = validate_mock(load_json(path), tool_id)
             except ValueError as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-TOOLS-020", f"{path}: {error}") from error
             scenario = read_scenario(extra_dir)
             if scenario and tool_id in scenario["records"]:
                 label = f"{(extra_dir / SCENARIO).as_posix()} ({tool_id})"
                 mock = apply_scenario(mock, scenario["records"][tool_id], label)
             return mock
-    raise ValueError(f"No mock for {tool_id}. Run openguildkit tools list --mocks.")
+    raise OgkError("OGK-TOOLS-024", f"No mock for {tool_id}. Run openguildkit tools list --mocks.")
 
 
 def mock_ids(extra_dir: Path | None = None) -> list[str]:
@@ -169,7 +172,7 @@ def resolve_tool(name: str, tools: dict) -> str:
         return name
     matched, _ = match_tools([name], tools)
     if not matched:
-        raise ValueError(f"Unknown tool: {name}. Run openguildkit tools list.")
+        raise OgkError("OGK-TOOLS-006", f"Unknown tool: {name}. Run openguildkit tools list.")
     return matched[0]
 
 
@@ -247,7 +250,7 @@ def detect_tools(root: Path, tools: dict) -> list[dict]:
     return found
 
 
-def recommend_tools(profile: dict, root: Path, tools: dict) -> dict:
+def recommend_tools(profile: Profile, root: Path, tools: dict) -> dict:
     """What the project names and what the repository shows, resolved against the registry."""
     named, unknown = match_tools(profile.get("tools", []), tools)
     detected = detect_tools(root, tools)
@@ -273,9 +276,9 @@ def choose_server(tool: dict, server_id: str | None = None, community: bool = Fa
     if server_id:
         server = next((item for item in servers if item["id"] == server_id), None)
         if server is None:
-            raise ValueError(f"{tool['id']} has no server {server_id}. Known: {', '.join(s['id'] for s in servers) or 'none'}.")
+            raise OgkError("OGK-TOOLS-025", f"{tool['id']} has no server {server_id}. Known: {', '.join(s['id'] for s in servers) or 'none'}.")
         if server["publisher"] == "community" and not community:
-            raise ValueError(f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
+            raise OgkError("OGK-TOOLS-007", f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
         return server
     usable = [item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")]
     usable.sort(key=lambda item: (item["publisher"] != "vendor", read_only and "read_only" not in item,
@@ -290,12 +293,12 @@ def _settings(server: dict, values: dict, label: str) -> tuple[dict, list[str]]:
         if value is None:
             missing.append(item["name"])
         elif not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(item["name"]):
-            raise ValueError(f"{label}: {item['name']} must be a plain value such as a name or a host, never a credential.")
+            raise OgkError("OGK-TOOLS-008", f"{label}: {item['name']} must be a plain value such as a name or a host, never a credential.")
         else:
             filled[item["name"]] = value
     unknown = sorted(set(values) - {item["name"] for item in server.get("settings", [])})
     if unknown:
-        raise ValueError(f"{label} has no setting {', '.join(unknown)}.")
+        raise OgkError("OGK-TOOLS-009", f"{label} has no setting {', '.join(unknown)}.")
     return filled, missing
 
 
@@ -476,17 +479,17 @@ def _plan_options(host: str, mock: bool, settings: dict | None, token_env: dict 
     """The settings and token variables of tools connect keyed by tool, whatever their case, once the host and the
     options are checked: no credential in --set, a variable name in --token-env."""
     if host not in HOSTS:
-        raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
+        raise OgkError("OGK-TOOLS-026", f"Choose a host to write for: {', '.join(HOSTS)}.")
     if read_only and mock:
-        raise ValueError("--read-only selects a live server. Use --mock separately for synthetic data.")
+        raise OgkError("OGK-TOOLS-010", "--read-only selects a live server. Use --mock separately for synthetic data.")
     settings = {key.casefold(): value for key, value in (settings or {}).items()}
     token_env = {key.casefold(): value for key, value in (token_env or {}).items()}
     if any(isinstance(value, str) and looks_like_credential(value)
            for values in settings.values() for value in values.values()):
-        raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
+        raise OgkError("OGK-TOOLS-011", "--set must be a plain value such as a name or a host, never a credential: a token stays in "
                          "each person's environment, named with --token-env TOOL=VARIABLE.")
     if any(not _variable_name(name) for name in token_env.values()):
-        raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
+        raise OgkError("OGK-TOOLS-012", "--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
                          "never the token itself, which stays in each person's environment.")
     return settings, token_env
 
@@ -510,7 +513,7 @@ def _live_connection(tool_id: str, tool: dict, server: dict, host: str, given: d
     label = f"{tool_id}/{server['id']}"
     filled, missing = _settings(server, given, label)
     if bearer is not None and server["transport"] == "stdio":
-        raise ValueError(f"{label}: --token-env names an environment variable, for a remote server.")
+        raise OgkError("OGK-TOOLS-027", f"{label}: --token-env names an environment variable, for a remote server.")
     warnings, steps = [], []
     if server["publisher"] == "community":
         warnings.append(f"Community server maintained by {server['maintainer']}: review {server.get('repository', server['source'])} before use.")

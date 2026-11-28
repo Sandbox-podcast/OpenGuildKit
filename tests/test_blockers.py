@@ -62,6 +62,7 @@ class BlockerTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in blocker_list(self.task)], ["security:1", "security:2"])
 
     def test_approval_waits_until_each_blocker_is_cleared_or_waived(self):
+        # OGK-TASK-053
         with self.assertRaisesRegex(ValueError, "security:1, security:2"):
             record_decision(self.task, True, "Camille Martin", "Scope agreed")
         task = resolve_blocker(self.task, "security:1", {
@@ -79,6 +80,7 @@ class BlockerTests(unittest.TestCase):
         record_decision(self.task, False, "Camille Martin", "Back to consultation")
 
     def test_verification_blockers_wait_for_evidence_after_approval_without_changing_its_seal(self):
+        # OGK-TASK-028, OGK-TASK-030
         review = copy.deepcopy(self.review)
         blockers = next(entry for entry in review["boards"] if entry["id"] == "security")["challenge"]["blockers"]
         blockers[0]["phase"] = "verification"
@@ -109,6 +111,7 @@ class BlockerTests(unittest.TestCase):
                 self.assertEqual(task["blocker_resolutions"]["security:1"]["until"], until)
 
     def test_waivers_follow_the_project_policy(self):
+        # OGK-TASK-033, OGK-TASK-034, OGK-TASK-036
         until = (clock.real_today() + timedelta(days=10)).isoformat()
         waiver = {"kind": "waived", "by": "Sam", "reason": "x", "scope": "y", "until": until}
         with self.assertRaisesRegex(ValueError, "cannot grant waivers"):
@@ -127,6 +130,7 @@ class BlockerTests(unittest.TestCase):
         }, self.profile, self.root)
 
     def test_clearing_evidence_is_a_project_path_or_an_https_link(self):
+        # OGK-TASK-025
         for evidence in ("x", "tests/missing.py", "../outside.py", "http://example.test/report", "https://"):
             with self.subTest(evidence=evidence), self.assertRaisesRegex(ValueError, "existing file .* https link"):
                 self.clear(evidence)

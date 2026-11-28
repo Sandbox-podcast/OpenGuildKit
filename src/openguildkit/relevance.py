@@ -1,4 +1,4 @@
-"""Decide which active rule packs concern a task, from facts the tool already holds.
+"""Decides which active packs concern a task, from its answers, boards and brief.
 
 Each bundled pack has a subject (SUBJECTS): the task answers that call for it, and for a few packs the boards
 the task consults or the words its brief uses. A pack concerns a task when its subject meets the task's kind,
@@ -20,6 +20,7 @@ from . import git
 from .decisions import changed_paths_since
 from .patterns import is_stack_pattern, pattern_selection
 from .questionnaire import FOLLOW_UPS
+from .records import Catalog, Profile, Task
 from .routing import trigger_matches
 
 BASELINE_PACKS = ("agent-workflow", "secure-sdlc")
@@ -164,7 +165,7 @@ RULE_SUBJECTS = {
 RULES_WITH_A_SUBJECT = {"gdpr/automated-decision": "automated-decision"}
 
 
-def rule_not_concerned(task: dict, pack_id: str, rule_id: str, packs: dict | None = None) -> str:
+def rule_not_concerned(task: Task, pack_id: str, rule_id: str, packs: dict | None = None) -> str:
     """Why a rule of a pack that concerns the task does not concern it, or an empty text.
 
     packs is the pack relevance of the task (pack_relevance): a row of a shared pack follows its regulation's pack.
@@ -194,7 +195,7 @@ def rule_not_concerned(task: dict, pack_id: str, rule_id: str, packs: dict | Non
 DECISION_REASON = "a decision task: its approval records the process and it delivers no implementation"
 
 
-def judge_rules(task: dict, profile: dict, relevance: dict | None = None) -> dict[str, dict]:
+def judge_rules(task: Task, profile: Profile, relevance: dict | None = None) -> dict[str, dict]:
     """Each rule of the task's scope by PACK/RULE: whether it concerns the task, is mandatory or selected, and why not.
 
     The one judgement the board passes, the handoff and the closing share. Without a relevance judgement every
@@ -255,7 +256,7 @@ def evidence_owner(pack_id: str) -> str:
     return EVIDENCE_OWNERS.get(pack_id, f"the person accountable for the {pack_id} obligations")
 
 
-def changed_files(root: Path, task: dict) -> list[str] | None:
+def changed_files(root: Path, task: Task) -> list[str] | None:
     """Project files changed since the approved revision, committed or not; None when Git cannot tell.
 
     The tool's own state folder is left out: its records are not part of the delivered change.
@@ -278,21 +279,21 @@ def _answer_list(answers: dict, key: str) -> list[str]:
     return [value] if isinstance(value, str) else list(value or [])
 
 
-def _mentioned(task: dict, subject: str) -> bool:
+def _mentioned(task: Task, subject: str) -> bool:
     """Whether the brief or a free-text answer names a subject of MENTIONS, as the routing reads a trigger."""
     answers = task.get("answers", {})
     texts = [task.get("brief", ""), *(answers.get(field, "") for field in ("context", *FOLLOW_UPS))]
     return any(trigger_matches({"subject": {"triggers": list(MENTIONS[subject])}}, text) for text in texts if text)
 
 
-def _fact_met(task: dict, key: str, values: list[str]) -> bool:
+def _fact_met(task: Task, key: str, values: list[str]) -> bool:
     """A condition on what the task consults or says rather than on an answer: never left open."""
     if key == "boards":
         return bool(set(values) & set(task.get("consultation", {}).get("boards", [])))
     return any(_mentioned(task, subject) for subject in values)
 
 
-def _alternative_met(task: dict, condition: dict) -> tuple[bool, bool]:
+def _alternative_met(task: Task, condition: dict) -> tuple[bool, bool]:
     """Every condition of one alternative matches (an answer may be left open), and whether the data or concerns
     name it.
 
@@ -314,7 +315,7 @@ def _alternative_met(task: dict, condition: dict) -> tuple[bool, bool]:
     return True, named
 
 
-def condition_met(task: dict, alternatives: list[dict]) -> tuple[bool, bool]:
+def condition_met(task: Task, alternatives: list[dict]) -> tuple[bool, bool]:
     """Whether the task meets one of the alternatives, and whether its answers name it rather than leave it open."""
     results = [_alternative_met(task, condition) for condition in alternatives]
     met = [named for ok, named in results if ok]
@@ -332,7 +333,7 @@ def _condition_text(alternatives: list[dict]) -> str:
     return " or ".join(" and ".join(part(key, values) for key, values in condition.items()) for condition in alternatives)
 
 
-def _answers_text(task: dict, alternatives: list[dict] | None = None) -> str:
+def _answers_text(task: Task, alternatives: list[dict] | None = None) -> str:
     """The task's answers a subject reads, and the boards it consults when the subject depends on them."""
     answers = task.get("answers", {})
     shown = [f"{key} {'/'.join(_answer_list(answers, key)) or 'not answered'}"
@@ -342,7 +343,7 @@ def _answers_text(task: dict, alternatives: list[dict] | None = None) -> str:
     return ", ".join(shown)
 
 
-def _component_prefixes(components: list[str], profile: dict) -> list[str] | None:
+def _component_prefixes(components: list[str], profile: Profile) -> list[str] | None:
     """Each component's path relative to the project, without slashes around it; None when one has no path."""
     paths = {item["id"]: item.get("path") for item in profile.get("components", [])}
     if any(not paths.get(component) for component in components):
@@ -350,12 +351,12 @@ def _component_prefixes(components: list[str], profile: dict) -> list[str] | Non
     return [PurePosixPath(paths[component].strip()).as_posix().strip("/") for component in components]
 
 
-def _at_root(components: list[str], profile: dict) -> bool:
+def _at_root(components: list[str], profile: Profile) -> bool:
     prefixes = _component_prefixes(components, profile)
     return bool(prefixes) and any(prefix in ("", ".") for prefix in prefixes)
 
 
-def _in_components(changed: list[str], components: list[str], profile: dict) -> bool | None:
+def _in_components(changed: list[str], components: list[str], profile: Profile) -> bool | None:
     """Whether a changed file lies in one of the components; None when a component has no path.
 
     A component at the project root (path "." or "") holds every file.
@@ -368,7 +369,7 @@ def _in_components(changed: list[str], components: list[str], profile: dict) -> 
     return any(name.startswith(prefix + "/") for name in changed for prefix in prefixes)
 
 
-def _origins(pack_id: str, profile: dict, catalog: dict) -> list[dict]:
+def _origins(pack_id: str, profile: Profile, catalog: Catalog) -> list[dict]:
     """The ways a pack reached the project: the profile's packs, and each selected pattern that brings it."""
     origins = []
     if pack_id in profile.get("packs", []):
@@ -396,7 +397,7 @@ def _origins(pack_id: str, profile: dict, catalog: dict) -> list[dict]:
     return origins
 
 
-def _structure(origin: dict, task: dict, profile: dict, changed: list[str] | None) -> tuple[bool, bool, str]:
+def _structure(origin: dict, task: Task, profile: Profile, changed: list[str] | None) -> tuple[bool, bool, str]:
     """Whether the way a pack came still holds for this task: the role's board, the component's files."""
     answers = task.get("answers", {})
     kind = origin["kind"]
@@ -421,7 +422,7 @@ def _structure(origin: dict, task: dict, profile: dict, changed: list[str] | Non
     return True, False, ""
 
 
-def _judge_with_subject(pack_id: str, origins: list[dict], task: dict, profile: dict,
+def _judge_with_subject(pack_id: str, origins: list[dict], task: Task, profile: Profile,
                         changed: list[str] | None) -> dict:
     """A bundled pack concerns the task when its subject meets the answers and the way it came still holds."""
     label, alternatives = SUBJECTS[pack_id]
@@ -445,7 +446,7 @@ def _judge_with_subject(pack_id: str, origins: list[dict], task: dict, profile: 
     return {"concerned": True, "selected": named, "reason": ""}
 
 
-def _judge(origin: dict, pack_id: str, task: dict, profile: dict, changed: list[str] | None) -> tuple[bool, bool, str]:
+def _judge(origin: dict, pack_id: str, task: Task, profile: Profile, changed: list[str] | None) -> tuple[bool, bool, str]:
     """For a pack of the project's own catalog: whether one origin makes it concern the task, and why not."""
     if origin["kind"] == "regulation":
         met, named = condition_met(task, REGULATION_DEFAULT)
@@ -455,7 +456,7 @@ def _judge(origin: dict, pack_id: str, task: dict, profile: dict, changed: list[
     return _structure(origin, task, profile, changed)
 
 
-def pack_relevance(task: dict, profile: dict, catalog: dict, changed: list[str] | None, every: bool = False) -> dict:
+def pack_relevance(task: Task, profile: Profile, catalog: Catalog, changed: list[str] | None, every: bool = False) -> dict:
     """Each pack of the approved scope: whether it concerns the task, whether the answers select it, and why not.
 
     changed is the list of files changed since the approved revision, or None when it cannot be known.

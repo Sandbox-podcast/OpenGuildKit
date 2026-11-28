@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.errors import os_error_message, unknown
+from openguildkit.errors import file_error, os_error_message, unknown
 from openguildkit.storage import write_json
 from tests.support import CapturedCli
 
@@ -44,6 +44,7 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
                 # A file an option names is named with it: `Cannot open --file nope.json: it does not exist.`
                 option = rf"{command[-2]} " if command[-2].startswith("--") else r"\S*"
                 self.assertRegex(error, rf"Cannot open {option}nope\.(json|md): it does not exist\.")
+                self.assertTrue(error.startswith("OpenGuildKit [OGK-FILE-001]: Cannot open "), error)
 
     def test_other_system_errors_do_not_show_the_python_text_either(self):
         self.assertEqual(os_error_message(IsADirectoryError(21, "Is a directory", "docs")),
@@ -54,15 +55,30 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
         self.assertEqual(os_error_message(OSError(5, "Input/output error", "a.json")),
                          "Cannot open a.json: input/output error.")
 
+    def test_issue_487_each_kind_of_file_error_has_its_code(self):
+        """Issue #487: a file the CLI could not open printed `OpenGuildKit: Cannot open ...` without a code."""
+        errors = (FileNotFoundError(2, "No such file or directory", "a.json"),
+                  PermissionError(13, "Permission denied", "a.json"), IsADirectoryError(21, "Is a directory", "docs"),
+                  OSError(5, "Input/output error", "a.json"), OSError(28, "No space left on device"))
+        built = [file_error(error, os_error_message(error)) for error in errors]
+        self.assertEqual([error.code for error in built],
+                         ["OGK-FILE-001", "OGK-FILE-002", "OGK-FILE-003", "OGK-FILE-004", "OGK-FILE-004"])
+        self.assertEqual(str(built[1]), "Cannot open a.json: permission denied.")
+        folder = self.root / "folder.json"
+        folder.mkdir()
+        _, error = self.run_cli("recommend", "--answers", folder, code=1)
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-FILE-003]: Cannot open --answers "), error)
+
     def test_an_unknown_identifier_reads_the_same_in_every_command(self):
         """Issue #528: an unknown task, deliverable and pattern had three forms."""
+        # OGK-CATALOG-001, OGK-DOCS-002, OGK-DOCS-004
         self.assertEqual(unknown("deliverable", "nope", "deliverable list"),
                          "Unknown deliverable: nope. Run openguildkit deliverable list.")
         for command, kind in ((("deliverable", "show", "nope"), "deliverable"), (("patterns", "--id", "nope"), "pattern"),
                               (("references", "--id", "nope"), "reference ID"), (("task", "show", "nope"), "task")):
             with self.subTest(command=" ".join(command)):
                 _, error = self.run_cli(*command, code=1)
-                self.assertRegex(error, rf"OpenGuildKit: Unknown {kind}: nope\. .*Run openguildkit [a-z ]+")
+                self.assertRegex(error, rf"OpenGuildKit(?: \[OGK-[A-Z]+-\d{{3}}\])?: Unknown {kind}: nope\. .*Run openguildkit [a-z ]+")
 
     def test_task_list_refuses_a_status_that_does_not_exist_and_names_the_statuses(self):
         """Issue #528: `task list --status Done` answered "No task matches." with exit 0."""
@@ -107,6 +123,7 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
         """Issue #528: guard --ci without origin/main printed Git's error and usage, without --base."""
         subprocess.run(["git", "-C", str(self.root), "init", "-q", "-b", "main"], check=True)
         _, error = self.run_cli("guard", "--ci", "--base", "origin/main", code=1)
+        # OGK-GUARD-008
         self.assertIn("base revision origin/main not found: pass --base REF", error)
 
 

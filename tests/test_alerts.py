@@ -53,6 +53,7 @@ def imported(*names, task_id=None, register=None):
 
 class AlertTests(unittest.TestCase):
     def test_each_scanner_report_is_normalized(self):
+        # OGK-ALERTS-004
         tool, alerts = parse_report((FIXTURES / "npm-audit.json").read_bytes(), "npm")
         self.assertEqual(tool, "npm audit")
         self.assertEqual(alerts[0]["advisory"], "GHSA-C2QF-RXJJ-QQGW")
@@ -79,12 +80,14 @@ class AlertTests(unittest.TestCase):
                 bom = {"utf-16-le": codecs.BOM_UTF16_LE, "utf-16-be": codecs.BOM_UTF16_BE}.get(encoding, b"")
                 tool, alerts = parse_report(bom + text.encode(encoding), "report.json")
                 self.assertEqual((tool, alerts[0]["package"]), ("pip-audit", "jinja2"))
+        # OGK-ALERTS-002
         with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-8 text"):
             parse_report(text.replace("Jinja", "J\xe9").encode("latin-1"), "report.json")
         with self.assertRaisesRegex(ValueError, r"report\.json is not valid UTF-16 text"):
             parse_report(codecs.BOM_UTF16_LE + text.encode("utf-16-le") + b"\x00", "report.json")
 
     def test_every_page_of_a_paginated_dependabot_export_is_read(self):
+        # OGK-ALERTS-003
         page = json.loads((FIXTURES / "dependabot-jinja2.json").read_text(encoding="utf-8"))
         second = [{**page[0], "number": 5, "dependency": {"package": {"ecosystem": "npm", "name": "lodash"}},
                    "security_advisory": {"ghsa_id": "GHSA-35jh-r3h4-6jhm", "summary": "x", "severity": "high"}}]
@@ -133,6 +136,7 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(changes["resolved"], [JINJA])
 
     def test_reviews_need_a_name_and_a_reason_to_dismiss(self):
+        # OGK-ALERTS-006, OGK-ALERTS-007, OGK-ALERTS-008
         register = imported("pip-audit.json")
         with self.assertRaisesRegex(ValueError, "reason"):
             set_status(register, JINJA, "dismissed", "Alex", "")
@@ -144,6 +148,7 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(register["alerts"][0]["status"], "open")
 
     def test_a_confirmed_critical_alert_blocks_until_resolved_or_accepted(self):
+        # OGK-ALERTS-009
         task = {"id": "forms"}
         register = imported("npm-audit-critical.json", task_id="forms")
         self.assertEqual(blocking_alerts(register, task), [])
@@ -284,7 +289,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.init()
         for scope in ("Front", "front/", "a" * 65):
             error = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--scope", scope, code=1)
-            self.assertIn("OpenGuildKit: Invalid scope", error)
+            self.assertIn("OpenGuildKit [OGK-ALERTS-001]: Invalid scope", error)
             self.assertIn("1 to 64 lowercase letters, digits, hyphens, slashes or dots", error)
         self.assertFalse((self.root / ".openguildkit" / "alerts.json").exists())
 
@@ -391,6 +396,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
+        # OGK-TASK-038
         write_json(self.root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")

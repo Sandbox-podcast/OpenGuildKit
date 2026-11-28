@@ -1,4 +1,5 @@
-"""Load and validate OpenGuildKit's declarative knowledge catalog.
+"""Loads bundled records from `registry/` and project records from `.openguildkit/catalog/`. Rejects unknown fields,
+duplicate IDs and keys, non-HTTPS sources, multi-line text and pack dependency cycles.
 
 Entry: is_positive_integer, CatalogError, record_files, validate_fields, validate_text, validate_id, bundle_sources,
 read_record_files, bundled_ids
@@ -18,6 +19,8 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 from . import clock, lazy_re
+from .errors import OgkError
+from .records import Catalog
 from .rule_checks import validate_check
 from .storage import canonical_sha256, file_signature, load_json, unique_fields
 
@@ -60,8 +63,8 @@ def is_positive_integer(value: Any) -> bool:
     return type(value) in (int, float) and 0 < value <= MAX_SAFE_INTEGER and int(value) == value
 
 
-class CatalogError(ValueError):
-    """A catalog record or dependency is invalid."""
+class CatalogError(OgkError):
+    """A catalog record or dependency is invalid, with its stable code first."""
 
 
 def record_files(directory) -> Iterator[tuple[Any, Any]]:
@@ -72,7 +75,7 @@ def record_files(directory) -> Iterator[tuple[Any, Any]]:
             try:
                 record = load_json(path, pairs=unique_fields)
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-CATALOG-005", f"{path}: {error}") from error
             yield path, record
 
 
@@ -80,33 +83,33 @@ def validate_fields(
     value: Any, label: str, required: set[str], optional: set[str] | None = None
 ) -> None:
     if not isinstance(value, dict):
-        raise CatalogError(f"{label} must be a JSON object")
+        raise CatalogError("OGK-CATALOG-006", f"{label} must be a JSON object")
     missing = required - value.keys()
     extra = value.keys() - required - (optional or set())
     if missing:
-        raise CatalogError(f"{label} is missing fields: {', '.join(sorted(missing))}")
+        raise CatalogError("OGK-CATALOG-007", f"{label} is missing fields: {', '.join(sorted(missing))}")
     if extra:
-        raise CatalogError(f"{label} has unknown fields: {', '.join(sorted(extra))}")
+        raise CatalogError("OGK-CATALOG-008", f"{label} has unknown fields: {', '.join(sorted(extra))}")
 
 
 def validate_text(value: Any, label: str) -> None:
     if not isinstance(value, str) or not value.strip():
-        raise CatalogError(f"{label} must be a non-empty string")
+        raise CatalogError("OGK-CATALOG-009", f"{label} must be a non-empty string")
     # Printable text has no control, surrogate or line separator: only other text needs the slow check.
     forbidden = ("Cc", "Cs", "Zl", "Zp")
     if not value.isprintable() and any(unicodedata.category(character) in forbidden for character in value):
-        raise CatalogError(f"{label} must be a single line of text without control characters")
+        raise CatalogError("OGK-CATALOG-010", f"{label} must be a single line of text without control characters")
 
 
 def validate_id(value: Any, label: str) -> None:
     if not isinstance(value, str) or not ID_PATTERN.fullmatch(value):
-        raise CatalogError(f"{label} must use lowercase letters, digits, and hyphens")
+        raise CatalogError("OGK-CATALOG-011", f"{label} must use lowercase letters, digits, and hyphens")
 
 
 def validate_list(value: Any, label: str, *, allow_empty: bool = False) -> None:
     if not isinstance(value, list) or (not allow_empty and not value):
         requirement = "a JSON array" if allow_empty else "a non-empty JSON array"
-        raise CatalogError(f"{label} must be {requirement}")
+        raise CatalogError("OGK-CATALOG-012", f"{label} must be {requirement}")
 
 
 def tracking_parameters(url: str) -> list[str]:
@@ -127,9 +130,9 @@ def validate_day(value: Any, label: str) -> None:
             raise ValueError
         day = date.fromisoformat(value)
     except ValueError:
-        raise CatalogError(f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
+        raise CatalogError("OGK-CATALOG-013", f"{label} must be a date written YYYY-MM-DD, such as 2026-11-21") from None
     if day > clock.real_today() + timedelta(days=1):
-        raise CatalogError(f"{label} is {value}, a day in the future: write the day the page was read")
+        raise CatalogError("OGK-CATALOG-014", f"{label} is {value}, a day in the future: write the day the page was read")
 
 
 def validate_sources(sources: Any, *, require_checked: bool = False) -> None:
@@ -142,27 +145,27 @@ def validate_sources(sources: Any, *, require_checked: bool = False) -> None:
         if "checked" in source:
             validate_day(source["checked"], f"{label}.checked")
         elif require_checked:
-            raise CatalogError(UNDATED_SOURCE.format(label=label))
+            raise CatalogError("OGK-CATALOG-015", UNDATED_SOURCE.format(label=label))
         validate_text(source["title"], f"{label}.title")
         url = source["url"]
         validate_text(url, f"{label}.url")
         parsed = urlsplit(url)
         if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None:
-            raise CatalogError(f"{label}.url must be an HTTPS URL without credentials")
+            raise CatalogError("OGK-CATALOG-016", f"{label}.url must be an HTTPS URL without credentials")
         if any(character.isspace() or character in "<>\\" for character in url):
-            raise CatalogError(f"{label}.url contains invalid characters")
+            raise CatalogError("OGK-CATALOG-017", f"{label}.url contains invalid characters")
         tracking = tracking_parameters(url)
         if tracking:
-            raise CatalogError(f"{label}.url carries the tracking parameter {tracking[0]!r}; link the page without it")
+            raise CatalogError("OGK-CATALOG-018", f"{label}.url carries the tracking parameter {tracking[0]!r}; link the page without it")
         if url in seen_urls:
-            raise CatalogError(f"duplicate source URL {url!r}")
+            raise CatalogError("OGK-CATALOG-019", f"duplicate source URL {url!r}")
         seen_urls.add(url)
 
 
 def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
     version = pack["version"]
     if not isinstance(version, str) or not VERSION_PATTERN.fullmatch(version):
-        raise CatalogError("version must use major.minor.patch")
+        raise CatalogError("OGK-CATALOG-020", "version must use major.minor.patch")
 
     for field in ("depends_on", "conflicts_with"):
         identifiers = pack.get(field, [])
@@ -170,11 +173,11 @@ def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
         for identifier in identifiers:
             validate_id(identifier, f"{field} entry")
         if len(set(identifiers)) != len(identifiers):
-            raise CatalogError(f"{field} contains duplicate IDs")
+            raise CatalogError("OGK-CATALOG-021", f"{field} contains duplicate IDs")
         if pack["id"] in identifiers:
-            raise CatalogError(f"{field} cannot name the pack itself")
+            raise CatalogError("OGK-CATALOG-022", f"{field} cannot name the pack itself")
     if set(pack.get("depends_on", [])) & set(pack.get("conflicts_with", [])):
-        raise CatalogError("A pack cannot depend on a pack it conflicts with")
+        raise CatalogError("OGK-CATALOG-023", "A pack cannot depend on a pack it conflicts with")
 
     validate_list(pack["rules"], "rules")
     seen_ids = set()
@@ -182,7 +185,7 @@ def _validate_pack(pack: dict[str, Any], allow_command: bool = False) -> None:
         label = f"rules[{index}]"
         _validate_rule(rule, label, allow_command)
         if rule["id"] in seen_ids:
-            raise CatalogError(f"duplicate rule ID {rule['id']!r}")
+            raise CatalogError("OGK-CATALOG-024", f"duplicate rule ID {rule['id']!r}")
         seen_ids.add(rule["id"])
 
 
@@ -205,18 +208,18 @@ def _validate_records(records: Any, label: str) -> None:
     validate_text(records["description"], f"{label} description")
     for field in BOUND_FIELDS:
         if field in records and (type(records[field]) not in (int, float) or abs(records[field]) > MAX_SAFE_INTEGER):
-            raise CatalogError(f"{label}.{field} must be a number")
+            raise CatalogError("OGK-CATALOG-025", f"{label}.{field} must be a number")
     if "min" in records and "above" in records:
-        raise CatalogError(f"{label} sets min or above, not both")
+        raise CatalogError("OGK-CATALOG-026", f"{label} sets min or above, not both")
     low = records.get("min", records.get("above"))
     if low is not None and "max" in records and low >= records["max"]:
-        raise CatalogError(f"{label}.max must be greater than its lower bound")
+        raise CatalogError("OGK-CATALOG-027", f"{label}.max must be greater than its lower bound")
 
 
 def _validate_evidence(evidence: Any, label: str) -> None:
     validate_list(evidence, f"{label}.evidence")
     if len(evidence) > MAX_EVIDENCE:
-        raise CatalogError(f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
+        raise CatalogError("OGK-CATALOG-028", f"{label}.evidence names at most {MAX_EVIDENCE} pieces of evidence")
     seen = set()
     for item in evidence:
         validate_fields(item, f"{label}.evidence entry", {"id", "title"}, {"when"})
@@ -228,9 +231,9 @@ def _validate_evidence(evidence: Any, label: str) -> None:
             validate_list(values, f"{label}.evidence when.data")
             known = [value for value in values if isinstance(value, str) and value in DATA_ANSWERS]
             if len(known) != len(values) or len(set(known)) != len(known):
-                raise CatalogError(f"{label}.evidence when.data lists distinct answers among {', '.join(DATA_ANSWERS)}")
+                raise CatalogError("OGK-CATALOG-029", f"{label}.evidence when.data lists distinct answers among {', '.join(DATA_ANSWERS)}")
         if item["id"] in seen:
-            raise CatalogError(f"{label}.evidence names {item['id']!r} twice")
+            raise CatalogError("OGK-CATALOG-030", f"{label}.evidence names {item['id']!r} twice")
         seen.add(item["id"])
 
 
@@ -244,21 +247,21 @@ def _validate_rule(rule: Any, label: str, allow_command: bool) -> None:
     if "manual" in rule:
         validate_text(rule["manual"], f"{label}.manual")
         if "check" in rule:
-            raise CatalogError(f"{label} carries a check, which task verify evaluates: remove its manual reason")
+            raise CatalogError("OGK-CATALOG-031", f"{label} carries a check, which task verify evaluates: remove its manual reason")
     validate_id(rule["id"], f"{label}.id")
     if "check" in rule and isinstance(rule["check"], dict) and rule["check"].keys() == {"max_minutes"}:
         if rule["id"] != EXPORT_EXPIRY_ID or not is_positive_integer(rule["check"]["max_minutes"]):
-            raise CatalogError(f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
+            raise CatalogError("OGK-CATALOG-032", f"{label}: expected an {EXPORT_EXPIRY_ID} check with positive integer max_minutes")
     elif "check" in rule:
         try:
             validate_check(rule["check"], f"{label}.check", allow_command=allow_command)
         except ValueError as error:
-            raise CatalogError(str(error)) from error
+            raise CatalogError("OGK-CATALOG-033", str(error)) from error
     for field in ("instruction", "verification"):
         if field in rule:
             validate_text(rule[field], f"{label}.{field}")
         elif "check" not in rule:
-            raise CatalogError(f"{label} is missing fields: {field}")
+            raise CatalogError("OGK-CATALOG-034", f"{label} is missing fields: {field}")
     if "evidence" in rule:
         _validate_evidence(rule["evidence"], label)
     if "records" in rule:
@@ -270,9 +273,9 @@ def _validate_core_roles(pattern: dict[str, Any]) -> None:
     validate_list(pattern["core_for"], "core_for")
     roles = pattern["core_for"]
     if not set(roles) <= set(pattern["roles"]) or len(set(roles)) != len(roles):
-        raise CatalogError("core_for must list distinct roles of the pattern")
+        raise CatalogError("OGK-CATALOG-035", "core_for must list distinct roles of the pattern")
     if pattern.get("kind", "method") != "method" or "match" in pattern:
-        raise CatalogError("core_for applies to a method without a match; a regulation is never preselected by a role")
+        raise CatalogError("OGK-CATALOG-036", "core_for applies to a method without a match; a regulation is never preselected by a role")
 
 
 def _validate_pattern(pattern: dict[str, Any]) -> None:
@@ -282,7 +285,7 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
         for item in identifiers:
             validate_id(item, f"{key} entry")
         if len(identifiers) != len(set(identifiers)):
-            raise CatalogError(f"{key} contains duplicate IDs")
+            raise CatalogError("OGK-CATALOG-037", f"{key} contains duplicate IDs")
     if "exclusive_group" in pattern:
         validate_id(pattern["exclusive_group"], "exclusive_group")
     if "core_for" in pattern:
@@ -292,37 +295,37 @@ def _validate_pattern(pattern: dict[str, Any]) -> None:
         for reference_id in pattern["references"]:
             validate_id(reference_id, "references entry")
         if len(set(pattern["references"])) != len(pattern["references"]):
-            raise CatalogError("references contains duplicate IDs")
+            raise CatalogError("OGK-CATALOG-038", "references contains duplicate IDs")
     if pattern.get("kind", "method") not in PATTERN_KINDS:
-        raise CatalogError(f"kind must be one of {', '.join(PATTERN_KINDS)}")
+        raise CatalogError("OGK-CATALOG-039", f"kind must be one of {', '.join(PATTERN_KINDS)}")
     if "match" not in pattern:
         return
     match = pattern["match"]
     validate_fields(match, "match", set(), {"stack", "sectors", "min_versions", "personal_data", "people_decisions"})
     if not match.keys() & {"stack", "sectors", "personal_data", "people_decisions"}:
-        raise CatalogError("match needs a stack, sectors, personal_data or people_decisions")
+        raise CatalogError("OGK-CATALOG-040", "match needs a stack, sectors, personal_data or people_decisions")
     for flag in ("personal_data", "people_decisions"):
         if flag in match and match[flag] is not True:
-            raise CatalogError(f"match.{flag} must be true; omit it otherwise")
+            raise CatalogError("OGK-CATALOG-041", f"match.{flag} must be true; omit it otherwise")
     if "min_versions" in match and "stack" not in match:
-        raise CatalogError("match.min_versions needs a match.stack")
+        raise CatalogError("OGK-CATALOG-042", "match.min_versions needs a match.stack")
     validate_list(match.get("stack", []), "match.stack", allow_empty="stack" not in match)
     for group in match.get("stack", []):
         validate_list(group, "technology aliases")
         for alias in group:
             validate_text(alias, "technology alias")
             if not any(character.isalnum() for character in alias):
-                raise CatalogError("Technology aliases must contain letters or digits")
+                raise CatalogError("OGK-CATALOG-043", "Technology aliases must contain letters or digits")
     if "min_versions" in match:
         minimums = match["min_versions"]
         if not isinstance(minimums, dict) or not minimums:
-            raise CatalogError("match.min_versions must be a non-empty JSON object")
+            raise CatalogError("OGK-CATALOG-044", "match.min_versions must be a non-empty JSON object")
         aliases = {alias for group in match["stack"] for alias in group}
         for alias, version in minimums.items():
             if alias not in aliases:
-                raise CatalogError(f"match.min_versions names {alias!r}, which is not a stack alias")
+                raise CatalogError("OGK-CATALOG-045", f"match.min_versions names {alias!r}, which is not a stack alias")
             if not isinstance(version, str) or not MIN_VERSION_PATTERN.fullmatch(version):
-                raise CatalogError(f"match.min_versions[{alias!r}] must be a version such as 13.4")
+                raise CatalogError("OGK-CATALOG-046", f"match.min_versions[{alias!r}] must be a version such as 13.4")
     if "sectors" in match:
         validate_list(match["sectors"], "match.sectors")
         for sector in match["sectors"]:
@@ -341,7 +344,7 @@ def _validate_lens_surfaces(specialist: dict[str, Any]) -> None:
     validate_list(surfaces, f"specialist {specialist['id']} applies_to")
     unknown = [surface for surface in surfaces if surface not in LENS_SURFACES]
     if unknown or len(set(surfaces)) != len(surfaces):
-        raise CatalogError(f"specialist {specialist['id']} applies_to lists distinct surfaces among "
+        raise CatalogError("OGK-CATALOG-047", f"specialist {specialist['id']} applies_to lists distinct surfaces among "
                            f"{', '.join(LENS_SURFACES)}")
 
 
@@ -350,9 +353,9 @@ def _validate_lens_concerns(specialist: dict[str, Any]) -> None:
     concerns = specialist["applies_to_concerns"]
     label = f"specialist {specialist['id']} applies_to_concerns"
     if not isinstance(concerns, list) or not concerns:
-        raise CatalogError(f"{label} must be a non-empty list")
+        raise CatalogError("OGK-CATALOG-048", f"{label} must be a non-empty list")
     if any(item not in LENS_CONCERNS for item in concerns) or len(set(concerns)) != len(concerns):
-        raise CatalogError(f"{label} lists distinct concerns among {', '.join(LENS_CONCERNS)}")
+        raise CatalogError("OGK-CATALOG-049", f"{label} lists distinct concerns among {', '.join(LENS_CONCERNS)}")
 
 
 def _validate_board_review(review: Any) -> None:
@@ -364,7 +367,7 @@ def _validate_board_review(review: Any) -> None:
         specialist_id = specialist["id"]
         validate_id(specialist_id, "specialist ID")
         if specialist_id in seen:
-            raise CatalogError(f"Duplicate specialist: {specialist_id}")
+            raise CatalogError("OGK-CATALOG-050", f"Duplicate specialist: {specialist_id}")
         seen.add(specialist_id)
         validate_text(specialist["title"], "specialist title")
         validate_text(specialist["focus"], "specialist focus")
@@ -468,15 +471,15 @@ def _load_entry(collection: str, path: Path, entry: Any, entries: dict, bundled:
         validate_entry(collection, entry, bundled=bundled, allow_command=not bundled)
         merged = entry
         if record_id in entries and record_id not in replaceable:
-            raise CatalogError(f"duplicate {collection} ID {record_id!r}")
+            raise CatalogError("OGK-CATALOG-051", f"duplicate {collection} ID {record_id!r}")
         if collection == "boards" and not bundled and "review" not in entry:
-            raise CatalogError(MISSING_REVIEW)
+            raise CatalogError("OGK-CATALOG-052", MISSING_REVIEW)
     if path.name != f"{record_id}.json":
-        raise CatalogError(f"name the file {record_id}.json after its id")
+        raise CatalogError("OGK-CATALOG-053", f"name the file {record_id}.json after its id")
     return merged, overlay
 
 
-def overlaid_boards(catalog: dict) -> set[str]:
+def overlaid_boards(catalog: Catalog) -> set[str]:
     """Bundled brains that a project file completes. The project owns them, so the lock does not pin them."""
     return set(catalog.get("overlays", {}).get("boards", []))
 
@@ -486,14 +489,14 @@ def validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
     for pack_id, dependencies in graph.items():
         missing = sorted(set(dependencies) - packs.keys())
         if missing:
-            raise CatalogError(f"pack {pack_id!r} requires unknown packs: {', '.join(missing)}")
+            raise CatalogError("OGK-CATALOG-054", f"pack {pack_id!r} requires unknown packs: {', '.join(missing)}")
         unknown = sorted(set(packs[pack_id].get("conflicts_with", [])) - packs.keys())
         if unknown:
-            raise CatalogError(f"pack {pack_id!r} conflicts with unknown packs: {', '.join(unknown)}")
+            raise CatalogError("OGK-CATALOG-055", f"pack {pack_id!r} conflicts with unknown packs: {', '.join(unknown)}")
     try:
         TopologicalSorter(graph).prepare()
     except CycleError as exc:
-        raise CatalogError(f"pack dependency cycle: {' -> '.join(exc.args[1])}") from exc
+        raise CatalogError("OGK-CATALOG-056", f"pack dependency cycle: {' -> '.join(exc.args[1])}") from exc
 
 
 def package_file(*parts: str):
@@ -520,7 +523,7 @@ def _read_records(collection: str, directory, entries: dict, bundled: bool, over
         try:
             entry, overlay = _load_entry(collection, path, entry, entries, bundled, replaceable)
         except (OSError, ValueError) as exc:
-            raise CatalogError(f"{path}: {exc}") from exc
+            raise CatalogError("OGK-CATALOG-057", f"{path}: {exc}") from exc
         entries[entry["id"]] = entry
         if overlay:
             overlays.append(entry["id"])
@@ -543,11 +546,11 @@ def read_record_files(builtin) -> dict[str, dict[str, dict[str, Any]]]:
     for collection in COLLECTION_FIELDS:
         directory = builtin.joinpath(collection)
         if not directory.is_dir():
-            raise CatalogError(f"{directory} must be a directory")
+            raise CatalogError("OGK-CATALOG-058", f"{directory} must be a directory")
         entries: dict[str, dict[str, Any]] = {}
         _read_records(collection, directory, entries, True, [])
         if not entries:
-            raise CatalogError(f"{directory} has no bundled records")
+            raise CatalogError("OGK-CATALOG-059", f"{directory} has no bundled records")
         bundled[collection] = entries
     return bundled
 
@@ -638,16 +641,16 @@ def _organization_records(collection: str, organization: dict, entries: dict) ->
             validate_entry(collection, entry)
             record_id = entry["id"]
             if record_id in entries:
-                raise CatalogError(f"{collection} ID {record_id!r} ships with OpenGuildKit: an organization catalog "
+                raise CatalogError("OGK-CATALOG-060", f"{collection} ID {record_id!r} ships with OpenGuildKit: an organization catalog "
                                    "adds records, so give this one an ID of its own")
             if collection == "boards" and "review" not in entry:
-                raise CatalogError(MISSING_REVIEW)
+                raise CatalogError("OGK-CATALOG-061", MISSING_REVIEW)
             if name.rpartition("/")[2] != f"{record_id}.json":
-                raise CatalogError(f"name the file {record_id}.json after its id")
+                raise CatalogError("OGK-CATALOG-062", f"name the file {record_id}.json after its id")
         except RecursionError as exc:
-            raise CatalogError(f"{label}: JSON nested too deeply") from exc
+            raise CatalogError("OGK-CATALOG-063", f"{label}: JSON nested too deeply") from exc
         except ValueError as exc:
-            raise CatalogError(f"{label} (organization catalog): {exc}") from exc
+            raise CatalogError("OGK-CATALOG-064", f"{label} (organization catalog): {exc}") from exc
         entries[record_id] = added[record_id] = entry
     return added
 
@@ -675,7 +678,7 @@ def _merged_records(builtin, project: Path | None, organization: dict | None = N
         if directory is not None and directory.is_dir():
             _read_records(collection, directory, entries, False, overlays, frozenset(added))
         elif directory is not None and directory.is_file():
-            raise CatalogError(f"{directory} must be a directory")
+            raise CatalogError("OGK-CATALOG-065", f"{directory} must be a directory")
         catalog[collection] = dict(sorted(entries.items()))
         provided[collection] = sorted(added)
         replaced.update({f"{collection}/{record_id}": record_digest(record) for record_id, record in sorted(added.items())
@@ -687,34 +690,34 @@ def _merged_records(builtin, project: Path | None, organization: dict | None = N
     return catalog
 
 
-def _add_central_policy(catalog: dict, central_policy: tuple[str, dict]) -> None:
+def _add_central_policy(catalog: Catalog, central_policy: tuple[str, dict]) -> None:
     commit, pack = central_policy
     validate_entry("packs", pack)
     rules = pack["rules"]
     check = rule_check(rules[0]) if len(rules) == 1 else None
     if pack["id"] != EXPORT_EXPIRY_ID or check is None or check["kind"] != "field":
-        raise CatalogError(f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
+        raise CatalogError("OGK-CATALOG-066", f"The central policy must contain one {EXPORT_EXPIRY_ID} rule with a field check")
     if EXPORT_EXPIRY_ID in catalog["packs"]:
-        raise CatalogError(f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
+        raise CatalogError("OGK-CATALOG-067", f"duplicate packs ID {EXPORT_EXPIRY_ID!r}")
     catalog["packs"][EXPORT_EXPIRY_ID] = {**pack, "policy_commit": commit}
     catalog["packs"] = dict(sorted(catalog["packs"].items()))
 
 
-def _check_links(catalog: dict) -> None:
+def _check_links(catalog: Catalog) -> None:
     """Every pack a pack or a pattern names exists, and every sector a pattern names."""
     validate_dependencies(catalog["packs"])
     for pattern_id, pattern in catalog["patterns"].items():
         unknown_packs = set(pattern["packs"]) - catalog["packs"].keys()
         if unknown_packs:
-            raise CatalogError(f"Pattern {pattern_id!r} links unknown packs: {', '.join(sorted(unknown_packs))}")
+            raise CatalogError("OGK-CATALOG-068", f"Pattern {pattern_id!r} links unknown packs: {', '.join(sorted(unknown_packs))}")
         unknown_sectors = set(pattern.get("match", {}).get("sectors", [])) - catalog["sectors"].keys()
         if unknown_sectors:
-            raise CatalogError(f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
+            raise CatalogError("OGK-CATALOG-069", f"Pattern {pattern_id!r} links unknown sectors: {', '.join(sorted(unknown_sectors))}")
 
 
 def load_catalog(
     extra_dir: Path | None = None, *, central_policy: tuple[str, dict] | None = None, organization: dict | None = None
-) -> dict[str, dict[str, dict[str, Any]]]:
+) -> Catalog:
     """Load bundled records, an organization catalog's and optional project additions, ordered by ID. Each call gets
     its own copy; records already validated in this process are not validated again while their files are unchanged.
 
@@ -724,7 +727,7 @@ def load_catalog(
     builtin = registry_folder()
     validated_bundle(builtin)
     if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
-        raise CatalogError(f"{extra_dir} must be a directory")
+        raise CatalogError("OGK-CATALOG-070", f"{extra_dir} must be a directory")
     project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
     key = (str(builtin), str(project), _records_signature(project),
            (organization["commit"], organization["fingerprint"]) if organization is not None else None)

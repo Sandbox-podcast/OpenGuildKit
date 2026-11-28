@@ -1,4 +1,5 @@
-"""The `completion` command and the reference of the commands, both written from the parser of the CLI.
+"""The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that
+complete the commands, the options and their values in bash and zsh.
 
 `openguildkit completion bash` and `zsh` print a script that offers the commands, the options and the values the
 parser knows; `reference` is the text of docs/cli.md, which scripts/cli_reference.py writes and a test keeps current.
@@ -132,6 +133,7 @@ def reference(parser: argparse.ArgumentParser) -> str:
               "or `zsh` prints a script that completes it. These options come before the command, or after it:"), ""]
     lines += [_line(parser, action) for action in _visible(parser)
               if action.option_strings and action.option_strings[0] in (*GLOBAL_OPTIONS, "--version")]
+    lines += ["", "`--json` answers and errors: [JSON output](errors.md#json-output)."]
     for path, command in _commands(parser):
         if not path:
             continue

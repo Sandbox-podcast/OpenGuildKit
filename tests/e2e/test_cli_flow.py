@@ -106,6 +106,7 @@ class CatalogTests(CliTestCase):
         self.assertTrue(brain["review"]["challenge"])
 
     def test_reference_library_commands_work_without_an_initialized_project(self):
+        # OGK-DOCS-003
         groups = self.run_cli("references").stdout
         self.assertIn("references", groups)
         self.assertIn("governance", groups)
@@ -163,6 +164,7 @@ class CatalogTests(CliTestCase):
                       self.run_cli("task", "brief", TASK_ID, "--pack", "house-style").stdout)
 
     def test_invalid_project_pack_is_rejected_with_its_path(self):
+        # OGK-CATALOG-020
         packs = self.project / ".openguildkit" / "catalog" / "packs"
         packs.mkdir(parents=True)
         (packs / "broken.json").write_text(
@@ -173,6 +175,7 @@ class CatalogTests(CliTestCase):
         self.assertIn("broken.json", result.stderr)
 
     def test_project_pack_cannot_shadow_a_bundled_pack(self):
+        # OGK-CATALOG-051
         packs = self.project / ".openguildkit" / "catalog" / "packs"
         packs.mkdir(parents=True)
         bundled = REPO / "src" / "openguildkit" / "registry" / "packs" / "python.json"
@@ -284,11 +287,13 @@ class ProjectSetupTests(CliTestCase):
         self.run_cli("check")
 
     def test_init_refuses_to_run_twice(self):
+        # OGK-INIT-004
         self.init_example()
         result = self.run_cli("init", "--answers", EXAMPLE / "profile.json", expect=1)
         self.assertIn("already initialized", result.stderr)
 
     def test_init_without_terminal_needs_answers(self):
+        # OGK-INIT-005
         result = self.run_cli("init", expect=1)
         self.assertIn("--answers", result.stderr)
 
@@ -318,6 +323,7 @@ class ProjectSetupTests(CliTestCase):
         self.assertNotIn("Sector: Outdated", repaired)
 
     def test_task_new_refuses_stale_instructions(self):
+        # OGK-PROJECT-076
         self.init_example()
         agents_path = self.project / "AGENTS.md"
         agents_path.write_text(agents_path.read_text(encoding="utf-8").replace("Stack:", "Stack: COBOL,"), encoding="utf-8")
@@ -437,6 +443,7 @@ class TaskFlowTests(CliTestCase):
         self.assertEqual(consultation["adjustments"][0]["reason"], "No launch planned")
 
     def test_other_answer_requires_context(self):
+        # OGK-RESULT-020
         self.init_example()
         self.run_cli("task", "new", "Something unusual", "--id", "odd")
         answers = {"kind": "other", "surface": "unsure", "data": "none", "research": "local"}

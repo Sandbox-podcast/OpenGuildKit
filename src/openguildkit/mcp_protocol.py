@@ -1,4 +1,4 @@
-"""Shared newline-delimited MCP transport for local tool servers.
+"""Shared stdio transport, handshake and tool dispatch for local MCP servers.
 
 Entry: ProtocolError, ToolServer, handle, serve
 Tests: tests/e2e/test_tool_mocks.py, tests/test_project_mcp.py

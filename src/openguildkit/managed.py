@@ -1,5 +1,5 @@
-"""Managed settings: the files an administrator deploys by MDM so that the guard hooks run in every project of a
-workstation, and what `host check` reads back of them.
+"""Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI,
+and reads back what keeps the hooks of a project from running.
 
 `openguildkit host managed --host H --os S` prints the file of one host, or writes it into the folder it is given, and
 says where each system expects it and which channel an MDM has. It installs nothing and writes nowhere else. With
@@ -17,6 +17,7 @@ from pathlib import Path
 
 from . import allowlist, hosts
 from .doc_links import doc_link
+from .errors import OgkError
 from .storage import load_json, write_text
 from .wording import plural
 
@@ -204,11 +205,11 @@ def _guidance(host: str, system: str, shown_at: str | None, left: list[str]) -> 
 def run(args) -> int:
     """host managed: print the file of one host, or write it in the folder --output names, and say how to deploy it."""
     if not args.host or not args.os:
-        raise ValueError("host managed needs --host (claude-code, codex or gemini-cli) and --os (macos, linux or windows).")
+        raise OgkError("OGK-CORE-005", "host managed needs --host (claude-code, codex or gemini-cli) and --os (macos, linux or windows).")
     if args.json:
-        raise ValueError("host managed prints the file as it is deployed, so --json is not an option of it.")
+        raise OgkError("OGK-CORE-006", "host managed prints the file as it is deployed, so --json is not an option of it.")
     if args.block_on_failure and args.host != "claude-code":
-        raise ValueError("--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
+        raise OgkError("OGK-CORE-023", "--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
     allow = allowlist.load_allow(args.allow) if args.allow else None
     text, left = _content(args.host, args.hook_command, args.block_on_failure, allow)
     if args.output is None:

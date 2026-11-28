@@ -1,4 +1,5 @@
-"""Command-line interface for OpenGuildKit.
+"""Parses commands and runs each one through one table, `COMMANDS`: the module whose `run(command)` runs it, imported
+for that command only, and what is read before it runs.
 
 Entry: command_parser, main, COMMANDS
 Tests: tests/e2e/test_admin_guide.py, tests/e2e/test_board_passes.py, tests/e2e/test_campaign_links.py,
@@ -17,10 +18,12 @@ from importlib import import_module
 from pathlib import Path
 
 from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
-from .cli_errors import error_message, print_trace
+from .cli_errors import command_words, error_message, json_error, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .command import Command
+from .errors import OgkError, error_line, file_error
 from .hosts import HOSTS
+from .storage import answering, json_text
 from .terminal import reader_closed, utf8_streams, warn
 
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
@@ -135,7 +138,7 @@ def command_parser(left_out: frozenset[str] = frozenset()) -> argparse.ArgumentP
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     check = commands.add_parser("check", help="Check that the instructions match the project profile.")
-    format_option(check, "Print the problems")
+    format_option(check, "Print the problems", "Print whether the check passes and its findings as JSON.")
     commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
@@ -204,6 +207,15 @@ def _run(args) -> int | None:
     return import_module(f"{__package__}.{module}").run(command)
 
 
+def _failed(args, answer: str | None, error: BaseException, text: str) -> int:
+    """End on an error: its line on standard error and, under --json, the same error as JSON on standard output (#484),
+    with the exit code of an error, 2 for ci-check."""
+    if answer is not None:
+        print(json_text(json_error(error, text)), end="")
+    print(error_line(error, text), file=sys.stderr)
+    return 2 if args.command == "ci-check" else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         utf8_streams()  # Redirected output is consumed by agents and scripts on every platform.
@@ -215,13 +227,15 @@ def main(argv: list[str] | None = None) -> int:
     take_by_warning()  # A line left by a parse that failed in this process is not this run's.
     args = parser.parse_args(argv)
     by_warning = take_by_warning()
+    answer = command_words(parser, args) if getattr(args, "json", False) else None
     if getattr(args, "project", None) is not None and not args.project.is_dir():
-        what = "is not a folder" if args.project.exists() else "does not exist"
-        warn(f"The project folder {args.project.as_posix()} {what}. Check --project, or create the folder and run "
-             "openguildkit init in it.")
-        return 2 if args.command == "ci-check" else 1
+        exists = args.project.exists()
+        text = (f"The project folder {args.project.as_posix()} {'is not a folder' if exists else 'does not exist'}. "
+                "Check --project, or create the folder and run openguildkit init in it.")
+        return _failed(args, answer, OgkError("OGK-CLI-002", text) if exists else OgkError("OGK-CLI-001", text), text)
     try:
-        code = _run(args) or 0
+        with answering(answer):
+            code = _run(args) or 0
         if by_warning:
             print(by_warning, file=sys.stderr)
         sys.stdout.flush()
@@ -230,8 +244,8 @@ def main(argv: list[str] | None = None) -> int:
         return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        warn(error_message(error, parser, args))
-        return 2 if args.command == "ci-check" else 1
+        text = error_message(error, parser, args)
+        return _failed(args, answer, file_error(error, text) if isinstance(error, OSError) else error, text)
     except KeyboardInterrupt:
         print(file=sys.stderr)
         warn("Cancelled.")

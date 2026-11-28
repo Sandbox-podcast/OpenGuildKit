@@ -299,6 +299,7 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertNotIn("Cookie", headers)
 
     def test_a_key_set_for_a_scripted_run_is_used_only_when_it_is_long_enough(self):
+        # OGK-WEB-001
         from openguildkit.webui import launch_key
 
         with patch.dict("os.environ", {"OPENGUILDKIT_UI_KEY": "k" * 40}):
@@ -438,6 +439,15 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual((result["code"], result["json"]), (0, []))
 
+    def test_issue_484_the_page_reads_an_answer_and_an_error_as_before_under_the_envelope(self):
+        """Issue #484: with OPENGUILDKIT_JSON_ENVELOPE=1 in the shell that starts ui, the page reads the same JSON."""
+        with patch.dict(os.environ, {"OPENGUILDKIT_JSON_ENVELOPE": "1"}):
+            _, result = self.run_in_page("task", "list", "--json")
+            self.assertEqual((result["code"], result["json"]), (0, []))
+            _, result = self.run_in_page("task", "show", "nope", "--json")
+        self.assertEqual((result["code"], result["json"]), (1, None))
+        self.assertTrue(result["stderr"].startswith("OpenGuildKit [OGK-TASK-021]: Unknown task: nope."), result["stderr"])
+
     def test_concurrent_requests_keep_their_own_output(self):
         results = []
 
@@ -458,6 +468,7 @@ class WebInterfaceTests(unittest.TestCase):
                 self.assertIn("packs", result["json"])
 
     def test_the_profile_is_saved_then_synchronized_or_restored(self):
+        # OGK-PROFILE-032
         profile = self.root / ".openguildkit" / "project.json"
         saved = json.loads(profile.read_text(encoding="utf-8"))
         status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, "conventions": ["Write tests."]})})
@@ -650,6 +661,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.save_from_page(self.saved_profile(), by="Two\nlines")[0], 400)
 
     def test_the_page_cannot_rewrite_the_history_of_profile_changes(self):
+        # OGK-PROFILE-033
         self.profile_command("add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
         self.profile_command("add", "convention", "Write tests.", "--by", "Sam", "--reason", "Team")
         before = (self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")
@@ -940,7 +952,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertTrue(closing["command"].endswith(" task complete request-history --by Camille"), closing["command"])
 
     def test_the_named_command_keeps_its_words_and_stops_at_the_end_of_the_sentence(self):
-        from openguildkit.web_requests import named_command
+        from openguildkit.errors import named_command
 
         self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by INITIALS, "
                                        "at a terminal."), ["task", "complete", "t1", "--by", "INITIALS"])
@@ -1127,6 +1139,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/api/run", {"batch": {str(i): ["check"] for i in range(41)}})[0], 400)
 
     def test_only_valid_storybook_proposals_are_written(self):
+        # OGK-WEB-002
         path = ".openguildkit/storybook/proposals.json"
         self.assertEqual(self.request("/api/files/write", {"path": path, "text": "{not json"})[0], 400)
         status, _, _ = self.request("/api/files/write", {"path": path, "text": json.dumps({"components": []})})

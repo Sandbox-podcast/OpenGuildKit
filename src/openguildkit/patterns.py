@@ -1,4 +1,4 @@
-"""Match project context to versioned rule packs.
+"""Matches the project's stack and context to versioned stack patterns and the packs they apply.
 
 Entry: role_choices, technology_key, technology_version, version_at_least, stack_contexts, is_stack_pattern
 Tests: tests/test_patterns.py
@@ -6,6 +6,9 @@ Tests: tests/test_patterns.py
 
 import unicodedata
 from collections import Counter
+
+from .errors import OgkError
+from .records import Catalog, Profile
 
 # The edit hook loads this module: stack_versions is imported in the functions that use it (#539).
 
@@ -175,7 +178,7 @@ def _conflicting(entry: dict, others: list[dict], packs: dict) -> bool:
 
 
 def recommend_patterns(
-    catalog: dict, stack: list[str], sector: str, roles: list[str], components: list[dict] | None = None,
+    catalog: Catalog, stack: list[str], sector: str, roles: list[str], components: list[dict] | None = None,
     *, personal_data: bool | None = None, people_decisions: bool | None = None, declined: list[str] | tuple = (),
 ) -> dict:
     """Return the patterns to preselect and the ones to suggest, each with its reasons.
@@ -243,7 +246,7 @@ def pattern_selection(entry: str | dict) -> tuple[str, list[str] | None]:
     return entry, None
 
 
-def patterns_to_review(profile: dict, catalog: dict) -> list[dict]:
+def patterns_to_review(profile: Profile, catalog: Catalog) -> list[dict]:
     """List selected stack patterns that the current stack, components or versions no longer support."""
     plan = recommend_patterns(
         catalog, profile.get("stack", []), profile["sector"], profile.get("roles", []), profile.get("components")
@@ -276,5 +279,5 @@ def check_pattern_choices(pattern_ids: list[str], patterns: dict) -> None:
         if group is None:
             continue
         if group in selected:
-            raise ValueError(f"Choose one pattern in {group}: {selected[group]} or {pattern_id}.")
+            raise OgkError("OGK-CORE-007", f"Choose one pattern in {group}: {selected[group]} or {pattern_id}.")
         selected[group] = pattern_id

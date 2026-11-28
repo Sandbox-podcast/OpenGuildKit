@@ -45,6 +45,7 @@ class RuleChangeTests(SharingCase):
             self.assertIn(message, self.run_cli("task", action, TASK, code=1)[1])
         error = self.run_cli("check", code=1)[1]
         self.assertIn(f"{TASK}: {message}", error)
+        # OGK-CHECK-015
         self.assertTrue(error.endswith("but 1 approval no longer holds: each line above gives the command to run.\n"))
         self.assertNotIn("instructions match", self.run_cli("check", code=1)[0])
         self.assertIn(message, self.run_cli("task", "checks", TASK)[1])
@@ -52,6 +53,7 @@ class RuleChangeTests(SharingCase):
     def test_a_review_under_earlier_rules_gives_the_same_next_step_everywhere(self):
         """A task reviewed but not decided when the rules change (every reviewed task of a project upgraded from
         0.16.1): task list, task consult and task decide all say that the person requests changes first."""
+        # OGK-TASK-024, OGK-TASK-083
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         answers = {**json.loads((EXAMPLE / "answers.json").read_text()), "outcome": "Customers see each request's status."}
         write_json(self.root / "answers.json", answers)
@@ -100,12 +102,14 @@ class RuleChangeTests(SharingCase):
         self.run_cli("check")
 
     def test_a_current_approval_cannot_be_consulted_again(self):
+        # OGK-TASK-082
         self.approved()
         error = self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json", code=1)[1]
         self.assertIn("is already approved by Camille", error)
         self.assertIn(f"openguildkit task revoke {TASK} --by INITIALS --reason TEXT", error)
 
     def test_a_completed_task_under_earlier_rules_is_history(self):
+        # OGK-TASK-084
         self.approved()
         self.complete()
         self.edit_team_rule()

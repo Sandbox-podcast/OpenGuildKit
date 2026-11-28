@@ -1,4 +1,6 @@
-"""The evidence command: a dossier of facts for an auditor, and the check that it was not changed (issue #482).
+"""The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile
+changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of
+SHA-256, `verify` recomputes it. Reads the project and states no conformity.
 
 `export` gathers, for a period, what the tool already knows: the exported decisions with the state of their seal and of
 their signature, the profile changes, the history of the allowed signers file in Git, the alerts, the registry of
@@ -20,10 +22,12 @@ from .alerts import load_register
 from .catalog import package_file
 from .command import Command
 from .decisions import approval_policy, export_digest, exported_records, git_revision, seal, verify_recorded_signature
+from .errors import OgkError
 from .guard_records import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
 from .project_rules import Fingerprints
+from .records import Catalog, Profile
 from .storage import file_sha256, json_text, read_json, write_text
 
 DOSSIER_FILES = ("alerts.jsonl", "controls.json", "decisions.jsonl", "profile-changes.jsonl", "signers-history.jsonl")
@@ -53,13 +57,13 @@ def run(command: Command) -> int:
         return _verify(args.dossier if args.dossier.is_absolute() else root / args.dossier)
     since, until = _day(args.since, "--since"), _day(args.until, "--until")
     if since and until and since > until:
-        raise ValueError("--since is after --until: the period holds no day.")
+        raise OgkError("OGK-EVIDENCE-004", "--since is after --until: the period holds no day.")
     from .deliverables import project_path  # Only this command writes a folder the team may share.
 
     target = project_path(root, state, args.output, "--output")
     shown = target.relative_to(root.resolve()).as_posix()
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
-        raise ValueError(f"--output {shown} already holds files: give a new folder, or an empty one. Nothing was written.")
+        raise OgkError("OGK-EVIDENCE-001", f"--output {shown} already holds files: give a new folder, or an empty one. Nothing was written.")
     catalog = project_catalog(args, state)
     profile = load_profile(state, catalog)
     notes = []
@@ -95,7 +99,7 @@ def _day(value: str | None, option: str) -> str | None:
             return value
     except ValueError:
         pass
-    raise ValueError(f"{option} must be a day written YYYY-MM-DD.")
+    raise OgkError("OGK-EVIDENCE-002", f"{option} must be a day written YYYY-MM-DD.")
 
 
 def _within(day: object, since: str | None, until: str | None) -> bool:
@@ -114,7 +118,7 @@ def _sha256(path: Path) -> str | None:
         return None
 
 
-def _decisions(root: Path, state: Path, profile: dict, catalog: dict, since: str | None, until: str | None) -> list[dict]:
+def _decisions(root: Path, state: Path, profile: Profile, catalog: Catalog, since: str | None, until: str | None) -> list[dict]:
     """One line for each exported decision record dated in the period, and one for each file of the folder that cannot be
     read, oldest first."""
     judged = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}
@@ -163,7 +167,7 @@ def _signature(root: Path, policy: dict, decision: dict) -> dict:
                 "detail": "the project does not require signed approvals now, so no signers file is read"}
     try:
         if not isinstance(payload, dict):
-            raise ValueError("the record carries no approval payload")
+            raise OgkError("OGK-EVIDENCE-005", "the record carries no approval payload")
         earlier = verify_recorded_signature(root, policy, payload, signature, signer)
     except ValueError as error:
         return {"required": True, "state": "not-verified", "signer": signer, "detail": str(error)}
@@ -187,7 +191,7 @@ def _alerts(state: Path, since: str | None, until: str | None) -> list[dict]:
     return [*sorted(alerts, key=lambda alert: alert["id"]), *imports]
 
 
-def _signers(root: Path, profile: dict, since: str | None, until: str | None) -> tuple[list[dict], str | None]:
+def _signers(root: Path, profile: Profile, since: str | None, until: str | None) -> tuple[list[dict], str | None]:
     """The commits of the period that changed the allowed signers file, oldest first: the principals the file listed
     and its object ID, never a key. The reason it is empty when it cannot be filled."""
     policy = approval_policy(profile)
@@ -212,7 +216,7 @@ def _signers(root: Path, profile: dict, since: str | None, until: str | None) ->
     return rows, None
 
 
-def _manifest(root: Path, state: Path, profile: dict, catalog: dict, files: dict, period: tuple, notes: list) -> dict:
+def _manifest(root: Path, state: Path, profile: Profile, catalog: Catalog, files: dict, period: tuple, notes: list) -> dict:
     policy = approval_policy(profile)
     return {
         "schema_version": 1, "openguildkit": package_version(), "generated": clock.today().isoformat(),
@@ -233,11 +237,11 @@ def _verify(dossier: Path) -> int:
     files of the folder, or are in the folder without being in the manifest."""
     path = dossier / MANIFEST
     if not path.is_file():
-        raise ValueError(f"{path.as_posix()} is not there: name the folder that `evidence export` wrote.")
+        raise OgkError("OGK-EVIDENCE-003", f"{path.as_posix()} is not there: name the folder that `evidence export` wrote.")
     manifest = read_json(path)
     files = manifest.get("files") if isinstance(manifest, dict) else None
     if not isinstance(files, dict):
-        raise ValueError(f"{path.as_posix()} is not the manifest of a dossier: it lists no files.")
+        raise OgkError("OGK-EVIDENCE-006", f"{path.as_posix()} is not the manifest of a dossier: it lists no files.")
     problems = []
     for name, entry in sorted(files.items()):
         target = dossier / name

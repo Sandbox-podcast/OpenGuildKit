@@ -1,4 +1,5 @@
-"""Whether a person can answer at this terminal.
+"""Tells whether standard input is a terminal a person types in (on Windows a console, not the NUL device), and sets up
+the output streams and the error line of a command.
 
 Every act left to a person, and every question asked at a terminal, starts with `interactive()`. Python's
 `isatty()` is true on Windows for any character device, the NUL device included: there the handle of standard
@@ -9,6 +10,8 @@ Tests: tests/test_terminal.py
 """
 import os
 import sys
+
+from .errors import OgkError
 
 
 def interactive() -> bool:
@@ -30,10 +33,10 @@ def typed(expected: str, prompt: str, *, refusal: str | Exception, cancelled: st
     """The person types `expected` at this terminal, or the act stops: ValueError(refusal) without a terminal (or the
     exception given), ValueError(cancelled) when they type anything else. The prompt goes to standard error."""
     if not interactive():
-        raise refusal if isinstance(refusal, Exception) else ValueError(refusal)
+        raise refusal if isinstance(refusal, Exception) else OgkError("OGK-CORE-025", refusal)
     print(prompt, end="", file=sys.stderr, flush=True)
     if input().strip() != expected:
-        raise ValueError(cancelled)
+        raise OgkError("OGK-CORE-013", cancelled)
 
 
 def console(descriptor: int) -> bool:
