@@ -84,6 +84,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
 
     def test_a_draft_still_asks_for_the_review(self):
         self.run_cli("task", "new", "Show statuses.", "--id", "draft")
+        # OGK-TASK-106
         self.assertIn("Record the boards' review before deciding.",
                       self.run_cli("task", "decide", "draft", "--approve", "--by", "A", "--reason", "r", code=1)[1])
 

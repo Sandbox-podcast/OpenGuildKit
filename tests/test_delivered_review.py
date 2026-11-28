@@ -177,6 +177,7 @@ class FindingTests(DeliveredReviewCase):
         self.assertEqual(output.splitlines()[0], "done")
 
     def test_the_review_is_refused_after_the_closing(self):
+        # OGK-RESULT-032
         self.run_cli("task", "complete", "sx")
         _, error = self.run_cli("task", "diff-review", "sx", code=1)
         self.assertIn("after task result and before task complete", error)

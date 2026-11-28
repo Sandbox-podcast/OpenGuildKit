@@ -111,7 +111,7 @@ def require_blocker_status(task: Task) -> None:
     """Blockers come from the boards' review: a person resolves them once it is recorded, before the decision or,
     for a condition of approval, before completion."""
     if task["status"] not in ("reviewed", "approved"):
-        raise TaskStateError("A blocker is resolved once the boards' review is recorded, before the decision, or "
+        raise TaskStateError("OGK-TASK-103", "A blocker is resolved once the boards' review is recorded, before the decision, or "
                              "after the approval for a condition of approval.")
 
 

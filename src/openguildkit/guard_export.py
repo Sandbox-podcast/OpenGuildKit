@@ -36,7 +36,7 @@ def export_decision(root: Path, state: Path, task: Task, profile: Profile, outpu
     from .workflow import TaskStateError, mock_evidence
 
     if task["status"] not in ("approved", "done", "done-with-reservations"):
-        raise TaskStateError("Only an approved or completed task can be exported.")
+        raise TaskStateError("OGK-GUARD-017", "Only an approved or completed task can be exported.")
     check_decision(task, root, profile)
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     _refuse_foreign_record(root, path, task)
@@ -299,7 +299,7 @@ def export_withdrawal(root: Path, state: Path, task: Task, output: Path | None =
     path = output if output is not None else state / DECISIONS_DIR / f"{task['id']}.json"
     shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
     if not any(isinstance(item.get("revoked"), dict) for item in task.get("rounds", [])):
-        raise TaskStateError("Only an approved or completed task can be exported, or one whose approval was withdrawn.")
+        raise TaskStateError("OGK-GUARD-018", "Only an approved or completed task can be exported, or one whose approval was withdrawn.")
     if not path.is_file():
         raise OgkError("OGK-GUARD-012", f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
                          "record to write the withdrawal into, and nothing for guard --ci to accept.")

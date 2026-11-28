@@ -120,6 +120,7 @@ class RevisionAndClosingTests(ResultCase):
     def test_an_open_task_has_no_closing_to_show(self):
         self.approved()
         _, error = self.run_cli("task", "show", TASK, "--closing", code=1)
+        # OGK-TASK-108
         self.assertIn("Only a completed task has a closing with its open points.", error)
         self.assertIn(f"Next: openguildkit task handoff {TASK}", error)
 

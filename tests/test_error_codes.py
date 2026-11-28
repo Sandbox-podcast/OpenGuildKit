@@ -13,6 +13,7 @@ from unittest.mock import patch
 from openguildkit import (
     alerts,
     controls,
+    guard_export,
     lock,
     market,
     mcp_mock,
@@ -20,6 +21,7 @@ from openguildkit import (
     project,
     rule_checks,
     storybook,
+    tasks_closing,
     tasks_decide_cli,
 )
 from openguildkit.catalog import CatalogError, load_catalog
@@ -40,7 +42,7 @@ CODED = ("tasks.py", "tasks_cli.py")
 # page. The count may go down, never up (#487); a broken invariant of the code raises errors.InternalError instead.
 PERSON_ERRORS = ("ValueError", "CatalogError", "TaskStateError", "Refused", "RuleError", "SignerNotCurrent",
                  "InvalidProfile", "EntryProblems", "Weakening", "ExcludedPath", "NestedTooDeeply")
-UNCODED_CEILING = 377
+UNCODED_CEILING = 357
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -456,6 +458,17 @@ class ProfileEditErrorTests(CodedRefusals):
                                                                                           "paths": ["backend", "Sam"]})),
             ("OGK-PROFILE-030", lambda: profile_edits._restricted_setting("none", {"paths": ["none", "docs"]})),
             ("OGK-PROFILE-031", lambda: profile_edits._light_paths_setting("none", {"paths": ["none", "docs"]})),
+        ])
+
+
+class TaskStateTests(CodedRefusals):
+    """Issue #487: an action refused because of the task's status has its own code where no command reaches it."""
+
+    def test_issue_487_a_refusal_of_the_task_status_has_its_code(self):
+        task = {"id": "t1", "status": "consulting"}
+        self.assertCodes([
+            ("OGK-GUARD-017", lambda: guard_export.export_decision(Path("."), Path("."), task, {})),
+            ("OGK-TASK-105", lambda: tasks_closing.record_result(task, {}, {})),
         ])
 
 

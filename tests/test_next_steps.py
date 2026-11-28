@@ -89,6 +89,7 @@ class Project(unittest.TestCase):
 
 class StateRefusalTests(Project):
     def test_every_task_action_refused_on_a_draft_or_during_consultation_names_a_command_that_runs(self):
+        # OGK-GUARD-018, OGK-TASK-092, OGK-TASK-093, OGK-TASK-094, OGK-TASK-097, OGK-TASK-099, OGK-TASK-100, OGK-TASK-101, OGK-TASK-102, OGK-TASK-103, OGK-TASK-104, OGK-TASK-107
         self.assertEqual(task_actions() - {"new", "list"}, set(ARGUMENTS), "give the new action its arguments here")
         self.cli("task", "new", "Fix the CSV export of request statuses", "--id", "draft")
         self.cli("task", "new", "Fix the CSV export of request statuses", "--id", "open")

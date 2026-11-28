@@ -152,7 +152,7 @@ def handoff(task: Task, evidence: list[dict] | None = None, checks: list[dict] |
         raise OgkError("OGK-TASK-015", f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
                          f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
     if status not in ("approved", "done", "done-with-reservations"):
-        raise TaskStateError("A human approval is required before implementation.")
+        raise TaskStateError("OGK-TASK-094", "A human approval is required before implementation.")
     consultation = task["consultation"]
     review = validate_review(consultation, task["review"])
     decision = task["decision"]

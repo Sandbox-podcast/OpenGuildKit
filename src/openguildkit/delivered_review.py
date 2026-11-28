@@ -41,7 +41,7 @@ def _short(revision: str) -> str:
 def require_reviewable(task: Task) -> None:
     """The delivered diff exists once the approved task records a result with its revision, in a Git repository."""
     if task["status"] != "approved":
-        raise TaskStateError("The boards review the delivered diff of an approved task, after task result and before "
+        raise TaskStateError("OGK-RESULT-032", "The boards review the delivered diff of an approved task, after task result and before "
                              "task complete.")
     if is_decision_task(task):
         raise ValueError("A task of kind decision delivers no change to the project: there is no diff to review.")

@@ -260,7 +260,7 @@ def run_decision_payload(command: TaskCommand) -> None:
         decided = decided_message(task, approval_problem(task, profile, catalog, root))
         if decided:
             raise ValueError(decided)
-        raise TaskStateError("Record the boards' review before preparing a decision.")
+        raise TaskStateError("OGK-TASK-104", "Record the boards' review before preparing a decision.")
     # The signer is not known yet: decide compares the requester to the signer as well.
     same = requester.approval_problem(task, profile, args.by)
     if same:

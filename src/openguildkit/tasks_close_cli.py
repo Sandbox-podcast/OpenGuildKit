@@ -265,7 +265,7 @@ def run_checks(command: TaskCommand) -> None:
     """The checks the approved task must report, and their outcomes so far."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
-        raise TaskStateError("Checks belong to an approved task.")
+        raise TaskStateError("OGK-TASK-098", "Checks belong to an approved task.")
     relevance = _relevance(root, task, profile, catalog, args.all)
     checks = expected_checks(task, profile, relevance)
     reported = outcomes(task, profile, relevance)
@@ -279,7 +279,7 @@ def run_result_template(command: TaskCommand) -> None:
     """A result file to fill in."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] != "approved":
-        raise TaskStateError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("OGK-TASK-099", "Results belong to an approved task that is not done yet.")
     relevance = _relevance(root, task, profile, catalog, args.all)
     changed = decision_changes(root, task)
     print_json(result_template(task, profile, relevance, changed=changed))
@@ -359,7 +359,7 @@ def run_outcome(command: TaskCommand) -> int | None:
                                                  command.catalog, command.task)
     action = args.action
     if task["status"] != "approved":
-        raise TaskStateError("Run checks for an approved task that is not done yet." if action == "verify"
+        raise TaskStateError("OGK-TASK-100", "Run checks for an approved task that is not done yet." if action == "verify"
                              else "Results belong to an approved task that is not done yet.")
     decision = is_decision_task(task)
     changed = decision_changes(root, task)
@@ -401,7 +401,7 @@ def run_runs(command: TaskCommand) -> None:
     args, task = command.args, command.task
     comparison = compare_runs(task)
     if comparison is None:
-        raise TaskStateError("The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
+        raise TaskStateError("OGK-TASK-101", "The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
                              "records them on an approved task.")
     if args.json:
         print_json(comparison)

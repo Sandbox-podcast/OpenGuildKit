@@ -87,7 +87,7 @@ def record_result(task: Task, profile: Profile, payload: dict, source: str = "re
     drop) and the rest is recorded: the task then waits for that evidence from its owner.
     """
     if task["status"] != "approved":
-        raise TaskStateError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("OGK-TASK-105", "Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated, source)
@@ -272,7 +272,7 @@ def record_decision(
         decided = decided_message(task)
         if decided:
             raise OgkError("OGK-TASK-052", decided)
-        raise TaskStateError("Record the boards' review before deciding.")
+        raise TaskStateError("OGK-TASK-106", "Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
         raise ValueError(
@@ -315,7 +315,7 @@ def revoke_approval(task: Task, by: str, reason: str) -> Task:
     if status in DONE_STATUSES:
         raise OgkError("OGK-TASK-054", decided_message(task))
     if status != "approved":
-        raise TaskStateError("Only an approved task has an approval to withdraw.")
+        raise TaskStateError("OGK-TASK-107", "Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
         raise ValueError("Name the person who withdraws the approval with --by and say why with --reason.")
     at = clock.real_timestamp()

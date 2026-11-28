@@ -24,7 +24,7 @@ from .tasks_record import RESOLUTION_FIELDS
 from .wording import plural
 
 
-class TaskStateError(ValueError):
+class TaskStateError(OgkError):
     """An action refused because of the task's status. The message says what is refused; the command line adds the
     status and the next command that runs in it (tasks_status.state_refusal)."""
 
@@ -178,7 +178,7 @@ def deliberation_request(task: Task) -> dict:
     """What each board must answer, on the same point, before the person decides: one response per board and
     side, covering every objection it raised or received."""
     if task.get("status") != "reviewed":
-        raise TaskStateError("Deliberate after the review is recorded and before the decision.")
+        raise TaskStateError("OGK-TASK-092", "Deliberate after the review is recorded and before the decision.")
     review = validate_review(task["consultation"], task["review"])
     items = objections(review, task["consultation"].get("domains"))
     groups = {}
@@ -436,7 +436,7 @@ def challenge_report(task: Task, lines: list[str] | None = None, root: Path | No
     approval prompt), then each board's challenge as JSON. With the project root, the code owners of what the task
     touches, read from CODEOWNERS and never recorded."""
     if "review" not in task:
-        raise TaskStateError("Record the board reviews before opening the decision brief.")
+        raise TaskStateError("OGK-TASK-093", "Record the board reviews before opening the decision brief.")
     review = validate_review(task["consultation"], task["review"])
     findings = []
     verdicts = {}

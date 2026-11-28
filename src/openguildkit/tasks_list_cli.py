@@ -61,7 +61,7 @@ def _closing_points(task: Mapping[str, Any], task_id: str) -> dict:
     reservations, whose whole record can weigh a hundred kilobytes."""
     closing = (task.get("result") or {}).get("closing")
     if not isinstance(closing, dict):
-        raise TaskStateError("Only a completed task has a closing with its open points.")
+        raise TaskStateError("OGK-TASK-108", "Only a completed task has a closing with its open points.")
     return {"id": task_id, "status": task.get("status"),
             **{key: closing[key] for key in ("by", "verification", "open_points") if key in closing}}
 

@@ -87,7 +87,7 @@ def _selection(args) -> dict:
 
 def _read_consultation(task: Task) -> dict:
     if "consultation" not in task:
-        raise TaskStateError("The task has no consultation yet.")
+        raise TaskStateError("OGK-TASK-102", "The task has no consultation yet.")
     return task["consultation"]
 
 
