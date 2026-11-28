@@ -12,20 +12,20 @@ minimum a JSON file describes, read and never written, and --strict ends in 1 wh
 --format csv prints one line per folder under a header that does not change.
 """
 
-import contextlib
 import csv
-import io
 import sys
 from collections import Counter
 from functools import cache
 from pathlib import Path
 
 from .alerts import LEGACY_STATUSES, load_register
+from .check_cli import check_status
+from .cli import command_parser
 from .command import Command
 from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
-from .project import GUARD_MODES, STATE_DIR, load_profile, state_path
+from .project import GUARD_MODES, STATE_DIR, load_profile
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers
@@ -235,23 +235,10 @@ def _open_points(task: dict) -> int:
 
 
 def _check(root: Path, read: dict) -> dict:
-    """openguildkit check on the project, in this process, its output kept: whether it passes and, when it fails,
-    the last line it printed. It is given the task records the project's line read, so that it reads none again;
-    the rest runs as cli.main runs the command: its own options, catalog and profile, the same error line."""
-    from . import check_cli, cli  # The CLI reaches this module through its table: its parser is read here.
-
-    out, err = io.StringIO(), io.StringIO()
-    args = cli.command_parser().parse_args(["--project", str(root), "check"])
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            state = state_path(root)
-            catalog = project_catalog(args, state)
-            code = check_cli.check(args, root, state, load_profile(state, catalog), catalog, read)
-        except (OSError, ValueError, EOFError) as error:
-            print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
-            code = 1
-    lines = [line.removeprefix("OpenGuildKit: ") for line in err.getvalue().splitlines() if line.strip()]
-    return {"passes": code == 0, "code": code, "message": lines[-1] if code and lines else None}
+    """openguildkit check on the project, in this process (check_cli.check_status): whether it passes and, when it
+    fails, the line that says why. It is given the task records the project's line read, so that it reads none again;
+    the rest runs as the CLI runs the command: its own options, catalog and profile."""
+    return check_status(command_parser().parse_args(["--project", str(root), "check"]), root, read)
 
 
 def _matches(folder: Path, text: str) -> list[dict]:

@@ -85,6 +85,25 @@ class ModuleShapeTests(unittest.TestCase):
             with self.subTest(module=path.name):
                 self.assertLess(len(path.read_text(encoding="utf-8").splitlines()), 400)
 
+    def test_issue_509_only_the_cli_and_its_command_modules_import_a_command_module(self):
+        """Issue #509: the profile's security rule lived in profile_cli, which webui, retro and features_cli imported,
+        and projects_cli read the output of check back from the standard error."""
+        command_modules = {path.stem for path in PACKAGE.glob("*_cli.py")} | {"cli"}
+        wrong = {}
+        for path in sorted(PACKAGE.glob("*.py")):
+            if path.stem in command_modules or path.name == "__main__.py":
+                continue
+            tree = parsed(path)
+            found = (imported_modules(tree, True) | imported_modules(tree, False)) & command_modules
+            if path.name == "webui.py":
+                found -= {"cli"}  # The page runs each command through cli.main.
+            if found:
+                wrong[path.name] = sorted(found)
+        self.assertEqual(wrong, {})
+        projects = (PACKAGE / "projects_cli.py").read_text(encoding="utf-8")
+        self.assertNotIn("cli.main", projects)
+        self.assertNotIn("redirect_stderr", projects)
+
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.
         self.assertIn("routing", imported_modules(parsed(PACKAGE / "workflow.py"), top_level=True))

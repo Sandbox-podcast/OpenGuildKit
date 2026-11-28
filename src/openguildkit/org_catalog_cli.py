@@ -36,7 +36,6 @@ from .org_catalog import (
     read_files,
     records_of,
     replacements,
-    unaccepted_replacements,
     variable_name,
 )
 from .profile_changes import print_touched
@@ -46,7 +45,7 @@ from .storage import print_json, project_lock
 from .tasks import tasks_touched
 from .terminal import interactive
 
-__all__ = ["add_parser", "run", "unaccepted_replacements"]
+__all__ = ["add_parser", "run"]
 
 PERSON = "--by INITIALS --reason WHY"
 

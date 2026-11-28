@@ -1,13 +1,15 @@
 """The commands that check a project against its profile: check, guard and host.
 
-Entry: run, check, warn_unsigned, pending_catalog_changes.
+Entry: run, check, check_status, warn_unsigned, pending_catalog_changes.
 Tests: tests/test_guard.py, tests/test_sarif_commands.py, tests/test_hosts.py, tests/test_host_scan.py.
 """
 
+import contextlib
+import io
 import sys
 from pathlib import Path
 
-from . import host_coverage, managed, org_catalog_cli, org_policy_cli
+from . import host_coverage, managed, org_policy_cli
 from .catalog import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
@@ -33,7 +35,8 @@ from .lock import (
     require_instructions,
     update_target,
 )
-from .project import STATE_DIR, Fingerprints, RuleError, load_profile
+from .org_catalog import unaccepted_replacements
+from .project import STATE_DIR, Fingerprints, RuleError, load_profile, state_path
 from .references import load_references
 from .storage import print_json
 from .tasks import list_tasks
@@ -257,6 +260,22 @@ def check(args, root: Path, state: Path, profile: dict, catalog: dict, read: dic
     return code
 
 
+
+def check_status(args, root: Path, read: dict) -> dict:
+    """Whether check passes on the project and, when it fails, the line that says why, as projects shows it. The
+    command runs as main runs it, with its own catalog and profile and the task records read given, and prints
+    nothing: the reason is the error's last line, not a line read back from the standard error."""
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            state = state_path(root)
+            catalog = project_catalog(args, state)
+            check(args, root, state, load_profile(state, catalog), catalog, read)
+    except (OSError, ValueError, EOFError) as error:
+        text = str(error) or "Input ended before completion."
+        lines = [line.removeprefix("OpenGuildKit: ") for line in text.splitlines() if line.strip()]
+        return {"passes": False, "code": 1, "message": lines[-1] if lines else None}
+    return {"passes": True, "code": 0, "message": None}
+
 def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, report, read: dict) -> None:
     """Check that the instructions, the host settings and the catalog lock match the profile, and that every
     approval still holds; warn about what git will not carry to a teammate. Each problem and warning goes to the
@@ -277,7 +296,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     failing += [row["problem"]["message"] for row in records
                 if row["problem"] and row["problem"]["severity"] == "error"]
     report.records(records)
-    replaced = {**replaced_boards(catalog), **org_catalog_cli.unaccepted_replacements(catalog, read_lock(state))}
+    replaced = {**replaced_boards(catalog), **unaccepted_replacements(catalog, read_lock(state))}
     report.boards(replaced)
     for line in failing + list(replaced.values()):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
