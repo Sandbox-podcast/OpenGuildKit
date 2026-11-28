@@ -1,6 +1,5 @@
 """Match project context to versioned rule packs."""
 
-import re
 import unicodedata
 from collections import Counter
 
@@ -35,9 +34,6 @@ ROLE_TITLES = {
     "procurement": "Procurement / Achats",
     "trust-and-safety": "Trust and safety / Confiance et sécurité des contenus",
 }
-
-VERSION_PATTERN = re.compile(r"\d+(?:\.\d+){0,3}")
-
 
 def role_choices(patterns: dict) -> dict[str, dict]:
     roles = {role_id for pattern in patterns.values() for role_id in pattern["roles"]}

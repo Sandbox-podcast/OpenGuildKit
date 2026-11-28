@@ -20,10 +20,7 @@ TESTED_ONLY = {
 
 # Names the resolved reads find unused whose removal is a change of src/ that the tooling branch of #511 leaves to
 # the branch that owns those modules: drop each line with its name.
-PENDING = {
-    "src/openguildkit/patterns.py VERSION_PATTERN": "never read; catalog.VERSION_PATTERN hid it (#511).",
-    "src/openguildkit/webui.py weakening_changes": "read by no module; profile_cli.weakening_changes hid it (#511).",
-}
+PENDING: dict[str, str] = {}
 
 
 def module_of(path: Path) -> str:

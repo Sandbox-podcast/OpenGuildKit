@@ -32,7 +32,7 @@ from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_changes, tasks
-from .lock import installed_catalog, package_version
+from .lock import package_version
 from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
@@ -930,11 +930,6 @@ def _decision_line(value, field: str, default: str) -> str:
     if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
         raise Refused(f"{field} must be a non-empty single line.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
     return value.strip()
-
-
-def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:
-    """What a hand-edited profile weakens, by the profile commands' own rule, each with the command to type."""
-    return profile_changes.weakening_changes(before, after, installed_catalog(None, root / ".openguildkit")[0])
 
 
 class LocalServer(ThreadingHTTPServer):
