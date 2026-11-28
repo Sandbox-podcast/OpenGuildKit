@@ -76,7 +76,7 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 #### `source-undated`
 
-`warning`, on the profile. A record of the project's catalog cites a source without a `checked` date. Open each page and add `"checked": "YYYY-MM-DD"` after its `url` ([catalog format](catalog-format.md#source-dates)).
+`warning`, on the profile. A record of the project's catalog cites a source without a `checked` date. Open each page and add `"checked": "YYYY-MM-DD"` after its `url` ([catalog format](catalog-format/source-dates.md)).
 
 #### `brain-replaced`
 
@@ -84,7 +84,7 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 #### `catalog-org-replaced`
 
-`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal.
+`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format/organization-catalog.md) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal.
 
 #### `approvals-not-signed`
 
@@ -194,11 +194,11 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 #### `policy-below-floor`
 
-`error`, `check` and `guard --ci`, on the profile. The [organization policy](catalog-format.md#organization-policy) requires a guard mode, signed approvals, the separation of requester and approver or a pack, and the profile is under it; the message names the setting, the value required, the commit of the policy and the command that meets it. `guard --ci` judges the profile of the base revision and the one the change brings, whatever the guard mode.
+`error`, `check` and `guard --ci`, on the profile. The [organization policy](catalog-format/organization-catalog.md#organization-policy) requires a guard mode, signed approvals, the separation of requester and approver or a pack, and the profile is under it; the message names the setting, the value required, the commit of the policy and the command that meets it. `guard --ci` judges the profile of the base revision and the one the change brings, whatever the guard mode.
 
 #### `policy-frozen`
 
-`error`, `check` and `guard --ci`. The organization policy holds `frozen`: every change of every repository that follows it fails, whatever the guard mode, until a commit of the policy lifts it ([organization policy](catalog-format.md#organization-policy)).
+`error`, `check` and `guard --ci`. The organization policy holds `frozen`: every change of every repository that follows it fails, whatever the guard mode, until a commit of the policy lifts it ([organization policy](catalog-format/organization-catalog.md#organization-policy)).
 
 #### `guard-no-base-profile`
 

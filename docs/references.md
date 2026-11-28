@@ -143,13 +143,13 @@ Generated `work-patterns` entries use `Stack pattern` or `Work method`.
 
 A reference, the packs built on it and the pattern that applies them name each other: the reference lists `pattern` and `packs`, and the pattern lists the reference in `references`. `tests/test_references.py` checks these links for the bundled catalog. Place each entry in the family of its discipline: Core Web Vitals sits under quality, SPF, DKIM and DMARC under security.
 
-Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter, and `checked`, the day you opened the page and checked the entry against it ([source dates](catalog-format.md#source-dates)). To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
+Save this example as `team-practices.json` and replace the example URL with the source your team uses. Sources follow the [catalog rules](catalog-format.md#rules-common-to-all-records): HTTPS, the canonical page, no tracking parameter, and `checked`, the day you opened the page and checked the entry against it ([source dates](catalog-format/source-dates.md)). To extend a bundled family locally, use its existing family ID and title in your file, and include only the new entries. Reference IDs must be unique across all families. Run `openguildkit references` to validate the result.
 
 For pack fields and verification examples, see the [catalog format](catalog-format.md).
 
 ## Edition watch
 
-Every Monday the `Watch reference editions` workflow opens the source pages of each bundled reference that declares an `edition`, and opens an issue titled `Edition may have changed: ID` when the edition is no longer on its page. [Source dates](catalog-format.md#source-dates) says what this text comparison can miss or raise by mistake.
+Every Monday the `Watch reference editions` workflow opens the source pages of each bundled reference that declares an `edition`, and opens an issue titled `Edition may have changed: ID` when the edition is no longer on its page. [Source dates](catalog-format/source-dates.md) says what this text comparison can miss or raise by mistake.
 
 The watch starts from `scripts/edition-watch.json`, which the repository keeps seeded from the catalog. An edition the watch has not yet found on its page counts as seen on the latest `checked` date of the reference's sources, the day a person read it there (`"seen_in": "catalog"`, status `from-catalog`). So the first weekly run already reports an edition that is gone, and the workflow changes no file: it keeps its updated copy of the watch file as an artifact.
 

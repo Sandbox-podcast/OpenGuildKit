@@ -118,7 +118,7 @@ class BudgetTableTests(unittest.TestCase):
 
     def test_each_budget_is_at_most_three_times_the_ratio_the_documentation_records(self):
         """Issue #538: budgets were 2.2 to 7.5 times the measure, so a doubling of the hook or the start passed."""
-        page = (REPO / "docs" / "testing.md").read_text(encoding="utf-8")
+        page = (REPO / "docs" / "testing" / "performance.md").read_text(encoding="utf-8")
         rows = page.split("| Command | median s | x start | x python |\n", 1)[1].split("\n\n", 1)[0].splitlines()[1:]
         table = {}
         for line in rows:

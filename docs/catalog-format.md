@@ -32,7 +32,7 @@ A project folder holds files in the same format as the bundled one and adds to i
 | `id` | string | Lowercase letters, digits and single hyphens (`secure-sdlc`). Unique within its collection, across bundled and project records. Use the file name `<id>.json`. |
 | `title` | string | Single line, not empty |
 | `description` | string | Single line, not empty |
-| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://...", "checked": "YYYY-MM-DD"}`. `checked` is required in the bundled catalog and recommended in a project's own (see [Source dates](#source-dates)). HTTPS only, no credentials in the URL, no duplicate URL in one record, no tracking parameter (`utm_*`, `trk`, `gclid`, `fbclid`, `visit_id`, `siteLocation`, a copied `#:~:text=` fragment...). |
+| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://...", "checked": "YYYY-MM-DD"}`. `checked` is required in the bundled catalog and recommended in a project's own (see [Source dates](catalog-format/source-dates.md)). HTTPS only, no credentials in the URL, no duplicate URL in one record, no tracking parameter (`utm_*`, `trk`, `gclid`, `fbclid`, `visit_id`, `siteLocation`, a copied `#:~:text=` fragment...). |
 
 Also enforced:
 
@@ -276,75 +276,15 @@ A server shared by several tools (one server for an issue tracker and its wiki) 
 
 ## Organization catalog
 
-An option, off by default (RFC #446, not decided yet): several repositories can follow the same catalog of an organization, pinned at a commit of a local Git copy. A project that does not set one reads and writes exactly what it did before, and runs no Git command for it.
-
-The organization's repository holds `packs/`, `boards/`, `sectors/` and `patterns/` at its root, in the format of a project catalog. Its records pass the same checks as a project's, with two differences: a pack may not declare a `command` check, since nothing read from another repository runs, and an ID that ships with OpenGuildKit is refused, since an organization catalog adds records. References, deliverables, tools and tool mocks are not read from it.
-
-OpenGuildKit never fetches. The person keeps the copy up to date (`git -C ../org-catalog fetch`), and OpenGuildKit reads the files at the pinned commit with `git ls-tree` and `git cat-file`, whatever branch the copy has checked out.
-
-```bash
-openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA              # what the commit adds, removes and changes
-openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA --by INITIALS --reason WHY   # pin it, at a terminal
-openguildkit profile add pack ORG_PACK --by INITIALS --reason WHY                     # use one of its packs
-openguildkit org-catalog show                                                     # what the project follows and replaces
-```
-
-- **The pin.** `set` with `--by` and `--reason` asks the person to type the first 12 characters of the commit, then writes the instructions and, in `.openguildkit/catalog.lock.json`, an `organization` entry: the full commit, the `sha256:` fingerprint of the files read, who pinned it, when and why, and the copy (below). Changing the commit is the same command: it lists the records added, removed and changed, with the version of each pack, and the tasks consulted under the previous rules. A commit that drops a record the profile uses is refused. `update --apply` and `sync` keep the pin. A new repository can be pinned before `init`, so that `init --answers` reads the organization's packs; `profile export` names the commit to pin there.
-- **The copy: a name, or a path.** With `--name acme` the lock keeps the name and no path, so the same lock reads on every machine and on a CI runner. Each machine sets `OPENGUILDKIT_ORG_CATALOG_ACME` (the name in capitals, `-` as `_`) to the folder of its copy, and `guard --ci --org-catalog acme=PATH` takes the folder on a runner; the flag wins over the variable. Without `--name`, the lock keeps the path of the copy, relative to the project root when it can be: the copy must then sit at that path next to every checkout. `org-catalog show` proposes the move to a name when the lock keeps a path.
-- **History.** Each pin and each stop is added to `organization_history` in the lock, with the commit, who, when and why: `off` removes the pin, not its trace. `org-catalog show --json` prints it under `history`.
-- **Order.** The bundled catalog, then the organization's records, then the project's own `.openguildkit/catalog/`. The catalog lock does not copy the organization's records: the commit and the fingerprint already fix them.
-- **A local replacement.** A project record with the ID of an organization record replaces it (a project board completes it, as it completes a bundled one). `check` says so, as a warning with the SARIF code `catalog-org-replaced`, and `org-catalog show` lists it, until a person runs `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal. The acceptance holds for that edition of the organization record: when a new commit changes it, `check` says so again.
-- **When it cannot be read.** If the copy is missing, the commit is not in it, or the files no longer match the fingerprint, every command that reads the catalog stops, `check` included, with the command that fixes it: `git -C PATH fetch`, or `org-catalog set` with the right path or commit. The message names the folder it looked in. A lock that names the catalog and finds neither the variable nor the flag says which one to set.
-- **In CI.** `guard --ci` reads the base revision in a temporary folder but looks for a relative copy from the real project root, so a pin made at `../org-catalog` works when the runner has the copy there. For a named pin, check out the catalog repository in the workflow and pass its folder (`integrations/github/openguildkit-guard.yml` shows the step). A path given to `set` is stored relative to the project root, never absolute: use a name for a runner.
-- **A new commit in N repositories.** [`integrations/github/openguildkit-org-catalog-update.yml`](../integrations/github/openguildkit-org-catalog-update.yml), copied to each repository, checks out the catalog every Monday and, when its default branch moved past the pinned commit, opens a pull request whose description is the output of `org-catalog set` without `--by` and the command to pin. The job pins nothing and writes no file (its branch holds one empty commit): a person checks out the branch, pins at their terminal, commits the lock and pushes, or closes the pull request.
-- **Off.** `openguildkit org-catalog off --by INITIALS --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records, and records who stopped it, why and at which commit in the history.
+Now in [Organization catalog](catalog-format/organization-catalog.md).
 
 ### Organization policy
 
-An option, off by default (RFC #452, not decided yet): the security or platform team writes `policy.json` at the root of the organization catalog, and every repository that pins a commit holding it keeps its minimum. A repository may be stricter, never less strict. A commit without `policy.json` keeps the fingerprint it had, and a project that follows no organization catalog reads nothing more.
-
-```json
-{"schema_version": 1,
- "minimum": {"guard": "enforce", "approval": "signed", "separate_requester": true},
- "required": {"packs": ["secure-sdlc"]},
- "frozen": {"by": "SEC", "reason": "Compromised model provider", "since": "2026-11-28"}}
-```
-
-Every field but `schema_version` is optional; any other field stops the pin, so a requirement OpenGuildKit does not enforce never passes for one it does. `minimum.guard` is `observe` or `enforce`, `minimum.approval` is `signed`, `minimum.separate_requester` is `true`, `required.packs` lists pack IDs (an organization pack is used once the project follows the catalog that provides it).
-
-- **The pin.** `org-catalog set` reads `policy.json` with the records and says the minimum the commit brings; the person pins it at a terminal, as for the records. `openguildkit org-catalog policy` shows the minimum in force and where the profile is under it.
-- **Profile changes.** `profile set`, `add`, `remove` and the web page refuse a change that goes under the minimum, even from a person at a terminal, and write nothing. A change that raises a setting, or keeps a gap the profile already had, goes on.
-- **`check`** fails with one line per gap, which names the setting, the value required, the commit of the policy and the command that meets it (SARIF `policy-below-floor`), and with `policy-frozen` while the policy freezes the repositories.
-- **In CI.** `openguildkit guard --ci --org-policy PATH --org-commit SHA` reads the policy from the copy and the commit the organization's required workflow gives, never from the lock a pull request carries; without the options it reads the commit the base revision pins. It fails, whatever the guard mode, when the profile of the base revision or the one the change brings is under the minimum.
-- **Freeze (#481).** `frozen` stops the merges of every repository whose required workflow passes the policy commit: `guard --ci` fails every change with `policy-frozen`. Only a new commit of the policy lifts it. Edits on each workstation stop through the freeze of each project (`openguildkit profile set freeze on`, [incident response](workflow.md#incident-response)).
-- **`--policy-repo`** still reads only the central export rule `packs/export-link-expiry.json`; on a commit that holds `policy.json` instead, it names the commands above.
+Now in [Organization policy](catalog-format/organization-catalog.md#organization-policy).
 
 ## Source dates
 
-Every source carries `checked`, a date written `YYYY-MM-DD`, placed right after its `url`:
-
-```json
-{
-  "title": "Regulation (EU) 2016/679 (GDPR), official text",
-  "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
-  "checked": "2026-11-20"
-}
-```
-
-`checked` is the day the page was last opened and answered; a contributor who writes or changes a rule re-reads its source and sets the date to that day. It does not certify that someone re-read the whole document on that day.
-
-How a bundled source is verified and dated:
-
-- **A contributor writes or changes a rule.** They open the source, check the rule's article, threshold or wording against it, and set `checked` to that day. The loader refuses a bundled source without a valid date, and a test reads every packs, boards, patterns, sectors, references and deliverables file. Every loader refuses a `checked` date, or a tool server's `verified` or `reviewed` date, that is not a calendar day or that is after today (one day of margin for time zones); a test refuses any bundled date after the day it runs.
-- **A maintainer runs the link check.** `python3 -I scripts/check_links.py --out link-report --stamp` opens every source page and writes the dates: a page that answered (available, or redirected to a page that answered) gets the day of the report; a page that did not answer or refused the script (dead, 401, 403, 429, a timeout) keeps its date, and a source that has none gets the day its URL entered the catalog, read from the Git history (`git log -S`, the oldest commit's author date; a shallow clone is refused). The script prints each source that did not answer, to open by hand. It never gives the day of the run to a page that did not answer. `--stamp-from link-report/links-DATE.json` writes the dates from a saved report without opening the pages again, so the result depends only on the report and the history and can be run again after a merge.
-- **Every Monday** the `Check catalog links` workflow lists, besides dead, redirected and to-recheck links, the sources whose `checked` date is older than 180 days (`--max-age DAYS` to change it), with the records that cite each one. It fails only on dead links.
-- **Editions.** `scripts/watch_editions.py`, run each Monday by the `Watch reference editions` workflow, opens the source pages of each reference that declares an `edition` and looks for the edition's text. A page whose address does not carry the edition is read first; once the watch has seen the edition there, that page alone decides, and the pages whose address carries an edition are no longer opened. It records in `scripts/edition-watch.json`, per reference, the page, the edition last seen and the day (`seen`, `seen_on`), where it was seen (`seen_in`: on the `page`, or in the `catalog` on the latest `checked` date of the reference's sources until the watch finds it on its page), the day of the check (`checked`) and a status: `from-catalog` (seeded, no page opened yet), `found`, `not-found` (the page answered, never showed the edition, and the catalog gives no date), `unreachable`, or `may-have-changed` (the edition recorded as seen is no longer on the page). The workflow opens one issue per reference in `may-have-changed`, never a second one while the first is open, and keeps the updated file as an artifact; the [reference library](references.md#edition-watch) says who commits the file and when. The heuristic compares text: a page that reformats its edition text (`Rev 5` for `Rev. 5`) raises a false alarm; a publisher that keeps the old edition's page online, unchanged, hides a new edition and nothing is detected; a page built by scripts or served as a PDF rarely shows its edition, so it is reported once its catalog date is the last observation, until the reference points at a page that shows the edition; a short edition such as a year can match an unrelated date.
-
-What a project sees:
-
-- `openguildkit references --id ID` and `openguildkit patterns --id ID` print each source with its date, `(checked 2026-11-20)`, and the JSON outputs carry `checked`.
-- `openguildkit update` starts with the date of the installed catalog, the most recent `checked` date among its bundled sources, and the number of records that changed since the project's lock: `Installed catalog: sources checked up to 2026-11-21. 3 records changed since the project's lock.` A record whose only change is a newer date shows `~ N sources checked again, latest DATE`; applying it changes no rule and leaves consulted tasks current.
-- A project's own sources in `.openguildkit/catalog/` (packs, boards, sectors, patterns, references, deliverables) load without a date, so an upgrade breaks nothing, but `openguildkit check` prints a notice that names each record with an undated source. To date one, open the page, check what the record says against it and add `"checked": "YYYY-MM-DD"` after its `url` with that day's date; change the date each time you re-read the page for a rule. The link check and the edition watch read only the bundled catalog: a project that wants the same watch runs its own.
+Now in [Source dates](catalog-format/source-dates.md).
 
 ## Writing good records
 
