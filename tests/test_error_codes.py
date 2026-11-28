@@ -36,13 +36,11 @@ build_errors = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build_errors)
 
 CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
-# The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
-CODED = ("tasks.py", "tasks_cli.py")
-# The errors a person can read, built without a code: ValueError and the classes that derive from it or answer the web
-# page. The count may go down, never up (#487); a broken invariant of the code raises errors.InternalError instead.
+# The errors a person can read: ValueError and the classes that derive from it or answer the web page. No error a person
+# reads may be built without a code (#487), in any module; a broken invariant of the code raises errors.InternalError.
 PERSON_ERRORS = ("ValueError", "CatalogError", "TaskStateError", "Refused", "RuleError", "SignerNotCurrent",
                  "InvalidProfile", "EntryProblems", "Weakening", "ExcludedPath", "NestedTooDeeply")
-UNCODED_CEILING = 0
+UNCODED_CEILING = 0  # Stays 0: every error a person reads takes its code first.
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -87,12 +85,12 @@ class RegisterTests(unittest.TestCase):
                                  "src/openguildkit/a.py:10: the code must be written as OGK-AREA-NNN"])
 
     def test_issue_487_a_coded_module_raises_no_value_error_without_a_code(self):
-        """Issue #487: the errors of the task commands were bare ValueError, their text the only identifier."""
+        """Issue #487: the errors a person read were bare ValueError, their text the only identifier."""
         package = REPO / "src" / "openguildkit"
-        self.assertEqual({name: uncoded_sites(package / name) for name in CODED if uncoded_sites(package / name)}, {})
-        total = sum(len(uncoded_sites(path)) for path in package.glob("*.py"))
-        self.assertLessEqual(total, UNCODED_CEILING, "give the new errors a code (errors.OgkError)")
-        self.assertEqual(total, UNCODED_CEILING, f"lower UNCODED_CEILING to {total}: it only goes down")
+        uncoded = {path.name: uncoded_sites(path) for path in sorted(package.glob("*.py")) if uncoded_sites(path)}
+        self.assertEqual(sum(len(lines) for lines in uncoded.values()), UNCODED_CEILING,
+                         f"no error a person reads may be built without a code: give each its code (errors.OgkError), "
+                         f"or raise errors.InternalError for a broken invariant of the code: {uncoded}")
 
     def test_issue_487_the_line_puts_the_code_before_the_message(self):
         """Issue #487: cli.main printed every error as `OpenGuildKit: message`, without a code."""
