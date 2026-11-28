@@ -612,6 +612,7 @@ Open the web interface of this project on 127.0.0.1.
 - `--port PORT`: Port (default 7311; 0 picks a free one).
 - `--no-browser`: Print the address without opening a browser.
 - `--static PATH`: Folder of a built front end (default: the one installed with the package).
+- `--stable-address`: Keep the host name from one launch to the next, so the browser keeps the page's preferences. It comes from the project's path, which another local program can compute.
 
 ## ci-check
 

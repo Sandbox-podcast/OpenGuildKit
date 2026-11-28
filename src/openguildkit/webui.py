@@ -645,18 +645,18 @@ class Handler(BaseHTTPRequestHandler):
         asset = self.app.asset(target)
         cache = "no-cache" if target.name == "index.html" else "public, max-age=31536000, immutable" \
             if "/assets/" in f"/{relative}" and re.search(r"-[A-Za-z0-9_-]{8,}\.", target.name) else "no-cache"
-        packed = asset.packed is not None and "gzip" in (self.headers.get("Accept-Encoding") or "")
+        packed = asset.packed if "gzip" in (self.headers.get("Accept-Encoding") or "") else None
         # The gzip form is another representation: it has its own ETag.
-        etag = asset.etag[:-1] + '-gzip"' if packed else asset.etag
+        etag = asset.etag[:-1] + '-gzip"' if packed is not None else asset.etag
         extra = {"Content-Security-Policy": CSP, "Cache-Control": cache, "ETag": etag}
         if asset.packed is not None:
             extra["Vary"] = "Accept-Encoding"
         if _matches(self.headers.get("If-None-Match"), etag):
             self._send(HTTPStatus.NOT_MODIFIED, b"", asset.kind, extra)
             return
-        if packed:
+        if packed is not None:
             extra["Content-Encoding"] = "gzip"
-        self._send(HTTPStatus.OK, asset.packed if packed else asset.body, asset.kind, extra)
+        self._send(HTTPStatus.OK, asset.body if packed is None else packed, asset.kind, extra)
 
     def do_POST(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         try:
