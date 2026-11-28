@@ -385,7 +385,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.git("add", "docs")
         self.git("commit", "-q", "-m", "change")
         exported = self.run_cli("task", "export", TASK)[0].strip()
-        record = json.loads((self.root / exported).read_text())
+        record = json.loads((self.root / exported).read_text(encoding="utf-8"))
         self.assertEqual(record["files"], ["docs/a b.md", "docs/résumé.md"])
         record = {key: value for key, value in record.items() if key != "record_sha256"}
         record["files"] = ["docs/a b.md", '"docs/r\\303\\251sum\\303\\251.md"']

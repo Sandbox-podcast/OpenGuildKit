@@ -172,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all", action="store_true", help="run every selected test, whatever the budget")
     parser.add_argument("--jobs", type=int, default=run_tests.default_jobs(), help="test files at once")
     args = parser.parse_args(argv)
+    run_tests.tolerant_stdout()
     module_map = json.loads(MAP.read_text(encoding="utf-8"))
     if args.plan:
         commands = {item["command"] for item in module_map.get("commands", [])}

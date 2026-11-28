@@ -306,20 +306,26 @@ class CheckFastTests(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 10)
 
     def fast_repository(self, tests: dict[str, str]) -> Path:
-        """A Git repository with a module attached to `tests`, check_fast and its runner, and the module changed."""
+        """A Git repository with a module attached to `tests`, check_fast and its runner, and the module changed.
+
+        It ignores __pycache__/ as the repository does: otherwise the bytecode of run_tests, which check_fast imports,
+        is an untracked file with no test attached, and the check fails (#456)."""
         root = _repository(self)
         for name in ("check_fast", "run_tests"):
             (root / "scripts").mkdir(exist_ok=True)
             shutil.copy(REPO / "scripts" / f"{name}.py", root / "scripts" / f"{name}.py")
         module_map = {"modules": [{"module": "src/openguildkit/a.py", "tests": sorted(tests)}], "paths": []}
-        _commit(root, {"src/openguildkit/a.py": "", "tests/__init__.py": "", **tests,
+        _commit(root, {".gitignore": "__pycache__/\n", "src/openguildkit/a.py": "", "tests/__init__.py": "", **tests,
                        "docs/agents/map.json": json.dumps(module_map)}, "base")
         (root / "src" / "openguildkit" / "a.py").write_text("VALUE = 1\n", encoding="utf-8")
         return root
 
     def check(self, root: Path, *args: str) -> subprocess.CompletedProcess:
+        """check_fast as CI runs it: Python writes the bytecode of the runner it imports next to the script."""
+        environment = {key: value for key, value in os.environ.items()
+                       if key not in ("PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX")}
         return subprocess.run([sys.executable, str(root / "scripts" / "check_fast.py"), *args], cwd=root,
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=environment)
 
     def test_issue_456_a_failure_comes_first_and_stops_the_run_after_the_announced_count(self):
         """Issue #456: the check ran everything in one process, with no count first and no stop at a failure."""

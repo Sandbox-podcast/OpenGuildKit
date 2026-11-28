@@ -1004,6 +1004,12 @@ class BeforeTheShortLaneTests(unittest.TestCase):
         revision = patch("openguildkit.doc_links._revision", return_value="main")
         revision.start()
         self.addCleanup(revision.stop)
+        # sync writes the running version in the catalog lock: 0.17.1.dev0+source from a checkout, 0.17.1.dev0 once
+        # installed, as in CI. The lock keeps the version of the fixture, whichever runs the tests (#493).
+        written = json.loads(BEFORE["files"][".openguildkit/catalog.lock.json"])["generated_by"].partition(" ")[2]
+        version = patch("openguildkit.lock.package_version", return_value=written)
+        version.start()
+        self.addCleanup(version.stop)
         # An upgrade that raises INSTRUCTIONS_LAYOUT asks for one openguildkit sync, which rewrites AGENTS.md alone.
         run_cli(self.root, "sync")
 

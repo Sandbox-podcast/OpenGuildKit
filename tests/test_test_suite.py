@@ -153,6 +153,21 @@ class ParallelRunnerTests(unittest.TestCase):
         self.assertEqual((late["passed"], late["failed"]), ([], []))
         self.assertEqual(late["stopped"] + late["not_run"], ["tests/test_slow.py", "tests/test_ok.py"])
 
+    def test_issue_451_a_failure_whose_output_the_console_cannot_encode_is_printed_all_the_same(self):
+        """Issue #451: on Windows, a failed file whose output held a byte that is not UTF-8 stopped the runner with a
+        UnicodeEncodeError: the console's cp1252 has no U+FFFD for the byte it decoded."""
+        undecodable = FAILING.replace("        self.assertEqual", "        import sys\n        sys.stdout.buffer.write(b'caf\\xe9\\n')\n"
+                                      "        sys.stdout.flush()\n        self.assertEqual")
+        root = self.tree({"tests/test_bad.py": undecodable})
+        parallel = subprocess.run([sys.executable, "scripts/run_tests.py", "--jobs", "1"], cwd=root, capture_output=True,
+                                  check=False, env=support.subprocess_environment({"PYTHONIOENCODING": "cp1252"}))
+        output = parallel.stdout.decode("cp1252") + parallel.stderr.decode("cp1252")
+        self.assertEqual(parallel.returncode, 1, output)
+        self.assertNotIn("UnicodeEncodeError", output)
+        self.assertIn("===== tests/test_bad.py failed", output)
+        self.assertIn("AssertionError: 'kept' != 'trace of the failure'", output)
+        self.assertIn("1 test file(s), 1 tests, 1 failed", output)
+
 
 if __name__ == "__main__":
     unittest.main()
