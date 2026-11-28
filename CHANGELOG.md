@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `task decide` and `task challenge` find the project's last approval through the status index, which now keeps each record's latest approval date, and read that one record instead of every task: `task challenge` at 1,000 tasks from 2.0 s to 0.27 s; a missing, stale or garbled index still reads them all (#535)
 - Catalog loading: an installed package reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, validated when the wheel is built, instead of reading and validating 289 files in every process; `task list` loads the catalog and reads the lock once, and commands copy the catalog less. A checkout without the bundle reads the record files as before (#533)
 - `task list`, `check` and `projects` read each task record once, not two to four times; `task list --status` and `--ready` read only the records the status index lists with a wanted status, and a closed task's line comes from the index; task records are written without indentation, 29 % lighter. 1,000 tasks: `task list` 5.8 s to 0.32 s, `check` 7.7 to 3.5 s, `projects` 10.3 to 3.7 s (#534)
 - `profile set approver-roles BOARD NAME...`: roles by board, off by default. A blocker raised by a board with a role is cleared or waived only by its members (the signer, in a signed project), a task it blocked is approved only by one, and `guard --ci` refuses a new record outside the roles of the base revision. Widening or removing a role needs a terminal (#475)

@@ -1,7 +1,8 @@
 """Know each task's status without parsing every record, so the edit hook reads only the tasks that can cover it.
 
 The index lives with the task records (ignored by git, refused to agent edits) and maps each record file to its
-status and to the size, times and inode the file had when that status was read; task list adds that it read the
+status, to the date of its latest approval (earlier rounds included) and to the size, times and inode the file had
+when they were read; task list adds that it read the
 record whole and, for a closed task, the line it printed (tasks.list_tasks). An entry is used only while the file
 still matches it; otherwise the record is read again and the entry replaced. The index only says which records can be
 skipped: the guard still reads every record it does not skip, check reads them all, so a missing, stale or corrupt
@@ -17,7 +18,7 @@ from pathlib import Path
 from .storage import file_signature
 
 INDEX_FILE = ".status-index"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2 adds "approved", the date of the record's latest approval (tasks.last_approval).
 # A file changed less than this long before the index was written may have changed again within the same
 # timestamp tick of a coarse file system, so its entry is checked again (2 s covers FAT).
 RACY_NANOSECONDS = 2_000_000_000
@@ -36,13 +37,28 @@ def _read_index(directory: Path) -> tuple[dict, int]:
     return data["tasks"], written
 
 
-def _record_status(path: Path) -> str | None:
-    """The status a record declares, or None when it cannot be read."""
+def latest_approval_at(record: object) -> str | None:
+    """When the record was last approved, earlier rounds included; None when it never was or cannot say."""
+    latest = None
     try:
-        status = json.loads(path.read_bytes().decode("utf-8-sig")).get("status")
-    except (OSError, ValueError, RecursionError, AttributeError):
+        for entry in [*record.get("rounds", []), record]:  # type: ignore[union-attr]
+            decision = entry.get("decision") or {}
+            if decision.get("outcome") == "approved" and isinstance(decision.get("at"), str) and \
+                    (latest is None or decision["at"] > latest):
+                latest = decision["at"]
+    except (AttributeError, TypeError):
         return None
-    return status if isinstance(status, str) else None
+    return latest
+
+
+def _record_status(path: Path) -> tuple[str | None, str | None]:
+    """The status a record declares and the date of its latest approval; None for what cannot be read."""
+    try:
+        record = json.loads(path.read_bytes().decode("utf-8-sig"))
+        status = record.get("status")
+    except (OSError, ValueError, RecursionError, AttributeError):
+        return None, None
+    return (status if isinstance(status, str) else None), latest_approval_at(record)
 
 
 def _write_index(directory: Path, entries: dict) -> None:
@@ -75,7 +91,7 @@ def tasks_with_status(state: Path, skipped: set[str]) -> list[str]:
 
 def entries(state: Path) -> dict[str, dict]:
     """Each task record file's entry, by file name in name order: the status it declares ("status", None when it
-    cannot be read) and the signature of the file it was read from ("stamp"), with what task list added to it
+    cannot be read), the date of its latest approval ("approved") and the signature of the file it was read from ("stamp"), with what task list added to it
     (tasks.list_tasks). An entry that no longer matches its file is read again and replaced, which drops the rest."""
     directory = state / "tasks"
     try:
@@ -95,11 +111,12 @@ def entries(state: Path) -> dict[str, dict]:
             continue
         previous = known.get(entry.name)
         if isinstance(previous, dict) and isinstance(previous.get("status"), str | None) and \
-                previous.get("stamp") == stamp and stamp[1] + RACY_NANOSECONDS < written:
+                isinstance(previous.get("approved"), str | None) and previous.get("stamp") == stamp and stamp[1] + RACY_NANOSECONDS < written:
             current[entry.name] = previous
         else:
             # The stamp is taken before the read: if the file changes in between, the next run sees a new stamp.
-            current[entry.name] = {"status": _record_status(Path(entry.path)), "stamp": stamp}
+            status, approved = _record_status(Path(entry.path))
+            current[entry.name] = {"status": status, "approved": approved, "stamp": stamp}
             changed = True
     if changed or {name for name, entry in current.items() if "stamp" in entry} != known.keys():
         save(state, current)
