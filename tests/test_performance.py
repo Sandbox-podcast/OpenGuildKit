@@ -553,6 +553,34 @@ class StartupTests(unittest.TestCase):
                 self.assertNotIn(f"openguildkit.{module}", loaded)
         self.assertLessEqual(len(loaded), 20, sorted(loaded))
 
+    def test_issue_539_the_edit_hook_covered_by_an_approved_task_leaves_out_the_task_commands(self):
+        """Issue #539: with an approved task, the hook imported tasks, tasks_status and their consultation, workflow
+        and results imports, 55 modules of the package, to judge whether the approval holds."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            profile = {**json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")), "guard": "enforce"}
+            write_json(root / "profile.json", profile)
+            run_cli(root, "init", "--answers", root / "profile.json")
+            run_cli(root, "task", "new", "--file", bench.EXAMPLE / "brief.md", "--id", "covered")
+            run_cli(root, "task", "consult", "covered", "--answers", bench.EXAMPLE / "answers.json")
+            template = json.loads(run_cli(root, "task", "template", "covered").stdout)
+            write_json(root / "review.json", {"consultation_id": template["consultation_id"],
+                                              **json.loads((bench.EXAMPLE / "review.json").read_text(encoding="utf-8"))})
+            run_cli(root, "task", "review", "covered", "--file", root / "review.json")
+            run_cli(root, "task", "decide", "covered", "--approve", "--by", "Camille", "--reason", "Agreed",
+                    typed="covered")
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard", "--hook",
+                            "pre-edit", stdin=hook)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        loaded = {name for name in imported(result.stderr) if name.startswith("openguildkit")}
+        self.assertIn("openguildkit.approval_check", loaded)
+        for module in ("tasks", "tasks_approval", "tasks_status", "tasks_closing", "tasks_review", "consultation",
+                       "workflow", "results", "sensitive", "delivered_review", "detect", "routing"):
+            with self.subTest(module=module):
+                self.assertNotIn(f"openguildkit.{module}", loaded)
+        self.assertLessEqual(len(loaded), 24, sorted(loaded))
+
     def test_version_answers_without_the_cli(self):
         """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""
         result = python("-X", "importtime", "-m", "openguildkit", "--version")
