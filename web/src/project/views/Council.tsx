@@ -623,7 +623,7 @@ function Passes({ task }: { task: TaskRecord }) {
           {(list) => (
             <ul className={`plain board-seats ${mode === 'explorer' ? 'rpg' : ''}`}>
               {list.map((p) => {
-                const s = PASS[p.status];
+                const s = PASS[p.status]!;
                 return (
                   <li key={p.board} className={`board-seat board-seat-${p.status}`}>
                     <span className="board-seat-icon">
@@ -1082,8 +1082,8 @@ function Blockers({ id }: { id: string }) {
                 { name: 'by', label: 'Personne qui lève le point bloquant', required: true },
               ]}
               onSubmit={async (v) => {
-                setBy(v.by);
-                const argv = ['task', 'clear', id, clearing.id, '--evidence', v.evidence, '--supports', v.supports, '--by', v.by];
+                setBy(v.by!);
+                const argv = ['task', 'clear', id, clearing.id, '--evidence', v.evidence!, '--supports', v.supports!, '--by', v.by!];
                 if (signed && signature && signer) {
                   if (
                     await act([...argv, '--signature', '@upload:clear.sig', '--signer', signer], {
@@ -1169,13 +1169,13 @@ function Blockers({ id }: { id: string }) {
                     id,
                     waiving.id,
                     '--by',
-                    v.by,
+                    v.by!,
                     '--reason',
-                    v.reason,
+                    v.reason!,
                     '--scope',
-                    v.scope,
+                    v.scope!,
                     '--until',
-                    v.until,
+                    v.until!,
                   ]),
                 });
               }}

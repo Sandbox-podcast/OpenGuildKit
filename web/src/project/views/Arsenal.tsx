@@ -52,8 +52,8 @@ export function Arsenal() {
             { name: 'by', label: 'Personne qui décide', required: true },
             { name: 'reason', label: 'Pourquoi', required: true, placeholder: enabling ? 'L’équipe suit ses tickets dans cet outil' : 'L’équipe ne s’en sert plus' },
           ]} onSubmit={async (v) => {
-            setBy(v.by);
-            const done = await act(['features', enabling ? 'enable' : 'disable', picked.option.tool, '--by', v.by, '--reason', v.reason],
+            setBy(v.by!);
+            const done = await act(['features', enabling ? 'enable' : 'disable', picked.option.tool, '--by', v.by!, '--reason', v.reason!],
               { success: enabling ? 'Fonctionnalité activée' : 'Fonctionnalité désactivée' });
             if (done) { setLeft(enabling ? null : picked.option); setPicked(null); }
           }} />

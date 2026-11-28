@@ -49,7 +49,7 @@ function Export() {
           <TextField label="Version du projet" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="1.4.0" />
           <TextField label="Dossier de sortie" value={output} onChange={(e) => setOutput(e.target.value)} hint="Relatif au projet. L’export refuse un dossier qu’il n’a pas créé." />
         </div>
-        <fieldset className="choices"><legend>Sections</legend><div className="choice-row">{[['reference', 'Reference'], ['learn', 'Learn'], ['blog', 'Blog']].map(([id, label]) => <Checkbox key={id} label={label} checked={sections.includes(id)} onChange={() => setSections((s) => toggle(s, id))} />)}</div></fieldset>
+        <fieldset className="choices"><legend>Sections</legend><div className="choice-row">{[['reference', 'Reference'], ['learn', 'Learn'], ['blog', 'Blog']].map(([id, label]) => <Checkbox key={id} label={label} checked={sections.includes(id!)} onChange={() => setSections((s) => toggle(s, id!))} />)}</div></fieldset>
         <TextField label="Fichier OpenAPI à joindre (facultatif)" value={openapi} onChange={(e) => setOpenapi(e.target.value)} placeholder="openapi.yaml" />
         <Button variant="primary" busy={busy !== null} disabled={!picked.length || !version.trim() || !sections.length} onClick={() => void act(['docs', 'export', '--tasks', picked.join(','), '--output', output, '--version', version.trim(), '--sections', sections.join(','), ...(openapi ? ['--openapi', openapi] : [])], { success: 'Pages écrites' })}>Écrire les pages</Button>
       </Panel>
@@ -82,7 +82,7 @@ function Shares() {
       <Q q={shares}>{(list) => <Panel title={`Registre (${list.length})`}>
         {list.some((s) => !s.revoked_at) && <TextField label="Personne qui enregistre un retrait" hint={by.trim() ? undefined : 'Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré : le registre note qui l’a fait.'} value={by} onChange={(e) => setBy(e.target.value)} />}
         {list.length === 0 ? <p className="muted">Aucun partage.</p> : <TableBox label="Registre des partages"><table className="data compact"><thead><tr><th>Livrable</th><th>Destinataires</th><th>Jusqu’au</th><th>État</th><th><span className="sr-only">Retrait</span></th></tr></thead><tbody>
-          {list.map((s) => { const l = SHARE[shareState(s.state)]; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span>{s.space && <span className="tiny block">Espace partagé en entier : <span className="mono">{s.space}</span></span>}{!!s.also_in_space?.length && <span className="tiny block">Autres livrables visibles : {s.also_in_space.join(", ")}</span>}<span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
+          {list.map((s) => { const l = SHARE[shareState(s.state)]!; return <tr key={s.id}><td><span className="mono small">{s.deliverable}</span>{s.space && <span className="tiny block">Espace partagé en entier : <span className="mono">{s.space}</span></span>}{!!s.also_in_space?.length && <span className="tiny block">Autres livrables visibles : {s.also_in_space.join(", ")}</span>}<span className="tiny block"><ExternalLink href={s.portal}>portail</ExternalLink> · {s.by}, {fmtWhen(s.created_at)}</span></td><td className="small">{s.recipients.join(', ')}</td><td>{fmtDay(s.until)}</td><td><Badge tone={l.tone} icon={l.icon}>{l.label}</Badge></td>
             <td>{!s.revoked_at && <Button size="small" variant="danger" busy={busy !== null} disabled={!by.trim()} onClick={() => void act(['docs', 'share', 'revoke', '--id', s.id, '--by', by.trim()], { success: 'Retrait enregistré' })}>Accès retiré</Button>}</td></tr>; })}
         </tbody></table></TableBox>}
         <p className="tiny muted">Retire d’abord l’accès dans Documentalist (« Retirer l’accès »), puis enregistre-le ici.</p>
@@ -94,7 +94,7 @@ function Shares() {
           { name: 'until', label: 'Dernier jour d’accès', type: 'date', required: true },
           { name: 'portal', label: 'Adresse du portail Documentalist', type: 'url', required: true, hint: 'En https, ou en http pour un portail sur ce poste (localhost, 127.0.0.1, ::1). Le partage ouvre tout l’espace du portail, pas seulement cette page.' },
           { name: 'by', label: 'Responsable du partage', required: true },
-        ]} onSubmit={async (v) => { setBy(v.by); if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until, '--portal', v.portal, '--by', v.by], { success: 'Partage enregistré' })) setRecipients([]); }} />
+        ]} onSubmit={async (v) => { setBy(v.by!); if (await act(['docs', 'share', 'add', '--deliverable', v.deliverable!, ...recipients.flatMap((r) => ['--recipient', r]), '--until', v.until!, '--portal', v.portal!, '--by', v.by!], { success: 'Partage enregistré' })) setRecipients([]); }} />
       </Panel>
     </div>
   );

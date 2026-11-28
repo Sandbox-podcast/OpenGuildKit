@@ -91,25 +91,7 @@
     "src/shared/ui/markdown.tsx": 5,
     "src/shared/ui/overlay.tsx": 10
   },
-  "indexedAccess": {
-    "src/project/labels.ts": 9,
-    "src/project/parts.tsx": 1,
-    "src/project/query.ts": 1,
-    "src/project/refusals.ts": 2,
-    "src/project/views/Arsenal.tsx": 3,
-    "src/project/views/Blueprint.tsx": 6,
-    "src/project/views/Council.tsx": 14,
-    "src/project/views/Docs.tsx": 14,
-    "src/project/views/Forge.tsx": 11,
-    "src/project/views/Observatory.tsx": 25,
-    "src/project/views/Watchtower.tsx": 4,
-    "src/shared/pixel/buildings.ts": 11,
-    "src/shared/pixel/icons.tsx": 1,
-    "src/shared/pixel/painter.ts": 1,
-    "src/shared/pixel/terrain.ts": 11,
-    "src/shared/ui/core.tsx": 1,
-    "src/shared/ui/markdown.tsx": 22
-  },
+  "indexedAccess": {},
   "lint": {
     "src/demo/domain/commands/blueprint.ts": 1,
     "src/demo/domain/commands/oversight.ts": 2,

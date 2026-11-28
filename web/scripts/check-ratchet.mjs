@@ -1,8 +1,8 @@
 // Four rules the code does not meet yet, counted per file against a baseline frozen in style-baseline.json: a file may
 // get better, never worse, and a file that got better must lower its number.
 //   longLines       the lines of src/*.ts and src/*.tsx over MAX_LINE characters
-//   indexedAccess   the errors tsc gives src/project and src/shared (tsconfig.index.json) with noUncheckedIndexedAccess,
-//                   in every file they import: the product reaches into src/domain, src/adapters and src/fixtures
+//   indexedAccess   the errors tsc gives src/project and src/shared (tsconfig.index.json) with noUncheckedIndexedAccess:
+//                   none since #515, so any new one fails
 //   lint            the problems ESLint reports (eslint.config.mjs), among them the product importing the demo
 //   unformatted     1 for each file Prettier would change (.prettierrc.json); a file formatted by `npm run format` stays so
 // Run: npm run check:ratchet (longLines and indexedAccess), npm run lint, npm run format:check; or

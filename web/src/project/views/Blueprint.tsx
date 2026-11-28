@@ -753,8 +753,8 @@ function ProfileDecisions({ profile }: { profile: Profile }) {
           { name: 'reason', label: 'Pourquoi', required: true },
         ]}
         onSubmit={async (v) => {
-          setBy(v.by);
-          await act(['profile', v.action, v.pattern, '--by', v.by, '--reason', v.reason], { success: 'Profil changé' });
+          setBy(v.by!);
+          await act(['profile', v.action!, v.pattern!, '--by', v.by!, '--reason', v.reason!], { success: 'Profil changé' });
         }}
       />
       {declined.length > 0 && (

@@ -126,7 +126,7 @@ const DRAW: Record<PlaceKey, () => Grid> = {
     g.rect(52, 30, 3, 29, TIMBER[2]).rect(68, 30, 3, 29, TIMBER[2]);
     g.block(49, 26, 25, 4, TIMBER);
     g.rect(51, 31, 21, 17, TIMBER[1]).frame(51, 31, 21, 17, TIMBER[3]);
-    for (const [x, y, w, h] of [[53, 33, 6, 7], [61, 33, 8, 5], [62, 40, 7, 6], [53, 42, 7, 5]]) { g.rect(x, y, w, h, PAPER[0]).hline(x + 1, y + 2, w - 2, PAPER[2]).set(x + Math.floor(w / 2), y, SLATE[1]); }
+    for (const [x, y, w, h] of [[53, 33, 6, 7], [61, 33, 8, 5], [62, 40, 7, 6], [53, 42, 7, 5]] as const) { g.rect(x, y, w, h, PAPER[0]).hline(x + 1, y + 2, w - 2, PAPER[2]).set(x + Math.floor(w / 2), y, SLATE[1]); }
     g.hline(51, 48, 21, TIMBER[3]);
     plinth(g, 4, 59, 44);
     return g.outline(WORLD_COLORS.ink);
@@ -158,7 +158,7 @@ const DRAW: Record<PlaceKey, () => Grid> = {
     g.window(42, 38, 7, 8);
     g.planks(57, 38, 14, 23, TIMBER).hip(55, 32, 18, 6, TIMBER, 2);
     g.rect(60, 44, 2, 10, STEEL[1]).rect(58, 43, 6, 2, STEEL[2]).rect(66, 46, 2, 9, TIMBER[3]);
-    for (const [x, y] of [[14, 53], [19, 49], [21, 46], [17, 43]]) g.set(x, y, WORLD_COLORS.paleMint);
+    for (const [x, y] of [[14, 53], [19, 49], [21, 46], [17, 43]] as const) g.set(x, y, WORLD_COLORS.paleMint);
     g.hline(7, 37, 49, BASALT[0]);
     plinth(g, 4, 61, 68);
     return g.outline(WORLD_COLORS.ink);
@@ -188,7 +188,7 @@ const DRAW: Record<PlaceKey, () => Grid> = {
     g.rect(31, 15, 7, 23, GLASS[3]).hline(32, 14, 5, GLASS[3]);
     for (let i = 0; i < 14; i++) { g.rect(36 + i, 22 - i, 3, 3, STEEL[i % 4 === 0 ? 0 : 1]); }
     g.rect(49, 6, 5, 5, STEEL[2]).set(52, 7, WORLD_COLORS.mint);
-    for (const [x, y] of [[18, 26], [24, 19], [46, 30], [53, 36], [14, 34]]) g.set(x, y, LANTERN[0]);
+    for (const [x, y] of [[18, 26], [24, 19], [46, 30], [53, 36], [14, 34]] as const) g.set(x, y, LANTERN[0]);
     g.window(15, 46, 6, 9).window(49, 46, 6, 9).door(29, 54, 12, 17, TIMBER);
     g.hline(11, 38, 50, GLASS[3]).hline(12, 39, 47, STONE[0]);
     for (const x of [12, 57]) g.vline(x, 42, 28, STONE[2]);
@@ -214,7 +214,7 @@ const DRAW: Record<PlaceKey, () => Grid> = {
     g.bricks(10, 26, 34, 53, BASALT, 5);
     g.gable(27, 2, 21, 23, STEEL, 2);
     g.disc(27, 37, 8, LANTERN[2]).disc(27, 37, 7, PAPER[0]);
-    for (const [dx, dy] of [[0, -6], [6, 0], [0, 6], [-6, 0]]) g.set(27 + dx, 37 + dy, WORLD_COLORS.ink);
+    for (const [dx, dy] of [[0, -6], [6, 0], [0, 6], [-6, 0]] as const) g.set(27 + dx, 37 + dy, WORLD_COLORS.ink);
     g.vline(27, 32, 6, WORLD_COLORS.ink).hline(27, 37, 4, WORLD_COLORS.ink).set(27, 37, SLATE[1]);
     g.window(15, 50, 6, 10).window(33, 50, 6, 10);
     g.rect(20, 63, 14, 16, TIMBER[2]).hline(21, 62, 12, TIMBER[2]).hline(22, 61, 10, TIMBER[2]);

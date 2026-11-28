@@ -64,15 +64,15 @@ function landPatch(g: Grid, points: Point[], color: string) {
   for (let y = Math.min(...ys); y < Math.max(...ys); y++) {
     const intersections: number[] = [];
     for (let i = 0; i < points.length; i++) {
-      const [x1, y1] = points[i];
-      const [x2, y2] = points[(i + 1) % points.length];
+      const [x1, y1] = points[i]!;
+      const [x2, y2] = points[(i + 1) % points.length]!;
       if (y >= Math.min(y1, y2) && y < Math.max(y1, y2)) {
         intersections.push(Math.round(x1 + (x2 - x1) * (y - y1) / (y2 - y1)));
       }
     }
     intersections.sort((a, b) => a - b);
     for (let i = 0; i + 1 < intersections.length; i += 2) {
-      g.hline(intersections[i], y, intersections[i + 1] - intersections[i], color);
+      g.hline(intersections[i]!, y, intersections[i + 1]! - intersections[i]!, color);
     }
   }
 }
@@ -189,7 +189,7 @@ function paintWoodland(g: Grid, random: ReturnType<typeof rng>) {
       const density = edge ? 0.64 : 0.07;
       if (random() > density || !ground.has(g.get(tx, ty))) continue;
       if (buildings.some(p => Math.abs(tx - p.door[0]) < 32 && ty >= p.y - 3 && ty <= p.door[1] + 11)) continue;
-      const tree = trees[Math.floor(random() * trees.length)];
+      const tree = trees[Math.floor(random() * trees.length)]!;
       g.ellipse(tx + 2, ty + 1, Math.floor(tree.w / 2), 4, WORLD_COLORS.ink);
       g.blit(tree, tx - Math.floor(tree.w / 2), ty - tree.h + 1);
     }
@@ -258,8 +258,8 @@ function drawTown(territories: Territory[]): Grid {
   bridge(g, 394, 192);
   fountain(g);
   paintWoodland(g, random);
-  for (const [x, y] of [[89, 133], [205, 196], [292, 248], [447, 217], [523, 222], [143, 265]]) garden(g, x, y);
-  for (const [x, y] of [[106, 92], [208, 102], [281, 199], [317, 208], [445, 149], [535, 205], [115, 254], [367, 264], [462, 264]]) lantern(g, x, y);
+  for (const [x, y] of [[89, 133], [205, 196], [292, 248], [447, 217], [523, 222], [143, 265]] as const) garden(g, x, y);
+  for (const [x, y] of [[106, 92], [208, 102], [281, 199], [317, 208], [445, 149], [535, 205], [115, 254], [367, 264], [462, 264]] as const) lantern(g, x, y);
   territories.forEach((territory, index) => paintTerrace(g, territory, index, territories.length));
   return g;
 }

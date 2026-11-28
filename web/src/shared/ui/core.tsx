@@ -36,7 +36,7 @@ export function Notice({ tone = 'info', icon, children, title }: { tone?: 'info'
   const def: Record<string, PixelIconName> = { info: 'question', warn: 'warn', danger: 'warn', ai: 'ai', success: 'check' };
   return (
     <div className={`notice ${tone === 'info' ? '' : tone}`} role={tone === 'danger' ? 'alert' : undefined}>
-      <Icon name={icon ?? def[tone]} size={16} />
+      <Icon name={icon ?? def[tone]!} size={16} />
       <div>{title && <strong>{title} </strong>}{children}</div>
     </div>
   );

@@ -44,8 +44,8 @@ export function Observatory({ id }: { id?: string }) {
         {providing && <ActionForm busy={busy !== null} submit="Enregistrer" initial={{ by }} fields={[
           { name: 'by', label: 'Qui a relu la page', required: true, hint: providing.url },
         ]} onSubmit={async (v) => {
-          setBy(v.by);
-          if (await act(['market', 'provided', providing.dossier, '--url', providing.url, '--by', v.by], { success: 'Relecture enregistrée' })) setProviding(null);
+          setBy(v.by!);
+          if (await act(['market', 'provided', providing.dossier, '--url', providing.url, '--by', v.by!], { success: 'Relecture enregistrée' })) setProviding(null);
         }} />}
       </Dialog>
       <Dialog open={creating} onClose={() => setCreating(false)} title="Nouveau dossier de marché">
@@ -56,7 +56,7 @@ export function Observatory({ id }: { id?: string }) {
           { name: 'audience', label: 'Public', required: true },
           { name: 'feature', label: 'Fonctionnalité comparée', required: true },
         ]} onSubmit={async (v) => {
-          if (await act(['market', 'new', v.id, '--title', v.title, '--market', v.market, '--audience', v.audience, '--feature', v.feature], { success: 'Dossier créé' })) { setCreating(false); navigate(`/observatoire/${v.id}`); }
+          if (await act(['market', 'new', v.id!, '--title', v.title!, '--market', v.market!, '--audience', v.audience!, '--feature', v.feature!], { success: 'Dossier créé' })) { setCreating(false); navigate(`/observatoire/${v.id}`); }
         }} />
       </Dialog>
     </div>
@@ -114,22 +114,22 @@ function DossierView({ id }: { id: string }) {
           {form === 'competitor' && <ActionForm busy={busy !== null} submit="Ajouter" fields={[
             { name: 'competitor', label: 'Identifiant', required: true, placeholder: 'vendor-a' }, { name: 'name', label: 'Nom', required: true },
             { name: 'kind', label: 'Type', required: true, options: [{ value: 'direct', label: 'Concurrent direct' }, { value: 'substitute', label: 'Substitut' }] }, { name: 'segment', label: 'Segment servi' },
-          ]} onSubmit={(v) => submit(['competitor', id, '--competitor', v.competitor, '--name', v.name, '--kind', v.kind, ...(v.segment ? ['--segment', v.segment] : [])])} />}
+          ]} onSubmit={(v) => submit(['competitor', id, '--competitor', v.competitor!, '--name', v.name!, '--kind', v.kind!, ...(v.segment ? ['--segment', v.segment] : [])])} />}
           {form === 'observe' && <ActionForm busy={busy !== null} submit="Enregistrer" fields={[
             { name: 'competitor', label: 'Concurrent', required: true, options: competitors }, { name: 'observation', label: 'Identifiant de l’observation', required: true, placeholder: 'a-status-page', hint: 'Un identifiant existant est remplacé.' },
             { name: 'claim', label: 'Ce que le concurrent propose', required: true, multiline: true }, { name: 'source', label: 'Source', required: true, placeholder: 'Notes d’appel commercial, page publique…' },
             { name: 'date', label: 'Date de l’information', type: 'date', required: true }, { name: 'feature', label: 'Fonctionnalité (facultatif)' },
-          ]} onSubmit={(v) => submit(['observe', id, '--competitor', v.competitor, '--observation', v.observation, '--claim', v.claim, '--source', v.source, '--date', v.date, ...(v.feature ? ['--feature', v.feature] : [])])} />}
-          {form === 'unknown' && <ActionForm busy={busy !== null} submit="Ajouter" fields={[{ name: 'text', label: 'Ce qui reste à découvrir', required: true }]} onSubmit={(v) => submit(['unknown', id, '--text', v.text])} />}
+          ]} onSubmit={(v) => submit(['observe', id, '--competitor', v.competitor!, '--observation', v.observation!, '--claim', v.claim!, '--source', v.source!, '--date', v.date!, ...(v.feature ? ['--feature', v.feature] : [])])} />}
+          {form === 'unknown' && <ActionForm busy={busy !== null} submit="Ajouter" fields={[{ name: 'text', label: 'Ce qui reste à découvrir', required: true }]} onSubmit={(v) => submit(['unknown', id, '--text', v.text!])} />}
           {form === 'watch' && <ActionForm busy={busy !== null} submit="Suivre" fields={[
             { name: 'competitor', label: 'Concurrent', required: true, options: competitors }, { name: 'url', label: 'Page publique (https)', required: true, type: 'url' },
             { name: 'kind', label: 'Nature de la page', required: true, placeholder: 'notes de version, tarifs, annonces' }, { name: 'every', label: 'Intervalle en jours', type: 'number', placeholder: '30' },
-          ]} onSubmit={(v) => submit(['watch', id, '--competitor', v.competitor, '--url', v.url, '--kind', v.kind, ...(v.every ? ['--every-days', v.every] : [])])} />}
+          ]} onSubmit={(v) => submit(['watch', id, '--competitor', v.competitor!, '--url', v.url!, '--kind', v.kind!, ...(v.every ? ['--every-days', v.every] : [])])} />}
           {form === 'change' && <ActionForm busy={busy !== null} submit="Enregistrer" initial={{ verified: by }} fields={[
             { name: 'competitor', label: 'Concurrent', required: true, options: competitors }, { name: 'what', label: 'Ce qui a changé', required: true, multiline: true },
             { name: 'source', label: 'Page source', required: true, type: 'url' }, { name: 'date', label: 'Date', type: 'date', required: true },
             { name: 'verified', label: 'Vérifié par', required: true },
-          ]} onSubmit={(v) => { setBy(v.verified); return submit(['change', id, '--competitor', v.competitor, '--what', v.what, '--source', v.source, '--date', v.date, '--verified-by', v.verified]); }} />}
+          ]} onSubmit={(v) => { setBy(v.verified!); return submit(['change', id, '--competitor', v.competitor!, '--what', v.what!, '--source', v.source!, '--date', v.date!, '--verified-by', v.verified!]); }} />}
         </Dialog>
       </div>
     )}</Q>

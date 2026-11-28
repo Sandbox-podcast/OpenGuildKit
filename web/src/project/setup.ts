@@ -73,7 +73,7 @@ const SETUP_CHOICE: Record<string, Record<string, string>> = {
 };
 
 /** A setup text in French when the page knows it by ID, or the CLI's English, marked as such. */
-export const setupPrompt = (q: Question) => (SETUP_PROMPT[q.id] ? { text: SETUP_PROMPT[q.id] } : { text: q.prompt, lang: 'en' as const });
+export const setupPrompt = (q: Question) => (SETUP_PROMPT[q.id] ? { text: SETUP_PROMPT[q.id]! } : { text: q.prompt, lang: 'en' as const });
 export function setupChoice(questionId: string, choice: { id: string; label: string }, sectors: Record<string, string>) {
   const known = questionId === 'sector' ? sectors[choice.id] : SETUP_CHOICE[questionId]?.[choice.id];
   return known ? { text: known } : { text: choice.label, lang: 'en' as const };

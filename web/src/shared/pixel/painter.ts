@@ -45,7 +45,7 @@ export class Grid {
   readonly px: (string | null)[];
   constructor(readonly w: number, readonly h: number) { this.px = new Array(w * h).fill(null); }
   set(x: number, y: number, c: string | null) { if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.px[y * this.w + x] = c; return this; }
-  get(x: number, y: number) { return x >= 0 && y >= 0 && x < this.w && y < this.h ? this.px[y * this.w + x] : null; }
+  get(x: number, y: number) { return x >= 0 && y >= 0 && x < this.w && y < this.h ? this.px[y * this.w + x]! : null; }
   rect(x: number, y: number, w: number, h: number, c: string) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c); return this; }
   hline(x: number, y: number, len: number, c: string) { return this.rect(x, y, len, 1, c); }
   vline(x: number, y: number, len: number, c: string) { return this.rect(x, y, 1, len, c); }
@@ -163,7 +163,7 @@ export class Grid {
   /** Thick line made of discs (roads, rivers). */
   stroke(points: [number, number][], radius: number, c: string) {
     for (let k = 0; k < points.length - 1; k++) {
-      const [x0, y0] = points[k]; const [x1, y1] = points[k + 1];
+      const [x0, y0] = points[k]!; const [x1, y1] = points[k + 1]!;
       const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
       for (let t = 0; t <= steps; t++) this.disc(Math.round(x0 + ((x1 - x0) * t) / steps), Math.round(y0 + ((y1 - y0) * t) / steps), radius, c);
     }

@@ -70,7 +70,7 @@ const paths = new Map<string, string>();
 function pathOf(name: string): string {
   const hit = paths.get(name);
   if (hit) return hit;
-  const rows = B[name] ?? B.dot;
+  const rows = B[name] ?? B.dot!;
   let d = '';
   rows.forEach((row, y) => {
     let x = 0;

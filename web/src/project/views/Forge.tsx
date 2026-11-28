@@ -956,14 +956,14 @@ function Authorizations({ task }: { task: TaskRecord }) {
             'authorize',
             task.id,
             '--action',
-            v.action,
+            v.action!,
             '--target',
-            v.target,
+            v.target!,
             v.decision === 'allow' ? '--allow' : '--deny',
             '--by',
-            v.by,
+            v.by!,
             '--reason',
-            v.reason,
+            v.reason!,
           ];
           if (v.decision === 'allow')
             showTerminal({
@@ -1070,7 +1070,7 @@ function Deliverables() {
             },
           ]}
           onSubmit={(v) =>
-            act(['deliverable', 'new', v.template, '--task', v.task, ...(v.tool ? ['--tool', v.tool] : []), '--output', v.output], {
+            act(['deliverable', 'new', v.template!, '--task', v.task!, ...(v.tool ? ['--tool', v.tool] : []), '--output', v.output!], {
               success: 'Brouillon écrit',
             })
           }
@@ -1744,7 +1744,9 @@ function Storybook() {
             { name: 'title', label: 'Titre dans la barre latérale', placeholder: 'Design system Acme' },
           ]}
           onSubmit={(v) =>
-            act(['storybook', 'compose', v.ref, '--url', v.url, ...(v.title ? ['--title', v.title] : [])], { success: 'Référence ajoutée' })
+            act(['storybook', 'compose', v.ref!, '--url', v.url!, ...(v.title ? ['--title', v.title] : [])], {
+              success: 'Référence ajoutée',
+            })
           }
         />
         <p className="tiny muted">

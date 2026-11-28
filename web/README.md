@@ -43,7 +43,7 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 ```bash
 npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage, et neuf composants du mode réel montés dans happy-dom (tests/project/views : faux fetch, ni Chrome ni serveur ; `// @vitest-environment happy-dom` en tête de chaque fichier)
-npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères et les erreurs de noUncheckedIndexedAccess (tsconfig.index.json) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`node scripts/check-ratchet.mjs longLines indexedAccess --update`, qui refuse d'écrire un fichier plus mauvais)
+npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères hors chaînes, et tsc avec noUncheckedIndexedAccess sur src/project et src/shared (tsconfig.index.json, 0 erreur) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`node scripts/check-ratchet.mjs longLines indexedAccess --update`)
 npm run lint         # ESLint (eslint.config.mjs : typescript-eslint, react-hooks, frontière produit / démo), même cliquet par fichier ; `npx eslint .` donne le détail
 npm run format:check # Prettier (.prettierrc.json : largeur 140, apostrophes simples), même cliquet : un fichier formaté reste formaté, un autre n'est pas reformaté d'office
 npm run format -- src/project/query.ts   # formate les fichiers nommés, puis `node scripts/check-ratchet.mjs unformatted --update`

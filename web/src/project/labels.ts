@@ -99,7 +99,7 @@ export function reasonLabel(reason: string): string | null {
   if (reason === 'decisions about people') return 'décisions sur des personnes';
   const m = /^(sector|stack|role) (.+)$/.exec(reason);
   if (!m) return null;
-  return m[1] === 'sector' ? `secteur ${SECTOR_FR[m[2]] ?? m[2]}` : `${m[1] === 'stack' ? 'pile' : 'rôle'} : ${m[2]}`;
+  return m[1] === 'sector' ? `secteur ${SECTOR_FR[m[2]!] ?? m[2]}` : `${m[1] === 'stack' ? 'pile' : 'rôle'} : ${m[2]}`;
 }
 
 export const VERDICT: Record<string, Label> = {
@@ -126,7 +126,7 @@ export const checkOutcome = (c: CheckRow) => (c.concerned === false && !c.result
 export function mustSupplyLabel(reason: string): string | null {
   if (reason === 'its rule or pack is listed in the profile\'s required_rules') return 'sa règle ou son pack figure dans les règles exigées du profil (required_rules)';
   const m = /^the task's data is (\S+)$/.exec(reason);
-  return m ? `la tâche touche ${DATA_PHRASE[m[1]] ?? m[1]}` : null;
+  return m ? `la tâche touche ${DATA_PHRASE[m[1]!] ?? m[1]}` : null;
 }
 
 export const ALERT: Record<string, Label> = {
@@ -178,9 +178,9 @@ const NEXT: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Done with reservations: see the open points (?:in task show \(result\.closing\)|with openguildkit task show \S+ --closing)\.$/, () => 'Terminée avec réserves : les points laissés ouverts sont dans la fiche de la tâche.'],
   [/^Done\.$/, () => 'Terminée.'],
   [/^The approval for (\S+) was recorded under earlier rules(?: \((.*)\))?\. Consult it again with openguildkit task consult \S+(?: --reuse-answers)?(?: \(--answers FILE to change the answers\))?, or open a linked task with openguildkit task new "BRIEF" --follows \S+\.$/s,
-    (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1])}`],
-  [/^The approval for (\S+) has no seal: .*?\. Consult it again with .*$/s, (m) => `L’approbation de ${m[1]} n’a pas de sceau : elle a été modifiée à la main ou écrite par une ancienne version. ${RECONSULT(m[1])}`],
-  [/^The record of (\S+) no longer matches what was approved\. Consult it again with .*$/s, (m) => `L’enregistrement de ${m[1]} ne correspond plus à ce qui a été approuvé. ${RECONSULT(m[1])}`],
+    (m) => `L’approbation de ${m[1]} a été donnée sous des règles antérieures${m[2] ? ` (${changesLabel(m[2])})` : ''}. ${RECONSULT(m[1]!)}`],
+  [/^The approval for (\S+) has no seal: .*?\. Consult it again with .*$/s, (m) => `L’approbation de ${m[1]} n’a pas de sceau : elle a été modifiée à la main ou écrite par une ancienne version. ${RECONSULT(m[1]!)}`],
+  [/^The record of (\S+) no longer matches what was approved\. Consult it again with .*$/s, (m) => `L’enregistrement de ${m[1]} ne correspond plus à ce qui a été approuvé. ${RECONSULT(m[1]!)}`],
 ];
 const RECONSULT = (id: string) => `La consulter à nouveau avec ses réponses (task consult ${id} --reuse-answers), ou ouvrir une tâche liée (task new --follows ${id}).`;
 /** What changed in the rules a task was approved under ("pack gdpr added; conventions changed"), in French. */
@@ -189,9 +189,9 @@ function changesLabel(text: string) {
   const DONE: Record<string, string> = { added: 'ajouté', removed: 'retiré', changed: 'modifié' };
   return text.split('; ').map((item) => {
     const field = /^(sector|stack|conventions|checks) changed$/.exec(item);
-    if (field) return FIELD[field[1]];
+    if (field) return FIELD[field[1]!];
     const rule = /^(pack|rule) (\S+) (added|removed|changed)$/.exec(item);
-    if (rule) return `${rule[1] === 'pack' ? 'pack' : 'règle'} ${rule[2]} ${DONE[rule[3]]}${rule[1] === 'rule' ? 'e' : ''}`;
+    if (rule) return `${rule[1] === 'pack' ? 'pack' : 'règle'} ${rule[2]} ${DONE[rule[3]!]}${rule[1] === 'rule' ? 'e' : ''}`;
     return item === 'the task\'s components changed' ? 'composants de la tâche modifiés' : item;
   }).join(' ; ');
 }
@@ -210,7 +210,7 @@ export function touchedTasks(stdout: string): { id: string; status: string; step
   const start = lines.findIndex((line) => /^Tasks (consulted under the previous rules|this change touches):$/.test(line.trim()));
   if (start < 0) return [];
   return lines.slice(start + 1).map((line) => /^\s+(\S+) \(([^)]+)\): (.*?)\.?$/.exec(line)).filter((m): m is RegExpExecArray => !!m)
-    .map((m) => ({ id: m[1], status: m[2], step: m[3] }));
+    .map((m) => ({ id: m[1]!, status: m[2]!, step: m[3]! }));
 }
 /** The step of a touched task, in French when the CLI's wording is known. */
 export const touchedStep = (step: string) => {
@@ -303,6 +303,6 @@ export function openPointLabel(text: string, prompts: Record<string, string>) {
 export function parseTemplates(text: string) {
   return text.trim().split('\n').filter(Boolean).map((line) => {
     const m = /^(\S+)\s+(.*?)(?:\s+\(method ([^)]+)\))?\s+\[([^\]]*)\]\s*$/.exec(line);
-    return m ? { id: m[1], title: m[2], method: m[3] ?? '', brains: m[4].split(',').map((s) => s.trim()).filter(Boolean) } : { id: line.split(/\s+/)[0], title: line, method: '', brains: [] };
+    return m ? { id: m[1]!, title: m[2]!, method: m[3] ?? '', brains: m[4]!.split(',').map((s) => s.trim()).filter(Boolean) } : { id: line.split(/\s+/)[0]!, title: line, method: '', brains: [] };
   });
 }

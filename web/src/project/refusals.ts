@@ -62,7 +62,7 @@ export function cliText(message: string): string | null {
 /** The answers task result did not record ("Not recorded: …" on stderr, exit 0), in French when the page knows them. */
 export function notRecorded(stderr: string): { text: string; lang?: 'en' }[] {
   return stderr.split('\n').map((line) => /^(?:OpenGuildKit: )?Not recorded: (.*?)(?: The earlier answer stays recorded\.)?$/.exec(line.trim()))
-    .filter((m): m is RegExpExecArray => !!m).map((m) => { const fr = cliText(m[1]); return fr ? { text: fr } : { text: m[1], lang: 'en' as const }; });
+    .filter((m): m is RegExpExecArray => !!m).map((m) => { const fr = cliText(m[1]!); return fr ? { text: fr } : { text: m[1]!, lang: 'en' as const }; });
 }
 
 /** What the page shows for an error: the French text of a known refusal, with the server's words as detail, or the

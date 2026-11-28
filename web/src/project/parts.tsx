@@ -434,7 +434,7 @@ export function ActionForm({
   const [values, setValues] = useState<Record<string, string>>(initial ?? {});
   const [tried, setTried] = useState(false);
   const missing = fields.filter((f) => f.required && !values[f.name]?.trim());
-  const errorOf = (f: (typeof fields)[number]) => (values[f.name]?.trim() && f.check ? f.check(values[f.name].trim()) : null);
+  const errorOf = (f: (typeof fields)[number]) => (values[f.name]?.trim() && f.check ? f.check(values[f.name]!.trim()) : null);
   const refused = fields.filter((f) => errorOf(f));
   const set = (name: string, value: string) => setValues((v) => ({ ...v, [name]: value }));
   return (
