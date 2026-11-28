@@ -63,7 +63,7 @@ class BriefRevisionTests(CapturedCli, unittest.TestCase):
         first = self.run_cli("task", "challenge", TASK)[0].splitlines()[0]
         self.assertRegex(first, r"^Round 2\. Round 1: changes requested by Dana Legal on \d{4}-\d{2}-\d{2}: "
                                 r"No grade in an email\. The brief was revised since\.$")
-        prompt = self.run_cli("task", "decide", TASK, "--approve", "--by", "Sam Owner", "--reason", "Link only",
+        prompt = self.run_cli("task", "decide", TASK, "--approve", "--by", "SO", "--reason", "Link only",
                               typed=TASK)[1]
         self.assertIn("Round 1: changes requested by Dana Legal", prompt.splitlines()[0])
 

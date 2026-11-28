@@ -64,7 +64,7 @@ class RuleChangeTests(SharingCase):
         self.assertEqual(row["next"], "Waiting for the person's decision.")
         self.edit_team_rule()
         message = (f"The rules, checks or boards of the project changed since {TASK} was consulted. The person requests "
-                   f"changes (openguildkit task decide {TASK} --request-changes --by NAME --reason TEXT), then you "
+                   f"changes (openguildkit task decide {TASK} --request-changes --by INITIALS --reason TEXT), then you "
                    "consult again.")
         row, = json.loads(self.run_cli("task", "list", "--json")[0])
         self.assertEqual(row["next"], message)
@@ -103,7 +103,7 @@ class RuleChangeTests(SharingCase):
         self.approved()
         error = self.run_cli("task", "consult", TASK, "--answers", self.root / "answers.json", code=1)[1]
         self.assertIn("is already approved by Camille", error)
-        self.assertIn(f"openguildkit task revoke {TASK} --by NAME --reason TEXT", error)
+        self.assertIn(f"openguildkit task revoke {TASK} --by INITIALS --reason TEXT", error)
 
     def test_a_completed_task_under_earlier_rules_is_history(self):
         self.approved()

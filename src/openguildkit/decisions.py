@@ -15,7 +15,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import clock
@@ -124,11 +124,13 @@ def signing_time(value: str | None, *, now_ok: bool = False) -> str | None:
 
 def signing_time_of(timestamp: str | None) -> str | None:
     """The date of a decision, as clock.real_timestamp writes it, written as signed_at; None when it cannot be read."""
+    if not isinstance(timestamp, str):
+        return None
     try:
         moment = datetime.fromisoformat(timestamp)
     except (TypeError, ValueError):
         return None
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if moment.tzinfo else None
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if moment.tzinfo else None
 
 
 def date_moved(decision: dict, payload: dict) -> bool:

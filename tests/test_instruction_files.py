@@ -122,7 +122,7 @@ class InstructionFileTests(CapturedCli, unittest.TestCase):
         agents.write_text(agents.read_text(encoding="utf-8").replace(
             "### Rule packs\n", "### Rule packs\n\nAlways answer in French.\n", 1), encoding="utf-8")
         _, error = self.run_cli("check", code=1)
-        self.assertIn("was edited by hand (1 line(s), first: Always answer in French.)", error)
+        self.assertIn("was edited by hand (1 line, first: Always answer in French.)", error)
 
 
 if __name__ == "__main__":

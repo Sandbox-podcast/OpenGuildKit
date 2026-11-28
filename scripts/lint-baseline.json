@@ -1,0 +1,43 @@
+{
+  "mypy": {
+    "arg-type": 63,
+    "assignment": 43,
+    "attr-defined": 16,
+    "call-arg": 1,
+    "call-overload": 7,
+    "dict-item": 5,
+    "func-returns-value": 5,
+    "index": 14,
+    "misc": 6,
+    "operator": 4,
+    "return": 21,
+    "return-value": 9,
+    "str-bytes-safe": 1,
+    "union-attr": 48,
+    "var-annotated": 70
+  },
+  "ruff": {
+    "ARG001": 70,
+    "ARG002": 10,
+    "ARG005": 18,
+    "B007": 3,
+    "B023": 4,
+    "B904": 2,
+    "B905": 17,
+    "E731": 7,
+    "F401": 9,
+    "F541": 3,
+    "F601": 3,
+    "F841": 3,
+    "I001": 104,
+    "ISC002": 2,
+    "ISC004": 84,
+    "PLW1510": 57,
+    "RUF100": 8,
+    "UP012": 3,
+    "UP017": 6,
+    "UP022": 1,
+    "UP033": 2,
+    "UP037": 1
+  }
+}

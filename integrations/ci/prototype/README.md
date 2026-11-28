@@ -2,7 +2,7 @@
 
 This fixture accompanies the original [rule watcher](watch-rule.mjs). For a current installation, use the [CI coordinator guide](../README.md).
 
-To reproduce the original fixture, copy [the demo files](demo/) into a dedicated Git repository, including the workflow under `.github/workflows/`. The workflow takes the PR commit and a pinned rule revision from the watcher. It reads the export configuration at that commit and publishes the legacy `openguildkit/export-link-expiry` status.
+To reproduce the original fixture, copy [the demo files](demo/) into a dedicated Git repository, including the workflow under `.github/workflows/`, and add [the rule evaluation](../lib/rule.mjs) as `check.mjs` at its root: the workflow runs it. The workflow takes the PR commit and a pinned rule revision from the watcher. It reads the export configuration at that commit and publishes the legacy `openguildkit/export-link-expiry` status.
 
 ## Inspect a Windows restart
 

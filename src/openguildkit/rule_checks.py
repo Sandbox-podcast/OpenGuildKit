@@ -16,6 +16,7 @@ from itertools import islice
 from pathlib import Path
 
 from .storage import parse_json
+from .wording import plural
 
 CHECK_KINDS = ("file-exists", "text", "field", "size", "command")
 FIELD_OPERATORS = ("equals", "one_of", "min", "max", "integer")
@@ -298,7 +299,7 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
     if check.get("each") and files:
         if lacking:
             return False, f"No text of the check in {', '.join(lacking[:5])}."
-        return True, f"{len(files)} file(s) read, each contains the text."
+        return True, f"{plural(len(files), 'file')} read, each contains the text."
     if check["expect"] == "present":
         if hits:
             return True, f"{'; '.join(hits[:5])}."
@@ -307,7 +308,7 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
         )
     if hits:
         return False, f"{'; '.join(hits[:5])}."
-    return True, f"{len(files)} file(s) read, none contains the text."
+    return True, f"{plural(len(files), 'file')} read, none contains the text."
 
 
 def _size_outcome(root: Path, check: dict) -> tuple[bool, str]:
@@ -324,7 +325,7 @@ def _size_outcome(root: Path, check: dict) -> tuple[bool, str]:
     if above:
         return False, f"{'; '.join(above[:5])}."
     size, name = sizes[0]
-    return True, f"{name} is {size} bytes (the largest of {len(sizes)} file(s); at most {limit})."
+    return True, f"{name} is {size} bytes (the largest of {plural(len(sizes), 'file')}; at most {limit})."
 
 
 def evaluate_check(root: Path, check: dict) -> dict:

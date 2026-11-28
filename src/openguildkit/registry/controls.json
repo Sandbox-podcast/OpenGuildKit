@@ -15,13 +15,13 @@
       "guarantees": "task decide --approve needs the person to type the task ID at an interactive terminal, or, in a project with signed approvals, an SSH signature by an approver (a board removal is still typed at the terminal); without either the command is refused and the task stays reviewed.",
       "not_covered": "It does not identify the person behind the terminal: the name is the one typed with --by.",
       "commands": [
-        "task decide ID --approve --by NAME --reason WHY"
+        "task decide ID --approve --by INITIALS --reason WHY"
       ],
       "code": [
         {
           "file": "src/openguildkit/tasks_cli.py",
           "symbol": "_decide",
-          "line": 551
+          "line": 643
         },
         {
           "file": "src/openguildkit/terminal.py",
@@ -47,17 +47,17 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 241
+          "line": 267
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 287
+          "line": 313
         },
         {
           "file": "src/openguildkit/hosts.py",
           "symbol": "HOOK_HOSTS",
-          "line": 20
+          "line": 21
         }
       ],
       "in_dossier": [],
@@ -76,17 +76,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 152
+          "line": 154
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 199
+          "line": 201
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 710
+          "line": 736
         }
       ],
       "in_dossier": [
@@ -101,23 +101,23 @@
       "not_covered": "It shows that a key listed in the signers file signed. Who holds the key, and how it is kept, is outside OpenGuildKit.",
       "commands": [
         "profile set approval signed --signers PATH --approver NAME",
-        "task decision-payload ID --by NAME --reason WHY"
+        "task decision-payload ID --by INITIALS --reason WHY"
       ],
       "code": [
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 234
+          "line": 236
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 207
+          "line": 209
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 328
+          "line": 330
         }
       ],
       "in_dossier": [
@@ -139,17 +139,17 @@
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "approval_problem",
-          "line": 46
+          "line": 51
         },
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "record_problem",
-          "line": 72
+          "line": 77
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1107
+          "line": 1137
         }
       ],
       "in_dossier": [
@@ -170,7 +170,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1107
+          "line": 1137
         }
       ],
       "in_dossier": [],
@@ -189,12 +189,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "export_decision",
-          "line": 417
+          "line": 443
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 849
+          "line": 874
         },
         {
           "file": "src/openguildkit/trace_cli.py",
@@ -219,17 +219,17 @@
         {
           "file": "src/openguildkit/project.py",
           "symbol": "Fingerprints",
-          "line": 1317
+          "line": 1322
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 704
+          "line": 730
         },
         {
           "file": "src/openguildkit/cli.py",
           "symbol": "check",
-          "line": 1232
+          "line": 1273
         }
       ],
       "in_dossier": [
@@ -243,23 +243,23 @@
       "guarantees": "Every profile command appends its change, the person, the day and the reason to changes in .openguildkit/project.json; a change that lowers a protection (guard, signed approvals, public research) is typed by a person at an interactive terminal.",
       "not_covered": "A hand edit of project.json is not an entry: Git holds it, and OpenGuildKit does not read that history except for the signers file.",
       "commands": [
-        "profile set guard enforce --by NAME --reason WHY"
+        "profile set guard enforce --by INITIALS --reason WHY"
       ],
       "code": [
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "write_change",
-          "line": 575
+          "line": 606
         },
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "weakening_changes",
-          "line": 134
+          "line": 147
         },
         {
           "file": "src/openguildkit/project.py",
           "symbol": "_changes",
-          "line": 579
+          "line": 582
         }
       ],
       "in_dossier": [
@@ -274,29 +274,29 @@
       "not_covered": "It reads the reports it is given and runs no scanner: a dependency no report lists is not in the register.",
       "commands": [
         "alerts import FILE",
-        "alerts set ID --status confirmed --by NAME",
-        "alerts accept ID --by NAME --reason WHY"
+        "alerts set ID --status confirmed --by INITIALS",
+        "alerts accept ID --by INITIALS --reason WHY"
       ],
       "code": [
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "import_report",
-          "line": 347
+          "line": 348
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "set_status",
-          "line": 441
+          "line": 442
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "accept_alert",
-          "line": 471
+          "line": 472
         },
         {
           "file": "src/openguildkit/alerts.py",
           "symbol": "blocking_alerts",
-          "line": 514
+          "line": 515
         }
       ],
       "in_dossier": [
@@ -317,17 +317,17 @@
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "discover",
-          "line": 941
+          "line": 943
         },
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "scan",
-          "line": 442
+          "line": 443
         },
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 175
+          "line": 176
         }
       ],
       "in_dossier": [],

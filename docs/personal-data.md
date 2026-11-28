@@ -1,5 +1,7 @@
 # Personal data the tool records
 
+For: a data protection officer or an administrator who asks what the tool records about people.
+
 OpenGuildKit records who decided what: who approved a task, cleared or waived a blocker, set a rule aside, closed the task, reviewed a dependency alert, changed the profile or shared a deliverable. This page lists each field that holds a person's name or address, the file it is in, whether Git tracks that file, why it is kept, how long, and how to remove or replace it. A team that keeps a record of processing activities can describe the tool's own processing from it.
 
 Read in the code of version 0.17.0 and tried on test projects on 22 November 2026 ([what was tried](#what-was-tried)).
@@ -30,7 +32,7 @@ The tool deletes none of these on its own. A file Git tracks keeps every earlier
 | `changes[].by`, and the approvers or waiver holders that `openguildkit profile set` writes in `changes[].change` | `.openguildkit/project.json` | every `profile` command; a profile saved in `openguildkit ui` (the name typed in the page, or `web interface`) | who changed the rules, when and why |
 | `frozen.by` | `.openguildkit/project.json` | `profile set freeze on` | who froze the project, when and why ([incident response](workflow.md#incident-response)) |
 | `declined[].by` | `.openguildkit/project.json` | `profile decline`, the `init` questionnaire, the `norms` of an answers file | who declined a norm, when and why |
-| `approval.roles` | `.openguildkit/project.json` | `profile set approver-roles` | who may clear the blockers of a board and approve what it blocked ([roles by committee](workflow.md#roles-by-committee)) |
+| `approval.roles` | `.openguildkit/project.json` | `profile set approver-roles` | who may clear the blockers of a board and approve what it blocked ([roles by board](workflow.md#roles-by-board)) |
 | `approval.approvers`, and in the file `approval.allowed_signers` names, one principal and public key per line | `.openguildkit/project.json`, the allowed signers file (for example `.openguildkit/allowed_signers`) | `profile set approval signed`; the person writes the signers file | who may sign an approval |
 | `organization.pinned.by`, `organization.exceptions[].by`, `organization_history[].by` | `.openguildkit/catalog.lock.json` | `org-catalog set`, `accept` and `off` | who pinned or stopped an organization catalog, accepted a local replacement, when and why (history is kept after `off`) ([organization catalog](catalog-format.md#organization-catalog)) |
 | `waivers.allowed_by` | `.openguildkit/project.json` | `profile set waivers allowed` | who may waive a blocker |

@@ -9,7 +9,13 @@ import json
 from pathlib import Path
 
 from .catalog import (
-    CatalogError, bundled_ids, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
+    CatalogError,
+    bundled_ids,
+    json_copy,
+    latest_checked,
+    load_catalog,
+    overlaid_boards,
+    validate_dependencies,
     validate_entry,
 )
 from .ci import read_policy_pack

@@ -1,4 +1,4 @@
-"""Roles by committee (#475), off by default: who may clear a board's blockers and approve what a board blocked.
+"""Roles by board (#475), off by default: who may clear a board's blockers and approve what a board blocked.
 
 `approval.roles` maps a board to the people of its role, set by `profile set approver-roles BOARD NAME...`. A blocker a
 board raised is then cleared or waived only by a member of its role, and a task on which a board with a role gave a

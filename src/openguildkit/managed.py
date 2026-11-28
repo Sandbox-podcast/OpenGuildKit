@@ -15,12 +15,13 @@ import sys
 from pathlib import Path
 
 from . import hosts
+from .doc_links import doc_link
 from .storage import write_text
 
 OS_NAMES = ("macos", "linux", "windows")
 FRAGMENT = "50-openguildkit.json"
 AUDIT_READ = "2026-11-26"
-TARGETS = {
+TARGETS: dict[str, dict] = {
     "claude-code": {
         "file": FRAGMENT,
         "where": {"macos": "/Library/Application Support/ClaudeCode/managed-settings.d/",
@@ -30,21 +31,21 @@ TARGETS = {
                     "windows": "the registry key HKLM\\SOFTWARE\\Policies\\ClaudeCode"},
         "pages": ("https://code.claude.com/docs/en/managed-settings.md",
                   "https://code.claude.com/docs/en/settings-reference.md"),
-        "notes": ("The folder managed-settings.d/ sits next to managed-settings.json: the page names it, and where it "
-                  "stands on Linux and Windows is à vérifier.",
-                  "Not written, value or form not read (à vérifier): permissions.disableBypassPermissionsMode, "
-                  "allowedMcpServers, availableModels. The Edit rules on the protected files of a project are not "
-                  "written either: the hooks refuse those edits, and a path rule is relative to the settings source."),
+        "notes": (("The folder managed-settings.d/ sits next to managed-settings.json: the page names it, and where it "
+                   "stands on Linux and Windows is à vérifier."),
+                  ("Not written, value or form not read (à vérifier): permissions.disableBypassPermissionsMode, "
+                   "allowedMcpServers, availableModels. The Edit rules on the protected files of a project are not "
+                   "written either: the hooks refuse those edits, and a path rule is relative to the settings source.")),
     },
     "codex": {
         "file": "requirements.toml",
         "where": {"macos": "/etc/codex/", "linux": "/etc/codex/", "windows": "%ProgramData%\\OpenAI\\Codex\\"},
         "channel": {"macos": "MDM, domain com.openai.codex, key requirements_toml_base64 (this file, base64 encoded)"},
         "pages": ("https://learn.chatgpt.com/docs/enterprise/managed-configuration.md",),
-        "notes": ("Only [features] hooks = true is written: it keeps a user from turning the hooks off. The key names of "
-                  "managed hooks and of forbidden rules in requirements.toml, and the macOS place of the file, are "
-                  "à vérifier (the reference of requirements.toml was not read). The hooks come from the project's "
-                  ".codex/hooks.json (host apply).",),
+        "notes": (("Only [features] hooks = true is written: it keeps a user from turning the hooks off. The key names of "
+                   "managed hooks and of forbidden rules in requirements.toml, and the macOS place of the file, are "
+                   "à vérifier (the reference of requirements.toml was not read). The hooks come from the project's "
+                   ".codex/hooks.json (host apply)."),),
     },
     "gemini-cli": {
         "file": "settings.json",
@@ -52,10 +53,10 @@ TARGETS = {
                   "windows": "C:\\ProgramData\\gemini-cli\\"},
         "channel": {},
         "pages": ("https://geminicli.com/docs/reference/configuration/",),
-        "notes": ("This file is the whole system settings file: it replaces one already there, so merge by hand. Its "
-                  "keys hooks and hooksConfig.enabled are those of the project file (integrations/README.md, Gemini "
-                  "CLI); that the system file reads them the same way is à vérifier. It overrides the other settings "
-                  "files of Gemini CLI.",),
+        "notes": (("This file is the whole system settings file: it replaces one already there, so merge by hand. Its "
+                   "keys hooks and hooksConfig.enabled are those of the project file ({gemini_page}); that the "
+                   "system file reads them the same way is à vérifier. It overrides the other settings files of "
+                   "Gemini CLI."),),
     },
 }
 CLAUDE_FOLDERS = {"darwin": "/Library/Application Support/ClaudeCode", "win32": "C:\\Program Files\\ClaudeCode"}
@@ -71,7 +72,7 @@ def add_options(host) -> None:
     host.add_argument("--command", dest="hook_command", default="openguildkit",
                       help="With managed: the command the hooks run (default openguildkit; give a full path).")
     host.add_argument("--allow", type=Path, metavar="FILE", help="With scan: an allow list of MCP servers, models and "
-                      "provider addresses (docs/host-scan.md); what it does not name is an error.")
+                      "provider addresses; what it does not name is an error.")
     host.add_argument("--block-on-failure", action="store_true",
                       help="With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).")
 
@@ -98,7 +99,8 @@ def _guidance(host: str, system: str, shown_at: str | None) -> list[str]:
     if system in target["channel"]:
         lines.append(f"MDM channel: {target['channel'][system]}")
     lines += [f"Read on {AUDIT_READ} by the audit of issue #453, not read again: {page}" for page in target["pages"]]
-    lines += [f"Note: {note}" for note in target["notes"]]
+    readme = doc_link("integrations/README.md", "gemini-cli")
+    lines += [f"Note: {note.format(gemini_page=readme)}" for note in target["notes"]]
     return [*lines, "Nothing was installed" + (f": the file is at {shown_at}." if shown_at else ": copy it with your MDM.")]
 
 
@@ -157,8 +159,10 @@ def only_managed_hooks() -> tuple[str, bool] | None:
         return None
     where = keyed[0].as_posix()
     if _runs_guard(files):
-        return (f"{where} sets allowManagedHooksOnly, so Claude Code runs only the hooks the organization deploys; they "
-                "run openguildkit guard on each request and before file edits.", True)
-    return (f"{where} sets allowManagedHooksOnly: Claude Code runs only the hooks the organization deploys, and none of "
-            "the managed files runs openguildkit guard, so the hooks of this project do not run. Deploy them with "
-            "openguildkit host managed --host claude-code, or remove the key; host apply cannot fix this.", False)
+        text = (f"{where} sets allowManagedHooksOnly, so Claude Code runs only the hooks the organization deploys; "
+                "they run openguildkit guard on each request and before file edits.")
+        return text, True
+    text = (f"{where} sets allowManagedHooksOnly: Claude Code runs only the hooks the organization deploys, and none "
+            "of the managed files runs openguildkit guard, so the hooks of this project do not run. Deploy them with "
+            "openguildkit host managed --host claude-code, or remove the key; host apply cannot fix this.")
+    return text, False

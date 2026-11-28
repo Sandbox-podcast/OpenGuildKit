@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 from . import clock
+from .errors import unknown
 from .storage import read_json, write_json
 
 REGISTER_FILE = "alerts.json"
@@ -425,7 +426,7 @@ def find_alert(register: dict, alert_id: str) -> dict:
                                  for alias in alert.get("aliases", [])}
         if wanted in names:
             return alert
-    raise ValueError(f"Unknown alert {alert_id}. Run openguildkit alerts list to see the register.")
+    raise ValueError(unknown("alert", alert_id, "alerts list"))
 
 
 def _replace(register: dict, alert: dict) -> dict:
@@ -515,7 +516,7 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
     """Why the task's confirmed critical alerts stop its approval and completion."""
     return [
         f"Dependency alert {alert['id']} ({alert['package']} {alert['version']}) is confirmed and critical: "
-        f"resolve it, or have a person run openguildkit alerts accept {alert['id']} --by NAME --reason WHY."
+        f"resolve it, or have a person run openguildkit alerts accept {alert['id']} --by INITIALS --reason WHY."
         for alert in task_alerts(register, task, ("confirmed",))
         if alert["severity"] == "critical" and not alert.get("accepted")
     ]

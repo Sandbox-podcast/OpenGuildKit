@@ -13,10 +13,14 @@ from unittest.mock import patch
 
 from openguildkit import audit_log
 from openguildkit.decisions import (
-    PAYLOAD_VERSIONS, check_decision_seal, decision_payload, record_digest, seal, signing_time_of,
+    PAYLOAD_VERSIONS,
+    check_decision_seal,
+    decision_payload,
+    record_digest,
+    seal,
+    signing_time_of,
 )
 from openguildkit.storage import read_json, write_json
-
 from tests.support import CapturedCli, openguildkit_on_path
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

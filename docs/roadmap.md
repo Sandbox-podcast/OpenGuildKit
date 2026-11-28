@@ -1,5 +1,7 @@
 # Roadmap
 
+For: anyone who decides whether to adopt OpenGuildKit or to contribute to it.
+
 This page separates what exists from what is planned. Open an issue to discuss or claim an item.
 
 ## Available

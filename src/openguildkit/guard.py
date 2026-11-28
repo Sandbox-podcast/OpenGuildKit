@@ -19,12 +19,30 @@ from pathlib import Path, PurePosixPath
 
 from . import incident, light_lane, requester, roles
 from .catalog import load_catalog
-from .delivered_review import exported_review
 from .decisions import (
-    CLOCK_SKEW, DECISIONS_DIR, approval_policy, base_commit, changed_paths_since, check_decision, check_decision_seal,
-    date_moved, exported_boards, exported_records, exported_rounds, history_message, outside_history_message, record_digest,
-    revisions_outside_history, seal, shared_digest, stale_approval_message, verify_recorded_signature, verify_signature,
+    CLOCK_SKEW,
+    DECISIONS_DIR,
+    approval_policy,
+    base_commit,
+    changed_paths_since,
+    check_decision,
+    check_decision_seal,
+    date_moved,
+    exported_boards,
+    exported_records,
+    exported_rounds,
+    history_message,
+    outside_history_message,
+    record_digest,
+    revisions_outside_history,
+    seal,
+    shared_digest,
+    stale_approval_message,
+    verify_recorded_signature,
+    verify_signature,
 )
+from .delivered_review import exported_review
+from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import copies_read_from, organization_in, parse_copies
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
@@ -32,11 +50,19 @@ from .results import DONE_STATUSES, verification_of
 from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import (
-    STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
+    STALE_DAYS,
+    STATUSES,
+    approval_problem,
+    days_since,
+    evidence_states,
+    expired_waiver_problem,
+    read_task,
+    task_path,
 )
 from .terminal import interactive
-from .workstation import no_profile_answer
+from .wording import plural
 from .workflow import TaskStateError, exported_blockers, mock_evidence
+from .workstation import no_profile_answer
 
 MODES = ("off", "observe", "enforce")
 # The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
@@ -227,7 +253,7 @@ def scope_note(approvals: list[dict]) -> str:
     are the only ones approved."""
     if not approvals or any(not item.get("lane") for item in approvals):
         return SCOPE_NOTE
-    return (f"The guard holds each edit to the paths of the short-lane task(s) ({light_lane.covered_summary(approvals)}), "
+    return (f"The guard holds each edit to the paths of the short-lane {'task' if len(approvals) == 1 else 'tasks'} ({light_lane.covered_summary(approvals)}), "
             "not to the brief: keep this work within the approved brief and bring anything else back to the person.")
 
 
@@ -256,7 +282,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if outcome == "covered":
         if dialect == "gemini" and event != "prompt":
             return 0, "", ""  # Before a tool, Gemini CLI has no documented way to tell the agent: the request hook did.
-        return 0, _context(event, f"OpenGuildKit: approved task(s) in progress: {detail}. {note}", dialect), ""
+        return 0, _context(event, f"OpenGuildKit: approved work in progress: {detail}. {note}", dialect), ""
     if event == "prompt":
         if outcome != "unchecked":
             return 0, _context(event, NO_TASK, dialect), ""
@@ -318,7 +344,7 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
         left = [relative for relative in work if not any(
             not item.get("lane") or light_lane.covers(relative, item["paths"], light) for item in approvals)]
         if left:
-            return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane task(s): "
+            return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane {'task' if len(approvals) == 1 else 'tasks'}: "
                                                     f"{light_lane.covered_summary(approvals)})", dialect)
         return hook_answer(event, mode, "covered", _describe(approvals), dialect, scope_note(approvals))
     return hook_answer(event, mode, "outside")
@@ -785,7 +811,6 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
 _CONFLICT_START = re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
 _CONFLICT_END = re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
 _APPROVER = re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
-CONFLICT_SECTION = 'docs/workflow.md, "When two copies use the same task ID"'
 
 
 def conflict_message(path: Path, relative: str) -> str | None:
@@ -806,7 +831,7 @@ def conflict_message(path: Path, relative: str) -> str | None:
         sides.append(f"{name} approved by {json.loads(chr(34) + approver.group(1) + chr(34))}" if approver else name)
     return (f"{relative} holds a git merge conflict: two copies exported a decision for task {path.stem} ("
             f"{'; '.join(sides)}). Two tasks used the same ID: keep the teammate's record, open your work under "
-            f"another ID, and export it again (see {CONFLICT_SECTION}).")
+            f"another ID, and export it again (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
 def _same_approval(earlier: object, record: dict) -> bool:
@@ -835,7 +860,7 @@ def _completion_problem(record: dict) -> str | None:
     if not isinstance(closing, dict) or not isinstance(closing.get("open_points"), list):
         return "no closing with its open points"
     if (status == "done-with-reservations") != bool(closing["open_points"]):
-        return f"the status is {status} while the closing lists {len(closing['open_points'])} group(s) of open points"
+        return f"the status is {status} while the closing lists {plural(len(closing['open_points']), 'group')} of open points"
     return None
 
 
@@ -981,10 +1006,11 @@ def _no_base_profile(root: Path) -> str:
             f'requests are checked with the mode it sets ("guard": "{mode}" in this change).')
 
 
-LOCAL_RECORDS = (
-    "Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record can "
-    "recompute it too, so nothing here proves who approved. Require signed approvals (docs/workflow.md#signed-approvals)"
-)
+def _local_records() -> str:
+    return ("Approvals on the base revision are local: CI recomputes each record's seal, but whoever can write a record "
+            "can recompute it too, so nothing here proves who approved. Require signed approvals "
+            f"({doc_link('docs/workflow.md', 'signed-approvals')})")
+
 WORKFLOW_DIR = ".github/workflows/"
 GUARD_STEP = "openguildkit guard --ci"
 
@@ -1003,9 +1029,11 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
     if not missing:
         return None
     unlisted = [task for task, files in covers.items() if files is None]
-    detail = (f" The record(s) of {', '.join(unlisted)} list no files: approved before the project had a Git revision, "
+    detail = (f" The {'record' if len(unlisted) == 1 else 'records'} of {', '.join(unlisted)} "
+              f"{'lists' if len(unlisted) == 1 else 'list'} no files: approved before the project had a Git revision, "
               "or exported by an earlier release." if unlisted else "")
-    return (f"{len(missing)} changed file(s) are in no decision record of this change: {_shown_files(missing)}. A record "
+    return (f"{plural(len(missing), 'changed file')} {'is' if len(missing) == 1 else 'are'} in no decision record of this "
+            f"change: {_shown_files(missing)}. A record "
             "covers the files Git tracks that changed since its approval when it is exported: export it again once the "
             "work is committed (openguildkit task export ID), or open a task for this change." + detail)
 
@@ -1029,9 +1057,11 @@ def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | No
     moment = (record["decision"].get("payload") or {}).get("signed_at")
     brought = _git(root, "log", "--diff-filter=A", "--reverse", "--format=%ct", f"{base}..HEAD", "--", relative)
     first = brought.stdout.split()[:1]
+    if not isinstance(moment, str):  # None: the signature check says so.
+        return None
     try:
         signed = calendar.timegm(time.strptime(moment, "%Y-%m-%dT%H:%M:%SZ"))
-    except (TypeError, ValueError):  # None, or malformed: the signature check says so.
+    except ValueError:  # Malformed: the signature check says so.
         return None
     if brought.returncode or not first or signed <= int(first[0]) + CLOCK_SKEW.total_seconds():
         return None
@@ -1071,7 +1101,7 @@ def _workflow_note(paths: list[str]) -> str:
     return (f"This change edits {', '.join(paths)}, which runs this check: on pull_request, GitHub runs the pull "
             "request's own copy of a workflow, so this result may come from the edited file. Have a person review the "
             "change, and keep pull requests from editing the check (CODEOWNERS on .github/workflows/, a ruleset that "
-            "requires the workflow; see integrations/README.md#protect-the-check).")
+            f"requires the workflow; see {doc_link('integrations/README.md', 'protect-the-check')}).")
 
 
 def _journal_mismatch(root: Path, record: dict) -> str | None:
@@ -1126,6 +1156,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         report.append({"code": code, "level": level, "message": message, "path": path, "line": None})
         return message
 
+    if _git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}").returncode:
+        raise ValueError(f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]
@@ -1220,9 +1252,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         problems.append(flag("decision-files-uncovered", uncovered))
     if policy["mode"] != "signed" and guard_mode(profile) != "off":
         if require_signed:
-            problems.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}: --require-signed fails this check until they are."))
+            problems.append(flag("approvals-not-signed", f"{_local_records()}: --require-signed fails this check until they are."))
         else:
-            notes.append(flag("approvals-not-signed", f"{LOCAL_RECORDS}, or pass --require-signed to fail this check until "
+            notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
     return {"mode": "enforce" if freeze else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,

@@ -2,5 +2,8 @@
 # OpenGuildKit has one maintainer today; a second maintainer is added to this line when they join.
 * @loukan42
 
+# CI workflows and approvals are oversight an agent does not change on its own: a person reviews them (pack agent-native-engineering).
+/.github/workflows/ @loukan42
+
 # Domain stewards are added below with the paths of their domain once named, for example:
 # /src/openguildkit/registry/packs/security-*.json @security-steward-login

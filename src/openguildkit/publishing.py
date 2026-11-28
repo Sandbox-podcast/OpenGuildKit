@@ -25,10 +25,12 @@ from urllib.parse import urlsplit
 
 from . import clock
 from .deliverables import project_path
+from .errors import unknown
 from .project import pack_scopes, rule_plan, rule_text
 from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
 from .tasks import read_task
+from .wording import plural
 from .workflow import objections
 
 MANIFEST = ".openguildkit-export.json"
@@ -84,11 +86,11 @@ def _verification(task: dict) -> str:
     if "deliberation" in task:
         disagreements = len(task["deliberation"]["open"])
         if disagreements:
-            line += f" {disagreements} disagreement(s) between the boards were left open."
+            line += f" {plural(disagreements, 'disagreement')} between the boards {'was' if disagreements == 1 else 'were'} left open."
     elif task.get("review"):
         pending = len(objections(task["review"], task["consultation"].get("domains")))
         if pending:
-            line += f" {pending} objection(s) between the boards were not deliberated before the approval."
+            line += f" {plural(pending, 'objection')} between the boards {'was' if pending == 1 else 'were'} not deliberated before the approval."
     return line
 
 
@@ -448,7 +450,7 @@ def revoke_share(state: Path, share_id: str, by: str) -> dict:
         shares = load_shares(state)
         share = next((item for item in shares if item["id"] == share_id), None)
         if share is None:
-            raise ValueError(f"Unknown share {share_id}. Run openguildkit docs share list.")
+            raise ValueError(unknown("share", share_id, "docs share list"))
         if share["revoked_at"]:
             raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
         share["revoked_at"] = clock.real_timestamp()

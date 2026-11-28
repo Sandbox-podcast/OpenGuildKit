@@ -1,7 +1,6 @@
 """Managed settings of the hosts, the policy of the workstation and what host check reads of them (issue #453)."""
 
 import json
-import os
 import tempfile
 import tomllib
 import unittest
@@ -10,7 +9,6 @@ from unittest.mock import patch
 
 from openguildkit import managed, workstation
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, openguildkit_on_path, run_cli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

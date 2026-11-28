@@ -204,7 +204,7 @@ class TaskFactsTests(unittest.TestCase):
         retro = task_retro(facts)
         self.assertEqual(len(retro["not_recorded"]), 1)
         self.assertIn("cannot be read", retro["not_recorded"][0])
-        self.assertIn("Committees: not read", "\n".join(render_task(retro)))
+        self.assertIn("Boards: not read", "\n".join(render_task(retro)))
         bare = {key: value for key, value in old.items() if key != "result"}
         self.assertEqual(facts_of_task(bare)["rules"], [])
 
@@ -263,7 +263,7 @@ class ExportedRecordFactsTests(unittest.TestCase):
         self.assertIsNone(facts["committees"])
         retro = task_retro(facts)
         self.assertEqual(retro["source"], "exported record")
-        self.assertTrue(any("committees" in note and "objection" in note for note in retro["not_recorded"]))
+        self.assertTrue(any("boards" in note and "objection" in note for note in retro["not_recorded"]))
         self.assertEqual(task_retro(facts_of_task(closed()))["not_recorded"], [])
         self.assertIn("not in the exported record", " ".join(render_task(retro)))
 
@@ -491,14 +491,14 @@ class ProposalTests(unittest.TestCase):
     def test_a_rule_that_failed_in_several_tasks_can_be_made_a_required_rule(self):
         item = self.propose(finding("rule", check="rule:python/follow-python-style", status="failed", reason=""))
         self.assertEqual(item["command"],
-                         "openguildkit profile add required-rule python/follow-python-style --by NAME --reason "
+                         "openguildkit profile add required-rule python/follow-python-style --by INITIALS --reason "
                          "'task retro: rule:python/follow-python-style failed in 3 tasks (a, b, c)'")
         self.assertFalse(item["needs_terminal"])
         self.parses(item["command"])
 
     def test_a_pack_that_failed_as_a_whole_is_required_as_a_whole(self):
         item = self.propose(finding("rule", check="pack:python", status="failed", reason=""))
-        self.assertEqual(item["command"], "openguildkit profile add required-rule python --by NAME --reason "
+        self.assertEqual(item["command"], "openguildkit profile add required-rule python --by INITIALS --reason "
                                           "'task retro: pack:python failed in 3 tasks (a, b, c)'")
 
     def test_a_rule_already_required_gets_no_command(self):
@@ -509,7 +509,7 @@ class ProposalTests(unittest.TestCase):
     def test_one_rule_set_aside_in_three_tasks_can_be_declined_with_its_reason_at_a_terminal(self):
         for status in ("skipped", "not-applicable"):
             item = self.propose(finding("rule", check="rule:react/reuse-ui-components", status=status, reason="Why."))
-            self.assertEqual(item["command"], "openguildkit profile decline rule react/reuse-ui-components --by NAME "
+            self.assertEqual(item["command"], "openguildkit profile decline rule react/reuse-ui-components --by INITIALS "
                                               f"--reason 'task retro: rule:react/reuse-ui-components {status} in 3 "
                                               "tasks (a, b, c): Why.'", status)
             self.assertTrue(item["needs_terminal"])
@@ -529,7 +529,7 @@ class ProposalTests(unittest.TestCase):
     def test_a_pack_that_only_a_pattern_brings_leaves_with_that_pattern_and_the_others_it_drops_are_named(self):
         item = self.propose(finding("rule", check="pack:fastapi", status="not-applicable", reason="Not used."))
         self.assertEqual(item["command"],
-                         "openguildkit profile decline python-fastapi-postgresql --by NAME --reason "
+                         "openguildkit profile decline python-fastapi-postgresql --by INITIALS --reason "
                          "'task retro: pack:fastapi not-applicable in 3 tasks (a, b, c): Not used.'")
         self.assertIn("api-design", item["also_drops"])
         self.assertNotIn("fastapi", item["also_drops"])
@@ -538,7 +538,7 @@ class ProposalTests(unittest.TestCase):
     def test_a_pack_the_profile_lists_and_no_pattern_brings_leaves_with_remove_pack(self):
         item = self.propose(finding("rule", check="pack:nist-ai-risk", status="skipped", reason="Why."),
                             packs=["agent-workflow", "python", "react", "secure-sdlc", "typescript", "nist-ai-risk"])
-        self.assertEqual(item["command"], "openguildkit profile remove pack nist-ai-risk --by NAME --reason "
+        self.assertEqual(item["command"], "openguildkit profile remove pack nist-ai-risk --by INITIALS --reason "
                                           "'task retro: pack:nist-ai-risk skipped in 3 tasks (a, b, c): Why.'")
         self.assertTrue(item["needs_terminal"])
         self.parses(item["command"])
@@ -551,7 +551,7 @@ class ProposalTests(unittest.TestCase):
     def test_a_committee_that_never_brought_anything_can_leave_the_boards_the_profile_lists(self):
         boards = ["product", "engineering", "qa", "design", "marketing", "security", "legal"]
         item = self.propose(finding("committee", board="qa", convened_in=3), boards=boards)
-        self.assertEqual(item["command"], "openguildkit profile remove board qa --by NAME --reason "
+        self.assertEqual(item["command"], "openguildkit profile remove board qa --by INITIALS --reason "
                                           "'task retro: qa brought no blocker or objection in 3 tasks (a, b, c)'")
         self.assertFalse(item["needs_terminal"])
         self.parses(item["command"])
@@ -567,7 +567,7 @@ class ProposalTests(unittest.TestCase):
         command = "python -m pytest"
         item = self.propose(finding("reservation", group=NOT_RUN_GROUP, point="x", check_command=command),
                             checks=[command, "npm test"])
-        self.assertEqual(item["command"], "openguildkit profile remove check 'python -m pytest' --by NAME --reason "
+        self.assertEqual(item["command"], "openguildkit profile remove check 'python -m pytest' --by INITIALS --reason "
                                           "'task retro: x in 3 tasks (a, b, c)'")
         self.assertTrue(item["needs_terminal"])
         self.parses(item["command"])
@@ -583,7 +583,7 @@ class ProposalTests(unittest.TestCase):
         item = self.propose(finding("rule", check="rule:python/follow-python-style", status="failed", reason=""))
         self.assertEqual(item["proposed_reason"], "task retro: rule:python/follow-python-style failed in 3 tasks (a, b, c)")
         self.assertEqual(item["tasks"], ["a", "b", "c"])
-        self.assertEqual(shlex.split(item["command"])[-3:], ["NAME", "--reason", item["proposed_reason"]])
+        self.assertEqual(shlex.split(item["command"])[-3:], ["INITIALS", "--reason", item["proposed_reason"]])
 
     def test_the_reason_is_quoted_for_posix_and_powershell_and_reads_back_as_written(self):
         profile, catalog = profile_and_catalog(packs=["agent-workflow", "python", "react", "secure-sdlc", "typescript",
@@ -646,6 +646,21 @@ class RenderTests(unittest.TestCase):
             {"id": "x", "from": "security", "to": "qa"}])))))
         self.assertIn("no rule set aside", text)
 
+    def test_the_retrospective_says_board_and_never_committee(self):
+        """Issue #527: task retro said "committee", a word the glossary does not have: it fixes board."""
+        silent = {"qa": "proceed", "product": "revise"}
+        tasks = [closed(f"t{number}", boards=silent, objections=[]) for number in (1, 2, 3)]
+        profile, catalog = profile_and_catalog()
+        retros = [task_retro(facts_of_task(tasks[0])), task_retro(facts_of_record(record_of(tasks[0]))),
+                  task_retro(facts_of_task({key: value for key, value in tasks[0].items() if key != "review"}))]
+        summaries = [project_summary([facts_of_task(task) for task in tasks], 3, profile, catalog, {}),
+                     project_summary([facts_of_task(tasks[0])], 1, profile, catalog, {})]
+        text = "\n".join([*(line for retro in retros for line in render_task(retro)),
+                          *(item for retro in retros for item in retro["not_recorded"]),
+                          *(line for summary in summaries for line in render_project(summary))])
+        self.assertIn("Boards: ", text)
+        self.assertNotIn("ommittee", text)
+
     def test_a_long_list_is_cut_with_the_command_that_shows_all_of_it(self):
         task = closed(checks=[skipped(f"rule:react/rule-{number}", f"Reason {number}.") for number in range(40)])
         lines = render_task(task_retro(facts_of_task(task)))
@@ -659,7 +674,7 @@ class RenderTests(unittest.TestCase):
         summary = project_summary([facts_of_task(task) for task in tasks], 3, profile, catalog, {})
         text = "\n".join(render_project(summary))
         self.assertIn("rule:python/follow-python-style failed in 3 tasks (t1, t2, t3)", text)
-        self.assertIn("openguildkit profile add required-rule python/follow-python-style --by NAME --reason "
+        self.assertIn("openguildkit profile add required-rule python/follow-python-style --by INITIALS --reason "
                       "'task retro: rule:python/follow-python-style failed in 3 tasks (t1, t2, t3)'", text)
         self.assertIn("terminal", text)
         self.assertIn("--by is theirs to fill in", text)

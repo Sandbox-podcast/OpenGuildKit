@@ -22,6 +22,7 @@ from .detect import walk
 from .sensitive import refuse_link_credentials
 from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
 from .storage import json_text, project_lock, read_json, write_json, write_text
+from .wording import plural
 
 RECORD = "storybook.json"
 REFS_FILE = "openguildkit-refs.json"
@@ -664,7 +665,7 @@ def _dtcg_token(item: dict) -> dict | None:
                  "$value": [part.strip().strip("'\"") for part in value.split(",") if part.strip()]}
     else:
         return None
-    token["$description"] = f"Extracted from {item['occurrences']} occurrence(s) in the application."
+    token["$description"] = f"Extracted from {plural(item['occurrences'], 'occurrence')} in the application."
     token["$extensions"] = {"org.openguildkit": {"origins": item["origins"], "confidence": item["confidence"]}}
     return token
 

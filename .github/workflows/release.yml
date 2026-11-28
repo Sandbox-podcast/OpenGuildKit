@@ -1,8 +1,9 @@
 name: Release assets
 
 # Builds the web interface, the wheel that ships it and the Node archive from the tagged commit, copies the
-# one-line installers (scripts/install.sh and scripts/install.ps1), writes SHA256SUMS.txt and attaches the
-# five files to the release of the tag. A maintainer reviews and publishes the release.
+# one-line installers (scripts/install.sh and scripts/install.ps1), writes the CycloneDX SBOM of the web
+# interface and SHA256SUMS.txt, attests the build provenance of the six files and attaches them to the release
+# of the tag. A maintainer reviews and publishes the release.
 on:
   push:
     tags: ["v*"]
@@ -19,16 +20,20 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    env:
+      # The versions of the build tools, for `pip install build` and for the isolated environment of the build.
+      PIP_CONSTRAINT: ${{ github.workspace }}/.github/build-constraints.txt
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      # A Python the tests run on (the matrix of ci.yml).
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.11"
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # 2026-10-08 v7.1.0
         with:
           node-version: "24"
 
@@ -39,6 +44,10 @@ jobs:
           node=$(node -p 'require("./integrations/ci/package.json").version')
           printf 'Tag %s, pyproject.toml %s, package.json %s\n' "$GITHUB_REF_NAME" "$python" "$node"
           test "$version" = "$python" && test "$version" = "$node"
+
+      # The dates of the files in the wheel are the date of the commit, not the day of the build.
+      - name: Date the build with the commit
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
 
       # The same three steps as the package job of ci.yml, which installs and runs the wheel they build
       # (tests/test_release.py compares them).
@@ -60,33 +69,75 @@ jobs:
           python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/web_dist/index.html
           python -m zipfile -l dist/openguildkit-*-py3-none-any.whl | grep -F openguildkit/registry/catalog.bundle.json
 
+      # Same sources with new file dates, built again: a third party who builds the tag must get these bytes.
+      # The web interface is not built twice: the second wheel takes the one built above.
+      - name: Check that a second build gives the same wheel
+        run: |
+          first=$(sha256sum dist/openguildkit-*-py3-none-any.whl | cut -d ' ' -f 1)
+          rm -rf build src/*.egg-info
+          find src -type f -exec touch {} +
+          python -m build --wheel --outdir "$RUNNER_TEMP/second"
+          second=$(sha256sum "$RUNNER_TEMP"/second/openguildkit-*-py3-none-any.whl | cut -d ' ' -f 1)
+          printf 'first build  %s\nsecond build %s\n' "$first" "$second"
+          test "$first" = "$second"
+
+      # The runtime packages of the web interface that the wheel embeds, read from web/package-lock.json.
+      - name: Write the CycloneDX SBOM of the web interface
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          python scripts/make_sbom.py --lock web/package-lock.json \
+            --wheel "dist/openguildkit-$version-py3-none-any.whl" --output "dist/openguildkit-$version.cdx.json"
+
       - name: Build the Node archive, add the installers, then write the hashes of the assets
         run: |
           version="${GITHUB_REF_NAME#v}"
           mkdir release
           cp "dist/openguildkit-$version-py3-none-any.whl" release/
+          cp "dist/openguildkit-$version.cdx.json" release/
           cp scripts/install.sh scripts/install.ps1 release/
           npm pack ./integrations/ci --ignore-scripts --pack-destination release
           cd release
-          sha256sum "openguildkit-$version-py3-none-any.whl" "openguildkit-$version.tgz" install.sh install.ps1 > SHA256SUMS.txt
+          sha256sum "openguildkit-$version-py3-none-any.whl" "openguildkit-$version.tgz" "openguildkit-$version.cdx.json" install.sh install.ps1 > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
         with:
           name: release-assets
           path: release/
           if-no-files-found: error
           retention-days: 7
 
+  # The only job that can mint an identity token. It runs no project code: it downloads the files the build job
+  # made and signs their digests, so the signature names this workflow and the tag it ran for.
+  # `gh attestation verify FILE --repo Sandbox-podcast/OpenGuildKit` checks it (docs/install.md).
+  attest:
+    name: Attest the build provenance of the assets
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 2026-10-07 v8.0.2
+        with:
+          name: release-assets
+          path: release
+
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # 2026-08-04 v4.2.2
+        with:
+          subject-path: release/*
+
   publish:
     name: Attach the assets to the release
-    needs: build
+    needs: [build, attest]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # 2026-10-07 v8.0.2
         with:
           name: release-assets
           path: release
@@ -104,4 +155,5 @@ jobs:
               --notes "Copy the section of this version from CHANGELOG.md here before publishing."
           fi
           gh release upload "$GITHUB_REF_NAME" \
-            "openguildkit-$VERSION-py3-none-any.whl" "openguildkit-$VERSION.tgz" install.sh install.ps1 SHA256SUMS.txt
+            "openguildkit-$VERSION-py3-none-any.whl" "openguildkit-$VERSION.tgz" "openguildkit-$VERSION.cdx.json" \
+            install.sh install.ps1 SHA256SUMS.txt

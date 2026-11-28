@@ -18,7 +18,9 @@ WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
 TEMPLATES = sorted([*(ROOT / "integrations" / "github").glob("*.yml"), *(ROOT / "integrations" / "ci").rglob("*.yml")])
 USES = re.compile(r"^\s*(?:- )?uses:\s*(\S+)(.*)$")
 PINNED = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
-TAG_COMMENT = re.compile(r"^ # v\d+\.\d+\.\d+$")
+# The comment ends with the tag, which is how Dependabot finds it to rewrite it; the day of the release comes before.
+TAG_COMMENT = re.compile(r"^ # (?:\d{4}-\d{2}-\d{2} )?v\d+\.\d+\.\d+$")
+DATED_COMMENT = re.compile(r"^ # \d{4}-\d{2}-\d{2} v\d+\.\d+\.\d+$")
 KEY = re.compile(r"""^(?:"[^"]+"|'[^']+'|[\w.-]+):(?: (.*))?$""")
 
 
@@ -152,6 +154,27 @@ class PinnedActionsTest(unittest.TestCase):
                     unpinned.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {line.strip()}")
         self.assertEqual(unpinned, [], "pin each action to a commit SHA with '# vX.Y.Z' after it")
 
+    def test_the_pins_of_the_workflows_and_the_github_templates_say_the_day_of_their_release(self):
+        """Issue #473: a pin that says only its tag does not say how late it is."""
+        undated = []
+        for path in [*WORKFLOWS, *sorted((ROOT / "integrations" / "github").glob("*.yml"))]:
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                match = USES.match(line)
+                if match and not DATED_COMMENT.match(match.group(2)):
+                    undated.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {line.strip()}")
+        self.assertEqual(undated, [], "write '# YYYY-MM-DD vX.Y.Z' after the commit: the release day, then the tag")
+
+    def test_workflows_and_shipped_templates_cite_one_commit_of_each_action(self):
+        """Issue #473: the workflows were on actions/checkout v5.1.0 and the pilot templates on v7.0.1."""
+        pins: dict[str, dict[str, list[str]]] = {}
+        for path in [*WORKFLOWS, *TEMPLATES]:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                match = USES.match(line)
+                if match and "@" in match.group(1) and not match.group(1).startswith("./"):
+                    action, ref = match.group(1).split("@")
+                    pins.setdefault(action, {}).setdefault(ref, []).append(path.name)
+        self.assertEqual({action: refs for action, refs in pins.items() if len(refs) > 1}, {})
+
     def test_the_check_catches_a_tag_reference(self):
         self.assertFalse(PINNED.match("actions/checkout@v5"))
         self.assertTrue(PINNED.match("actions/checkout@" + "a" * 40))
@@ -229,7 +252,7 @@ esac
         return calls, body, result.stdout
 
     RULE = {"kind": "rule", "label": "pack:gdpr skipped", "count": 3, "tasks": ["a", "b", "c"],
-            "command": "openguildkit profile remove pack gdpr --by NAME --reason WHY", "needs_terminal": True,
+            "command": "openguildkit profile remove pack gdpr --by INITIALS --reason WHY", "needs_terminal": True,
             "also_drops": []}
     COMMITTEE = {"kind": "committee", "label": "design @someone", "count": 4, "tasks": ["a", "b", "c", "d"],
                  "command": None, "needs_terminal": False, "also_drops": []}
@@ -247,7 +270,7 @@ esac
         self.assertEqual([call.split(" --")[0] for call in calls], ["issue list", "issue create"])
         self.assertIn(f"--title OpenGuildKit retrospective {month}", calls[1])
         self.assertIn("pack:gdpr skipped", body)
-        self.assertIn("`openguildkit profile remove pack gdpr --by NAME --reason WHY`", body)
+        self.assertIn("`openguildkit profile remove pack gdpr --by INITIALS --reason WHY`", body)
         self.assertIn("interactive terminal", body)
         self.assertIn("3 tasks", body)
         self.assertNotIn("@someone", body, "a name typed in a finding must not notify anyone")
@@ -269,6 +292,25 @@ esac
                                                            "state": "CLOSED"}])
         self.assertEqual([call.split(" --")[0] for call in calls], ["issue list"])
         self.assertIn("#15", out)
+
+    @unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs jq and bash, as on the GitHub runner")
+    def test_the_command_to_type_is_pasted_as_written_and_a_name_outside_it_stays_neutralized(self):
+        """Issue #524: the command of a check with an @ carries an invisible character, and fails once pasted."""
+        command = "openguildkit profile remove check 'npx @biomejs/biome check' --by NAME --reason WHY"
+        finding = {**self.RULE, "kind": "check", "label": "check @biomejs skipped", "command": command}
+        _, body, _ = self._issue_step([finding], [])
+        typed = next(line for line in body.splitlines() if "A person may type:" in line)
+        self.assertIn(f"`{command}`", typed)
+        self.assertTrue(typed.isascii(), ascii(typed))
+        label = next(line for line in body.splitlines() if line.startswith("- **check**"))
+        self.assertIn("@\u200bbiomejs", label, "a name in a label, outside a code span, still notifies nobody")
+
+    def test_no_shipped_github_template_holds_an_invisible_character_in_clear(self):
+        """Issue #524: the template had U+200B in its source, which `host scan` reports in an instructions file."""
+        invisible = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
+        for path in sorted((ROOT / "integrations" / "github").glob("*.yml")):
+            with self.subTest(path=path.name):
+                self.assertEqual(invisible.findall(path.read_text(encoding="utf-8")), [], "write it as \\u200b in jq")
 
     def test_the_workflow_guide_describes_the_template_next_to_task_retro(self):
         guide = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
@@ -300,7 +342,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
 
     def test_publish_job_holds_the_write_token_without_running_project_code(self):
         publish = self.jobs["publish"]
-        self.assertEqual(publish["needs"], "build")
+        self.assertEqual(publish["needs"], ["build", "attest"])
         actions = [str(step["uses"]) for step in steps(publish) if "uses" in step]
         self.assertEqual([action.split("@")[0] for action in actions], ["actions/download-artifact"])
         for step in steps(publish):
@@ -329,17 +371,127 @@ class ReleaseWorkflowTest(unittest.TestCase):
             self.assertIn(fact, section)
 
 
+def _constraints() -> dict[str, str]:
+    """The exact versions of .github/build-constraints.txt, by normalised name."""
+    text = (ROOT / ".github" / "build-constraints.txt").read_text(encoding="utf-8")
+    return {name.lower().replace("-", "_"): version for name, version in re.findall(r"^([\w.-]+)==(\S+)$", text, re.M)}
+
+
+class ReleaseProvenanceTest(unittest.TestCase):
+    """Issue #503: the release says where its files come from, and a third party can rebuild the wheel."""
+
+    def setUp(self):
+        self.workflow = parse(ROOT / ".github" / "workflows" / "release.yml")
+        self.jobs = self.workflow["jobs"]
+
+    def test_only_the_attest_job_can_mint_an_identity_token(self):
+        """Issue #503: no attestation of the build; the identity token belongs to one job without project code."""
+        for name, job in self.jobs.items():
+            granted = set(job["permissions"]) & {"id-token", "attestations"}
+            self.assertEqual(granted, {"id-token", "attestations"} if name == "attest" else set(), name)
+        attest = self.jobs["attest"]
+        self.assertEqual(attest["permissions"], {"contents": "read", "id-token": "write", "attestations": "write"})
+        self.assertEqual(attest["needs"], "build")
+        self.assertEqual(self.jobs["publish"]["needs"], ["build", "attest"], "nothing is attached without its attestation")
+        self.assertEqual([str(step["uses"]).split("@")[0] for step in steps(attest)],
+                         ["actions/download-artifact", "actions/attest"])
+        self.assertEqual(run_text(attest).strip(), "", "the job that holds the identity token runs no project code")
+
+    def test_every_file_of_the_release_is_a_subject_of_the_attestation(self):
+        """Issue #503: the attestation covers the wheel, the archive, both installers, the SBOM and the hashes."""
+        attest = next(step for step in steps(self.jobs["attest"]) if "attest@" in str(step["uses"]))
+        self.assertEqual(attest["with"]["subject-path"], "release/*")
+        fetched = next(step for step in steps(self.jobs["attest"]) if "download-artifact@" in str(step["uses"]))
+        self.assertEqual((fetched["with"]["name"], fetched["with"]["path"]), ("release-assets", "release"))
+
+    def test_the_wheel_is_dated_by_its_commit_and_built_with_pinned_tools(self):
+        """Issue #503: the wheel depends on the date of the sources and on build tools that float."""
+        build = self.jobs["build"]
+        listed = steps(build)
+        names = [step.get("name") for step in listed]
+        epoch = next(step for step in listed if "SOURCE_DATE_EPOCH" in str(step.get("run")))
+        self.assertIn("git log -1 --format=%ct", epoch["run"])
+        self.assertIn("GITHUB_ENV", epoch["run"])
+        self.assertLess(listed.index(epoch), names.index("Build the wheel"))
+        self.assertEqual(build["env"]["PIP_CONSTRAINT"], "${{ github.workspace }}/.github/build-constraints.txt")
+        self.assertTrue({"build", "setuptools", "packaging", "pyproject_hooks"} <= set(_constraints()))
+        python = next(step for step in listed if "setup-python" in str(step.get("uses")))["with"]["python-version"]
+        matrix = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["test"]["strategy"]["matrix"]["python"]
+        self.assertIn(python, matrix, "build with a Python the tests run on")
+
+    def test_the_setuptools_the_wheel_is_built_with_is_the_one_pinned(self):
+        """Issue #503: the Generator line of the wheel names the setuptools of the day."""
+        floor = next(re.search(r"setuptools>=([\d.]+)", line)[1] for line in
+                     (ROOT / "pyproject.toml").read_text(encoding="utf-8").splitlines() if "setuptools>=" in line)
+        pinned = tuple(int(part) for part in _constraints()["setuptools"].split("."))
+        self.assertGreaterEqual(pinned, tuple(int(part) for part in floor.split(".")))
+
+    def test_a_second_build_must_give_the_same_wheel_before_anything_is_attached(self):
+        """Issue #503: two builds of one commit were not compared."""
+        build = self.jobs["build"]
+        names = [step.get("name") for step in steps(build)]
+        second = next(step for step in steps(build) if step.get("name") == "Check that a second build gives the same wheel")
+        for command in ("python -m build --wheel --outdir", "sha256sum", 'test "$first" = "$second"', "touch"):
+            self.assertIn(command, second["run"])
+        self.assertLess(names.index("Build the wheel"), names.index(second["name"]))
+        self.assertLess(names.index(second["name"]), names.index("Build the Node archive, add the installers, then write the hashes of the assets"))
+
+    def test_the_release_carries_the_cyclonedx_sbom_with_its_hash(self):
+        """Issue #503: no SBOM of the web interface the wheel embeds."""
+        build, publish = run_text(self.jobs["build"]), run_text(self.jobs["publish"])
+        self.assertIn("python scripts/make_sbom.py --lock web/package-lock.json", build)
+        sums = next(line for line in build.splitlines() if line.startswith("sha256sum "))
+        self.assertIn('"openguildkit-$version.cdx.json"', sums)
+        self.assertIn('"openguildkit-$VERSION.cdx.json"', publish.split("gh release upload", 1)[1])
+
+    def test_the_release_check_verifies_every_attestation_and_installs_without_an_index(self):
+        """Issue #503: nothing replays gh attestation verify, nor the offline installation of docs/install.md."""
+        path = ROOT / ".github" / "workflows" / "release-check.yml"
+        script = run_text(parse(path)["jobs"]["install"])
+        for fact in ("gh attestation verify", '--repo "$GITHUB_REPOSITORY"', "--signer-workflow", "--source-ref",
+                     "--no-index", "release.yml"):
+            self.assertIn(fact, script)
+        self.assertIn('--pattern "openguildkit-$VERSION.cdx.json"', path.read_text(encoding="utf-8"))
+        manual = parse(path)["on"]["workflow_dispatch"]["inputs"]["attestations"]
+        self.assertEqual(manual["default"], "true", "a manual run of a release that predates attestations says so")
+
+
 class PackageJobTest(unittest.TestCase):
-    def test_wheel_is_built_and_installed_on_three_systems_and_the_python_bounds(self):
-        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["package"]
+    """Issue #474: the wheel and its web interface were built five times, once by each job that installs it."""
+
+    def setUp(self):
+        self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
+
+    def test_the_wheel_is_built_once_on_ubuntu_and_handed_on_as_an_artifact(self):
+        wheel = self.jobs["wheel"]
+        self.assertEqual(wheel["runs-on"], "ubuntu-latest")
+        self.assertNotIn("strategy", wheel)
+        script = run_text(wheel)
+        for command in ("npm ci --ignore-scripts", "npm run build", "npm run bundle", "python -m build"):
+            self.assertIn(command, script)
+        upload = next(step for step in steps(wheel) if "upload-artifact" in str(step.get("uses")))
+        self.assertEqual(upload["with"]["path"], "dist/*.whl")
+        self.assertEqual(upload["with"]["if-no-files-found"], "error")
+        for name, job in self.jobs.items():
+            if name != "wheel":
+                self.assertNotIn("python -m build", run_text(job), f"{name} builds a wheel of its own")
+
+    def test_the_wheel_is_installed_on_three_systems_and_the_python_bounds_without_being_built_again(self):
+        job = self.jobs["package"]
+        self.assertEqual(job["needs"], "wheel")
         matrix = job["strategy"]["matrix"]
         self.assertEqual(set(matrix["os"]), {"ubuntu-latest", "macos-latest", "windows-latest"})
         self.assertEqual({"3.11", "3.15"}, set(matrix["python"]))
         setup = next(s for s in steps(job) if "setup-python" in str(s.get("uses")))
         self.assertEqual(setup["with"]["python-version"], "${{ matrix.python }}")
+        upload = next(step for step in steps(self.jobs["wheel"]) if "upload-artifact" in str(step.get("uses")))
+        download = next(step for step in steps(job) if "download-artifact" in str(step.get("uses")))
+        self.assertEqual(download["with"], {"name": upload["with"]["name"], "path": "dist"})
         script = run_text(job)
-        self.assertIn("python -m build", script)
         self.assertIn("pip install dist/*.whl", script)
+        for built in ("npm ", "python -m build", "twine"):
+            self.assertNotIn(built, script)
+        self.assertFalse([step for step in steps(job) if "setup-node" in str(step.get("uses"))], "no Node to install a wheel")
 
 
 class PerformanceJobTest(unittest.TestCase):
@@ -351,10 +503,17 @@ class PerformanceJobTest(unittest.TestCase):
         self.assertIn("python scripts/build_catalog_bundle.py", commands[:measured])
 
 
-def matrix_jobs(job: dict) -> list[dict]:
-    """The combinations a job's matrix runs: the product of its lists, less its excludes (no include is used)."""
+# A matrix key whose value is an expression: the list it gives when the event is the one named, [] otherwise.
+EVENT_LIST = re.compile(r"\$\{\{ fromJSON\(github\.event_name == '(\w+)' && '(\[.*\])' \|\| '\[\]'\) \}\}")
+
+
+def matrix_jobs(job: dict, event: str = "push") -> list[dict]:
+    """The combinations a job's matrix runs for an event: the product of its lists, less its excludes (no include is used)."""
     matrix = dict(job["strategy"]["matrix"])
     excluded = matrix.pop("exclude", None) or []
+    if isinstance(excluded, str):
+        named, listed = EVENT_LIST.fullmatch(excluded).groups()
+        excluded = json.loads(listed) if event == named else []
     combinations = [{}]
     for key, values in matrix.items():
         combinations = [{**combination, key: value} for combination in combinations for value in values]
@@ -367,13 +526,13 @@ class MacosRunnersTest(unittest.TestCase):
     def setUp(self):
         self.jobs = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]
 
-    def macos(self, name):
+    def macos(self, name, event="push"):
         job = self.jobs[name]
         if "matrix" not in job.get("strategy", {}):
             return [{}] if job["runs-on"] == "macos-latest" else []
-        return [c for c in matrix_jobs(job) if c.get("os") == "macos-latest"]
+        return [c for c in matrix_jobs(job, event) if c.get("os") == "macos-latest"]
 
-    def test_a_run_places_at_most_four_jobs_on_macos(self):
+    def test_a_push_places_at_most_four_jobs_on_macos(self):
         self.assertEqual([c["python"] for c in self.macos("test")], ["3.11", "3.15"])
         self.assertEqual(len(self.macos("package")), 1)
         self.assertEqual(sum(len(self.macos(name)) for name in self.jobs), 4)
@@ -381,10 +540,18 @@ class MacosRunnersTest(unittest.TestCase):
             linux = [c for c in matrix_jobs(self.jobs[name]) if c["os"] == "ubuntu-latest"]
             self.assertEqual(len(linux), len(self.jobs[name]["strategy"]["matrix"]["python"]), name)
 
+    def test_a_pull_request_places_three(self):
+        self.assertEqual([c["python"] for c in self.macos("test", "pull_request")], ["3.15"])
+        self.assertEqual(sum(len(self.macos(name, "pull_request")) for name in self.jobs), 3)
+
     def test_the_matrix_reader_applies_the_excludes(self):
         job = {"strategy": {"matrix": {"os": ["a", "b"], "python": ["1", "2"], "exclude": [{"os": "b", "python": "1"}]}}}
         self.assertEqual(matrix_jobs(job), [{"os": "a", "python": "1"}, {"os": "a", "python": "2"},
                                             {"os": "b", "python": "2"}])
+        job["strategy"]["matrix"]["exclude"] = ("${{ fromJSON(github.event_name == 'pull_request' && "
+                                                "'[{\"os\":\"b\",\"python\":\"1\"}]' || '[]') }}")
+        self.assertEqual(len(matrix_jobs(job, "pull_request")), 3)
+        self.assertEqual(len(matrix_jobs(job, "push")), 4)
 
 
 class ContributionChecksTest(unittest.TestCase):
@@ -443,6 +610,21 @@ class ContributionChecksTest(unittest.TestCase):
         for words in ("No runner picked the job up", "These jobs never started", "Re-run failed jobs",
                       "You pushed again", "cancels the run of the previous commit", "3.11 and 3.15 on Linux, macOS and Windows"):
             self.assertIn(words, section)
+
+    def test_a_job_the_path_filter_skipped_counts_as_passed_when_the_filter_itself_ran(self):
+        """Issue #474: `contribution-checks` must pass on a pull request that only touches docs/."""
+        for job in ("ci-coordinator", "web", "web-e2e"):
+            with self.subTest(job=job):
+                passed = self.run_gate({job: "skipped"}, [])
+                self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+                failed = self.run_gate({job: "skipped", "changes": "failure"}, [])
+                self.assertEqual(failed.returncode, 1, "a job skipped because the filter failed is not a pass")
+
+    def test_the_jobs_the_filter_does_not_govern_must_succeed(self):
+        for job in ("changes", "test", "performance", "wheel", "package"):
+            for result in ("skipped", "cancelled", "failure"):
+                with self.subTest(job=job, result=result):
+                    self.assertEqual(self.run_gate({job: result}, []).returncode, 1)
 
     def test_every_job_passed(self):
         result = self.run_gate({}, [])

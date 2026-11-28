@@ -99,3 +99,38 @@ test('the Windows installer deploys the current watcher and writes files Jenkins
   assert.match(installer, /secret\.delete\(\)/);
   assert.match(launcher, /Remove-Item -LiteralPath \$bootstrapSecret/);
 });
+
+const sources = folder => readdirSync(join(packageRoot, folder)).filter(name => name.endsWith('.mjs'))
+  .map(name => [`${folder}/${name}`, read(`${folder}/${name}`)]);
+
+test('Issue #531: the code the commands run does not live under prototype/', async () => {
+  for (const [path, text] of [...sources('lib'), ...sources('pilot'), ...sources('bin')]) {
+    assert.doesNotMatch(text, /from '[^']*prototype\//, `${path} imports from prototype/`);
+  }
+  assert.ok(!manifest.files.some(entry => entry.startsWith('prototype/demo')), 'prototype/demo ships nothing');
+  const { evaluate, describeRule, isCatalogVersion } = await import('../lib/rule.mjs');
+  assert.equal(evaluate({ id: 'export-link-expiry', version: 1, maxMinutes: 30 }, 'a'.repeat(40), 'b'.repeat(40),
+    { downloadLinkMinutes: 20 }).state, 'success');
+  assert.equal(typeof describeRule, 'function');
+  assert.equal(isCatalogVersion('1.2.3'), true);
+});
+
+test('Issue #531: two scripts that nothing runs are gone', () => {
+  for (const name of ['recheck.mjs', 'verify-refs.mjs']) {
+    assert.ok(!existsSync(join(packageRoot, 'prototype', name)), name);
+  }
+});
+
+test('Issue #531: the GitHub CLI is wrapped once, and every call to it has a time limit', () => {
+  const files = ['lib', 'pilot', 'prototype', 'bin'].flatMap(folder => sources(folder));
+  assert.deepEqual(files.filter(([, text]) => /function gh\b/.test(text)).map(([path]) => path), ['lib/github.mjs']);
+  const calls = files.flatMap(([path, text]) => [...text.matchAll(/execFileSync\(\s*'gh'[\s\S]*?;\n/g)].map(match => [path, match[0]]));
+  assert.deepEqual(calls.map(([path]) => path).sort(), ['lib/github.mjs', 'pilot/install-kit.mjs']);
+  for (const [path, call] of calls) assert.match(call, /timeout: \d[\d_]*/, path);
+});
+
+test('Issue #531: the ticket line of a PR is read by one expression', () => {
+  const expressions = ['lib', 'pilot', 'prototype'].flatMap(folder => sources(folder))
+    .filter(([, text]) => text.includes('OpenGuildKit-Ticket:')).map(([path]) => path);
+  assert.deepEqual(expressions, ['lib/github.mjs']);
+});

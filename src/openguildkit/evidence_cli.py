@@ -15,7 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from . import clock
@@ -209,7 +209,7 @@ def _signers(root: Path, profile: dict, since: str | None, until: str | None) ->
     rows = []
     for line in listing.splitlines():
         commit, seconds = line.split()
-        moment = datetime.fromtimestamp(int(seconds), timezone.utc)
+        moment = datetime.fromtimestamp(int(seconds), UTC)
         if not _within(moment.date().isoformat(), since, until):
             continue
         text, blob = _git_output(root, "show", f"{commit}:./{relative}"), _git_output(root, "rev-parse", f"{commit}:./{relative}")

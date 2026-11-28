@@ -1,5 +1,7 @@
 # Dependency alerts and vulnerability watch
 
+For: the maintainer who imports scanner reports, and the agent that triages the alerts.
+
 OpenGuildKit does not scan dependencies. It reads the JSON report of a scanner the project already uses (npm audit, pip-audit, OSV-Scanner, GitHub Dependabot alerts) and keeps the alerts in one register per project, `.openguildkit/alerts.json`. Commit that file: the team shares the reviews, and the scheduled job reads them.
 
 ## The register
@@ -20,8 +22,8 @@ Each alert has a status:
 | Status | Meaning | Set by |
 |---|---|---|
 | `open` | Reported, not reviewed yet | An import |
-| `confirmed` | A reviewer confirmed the project is affected | `alerts set --status confirmed --by NAME` |
-| `dismissed` | Not applicable, with the reason and who decided | `alerts set --status dismissed --by NAME --reason WHY` |
+| `confirmed` | A reviewer confirmed the project is affected | `alerts set --status confirmed --by INITIALS` |
+| `dismissed` | Not applicable, with the reason and who decided | `alerts set --status dismissed --by INITIALS --reason WHY` |
 | `resolved` | No scanner that reported it lists it anymore | An import |
 
 Importing the full report of a scanner marks the alerts of its scope (the alerts without a scope, when it declares none) that this scanner listed before and no longer lists: when no other scanner still lists them, open and confirmed alerts become `resolved`, and keep in `resolved_by` the report that resolved them: scanner, file name, SHA-256, day and number of dependencies analyzed. An alert that reappears goes back to its previous status, without the decision of a person: the reviewer who confirmed it, and the acceptance of a risk, are removed, so a confirmed critical alert blocks its tasks again until a person accepts it again, and the import says `acceptance removed` (key `acceptance_removed` with `--json`). A dismissed alert stays dismissed. Each import is recorded with the scanner, the file name, the SHA-256 of the report, the date and the number of dependencies analyzed (the last 20 imports are kept).
@@ -147,9 +149,9 @@ The register decides what blocks an approval, so `.openguildkit/alerts.json` is 
 git checkout main                                   # the base branch of the pull request
 openguildkit task new "Review the alerts of the weekly dependency watch." --id alert-review-2026-11-23
 openguildkit task consult alert-review-2026-11-23   # then the boards' review, as for any task
-openguildkit task decide alert-review-2026-11-23 --approve --by NAME --reason WHY
+openguildkit task decide alert-review-2026-11-23 --approve --by INITIALS --reason WHY
 gh pr checkout PR_NUMBER
-openguildkit alerts set ALERT --status confirmed --by NAME   # or --status dismissed --reason WHY, for each new alert
+openguildkit alerts set ALERT --status confirmed --by INITIALS   # or --status dismissed --reason WHY, for each new alert
 git commit -am "Review the new dependency alerts"
 openguildkit task export alert-review-2026-11-23
 git add -f .openguildkit/decisions/alert-review-2026-11-23.json && git commit -m "Decision of the alert review"

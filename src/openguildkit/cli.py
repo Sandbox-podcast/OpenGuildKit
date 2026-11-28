@@ -8,36 +8,91 @@ from functools import cache
 from importlib import import_module
 from pathlib import Path
 
-from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
-from . import audit_cli, evidence_cli, managed, org_catalog_cli, projects_cli, trace_cli
+from . import (
+    alerts_cli,
+    audit_cli,
+    completion_cli,
+    evidence_cli,
+    features_cli,
+    managed,
+    market_cli,
+    org_catalog_cli,
+    profile_cli,
+    projects_cli,
+    storybook_cli,
+    tasks_cli,
+    tools_cli,
+    trace_cli,
+)
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
+from .cli_errors import error_message, print_trace
+from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish
 from .detect import components_for_profile, detect_stack, detected_project_name
+from .doc_links import doc_link
+from .errors import unknown
 from .guard import (
-    NO_TASK, approval_text, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command, scope_note,
+    NO_TASK,
+    approval_text,
+    ci_guard,
+    covering_approvals,
+    exported_decisions,
+    guard_mode,
+    hook_command,
+    scope_note,
 )
 from .hosts import HOOK_HOSTS, HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
-    LOCK_FILE, apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current,
-    package_version, project_catalog, read_lock, require_instructions, unshipped_records, update_target, write_lock,
+    LOCK_FILE,
+    apply_lock,
+    build_lock,
+    catalog_changes,
+    installed_catalog,
+    installed_catalog_date,
+    lock_is_current,
+    package_version,
+    project_catalog,
+    read_lock,
+    require_instructions,
+    unshipped_records,
+    update_target,
+    write_lock,
 )
 from .patterns import patterns_to_review, role_choices
 from .profile_cli import print_touched
 from .project import (
-    ALREADY_INITIALIZED, GUARD_MODES, RULES_NOTE, STATE_DIR, Fingerprints, RuleError, complete_answers, init_questions,
-    initialize, is_norm, load_profile, profile_recommendations, project_root, require_resolved_conflicts, rule_conflicts,
-    rule_plan, setup_profile, state_path, sync_instructions, unsure_answers,
+    ALREADY_INITIALIZED,
+    GUARD_MODES,
+    RULES_NOTE,
+    STATE_DIR,
+    Fingerprints,
+    RuleError,
+    complete_answers,
+    init_questions,
+    initialize,
+    is_norm,
+    load_profile,
+    profile_recommendations,
+    project_root,
+    require_resolved_conflicts,
+    rule_conflicts,
+    rule_plan,
+    setup_profile,
+    state_path,
+    sync_instructions,
+    unsure_answers,
 )
 from .project_checks import propose_checks
 from .prompts import prompt_questions
-from .rule_plan_text import print_rule_plan
+from .rule_plan_text import print_recommendations, print_rule_plan
 from .storage import print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_issues
 from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
+from .wording import plural
 
 
 def _on_first_call(module: str, name: str):
@@ -65,25 +120,6 @@ english_title, find_references, load_references, with_pattern_references = (
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
 # same number (tests/test_performance.py compares the help with it).
 UI_PORT = 7311
-FORMATS = ("text", "sarif")
-
-
-def _format_option(parser, what: str) -> None:
-    """The --format option of the commands that can print SARIF: `what` says what is printed."""
-    parser.add_argument("--format", choices=FORMATS, default="text",
-                        help=f"{what} as SARIF 2.1.0 for code scanning instead of text.")
-
-
-class _Version(argparse.Action):
-    """Print the version and exit; reading the package metadata is slow, so only --version pays for it."""
-
-    def __init__(self, option_strings, dest=argparse.SUPPRESS, default=argparse.SUPPRESS, help=None):
-        super().__init__(option_strings, dest=dest, default=default, nargs=0,
-                         help=help or "show program's version number and exit")
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        print(f"openguildkit {package_version()}")
-        parser.exit()
 
 
 @cache
@@ -91,10 +127,12 @@ def command_parser() -> argparse.ArgumentParser:
     """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
     web server parses one command after another."""
     parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
-    parser.add_argument("--version", action=_Version)
-    parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor).")
-    parser.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
-    parser.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")
+    parser.add_argument("--version", action=VersionAction)
+    parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor). "
+                                                     "It may also follow the command.")
+    policy = parser.add_argument_group("central policy", "Where the central export-link-expiry rule is read from (ci-check).")
+    policy.add_argument("--policy-repo", type=Path, help="Local Git repository with the central export rule.")
+    policy.add_argument("--policy-commit", help="Full Git SHA of the central policy commit.")
     commands = parser.add_subparsers(dest="command", required=True)
     catalog = commands.add_parser("catalog", help="List rule packs, boards and sectors.")
     catalog.add_argument("--json", action="store_true", help="Print the complete catalog as JSON.")
@@ -135,7 +173,7 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--org-catalog", action="append", metavar="NAME=PATH",
                        help="With --ci, the copy of the organization catalog that the lock calls NAME.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
-    _format_option(guard, "With --ci, print the problems")
+    format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
     deliverable_actions = deliverable.add_subparsers(dest="deliverable_action", required=True)
     deliverable_actions.add_parser("list", help="List the deliverable templates.")
@@ -170,13 +208,13 @@ def command_parser() -> argparse.ArgumentParser:
     share.add_argument("--portal", help="Address of the shared space's portal, https://HOST/p/SPACE; http only on this "
                                         "machine (add, verify).")
     share.add_argument("--id", dest="share_id", help="Share ID (revoke).")
-    share.add_argument("--by", help="Owner of the share (add, revoke).")
+    add_by(share)
     share.add_argument("--dedicated-space", action="store_true",
                        help="Record the space as holding this deliverable only: another deliverable is refused in it (add).")
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
-                   org_catalog_cli, audit_cli, evidence_cli):
+                   org_catalog_cli, audit_cli, evidence_cli, completion_cli):
         module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
@@ -188,7 +226,7 @@ def command_parser() -> argparse.ArgumentParser:
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     check = commands.add_parser("check", help="Check that the instructions match the project profile.")
-    _format_option(check, "Print the problems")
+    format_option(check, "Print the problems")
     commands.add_parser("mcp", help="Serve read-only project metadata to a local MCP client. Requires --project.")
     ui = commands.add_parser("ui", help="Open the web interface of this project on 127.0.0.1.")
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
@@ -199,6 +237,7 @@ def command_parser() -> argparse.ArgumentParser:
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
 
     tasks_cli.add_parser(commands)
+    polish(parser)
     return parser
 
 
@@ -211,7 +250,7 @@ def _host_parser(commands) -> None:
                            "managed prints the settings file an administrator deploys by MDM for one host.")
     host.add_argument("--json", action="store_true", help="Print the report as JSON.")
     host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
-    _format_option(host, "With scan, print the findings")
+    format_option(host, "With scan, print the findings")
     managed.add_options(host)
 
 
@@ -509,7 +548,7 @@ NO_HOST_SETTINGS = (
     "the project's host is other, so host apply wrote nothing: OpenGuildKit writes host settings only for "
     "claude-code, codex and gemini-cli. The rules above stay with the AGENTS.md instructions and the CI check. To "
     "install the settings and hooks for one of these agents, run openguildkit profile set host claude-code (or codex) "
-    "--by NAME --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
+    "--by INITIALS --reason WHY, then openguildkit host apply. For Gemini CLI, set the host to gemini-cli."
 )
 
 
@@ -541,11 +580,11 @@ def _print_setup_notes(profile: dict, left_aside: list[dict], registry: dict, pr
     print(f"Board guard: {GUARD_MODES[mode]}")
     if mode != "off" and host not in HOOK_HOSTS:
         print("  This host has no hook: the reminder is the AGENTS.md instruction, and the CI check catches the rest.")
-    print("  To change it: openguildkit profile set guard off|observe|enforce --by NAME --reason WHY "
+    print("  To change it: openguildkit profile set guard off|observe|enforce --by INITIALS --reason WHY "
           "(lowering it is typed by the person at a terminal).")
     if mode != "off" and (profile.get("approval") or {}).get("mode") != "signed":
         print("  Approvals are sealed locally: a seal catches an accidental edit, not an agent that writes files. "
-              "To require signed ones: openguildkit profile set approval signed (docs/workflow.md#signed-approvals).")
+              f"To require signed ones: openguildkit profile set approval signed ({doc_link('docs/workflow.md', 'signed-approvals')}).")
     if left_aside:
         names = "; ".join(f"{item['id']} ({item.get('path', '.')}): {', '.join(item['stack'])}" for item in left_aside)
         print(f"OpenGuildKit: the answers give no components, so these detected ones are left aside: {names}. "
@@ -574,9 +613,9 @@ def _print_check_notes(profile: dict, proposed: list[dict]) -> None:
     left = [item["command"] for item in proposed if item["command"] not in profile["checks"]]
     if left:
         print(f"Test commands found but not kept as project checks: {'; '.join(left)}. "
-              "task verify runs only the project's checks (docs/workflow.md#project-checks).")
+              f"task verify runs only the project's checks ({doc_link('docs/workflow.md', 'project-checks')}).")
     elif not profile["checks"]:
-        print("No project check: task verify runs no test command (docs/workflow.md#project-checks).")
+        print(f"No project check: task verify runs no test command ({doc_link('docs/workflow.md', 'project-checks')}).")
 
 
 def _print_catalog(catalog: dict, as_json: bool) -> None:
@@ -584,12 +623,13 @@ def _print_catalog(catalog: dict, as_json: bool) -> None:
     if as_json:
         print_json({group: catalog[group] for group in groups})
         return
+    width = max(len(entry["id"]) for group in groups for entry in catalog[group].values())
     for group in groups:
         print(group.capitalize())
         for entry in catalog[group].values():
             preselected = _sector_packs(catalog, entry["id"]) if group == "sectors" else []
             suffix = f" (preselects {', '.join(preselected)})" if preselected else ""
-            print(f"  {entry['id']:<24} {entry['title']}{suffix}")
+            print(f"  {entry['id']:<{width}} {entry['title']}{suffix}")
 
 
 def _sector_packs(catalog: dict, sector_id: str) -> list[str]:
@@ -653,7 +693,7 @@ def _print_patterns(args, patterns: dict) -> None:
         if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])
     ]
     if args.id and not matches:
-        raise ValueError(f"No pattern matched {args.id!r}.")
+        raise ValueError(unknown("pattern", args.id, "patterns"))
     if args.json:
         print_json(matches)
         return
@@ -677,38 +717,6 @@ def _print_patterns(args, patterns: dict) -> None:
     print(f"{len(matches)} patterns")
     for pattern in matches:
         print(f"  {pattern['id']:<33} {pattern['title']} [{', '.join(pattern['roles'])}]")
-
-
-def _print_recommendations(plan: dict, as_json: bool) -> None:
-    if as_json:
-        print_json(plan)
-        return
-    print("Preselected patterns, confirm or remove them")
-    for pattern in plan["matched"]:
-        where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)")
-        if pattern.get("version_unknown"):
-            print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
-    if plan.get("excluded"):
-        print("Not applicable because of a version")
-        for item in plan["excluded"]:
-            where = f" [{item['component']}]" if item["component"] else ""
-            print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
-    print("Suggested, not selected: add one only if the team uses it")
-    for pattern in plan["suggested"]:
-        reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
-        print(f"  {pattern['id']}: {reason} ({pattern['rules']} rules)")
-    print(f"Recommended packs: {', '.join(plan['recommended_packs'])} ({plan['rule_count']} rules in all)")
-    print(RULES_NOTE)
-    if plan.get("declined"):
-        print("Declined in the profile, not proposed again (openguildkit profile adopt brings one back)")
-        for entry in plan["declined"]:
-            who = f" by {entry['by']} on {entry['on']}: {entry['reason']}" if isinstance(entry, dict) else ""
-            print(f"  {entry['id'] if isinstance(entry, dict) else entry}{who}")
-    if plan.get("review"):
-        print("Selected patterns to review")
-        for item in plan["review"]:
-            print(f"  {item['id']}: {'; '.join(item['reasons'])}")
 
 
 def _print_selection(plan: dict) -> None:
@@ -794,7 +802,7 @@ def _guard(args, root: Path, state: Path) -> int:
         elif args.json:
             print_json(result)
         else:
-            print(f"Guard mode on {args.base}: {result['mode']}. {result['changed']} changed file(s).")
+            print(f"Guard mode on {args.base}: {result['mode']}. {plural(result['changed'], 'changed file')}.")
             for task_id in result["decisions"]:
                 # A valid record covers the change only when nothing else is wrong, such as a file it does not list.
                 where = result["records"][task_id]
@@ -822,7 +830,7 @@ def _guard(args, root: Path, state: Path) -> int:
     elif not approvals:
         print(NO_TASK)
     else:
-        print("Approved task(s) in progress:")
+        print("Approved task in progress:" if len(approvals) == 1 else "Approved tasks in progress:")
         for item in approvals:
             print(f"  {approval_text(item)}")
         print(scope_note(approvals))
@@ -858,7 +866,7 @@ def _deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) ->
             print("Ready for review by " + ", ".join(templates[match.group(1)]["brains"]))
         return 1 if problems else 0
     if args.id not in templates:
-        raise ValueError(f"Unknown deliverable {args.id}. Run openguildkit deliverable list.")
+        raise ValueError(unknown("deliverable", args.id, "deliverable list"))
     template = templates[args.id]
     if action == "show":
         print(f"{template['title']} [{template['id']}]\n{template['description']}\nBefore starting the tool:")
@@ -933,7 +941,7 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
             print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
                   "too. Record each one:")
             for other in others:
-                print(f"  openguildkit docs share revoke --id {other['id']} --by NAME   "
+                print(f"  openguildkit docs share revoke --id {other['id']} --by INITIALS   "
                       f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
         return 0
     if args.share_action == "verify":
@@ -957,6 +965,8 @@ def _docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     rows = share_status(state)
     if args.json:
         print_json(rows)
+    elif not rows:
+        print("No share recorded.")
     else:
         for row in rows:
             _print_share_row(row)
@@ -977,7 +987,7 @@ def _print_share_added(share: dict) -> None:
               "its navigation and search show only this deliverable.")
     print("Invite the recipients now in that space's reader settings (magic link mode).")
     print(f"Set the last day {share['until']} in Documentalist if supported. On older versions remove access there "
-          f"after that day, then run openguildkit docs share revoke --id {share['id']} --by NAME. "
+          f"after that day, then run openguildkit docs share revoke --id {share['id']} --by INITIALS. "
           "The local check is a reminder; it does not contact the portal.")
 
 
@@ -995,7 +1005,7 @@ def _print_share_row(row: dict) -> None:
     """One share with its perimeter and state; one past its last day says which access to remove and which to keep."""
     space = row["space"] or "unknown: the portal address names no /p/SPACE"
     print(f"{row['id']} {row['deliverable']} (whole space {space}) until {row['until']} "
-          f"({len(row['recipients'])} recipient(s)): {row['state']}")
+          f"({plural(len(row['recipients']), 'recipient')}): {row['state']}")
     if row["also_in_space"]:
         dedicated = " although the space is recorded as dedicated to this deliverable" if row["dedicated"] else ""
         print(f"  its recipients can also read {', '.join(row['also_in_space'])}, shared through the same space{dedicated}")
@@ -1009,7 +1019,7 @@ def _print_share_row(row: dict) -> None:
     for recipient, other in sorted(row["kept"].items()):
         print(f"  keep {recipient}: share {other['share']} gives the same space until {other['until']}")
     if row["remove"]:
-        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by NAME")
+        print(f"  then record it: openguildkit docs share revoke --id {row['id']} --by INITIALS")
 
 
 def _print_brains(args, catalog: dict, families: dict) -> int:
@@ -1020,7 +1030,7 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         gaps = knowledge_gaps(catalog, families)
         for gap in gaps:
             print(f"- {gap}")
-        print(f"{len(boards)} brains, {len(gaps)} gap(s).")
+        print(f"{len(boards)} brains, {plural(len(gaps), 'gap')}.")
         return 1 if gaps else 0
     if args.json:
         if args.id:
@@ -1061,10 +1071,11 @@ def _print_brains(args, catalog: dict, families: dict) -> int:
         print(f"\nTools this brain can use ({len(used)}): {', '.join(used)}")
         print(f"  Details: openguildkit tools list --brain {args.id}")
     else:
+        width = max(len(board_id) for board_id in boards)
         for board in boards.values():
             reviewers = board.get("review", {}).get("specialists", [])
             count = f" ({len(reviewers)} specialists)" if reviewers else ""
-            print(f"  {board['id']:<23} {board['title']}{count}")
+            print(f"  {board['id']:<{width}} {board['title']}{count}")
     return 0
 
 
@@ -1080,7 +1091,7 @@ def _new_brain(args, state: Path, catalog: dict) -> int:
         return 0
     profile = load_profile(state, catalog)
     if profile["boards"]:
-        print(f"The profile lists its boards: openguildkit profile add board {args.new} --by NAME --reason WHY "
+        print(f"The profile lists its boards: openguildkit profile add board {args.new} --by INITIALS --reason WHY "
               "lets it review tasks.")
         return 0
     already = {task["id"] for task in tasks_touched(state, profile, catalog)}
@@ -1110,7 +1121,7 @@ def _require_answers(answers: dict, questions: list[dict]) -> None:
         lines = "\n".join(f"- {question['id']}: {question['prompt']} Answer "
                           f"{', '.join(choice['id'] for choice in question.get('choices', []))} or unsure "
                           f"({question['unsure']})." for question in missing)
-        raise ValueError(f"The setup answers leave out {len(missing)} question(s) that need an answer. Nothing was "
+        raise ValueError(f"The setup answers leave out {plural(len(missing), 'question')} that {'needs' if len(missing) == 1 else 'need'} an answer. Nothing was "
                          f"written.\n{lines}")
 
 
@@ -1164,7 +1175,7 @@ def _sync(args, root: Path, state: Path) -> None:
         write_lock(state, lock)
     print("OpenGuildKit instructions updated.")
     if replaced:
-        print(f"Replaced {len(replaced)} line(s) edited by hand in the managed block of AGENTS.md; keep your own "
+        print(f"Replaced {plural(len(replaced), 'line')} edited by hand in the managed block of AGENTS.md; keep your own "
               "text outside the markers:")
         for line in replaced[:5]:
             print(f"  - {line[:100]}")
@@ -1190,7 +1201,7 @@ def _host(args, root: Path, profile: dict) -> int:
     if args.mode == "apply":
         written = apply_host_settings(root, profile)
         for path in written:
-            print(f"Wrote {path}", file=sys.stderr)
+            print(f"Wrote {path}")
         if not written and profile.get("host", "other") not in HOOK_HOSTS:
             print(f"OpenGuildKit: {NO_HOST_SETTINGS}", file=sys.stderr)
         controls = host_controls(root, profile)
@@ -1203,9 +1214,7 @@ def _host(args, root: Path, profile: dict) -> int:
                   f"\n    {control['detail']}")
         settings = [control for control in missing if control.get("cause") != "path"]
         if settings:
-            print(f"{len(settings)} setting(s) missing. Run openguildkit host apply, then openguildkit host check.")
-        if len(settings) < len(missing):
-            print(OFF_PATH)
+            print(f"{plural(len(settings), 'setting')} missing. Run openguildkit host apply, then openguildkit host check.")
         if not missing:
             print("Nothing missing. A rule marked 'by instruction' or 'by a person' is left to the agent's "
                   "instructions or to a person on purpose: no setting of this host can enforce it.")
@@ -1303,7 +1312,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     if undated:
         message = (f"date the sources of {len(undated)} project "
                    f"{'record' if len(undated) == 1 else 'records'}: {', '.join(undated)}. Open each page, then "
-                   'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see docs/catalog-format.md).')
+                   f'add "checked": "YYYY-MM-DD" after its url with that day\'s date (see {doc_link("docs/catalog-format.md")}).')
         print(f"OpenGuildKit: {message}", file=sys.stderr)
         report.add("source-undated", "warning", message)
     issues = sharing_issues(root, state, records, read)
@@ -1317,6 +1326,8 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
 
 
 def _run(args) -> int | None:
+    if args.command == "completion":  # Before the project: a script to load is asked for anywhere.
+        return completion_cli.run(args)
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
@@ -1379,7 +1390,7 @@ def _run(args) -> int | None:
         else:
             profile = load_profile(state, catalog)
             plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
-        _print_recommendations(plan, args.json)
+        print_recommendations(plan, args.json)
     elif args.command == "catalog":
         _print_catalog(catalog, args.json)
     elif args.command == "profile":
@@ -1447,6 +1458,10 @@ def main(argv: list[str] | None = None) -> int:
                 stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
+    argv = hoist_global_options(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        command_parser().print_help()
+        return 0
     args = command_parser().parse_args(argv)
     if getattr(args, "project", None) is not None and not args.project.is_dir():
         what = "is not a folder" if args.project.exists() else "does not exist"
@@ -1460,7 +1475,8 @@ def main(argv: list[str] | None = None) -> int:
     except BrokenPipeError:
         return _reader_closed()
     except (OSError, ValueError, EOFError) as error:
-        print(f"OpenGuildKit: {str(error) or 'Input ended before completion.'}", file=sys.stderr)
+        print_trace()
+        print(f"OpenGuildKit: {error_message(error, command_parser(), args)}", file=sys.stderr)
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
         print("\nOpenGuildKit: Cancelled.", file=sys.stderr)

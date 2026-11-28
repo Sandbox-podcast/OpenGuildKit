@@ -1,4 +1,4 @@
-"""Roles by committee (#475): `approval.roles`, an option off by default.
+"""Roles by board (#475): `approval.roles`, an option off by default.
 
 With `profile set approver-roles BOARD NAME...`, a blocker that a board raised is cleared or waived only by a member of
 that board's role, and a task whose protected board gave a blocking advice is approved only by a member of one of
@@ -17,7 +17,6 @@ from unittest.mock import patch
 
 from openguildkit.clock import real_today
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 from tests.test_approval_lifecycle import ApprovalCase
 

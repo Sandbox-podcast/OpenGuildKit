@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from openguildkit.prompts import prompt_questions
 from openguildkit.questionnaire import validate_answers
 
 REPO = Path(__file__).resolve().parents[1]
@@ -66,12 +67,56 @@ class InteractiveInitTest(unittest.TestCase):
         self.assertEqual(profile["name"], "portal")
         self.assertFalse(profile["personal_data"])
 
+    def test_a_person_who_keeps_the_defaults_reads_fewer_than_200_lines(self):
+        """Issue #529: init printed 456 lines, 268 of them for the lists of patterns and packs."""
+        code, screen = self.init("o")
+        self.assertEqual(code, 0, screen)
+        lines = len(screen.splitlines())
+        self.assertLess(lines, 200, lines)
+        self.assertIn("Type list to show the", screen)
+
+    def test_list_shows_the_choices_a_long_question_kept_back(self):
+        question = {"id": "patterns", "type": "multi-select", "prompt": "Which patterns?", "default": ["p2"],
+                    "choices": [{"id": f"p{number}", "label": f"Pattern {number}"} for number in range(1, 61)]}
+        screen = io.StringIO()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", side_effect=["list", "p40, 7"]), \
+                contextlib.redirect_stderr(screen):
+            answers = prompt_questions([question], "init")
+        self.assertEqual(answers, {"patterns": ["p40", "p7"]})
+        before, after = screen.getvalue().split("> ", 1)
+        self.assertIn("2. Pattern 2 [p2]", before)
+        self.assertNotIn("Pattern 3 [p3]", before)
+        self.assertIn("Type list to show the 59 others, or type an ID or a number.", before)
+        self.assertIn("60. Pattern 60 [p60]", after)
+
     def test_without_a_terminal_init_points_to_the_questions_and_answers_files(self):
         code, screen = self.init("o", terminal=False)
         self.assertEqual(code, 1)
         self.assertIn("openguildkit init --questions", screen)
         self.assertIn("openguildkit init --answers", screen)
         self.assertEqual(self.written(), [])
+
+
+class NormsAnswersTest(unittest.TestCase):
+    def test_the_first_refusal_gives_the_norms_object_to_paste_and_the_readmes_name_norms(self):
+        """Issue #529: init --answers refused personal_data=yes without showing the norms object to write."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            answers = root / "answers.json"
+            answers.write_text(json.dumps({"personal_data": "yes", "host": "claude-code"}), encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                self.assertEqual(main(["--project", str(root), "init", "--answers", str(answers)]), 1)
+            message = stderr.getvalue()
+            self.assertIn("Nothing was written.", message)
+            pasted, _ = json.JSONDecoder().raw_decode(message[message.index('"norms": ') + len('"norms": '):])
+            self.assertEqual(pasted, {"gdpr-personal-data": "yes"})
+            answers.write_text(json.dumps({"personal_data": "yes", "host": "claude-code", "norms": pasted}), encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["--project", str(root), "init", "--answers", str(answers)]), 0)
+        for page in ("README.md", "README.fr.md"):
+            with self.subTest(page=page):
+                self.assertIn("`norms`", (REPO / page).read_text(encoding="utf-8"))
 
 
 def _section(text: str, heading: str) -> str:

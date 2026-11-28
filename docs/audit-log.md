@@ -1,5 +1,7 @@
 # Audit log: what OpenGuildKit did, one event per line
 
+For: a security officer who sends what OpenGuildKit did to a SIEM, and an administrator who turns the log on.
+
 The decision records and the history of the profile say what the rules are and who approved. They are states, not events: a refusal of the guard in `enforce` writes nothing, and an approval withdrawn before its export leaves no trace in a file Git carries.
 The audit log keeps the acts of OpenGuildKit itself as events, for the security operations team of a company that collects them with its own log agent.
 It is off by default. It is not a log of what the agent does: it records the refusals of the guard hook and the acts of the people who approve, withdraw and change the rules.

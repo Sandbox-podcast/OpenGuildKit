@@ -29,6 +29,7 @@ from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers
 from .tools import load_tools
+from .wording import plural
 
 SHOWN_MATCHES = 50
 SHOWN_FOLDERS = 10
@@ -135,7 +136,7 @@ def project_folders(arguments: list[Path]) -> tuple[list[Path], list[dict]]:
 def _project(args, folder: Path, policy: dict | None, surfaces: bool) -> dict:
     """One project's line: guard mode, approvals, tasks by status, open points, critical alerts and check; with
     surfaces, what is found around them, and with a policy, how far it falls short."""
-    row = {"path": folder.as_posix(), "state": "project"}
+    row: dict = {"path": folder.as_posix(), "state": "project"}
     try:
         root = folder.resolve(strict=True)
         state = root / STATE_DIR
@@ -291,7 +292,7 @@ def _matches(folder: Path, text: str) -> list[dict]:
 GAP_WORDS = {
     "guard": lambda gap: f"guard {gap['found']}, the policy asks for {gap['policy']}",
     "approvals": lambda gap: f"approvals not signed, the policy asks for {gap['policy']}",
-    "separate_requester": lambda gap: "requester not kept from approving, the policy asks for it",
+    "separate_requester": lambda _gap: "requester not kept from approving, the policy asks for it",
     "project": lambda gap: "not an OpenGuildKit project, the policy asks for one" if gap["found"] == "not-a-project"
     else "cannot be read, the policy needs it read",
 }
@@ -330,9 +331,9 @@ def _summary(row: dict) -> str:
     parts = [f"guard {row['guard']}", "approvals signed" if row["approvals"] == "signed" else "approvals not signed",
              f"tasks {tasks}" if tasks else "no task"]
     if row["attention"]:
-        parts.append(f"{row['attention']} approval(s) no longer hold")
+        parts.append(f"{plural(row['attention'], 'approval')} no longer {'holds' if row['attention'] == 1 else 'hold'}")
     if row["open_points"]:
-        parts.append(f"{row['open_points']} open point(s)")
+        parts.append(plural(row['open_points'], 'open point'))
     if row["critical_alerts"]:
         parts.append(f"{row['critical_alerts']} critical alert{'s' if row['critical_alerts'] > 1 else ''} confirmed")
     check = row["check"]

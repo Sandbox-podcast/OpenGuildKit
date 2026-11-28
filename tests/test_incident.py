@@ -15,7 +15,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
@@ -76,7 +75,7 @@ class OffByDefaultTests(EarlierProject):
         self.assertEqual(self.covered(), ["approved-task"])
         self.assertNotIn("approval_problem", self.row())
         context = json.loads(self.hook(self.root / "app.py", 0).stdout)["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("approved task(s) in progress: approved-task", context)
+        self.assertIn("approved work in progress: approved-task", context)
         self.days(400)
         self.assertEqual(self.covered(), ["approved-task"])
         target = self.root / "again.json"

@@ -11,14 +11,31 @@ import sys
 from pathlib import Path
 
 from .catalog import load_catalog
+from .cli_surface import add_by
 from .clock import today
 from .lock import (
-    COLLECTIONS, used_ids, apply_lock, build_lock, central_policy, installed_catalog, package_version, project_catalog,
-    read_lock, write_lock,
+    COLLECTIONS,
+    apply_lock,
+    build_lock,
+    central_policy,
+    installed_catalog,
+    package_version,
+    project_catalog,
+    read_lock,
+    used_ids,
+    write_lock,
 )
 from .org_catalog import (
-    MIGRATE_COMMAND, NAME, changes, copies_read_from, organization_in, read_files, records_of, replacements,
-    unaccepted_replacements, variable_name,
+    MIGRATE_COMMAND,
+    NAME,
+    changes,
+    copies_read_from,
+    organization_in,
+    read_files,
+    records_of,
+    replacements,
+    unaccepted_replacements,
+    variable_name,
 )
 from .profile_cli import print_touched
 from .project import load_profile, sync_instructions
@@ -29,7 +46,7 @@ from .terminal import interactive
 
 __all__ = ["add_parser", "run", "unaccepted_replacements"]
 
-PERSON = "--by NAME --reason WHY"
+PERSON = "--by INITIALS --reason WHY"
 
 
 def add_parser(commands) -> None:
@@ -47,7 +64,7 @@ def add_parser(commands) -> None:
     setter.add_argument("--name", help="Pin it under this name, which carries no path: each machine points "
                                        "OPENGUILDKIT_ORG_CATALOG_NAME at its copy, and guard --ci takes "
                                        "--org-catalog NAME=PATH.")
-    setter.add_argument("--by", help="The person who pins it.")
+    add_by(setter)
     setter.add_argument("--reason", help="Why, in one line.")
     setter.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     accept = actions.add_parser(
@@ -55,7 +72,7 @@ def add_parser(commands) -> None:
     accept.add_argument("record", metavar="COLLECTION/ID", help="The replaced record, such as packs/review.")
     off = actions.add_parser("off", help="Stop following the organization catalog, at a terminal.")
     for command in (accept, off):
-        command.add_argument("--by", required=True, help="The person who decides.")
+        add_by(command, required=True)
         command.add_argument("--reason", required=True, help="Why, in one line.")
 
 
@@ -266,8 +283,8 @@ def _off(args, root: Path, state: Path) -> int:
     _confirm("off", "stop following the organization catalog")
     with project_lock(state):
         lock = read_lock(state)
-        touched = _write_pinned(root, state, args, lock, None, None,
-                                {"action": "stopped", "commit": lock["organization"]["commit"], **person})
+        left = (lock or {}).get("organization", {}).get("commit")
+        touched = _write_pinned(root, state, args, lock, None, None, {"action": "stopped", "commit": left, **person})
     print(f"The project no longer follows the organization catalog, by {person['by']}: {person['reason']}")
     print_touched(touched)
     return 0

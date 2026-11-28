@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openguildkit import controls  # noqa: E402
+from openguildkit import controls  # noqa: E402 INTENTIONAL(#482): runs from a checkout, after sys.path is set above
 
 REGISTRY = Path("src/openguildkit/registry/controls.json")
 PAGE = Path("docs/compliance.md")

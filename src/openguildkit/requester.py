@@ -7,10 +7,15 @@ compared without case or spaces. A signed approval compares the requester to the
 does not link a principal to a person's name, so a requester named otherwise than their principal is not caught there.
 """
 
+from .doc_links import doc_link
+
 FIELD = "separate_requester"
 # The scheduled watch opens a task for each confirmed alert: no person asked for it.
 ALERT_REQUESTER = "openguildkit alerts"
-SECTION = 'docs/workflow.md, "Requester and approver"'
+
+
+def section() -> str:
+    return doc_link("docs/workflow.md", "requester-and-approver")
 
 
 def active(profile: dict) -> bool:
@@ -39,8 +44,8 @@ def declared(name: str | None, profile: dict) -> str | None:
 
 
 def _ask_another(task_id: str) -> str:
-    return (f"Ask another person to approve it at their terminal: openguildkit task decide {task_id} --approve --by NAME "
-            f"--reason WHY, or request changes ({SECTION}).")
+    return (f"Ask another person to approve it at their terminal: openguildkit task decide {task_id} --approve --by INITIALS "
+            f"--reason WHY, or request changes ({section()}).")
 
 
 def approval_problem(task: dict, profile: dict, by: str, signer: str | None = None) -> str | None:

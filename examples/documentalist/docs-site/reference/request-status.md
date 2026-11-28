@@ -15,7 +15,7 @@ sidebar_position: 1
 
 ## Verification
 
-Checks before release: 4 passed, 28 not applicable, 0 open. 2 objection(s) between the boards were not deliberated before the approval.
+Checks before release: 4 passed, 28 not applicable, 0 open. 2 objections between the boards were not deliberated before the approval.
 
 ## Source
 

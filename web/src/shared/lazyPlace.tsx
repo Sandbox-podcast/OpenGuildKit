@@ -5,7 +5,7 @@
  */
 import { lazy, type ComponentType } from 'react';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- INTENTIONAL(#522): places take different props, a lazy component has no narrower type
 type AnyProps = any;
 export type Place = ComponentType<AnyProps> & { preload: () => Promise<unknown> };
 

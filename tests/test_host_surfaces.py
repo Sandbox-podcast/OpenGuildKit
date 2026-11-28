@@ -19,7 +19,6 @@ from unittest.mock import patch
 from openguildkit import surfaces
 from openguildkit.hosts import host_controls
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 from tests.test_host_scan import FINDING_KEYS, POSIX_LINKS, fingerprint, write
 

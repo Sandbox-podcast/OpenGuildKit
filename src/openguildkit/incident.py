@@ -1,13 +1,13 @@
 """Response to an incident (#481): a freeze that stops edits and a longest age of an approval, both off by default.
 
-`openguildkit profile set freeze on --by NAME --reason WHY` writes `frozen` (who, when, why) in the profile: the edit
+`openguildkit profile set freeze on --by INITIALS --reason WHY` writes `frozen` (who, when, why) in the profile: the edit
 hook then refuses every edit inside the project, even under an approved task, and `guard --ci` refuses every change
 of a base revision that is frozen, except the one that lifts the freeze. `approval.max_age_days` ends the cover of an
 approval after that many days. Both only restrict, so no terminal is needed to set them; lifting or loosening one
 weakens a protection and is a person's act at a terminal (profile_cli). A project that sets neither is unchanged.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import clock
@@ -15,7 +15,7 @@ from .decisions import reconsult_hint
 from .project import STATE_DIR
 from .storage import read_json
 
-LIFT = ("Only a person lifts it, at a terminal: openguildkit profile set freeze off --by NAME --reason WHY. "
+LIFT = ("Only a person lifts it, at a terminal: openguildkit profile set freeze off --by INITIALS --reason WHY. "
         "Ask them.")
 PROFILE = f"{STATE_DIR}/project.json"
 # Files the change that lifts a freeze may carry besides the profile: the catalog lock the command rewrites, and
@@ -46,7 +46,7 @@ def expired_problem(task: dict, profile: dict) -> dict | None:
         return None
     try:
         then = datetime.fromisoformat(task["decision"]["at"])
-        age = (clock.real_now() - (then if then.tzinfo else then.replace(tzinfo=timezone.utc))).days
+        age = (clock.real_now() - (then if then.tzinfo else then.replace(tzinfo=UTC))).days
     except (KeyError, TypeError, ValueError):
         age = None
     if age is not None and age <= limit:

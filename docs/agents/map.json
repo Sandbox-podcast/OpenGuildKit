@@ -7,6 +7,7 @@
         "module"
       ],
       "tests": [
+        "tests/test_lint_ratchet.py",
         "tests/test_python_floor.py"
       ],
       "doc": "docs/architecture.md"
@@ -19,6 +20,7 @@
         "main"
       ],
       "tests": [
+        "tests/test_cli_errors.py",
         "tests/test_performance.py"
       ],
       "doc": "docs/architecture.md"
@@ -242,6 +244,7 @@
         "tests/test_audit_fixes.py",
         "tests/test_brain_knowledge.py",
         "tests/test_chaosfolk_results.py",
+        "tests/test_ci_jobs.py",
         "tests/test_clean_errors.py",
         "tests/test_cli_coverage.py",
         "tests/test_command_output_budget.py",
@@ -285,6 +288,31 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/cli_errors.py",
+      "role": "What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file.",
+      "entry": [
+        "print_trace",
+        "error_message"
+      ],
+      "tests": [
+        "tests/test_cli_errors.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/cli_surface.py",
+      "role": "What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed.",
+      "entry": [
+        "polish",
+        "add_by",
+        "hoist_global_options"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/clock.py",
       "role": "The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with.",
       "entry": [
@@ -305,6 +333,20 @@
         "tests/test_market.py",
         "tests/test_portal_verification.py",
         "tests/test_publishing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/completion_cli.py",
+      "role": "The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh.",
+      "entry": [
+        "add_parser",
+        "run",
+        "script",
+        "reference"
+      ],
+      "tests": [
+        "tests/test_completion_cli.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -442,6 +484,29 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/doc_links.py",
+      "role": "The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout).",
+      "entry": [
+        "doc_link"
+      ],
+      "tests": [
+        "tests/test_doc_links.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/errors.py",
+      "role": "The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them.",
+      "entry": [
+        "os_error_message",
+        "unknown"
+      ],
+      "tests": [
+        "tests/test_error_forms.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/evidence_cli.py",
       "role": "The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of SHA-256, `verify` recomputes it. Reads the project and states no conformity.",
       "entry": [
@@ -495,11 +560,18 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_before_delivered_review.py",
         "tests/test_clock.py",
+        "tests/test_delivered_review.py",
+        "tests/test_evidence_fingerprints.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_guard.py",
         "tests/test_light_lane.py",
+        "tests/test_org_catalog.py",
+        "tests/test_performance.py",
         "tests/test_record_lifecycle.py",
+        "tests/test_requester.py",
         "tests/test_sarif_commands.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_task_index.py",
@@ -526,6 +598,7 @@
       ],
       "tests": [
         "tests/test_approval_lifecycle.py",
+        "tests/test_doc_pages.py",
         "tests/test_gemini_host.py",
         "tests/test_host_research.py",
         "tests/test_host_surfaces.py",
@@ -831,20 +904,21 @@
         "tests/test_pass_relevance.py",
         "tests/test_patterns.py",
         "tests/test_personal_data_doc.py",
+        "tests/test_profile_reference.py",
         "tests/test_proportionate_setup.py",
         "tests/test_references.py",
         "tests/test_regulatory_packs.py",
         "tests/test_relevance.py",
+        "tests/test_requester.py",
         "tests/test_routing.py",
         "tests/test_rule_checks.py",
+        "tests/test_rule_decline.py",
         "tests/test_rule_plan.py",
         "tests/test_sectors.py",
         "tests/test_setup_questionnaire.py",
         "tests/test_source_dates.py",
         "tests/test_stack_patterns.py",
-        "tests/test_upgrades.py",
-        "tests/test_rule_decline.py",
-        "tests/test_requester.py"
+        "tests/test_upgrades.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1038,7 +1112,7 @@
     },
     {
       "module": "src/openguildkit/roles.py",
-      "role": "Roles by committee, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`.",
+      "role": "Roles by board, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`.",
       "entry": [
         "members",
         "clearance_problem",
@@ -1092,9 +1166,10 @@
     },
     {
       "module": "src/openguildkit/rule_plan_text.py",
-      "role": "Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks: patterns, regulations, packs and conflicts.",
+      "role": "Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations, packs and conflicts), and the patterns `recommend` preselects.",
       "entry": [
-        "print_rule_plan"
+        "print_rule_plan",
+        "print_recommendations"
       ],
       "tests": [
         "tests/test_command_output_budget.py",
@@ -1420,6 +1495,7 @@
       ],
       "tests": [
         "tests/test_architecture.py",
+        "tests/test_exit_codes.py",
         "tests/test_gemini_host.py",
         "tests/test_next_steps.py",
         "tests/test_tools.py"
@@ -1458,6 +1534,17 @@
         "tests/test_org_catalog.py",
         "tests/test_performance.py",
         "tests/test_webui.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/wording.py",
+      "role": "The words of the outputs: a count with its noun, in the singular when the count is one.",
+      "entry": [
+        "plural"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
       ],
       "doc": "docs/architecture.md"
     },

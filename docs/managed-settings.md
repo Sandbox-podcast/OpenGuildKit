@@ -1,5 +1,7 @@
 # Managed settings: one deployment for every project of a workstation
 
+For: an administrator who deploys the hooks by MDM on every workstation, for Claude Code, Codex and Gemini CLI.
+
 `openguildkit host apply` writes the settings of one project, one repository at a time.
 Claude Code, Codex and Gemini CLI also have a layer that the company manages, which wins over every other one: files that an MDM deploys on each workstation.
 Two things follow for a security team.

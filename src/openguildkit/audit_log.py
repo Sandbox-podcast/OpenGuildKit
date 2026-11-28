@@ -202,7 +202,8 @@ def reconstruct(root: Path, since: str | None = None) -> list[bytes]:
     state, events = root / ".openguildkit", []
     for _, found in exported_records(state):
         decision = found.get("decision") if found else None
-        if isinstance(decision, dict) and isinstance(decision.get("at"), str) and isinstance(decision.get("by"), str):
+        if found and isinstance(decision, dict) and isinstance(decision.get("at"), str) \
+                and isinstance(decision.get("by"), str):
             events.append({"at": decision["at"], "event": "task.approved", "task": found["task"], "by": decision["by"],
                            "signer": decision.get("signer"), "seal": decision.get("seal")})
     profile = read_json(state / "project.json") if (state / "project.json").is_file() else {}

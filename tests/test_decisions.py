@@ -13,7 +13,6 @@ from openguildkit.cli import main
 from openguildkit.clock import real_now
 from openguildkit.decisions import decision_payload, payload_text, seal, verify_recorded_signature
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

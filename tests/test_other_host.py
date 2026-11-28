@@ -69,7 +69,7 @@ class OtherHostTests(CapturedCli, unittest.TestCase):
         self.run_cli("sync")
         output, _ = self.run_cli("host", "check", code=1)
         self.assertIn("[missing]", output)
-        self.assertIn("setting(s) missing. Run openguildkit host apply", output)
+        self.assertIn("settings missing. Run openguildkit host apply", output)
         self.run_cli("host", "apply")
         output, _ = self.run_cli("host", "check")
         self.assertIn("Nothing missing.", output)

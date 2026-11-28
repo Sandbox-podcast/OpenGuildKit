@@ -9,7 +9,6 @@ from pathlib import Path
 
 from openguildkit.shell import shell_word
 from openguildkit.storage import write_json
-
 from tests.support import copy_initialized_project, run_cli
 from tests.test_org_catalog import git, pack, write_record
 from tests.test_trace import snapshot

@@ -68,7 +68,7 @@ class FirstContributionTests(unittest.TestCase):
         path.write_text(json.dumps(board, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         code, output, error = self.brains("--check", registry=registry)
         self.assertEqual(code, 0, output + error)
-        self.assertRegex(output, r"\d+ brains, 0 gap\(s\)\.")
+        self.assertRegex(output, r"\d+ brains, 0 gaps\.")
         code, output, _ = self.brains("--id", "hr", registry=registry)
         self.assertEqual(code, 0)
         self.assertIn(f"{lens['title']}: {lens['focus']}", output)

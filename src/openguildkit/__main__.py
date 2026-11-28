@@ -9,6 +9,12 @@ import os
 import sys
 from pathlib import Path
 
+# Before the first annotation, which an older Python cannot read: say what is missing, in one line. The floor is
+# the requires-python of pyproject.toml (tests/test_python_floor.py compares them).
+if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets, which ruff's target cannot see
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
+
 HOOK_EVENTS = ("prompt", "pre-edit")
 
 
@@ -58,6 +64,9 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
             pass
         return 0
     except OSError as error:
+        from .cli_errors import print_trace
+
+        print_trace()
         print(f"OpenGuildKit: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

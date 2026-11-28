@@ -260,7 +260,7 @@ class ProjectConnectionTests(unittest.TestCase):
         cli(self.project, "task", "review", "export", "--summary", "Ship the export, ownership tested.")
         count = len(record["consultation"]["boards"])
         decision_brief = cli(self.project, "task", "challenge", "export").stdout
-        self.assertIn(f"Mock data: {count} evidence item(s) come from mock tools, synthetic sample data and not the "
+        self.assertIn(f"Mock data: {count} evidence items come from mock tools, synthetic sample data and not the "
                       f"real systems: {board} #1 jira:SUP-142", decision_brief)
 
         removed = cli(self.project, "tools", "remove", "jira", "snyk")

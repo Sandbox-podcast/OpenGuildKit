@@ -6,14 +6,13 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import controls
 from openguildkit.lock import package_version
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 from tests.test_trace import GIT_ENV, snapshot
 
@@ -23,7 +22,7 @@ FILES = ["alerts.jsonl", "controls.json", "decisions.jsonl", "profile-changes.js
 
 
 def epoch(year: int, month: int, day: int) -> str:
-    return str(int(datetime(year, month, day, 12, tzinfo=timezone.utc).timestamp()))
+    return str(int(datetime(year, month, day, 12, tzinfo=UTC).timestamp()))
 
 
 def lines(path: Path) -> list[dict]:

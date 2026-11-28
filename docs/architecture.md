@@ -1,5 +1,7 @@
 # Architecture
 
+For: a developer or a security architect who reads how the catalog, the CLI and the host agent fit together.
+
 OpenGuildKit has three parts: a **knowledge catalog** (JSON data), a **CLI** that turns the catalog and a project profile into instructions, consultation requests and handoffs for a host agent, and a **local web interface** over the same CLI. None of them does AI work itself.
 
 ## Components
@@ -40,6 +42,10 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `__init__.py` | Marks the package; it holds nothing else. |
 | `__main__.py` | Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI. |
 | `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
+| `cli_surface.py` | What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed. |
+| `cli_errors.py` | What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file. |
+| `completion_cli.py` | The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh. |
+| `wording.py` | The words of the outputs: a count with its noun, in the singular when the count is one. |
 | `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
@@ -57,7 +63,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `managed.py` | Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running. |
 | `workstation.py` | Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
-| `rule_plan_text.py` | Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks: patterns, regulations, packs and conflicts. |
+| `rule_plan_text.py` | Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations, packs and conflicts), and the patterns `recommend` preselects. |
 | `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
 | `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
@@ -92,12 +98,14 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
 | `light_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
 | `requester.py` | The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445). |
-| `roles.py` | Roles by committee, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`. |
+| `roles.py` | Roles by board, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |
 | `sarif.py` | Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run. |
 | `check_findings.py` | Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output. |
 | `sensitive.py` | Recognizes credentials and personal data in what people and agents give the CLI. |
 | `clock.py` | The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with. |
+| `doc_links.py` | The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout). |
+| `errors.py` | The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them. |
 | `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |

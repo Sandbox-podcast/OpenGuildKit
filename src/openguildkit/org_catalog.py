@@ -18,6 +18,7 @@ import subprocess
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
+from typing import NoReturn
 
 from .shell import shell_word
 
@@ -25,12 +26,12 @@ COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 LOCK_NAME = ".openguildkit/catalog.lock.json"
-SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by NAME --reason WHY"
+SET_COMMAND = "openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY"
 PIN_FIELDS = {"repo", "name", "commit", "fingerprint", "pinned", "exceptions"}
 PERSON_FIELDS = {"by", "reason", "on"}
 NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")
 HISTORY_FIELDS = {"action", "commit", "by", "reason", "on"}
-MIGRATE_COMMAND = "openguildkit org-catalog set --name NAME --repo PATH --commit SHA --by NAME --reason WHY"
+MIGRATE_COMMAND = "openguildkit org-catalog set --name NAME --repo PATH --commit SHA --by INITIALS --reason WHY"
 
 # Where the copies are looked for while a catalog is loaded from a folder that is not the project: guard --ci extracts
 # the base revision to a temporary folder, so a relative path must be read from the real root. (root, NAME -> folder.)
@@ -179,7 +180,7 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
 
 def validate_pin(pin: object, where: str) -> None:
     """The "organization" entry of a catalog lock."""
-    def refuse(problem: str):
+    def refuse(problem: str) -> NoReturn:
         raise ValueError(f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
                          f"catalog again at a terminal: {SET_COMMAND}.")
 
@@ -268,5 +269,5 @@ def unaccepted_replacements(catalog: dict, lock: dict | None) -> dict[str, str]:
     """The line check prints for each replacement no person accepted, by collection/id."""
     return {row["record"]: (f"the project catalog replaces {row['record']} of the organization catalog "
                             f"(.openguildkit/catalog/{row['record']}.json). If a person agrees, openguildkit "
-                            f"org-catalog accept {row['record']} --by NAME --reason WHY at a terminal.")
+                            f"org-catalog accept {row['record']} --by INITIALS --reason WHY at a terminal.")
             for row in replacements(catalog, lock) if row["accepted"] is None}
