@@ -94,6 +94,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `results.py` | Records what was delivered for an approved task and the checks that prove it. |
 | `retro.py` | The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type. |
 | `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
+| `git.py` | Runs Git for every module: one place for its options, for a machine without Git, and for file names read with `-z` as they are on disk. |
 | `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
 | `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
 | `light_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |

@@ -7,10 +7,9 @@ after the last decision. It reads and writes nothing else: no task, no record, n
 
 import hashlib
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
+from . import git
 from .decisions import exported_records
 from .guard import exported_decisions
 from .lock import project_catalog
@@ -136,12 +135,9 @@ def _evidence_changed(root: Path, result: dict) -> list[str]:
 
 
 def _git(root: Path, *args: str) -> list[str] | None:
-    """The lines Git prints, or None when it fails. Optional locks are off: reading never refreshes the index."""
-    if shutil.which("git") is None:
-        return None
-    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
-                            encoding="utf-8", errors="replace", env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
-    return None if result.returncode else [line for line in result.stdout.splitlines() if line.strip()]
+    """The lines Git prints, or None when it fails or is not installed."""
+    output = git.text(root, *args)
+    return None if output is None else [line for line in output.splitlines() if line.strip()]
 
 
 def _changed_since(root: Path, relative: str, latest: dict) -> tuple[dict | None, str | None]:

@@ -361,6 +361,14 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertEqual(len(error.splitlines()), 1, error)
         self.assertTrue(error.startswith("OpenGuildKit: guard --ci needs a Git repository"), error)
 
+    def test_ci_without_git_says_git_is_missing_in_one_sentence(self):
+        """Issue #459: guard --ci without Git printed the system's raw error, [Errno 2] No such file or directory."""
+        self.init(guard="enforce")
+        with patch.dict(os.environ, {"PATH": str(self.root)}):
+            output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
+        self.assertEqual(output, "")
+        self.assertEqual(error, "OpenGuildKit: guard --ci needs Git: it is not installed or not on the PATH.\n")
+
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_the_first_pull_request_explains_why_nothing_is_enforced_and_what_comes_next(self):
         self.git("init", "-q", "-b", "main")

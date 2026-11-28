@@ -11,9 +11,9 @@ with the reason, and needs no answer. LEGAL_BASIS gives, for each regulatory pac
 legal reason. judge_rules then decides rule by rule, for the board passes, the handoff and the closing alike.
 """
 
-import subprocess
 from pathlib import Path, PurePosixPath
 
+from . import git
 from .decisions import changed_paths_since
 from .patterns import is_stack_pattern, pattern_selection
 from .questionnaire import FOLLOW_UPS
@@ -340,17 +340,6 @@ def evidence_owner(pack_id: str) -> str:
     return EVIDENCE_OWNERS.get(pack_id, f"the person accountable for the {pack_id} obligations")
 
 
-def _git_lines(root: Path, *args: str) -> list[str] | None:
-    try:
-        completed = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
-                                   encoding="utf-8", errors="replace")
-    except OSError:
-        return None
-    if completed.returncode:
-        return None
-    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
-
-
 def changed_files(root: Path, task: dict) -> list[str] | None:
     """Project files changed since the approved revision, committed or not; None when Git cannot tell.
 
@@ -363,7 +352,7 @@ def changed_files(root: Path, task: dict) -> list[str] | None:
         tracked = changed_paths_since(root, base["commit"])
     except ValueError:
         return None
-    untracked = _git_lines(root, "ls-files", "--others", "--exclude-standard")
+    untracked = git.names(root, "ls-files", "--others", "--exclude-standard")
     if untracked is None:
         return None
     return sorted({name for name in [*tracked, *untracked] if not name.startswith(".openguildkit/")})

@@ -1,10 +1,9 @@
 """Read versioned evidence from Git and evaluate the central policy's field check on it."""
 
-import os
 import re
-import subprocess
 from pathlib import Path
 
+from . import git
 from .catalog import EXPORT_EXPIRY_ID, rule_check
 from .project import profile_fingerprint, resolved_profile, rule_text
 from .rule_checks import compare_field, parse_fields
@@ -16,13 +15,9 @@ FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 
 
 def _git(repo: Path, *args: str) -> bytes:
-    result = subprocess.run(
-        ["git", "--no-replace-objects", "-c", "protocol.allow=never", "-C", str(repo.resolve()), *args],
-        env={**os.environ, "GIT_NO_LAZY_FETCH": "1"},
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+    result = git.run(repo.resolve(), *args, offline=True)
+    if result is None:
+        raise ValueError("Reading the evidence needs Git: it is not installed or not on the PATH.")
     if result.returncode:
         raise ValueError(f"Git could not read {args[-1]} in {repo}. Fetch the required commit first.")
     return result.stdout

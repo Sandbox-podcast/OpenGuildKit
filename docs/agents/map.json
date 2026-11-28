@@ -548,6 +548,22 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/git.py",
+      "role": "Runs Git for every module: one place for its options, for a machine without Git, and for file names read with `-z` as they are on disk.",
+      "entry": [
+        "run",
+        "text",
+        "names",
+        "split_names"
+      ],
+      "tests": [
+        "tests/test_git.py",
+        "tests/test_guard.py",
+        "tests/test_trace.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/guard.py",
       "role": "Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request.",
       "entry": [

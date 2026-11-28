@@ -10,15 +10,12 @@ Tests: tests/test_evidence.py.
 
 import hashlib
 import json
-import os
 import re
-import shutil
-import subprocess
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from . import clock
+from . import clock, git
 from .alerts import load_register
 from .catalog import package_file
 from .decisions import approval_policy, exported_records, git_revision, record_digest, seal, verify_recorded_signature
@@ -187,15 +184,6 @@ def _alerts(state: Path, since: str | None, until: str | None) -> list[dict]:
     return [*sorted(alerts, key=lambda alert: alert["id"]), *imports]
 
 
-def _git_output(root: Path, *args: str) -> str | None:
-    """What Git prints, or None when it fails or is missing. Optional locks are off: reading never refreshes the index."""
-    if shutil.which("git") is None:
-        return None
-    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
-                            encoding="utf-8", errors="replace", env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
-    return None if result.returncode else result.stdout
-
-
 def _signers(root: Path, profile: dict, since: str | None, until: str | None) -> tuple[list[dict], str | None]:
     """The commits of the period that changed the allowed signers file, oldest first: the principals the file listed
     and its object ID, never a key. The reason it is empty when it cannot be filled."""
@@ -203,7 +191,7 @@ def _signers(root: Path, profile: dict, since: str | None, until: str | None) ->
     if policy["mode"] != "signed":
         return [], "signers-history.jsonl is empty: the project does not require signed approvals."
     relative = Path(policy["allowed_signers"]).as_posix()
-    listing = _git_output(root, "log", "--reverse", "--format=%H %ct", "--", relative)
+    listing = git.text(root, "log", "--reverse", "--format=%H %ct", "--", relative)
     if listing is None:
         return [], "signers-history.jsonl is empty: the project is not in a Git repository, or git is missing."
     rows = []
@@ -212,7 +200,7 @@ def _signers(root: Path, profile: dict, since: str | None, until: str | None) ->
         moment = datetime.fromtimestamp(int(seconds), UTC)
         if not _within(moment.date().isoformat(), since, until):
             continue
-        text, blob = _git_output(root, "show", f"{commit}:./{relative}"), _git_output(root, "rev-parse", f"{commit}:./{relative}")
+        text, blob = git.text(root, "show", f"{commit}:./{relative}"), git.text(root, "rev-parse", f"{commit}:./{relative}")
         words = [text_line.split()[0] for text_line in (text or "").splitlines()
                  if text_line.strip() and not text_line.lstrip().startswith("#")]
         rows.append({"commit": commit, "committed_at": moment.isoformat(timespec="seconds"),
