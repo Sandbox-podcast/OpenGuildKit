@@ -7,7 +7,8 @@ from pathlib import Path
 
 from openguildkit.catalog import load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
-from openguildkit.project import profile_recommendations, resolved_profile, validate_profile
+from openguildkit.project import profile_recommendations, validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.rule_checks import evaluate_check
 
 STACKS = {

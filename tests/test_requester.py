@@ -19,7 +19,8 @@ from unittest.mock import patch
 from openguildkit import profile_cli, requester
 from openguildkit.catalog import load_catalog
 from openguildkit.decisions import check_decision_seal, decision_payload, record_digest
-from openguildkit.project import profile_fingerprint, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
 
 from tests.support import run_cli

@@ -2,12 +2,9 @@ import json
 import unittest
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.project import (
-    render_instructions,
-    resolved_profile,
-    rule_plan,
-    validate_profile,
-)
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import resolved_profile, rule_plan
 from openguildkit.consultation import consult
 
 

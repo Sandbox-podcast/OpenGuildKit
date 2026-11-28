@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.storage import write_json
 from openguildkit.consultation import board_brief, code_not_found, consult
 from openguildkit.workflow import validate_board_entry

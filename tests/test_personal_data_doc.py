@@ -16,7 +16,8 @@ from pathlib import Path
 from openguildkit.alerts import REGISTER_FILE
 from openguildkit.decisions import DECISIONS_DIR, record_digest
 from openguildkit.market import MARKET_DIR
-from openguildkit.project import PROJECT_IGNORE, STATE_DIR
+from openguildkit.project import STATE_DIR
+from openguildkit.project_instructions import PROJECT_IGNORE
 from openguildkit.publishing import SHARES_DIR
 
 REPO = Path(__file__).resolve().parents[1]

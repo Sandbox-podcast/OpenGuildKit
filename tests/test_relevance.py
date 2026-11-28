@@ -4,7 +4,8 @@ import unittest
 
 from openguildkit.catalog import load_catalog
 from openguildkit.patterns import recommend_patterns
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.relevance import judge_rules, pack_relevance
 from openguildkit.results import asked_checks, expected_checks, not_concerned, result_template
 

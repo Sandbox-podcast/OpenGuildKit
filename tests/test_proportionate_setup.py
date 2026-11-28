@@ -14,9 +14,9 @@ from unittest.mock import patch
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _print_preselection, main
 from openguildkit.prompts import prompt_questions
-from openguildkit.project import (
-    RULE_WARNING, init_questions, profile_recommendations, rule_plan, setup_profile, validate_profile,
-)
+from openguildkit.project import profile_recommendations, validate_profile
+from openguildkit.project_rules import RULE_WARNING, rule_plan
+from openguildkit.project_setup import init_questions, setup_profile
 from openguildkit.storage import write_json
 from openguildkit.consultation import _board_template
 from tests.support import run_cli

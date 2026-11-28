@@ -19,21 +19,10 @@ from .doc_links import doc_link
 from .hosts import HOSTS, LIFTED
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
-from .project import (
-    DEFAULT_GUARD,
-    GUARD_MODES,
-    declined_ids,
-    declined_rule_ids,
-    is_norm,
-    load_profile,
-    norm_reason,
-    resolved_profile,
-    restricted_paths,
-    rules_in_force,
-    sync_instructions,
-    unanswered_norms,
-    validate_profile,
-)
+from .project import declined_ids, declined_rule_ids, load_profile, restricted_paths, rules_in_force, validate_profile
+from .project_instructions import sync_instructions
+from .project_rules import resolved_profile
+from .project_setup import DEFAULT_GUARD, GUARD_MODES, is_norm, norm_reason, unanswered_norms
 from .sensitive import redact_credentials
 from .shell import shell_word
 from .storage import print_json, project_lock, write_json

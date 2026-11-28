@@ -18,7 +18,8 @@ from unittest.mock import patch
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import _detected_host
 from openguildkit.hosts import HOOK_HOSTS, HOSTS, host_controls
-from openguildkit.project import BEGIN, init_questions
+from openguildkit.project_instructions import BEGIN
+from openguildkit.project_setup import init_questions
 from openguildkit.storage import write_json
 from tests.support import CapturedCli, openguildkit_on_path, run_cli
 

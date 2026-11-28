@@ -15,7 +15,8 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import command_parser
 from openguildkit.consultation import consult
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.catalog import validate_entry
 from openguildkit.project import DRAFT_MARK
 from openguildkit.retro import (

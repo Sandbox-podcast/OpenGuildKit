@@ -6,7 +6,8 @@ the ones docs/sarif.md lists, one heading each; a code is part of what a code sc
 added or retired there, never renamed.
 """
 
-from .project import STATE_DIR, RuleError
+from .project import STATE_DIR
+from .project_instructions import RuleError
 from .sarif import finding, sarif_text, to_sarif
 
 _RULES = {

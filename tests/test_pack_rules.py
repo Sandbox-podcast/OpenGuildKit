@@ -7,7 +7,9 @@ from pathlib import Path
 
 from openguildkit.brains import brain_knowledge
 from openguildkit.catalog import load_catalog
-from openguildkit.project import render_instructions, resolved_profile, rule_plan, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import resolved_profile, rule_plan
 from openguildkit.references import find_references, load_references, with_pattern_references
 from openguildkit.rule_checks import evaluate_check
 

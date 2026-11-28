@@ -8,7 +8,8 @@ from pathlib import Path
 
 from .lock import project_catalog, read_lock
 from .org_policy import findings, from_read, pinned
-from .project import STATE_DIR, RuleError, load_profile
+from .project import STATE_DIR, load_profile
+from .project_instructions import RuleError
 from .storage import print_json
 
 __all__ = ["add_guard_options", "add_parser", "check", "ci_copy", "from_read", "print_summary", "run"]
