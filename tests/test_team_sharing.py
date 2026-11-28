@@ -167,7 +167,9 @@ class TeamSharingTests(SharingCase):
         completed = self.complete()
         self.assertIn(f"openguildkit task export {TASK}", completed)
         self.assertIn("commit", completed)
-        self.assertEqual(self.run_cli("task", "export", TASK)[1], "")
+        # Once completed, the export warns no more and gives the next step only (issue #529).
+        self.assertEqual(self.run_cli("task", "export", TASK)[1],
+                         "Next: git add .openguildkit/decisions, then commit the record with the work in the pull request.\n")
         record = read_json(self.state / "decisions" / f"{TASK}.json")
         self.assertTrue(record["completed"])
         self.assertIn("completed_at", record)

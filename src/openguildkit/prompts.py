@@ -5,7 +5,6 @@ import sys
 from .project import unsure_answers
 from .terminal import interactive
 
-
 # A list this long is read by no one and its answer is almost always Enter: only the choices the default keeps are printed.
 LONG_LIST = 50
 
@@ -62,8 +61,8 @@ def prompt_questions(questions: list[dict], command: str) -> dict:
             print(f"  Default: {question['default_label']}", file=sys.stderr)
         elif "default" in question:
             default = question["default"]
-            shown = ", ".join(map(str, default)) if isinstance(default, list) else default
-            print(f"  Default: {shown or 'none'}", file=sys.stderr)
+            default_text = ", ".join(map(str, default)) if isinstance(default, list) else default
+            print(f"  Default: {default_text or 'none'}", file=sys.stderr)
         else:
             print("  No default: choose an answer.", file=sys.stderr)
         if "unsure" in question:

@@ -256,7 +256,8 @@ class _Problems:
     """The defects of one result, each with the entry that holds it: one refusal lists them all (issue #490)."""
 
     def __init__(self, task: dict):
-        self.task, self.found = task, []
+        self.task = task
+        self.found: list[tuple[str, ValueError]] = []
 
     def add(self, path: str, error: ValueError) -> None:
         self.found.append((path, error))

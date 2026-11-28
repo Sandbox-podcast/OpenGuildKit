@@ -1,8 +1,6 @@
 """Shell completion and the reference of the commands, both written from the parser (issue #499)."""
 
 import argparse
-import importlib.util
-import os
 import shutil
 import subprocess
 import sys
@@ -21,14 +19,12 @@ PAGE = ROOT / "docs" / "cli.md"
 
 
 def completed(shell: str, text: str, body: str) -> list[str]:
-    """What the completion function of `shell` offers after the words in `body`: the script is sourced by a shell
-    that has no other configuration."""
-    with tempfile.TemporaryDirectory(prefix="ogk-completion-") as folder:
-        file = Path(folder) / "completion.sh"
-        file.write_text(text, encoding="utf-8")
-        flags = ["--noprofile", "--norc"] if shell == "bash" else ["-f"]
-        done = subprocess.run([shutil.which(shell), *flags, "-c", f"{body.replace('FILE', str(file))}"],
-                              capture_output=True, text=True, timeout=60)
+    """What the completion function of `shell` offers after the words in `body`: the script is read by a shell
+    that has no other configuration. It comes on standard input, not from a file, as the bash of Git for Windows
+    reads no path that Python writes with backslashes (issue #499)."""
+    flags = ["--noprofile", "--norc"] if shell == "bash" else ["-f"]
+    done = subprocess.run([shutil.which(shell), *flags, "-s"], input=body.replace("source FILE; ", f"\n{text}\n") + "\n",
+                          capture_output=True, text=True, timeout=60, check=False)
     if done.returncode:
         raise AssertionError(done.stderr)
     return done.stdout.split()
@@ -50,7 +46,8 @@ class ScriptTests(unittest.TestCase):
             with self.subTest(shell=shell), tempfile.TemporaryDirectory(prefix="ogk-completion-") as folder:
                 file = Path(folder) / "completion.sh"
                 file.write_text(script(shell, command_parser()), encoding="utf-8")
-                checked = subprocess.run([shutil.which(shell), "-n", str(file)], capture_output=True, text=True)
+                checked = subprocess.run([shutil.which(shell), "-n", str(file)], capture_output=True, text=True,
+                                         check=False)
                 self.assertEqual((checked.returncode, checked.stderr), (0, ""))
 
     def test_bash_offers_the_actions_options_and_values_of_the_command_typed(self):
@@ -117,8 +114,10 @@ class ReferenceTests(unittest.TestCase):
         self.assertIn("`--fast FAST`: Do not stop.", after)
 
     def test_the_page_is_current_and_a_stale_one_fails(self):
-        run = lambda page: subprocess.run([sys.executable, "-I", str(SCRIPT), "--check", "--page", str(page)],
-                                          capture_output=True, text=True)
+        def run(page: Path) -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-I", str(SCRIPT), "--check", "--page", str(page)],
+                                  capture_output=True, text=True, check=False)
+
         self.assertEqual(run(PAGE).returncode, 0, run(PAGE).stderr)
         with tempfile.TemporaryDirectory(prefix="ogk-page-") as folder:
             stale = Path(folder) / "cli.md"

@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openguildkit.cli import command_parser  # noqa: E402
-from openguildkit.completion_cli import reference  # noqa: E402
+from openguildkit.cli import command_parser  # noqa: E402 INTENTIONAL(#499): runs from a checkout, after sys.path is set above
+from openguildkit.completion_cli import reference  # noqa: E402 INTENTIONAL(#499): runs from a checkout, after sys.path is set above
 
 OUTPUT = ROOT / "docs" / "cli.md"
 

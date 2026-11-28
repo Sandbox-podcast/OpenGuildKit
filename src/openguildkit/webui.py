@@ -534,7 +534,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, status: int, data) -> None:
         extra = {"Cache-Control": "no-store"}
-        body = self._compressed(json.dumps(data, ensure_ascii=False).encode("utf-8"), extra)
+        try:
+            text = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:  # A lone surrogate, from a file name an error repeats: escaped, never a 500 (#528).
+            text = json.dumps(data).encode("ascii")
+        body = self._compressed(text, extra)
         self._send(status, body, "application/json; charset=utf-8", extra)
 
     def _refuse(self, refusal: Refused) -> None:

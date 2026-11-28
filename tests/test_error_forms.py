@@ -12,7 +12,6 @@ from unittest.mock import patch
 
 from openguildkit.errors import os_error_message, unknown
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

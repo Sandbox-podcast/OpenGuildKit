@@ -8,7 +8,6 @@ from pathlib import Path
 from openguildkit import hosts
 from openguildkit.decisions import PAYLOAD_VERSIONS
 from openguildkit.project import SCHEMA_VERSION
-
 from tests.test_doc_links import anchors
 from tests.test_entry_pages import _commands, _parse_error
 
@@ -121,7 +120,7 @@ class HostCoverageTests(unittest.TestCase):
         header = rows[0]
         self.assertEqual(header[0], "Rule")
         self.assertEqual(len(header) - 1, len(hosts.HOSTS))
-        for host, column in zip(hosts.HOSTS, header[1:]):
+        for host, column in zip(hosts.HOSTS, header[1:], strict=True):
             self.assertEqual(column.lower().replace(" ", "-").replace("other-hosts", "other"), host)
         version = next(row for row in rows if row[0] == "Version checked")
         self.assertEqual(len(version), len(header))

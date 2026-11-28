@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from openguildkit import doc_links
 from openguildkit.doc_links import doc_link
-
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
