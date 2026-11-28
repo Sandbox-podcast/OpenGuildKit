@@ -17,7 +17,8 @@ from pathlib import Path
 
 from . import clock, lazy_re
 from .catalog import CatalogError, package_file
-from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
+from .detect import SKIPPED_DIRECTORIES
+from .detect_manifest import MAX_MANIFEST_BYTES
 from .sensitive import looks_like_credential
 from .storage import load_json, unique_fields
 from .tool_connections import HOSTS, read_manifest
