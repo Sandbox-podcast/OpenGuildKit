@@ -120,7 +120,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertEqual([entry["id"] for entry in self.profile()["declined_rules"]], [RULE])
 
     def test_a_rule_not_in_force_already_declined_or_of_the_workflow_is_refused(self):
-        # OGK-PROFILE-004, OGK-PROFILE-006
+        # OGK-PROFILE-004, OGK-PROFILE-005, OGK-PROFILE-006
         cases = (("gdpr/update-processing-record", "not in force"),
                  ("agent-workflow/scope-before-edits", "required by OpenGuildKit"))
         for rule, words in cases:
@@ -139,6 +139,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertIn("last rule of pack python", error)
 
     def test_a_required_rule_is_removed_from_the_required_rules_before_it_is_declined(self):
+        # OGK-PROFILE-007
         for required in ("python", RULE):
             with self.subTest(required=required):
                 self.cli("profile", "add", "required-rule", required, "--by", "S", "--reason", "Audit")

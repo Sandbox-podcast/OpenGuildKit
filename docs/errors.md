@@ -76,9 +76,9 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-PROFILE-002` | `profile_edits.py:_known_rule` | Name one rule as PACK/RULE, such as python/follow-python-style: {value} is not. AGENTS.md lists the rules in force under their pack. Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-003` | `profile_edits.py:_known_rule` | Unknown rule {rule}.{hint} Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-004` | `profile_edits.py:_decline_rule` | agent-workflow is required by OpenGuildKit: its rules cannot be declined. Nothing was written. | tests/test_rule_decline.py |
-| `OGK-PROFILE-005` | `profile_edits.py:_decline_rule` | Rule {rule} is already declined. Nothing was written. | tests/test_retro.py |
+| `OGK-PROFILE-005` | `profile_edits.py:_decline_rule` | Rule {rule} is already declined. Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-006` | `profile_edits.py:_decline_rule` | Rule {rule} is not in force: its pack {pack_id} is not active in this profile, so no task is asked it. Nothing was written. | tests/test_rule_decline.py |
-| `OGK-PROFILE-007` | `profile_edits.py:_decline_rule` | Rule {rule} is required by the profile (required_rules lists {required[0]}): remove it from the required rules first, at a terminal: openguildkit profile remove required-rule {required[0]} --by INITIALS --reason WHY. Nothing was written. | tests/test_retro.py |
+| `OGK-PROFILE-007` | `profile_edits.py:_decline_rule` | Rule {rule} is required by the profile (required_rules lists {required[0]}): remove it from the required rules first, at a terminal: openguildkit profile remove required-rule {required[0]} --by INITIALS --reason WHY. Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-008` | `profile_edits.py:_decline_rule` | {rule_id} is the last rule of pack {pack_id} in force: remove the pack (openguildkit profile remove pack {pack_id}) or decline the pattern that brings it, rather than each of its rules. Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-009` | `profile_edits.py:_adopt_rule` | Rule {rule} is not declined (declined rules: {declined}). Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-010` | `profile_edits.py:_change_tools` | {value} is {'already in' if add else 'not in'} the profile's tools. Nothing was written. | tests/test_profile_commands.py |
@@ -115,7 +115,7 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-PROJECT-020` | `project.py:_add_agent_settings` | host must be one of {', '.join(HOSTS)} | tests/test_gemini_host.py |
 | `OGK-PROJECT-021` | `project.py:_add_agent_settings` | guard must be off, observe or enforce | tests/test_robustness.py |
 | `OGK-PROJECT-022` | `project.py:_add_rule_choices` | Unknown required rule {item}: use PACK or PACK/RULE from openguildkit catalog | tests/test_profile_commands.py |
-| `OGK-PROJECT-023` | `project.py:_add_rule_choices` | Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and rewrite its description before a profile uses it. | tests/test_retro.py |
+| `OGK-PROJECT-023` | `project.py:_add_rule_choices` | Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and rewrite its description before a profile uses it. | tests/e2e/test_task_retro.py |
 | `OGK-PROJECT-024` | `project.py:_add_options` | separate_requester must be true, or absent when the option is off | tests/test_requester.py |
 | `OGK-PROJECT-025` | `project.py:_add_options` | ask_every_rule must be true or false | tests/test_relevance.py |
 | `OGK-PROJECT-026` | `project.py:load_profile` | No OpenGuildKit project found for {state.parent.as_posix()}: {STATE_DIR}/project.json does not exist. cd into the project folder or pass --project PATH; run openguildkit init only to set up a new project here. | tests/test_clean_errors.py, tests/test_sarif_commands.py |

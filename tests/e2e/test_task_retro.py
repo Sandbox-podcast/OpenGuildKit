@@ -391,6 +391,7 @@ class DraftRulesTests(RetroCase):
         self.assertIn("already exists", again)
 
     def test_the_json_names_the_draft_and_the_catalog_reads_it_but_no_profile_uses_it_unreviewed(self):
+        # OGK-PROJECT-023
         summary = json.loads(self.retro("--all", "--json", "--draft-rules", "drafts").stdout)
         draft = summary["draft"]
         self.assertEqual((draft["rules"], draft["path"]), (2, f"drafts/{draft['pack']}.json"))
