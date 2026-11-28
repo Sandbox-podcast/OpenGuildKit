@@ -69,33 +69,19 @@ def profile_decision_lines(profile: dict, catalog: dict) -> list[str]:
     return lines
 
 
-def render_instructions(profile: dict, catalog: dict) -> str:
-    require_resolved_conflicts(profile, catalog)
-    resolved = resolved_profile(profile, catalog)
-    sector = catalog["sectors"][profile["sector"]]
-    lines = [
-        "## OpenGuildKit",
-        "",
-        f"Project: {profile['name']}",
-        f"Sector: {sector['title']}",
-        f"Stack: {', '.join(profile['stack']) or 'See the project files.'}",
-        f"Research policy: `{profile['research']}`",
-        *([f"Host agent: `{profile['host']}`"] if profile.get("host") else []),
-        "",
-        *_bullets(sector["context"]),
-        "",
-        *AGENT_WORKFLOW.strip().splitlines(),
+def _scope_text(components: dict, scope: list[str] | None) -> str:
+    """The components of a scope, each with its path when it has one."""
+    names = [
+        f"`{component_id}` ({components[component_id]['path']})" if components[component_id].get("path")
+        else f"`{component_id}`"
+        for component_id in scope or []
     ]
-    components = {component["id"]: component for component in profile.get("components", [])}
+    return ", ".join(names)
 
-    def scope_text(scope: list[str] | None) -> str:
-        names = [
-            f"`{component_id}` ({components[component_id]['path']})" if components[component_id].get("path")
-            else f"`{component_id}`"
-            for component_id in scope or []
-        ]
-        return ", ".join(names)
 
+def _component_sections(profile: dict, catalog: dict, components: dict) -> list[str]:
+    """The components of the project and the patterns it selected, each with the components it applies to."""
+    lines: list[str] = []
     if components:
         lines.extend(["", "### Components", ""])
         for component in components.values():
@@ -107,11 +93,14 @@ def render_instructions(profile: dict, catalog: dict) -> str:
             pattern_id, scope = pattern_selection(entry)
             pattern = catalog["patterns"][pattern_id]
             packs = ", ".join(f"`{pack_id}`" for pack_id in pattern["packs"])
-            where = f" Applies to {scope_text(scope)}." if scope else ""
+            where = f" Applies to {_scope_text(components, scope)}." if scope else ""
             lines.append(f"- {pattern['title']} (`{pattern_id}`) uses {packs}.{where}")
-    decisions = profile_decision_lines(profile, catalog)
-    if decisions:
-        lines.extend(["", "### Profile decisions", "", *_bullets(decisions)])
+    return lines
+
+
+def _rule_decision_section(profile: dict, catalog: dict) -> list[str]:
+    """The rule conflicts the profile resolved: which packs apply instead of which, and why."""
+    lines: list[str] = []
     applied = [conflict for conflict in rule_conflicts(profile, catalog) if conflict["resolution"]]
     if applied:
         lines.extend(["", "### Rule decisions", ""])
@@ -125,6 +114,12 @@ def render_instructions(profile: dict, catalog: dict) -> str:
                 else f"{kept} both apply"
             )
             lines.append(f"- {outcome}. Reason: {resolution['reason']}")
+    return lines
+
+
+def _policy_sections(profile: dict) -> list[str]:
+    """The approval, requester, waiver, guard and review policies of the profile, its conventions and checks."""
+    lines: list[str] = []
     if profile.get("approval", {}).get("mode") == "signed":
         lines.extend(["", "### Signed approvals", ""])
         lines.append(
@@ -156,16 +151,50 @@ def render_instructions(profile: dict, catalog: dict) -> str:
     for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
         if profile[field]:
             lines.extend(["", f"### {title}", "", *_bullets(profile[field])])
+    return lines
+
+
+def _pack_sections(profile: dict, catalog: dict, resolved: dict, components: dict) -> list[str]:
+    """The rule packs in force, each with the components it applies to, its policy commit and its rules."""
+    lines: list[str] = []
     scopes = pack_scopes(profile, catalog) if components else {}
     lines.extend(["", "### Rule packs", "", *RULE_PACKS_NOTE.splitlines()])
     for pack_id in resolved["packs"]:
         pack = catalog["packs"][pack_id]
         lines.extend(["", f"#### {pack['title']} (`{pack_id}@{pack['version']}`)", ""])
         if scopes.get(pack_id):
-            lines.append(f"Applies to {scope_text(scopes[pack_id])}.")
+            lines.append(f"Applies to {_scope_text(components, scopes[pack_id])}.")
         if "policy_commit" in pack:
             lines.append(f"Policy commit: `{pack['policy_commit']}`")
         lines.append(", ".join(f"`{rule['id']}`" for rule in rules_in_force(pack, profile)["rules"]))
+    return lines
+
+
+def render_instructions(profile: dict, catalog: dict) -> str:
+    require_resolved_conflicts(profile, catalog)
+    resolved = resolved_profile(profile, catalog)
+    sector = catalog["sectors"][profile["sector"]]
+    lines = [
+        "## OpenGuildKit",
+        "",
+        f"Project: {profile['name']}",
+        f"Sector: {sector['title']}",
+        f"Stack: {', '.join(profile['stack']) or 'See the project files.'}",
+        f"Research policy: `{profile['research']}`",
+        *([f"Host agent: `{profile['host']}`"] if profile.get("host") else []),
+        "",
+        *_bullets(sector["context"]),
+        "",
+        *AGENT_WORKFLOW.strip().splitlines(),
+    ]
+    components = {component["id"]: component for component in profile.get("components", [])}
+    lines += _component_sections(profile, catalog, components)
+    decisions = profile_decision_lines(profile, catalog)
+    if decisions:
+        lines.extend(["", "### Profile decisions", "", *_bullets(decisions)])
+    lines += _rule_decision_section(profile, catalog)
+    lines += _policy_sections(profile)
+    lines += _pack_sections(profile, catalog, resolved, components)
     stamp = f"{profile_fingerprint(profile, catalog)} layout {INSTRUCTIONS_LAYOUT}"
     lines.extend(["", f"<!-- openguildkit profile {stamp} -->"])
     return "\n".join(lines)
