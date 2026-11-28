@@ -370,6 +370,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.share(["reader@example.test"], day(10))
         Portal.redirect_login = True
         output, _ = self.verify(code=1)
+        # OGK-PORTAL-001
         self.assertIn("Documentalist redirected the request; no credentials were forwarded.", output)
         self.assertEqual([call[1] for call in Portal.calls], ["/api/auth/login"])
 
@@ -378,7 +379,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=False), patch("getpass.getpass") as prompt:
             _, error = self.run_cli("docs", "share", "verify", "--portal", self.portal, "--user", "editor@example.test",
                                     code=1)
-        self.assertIn("OpenGuildKit: Portal verification needs an interactive terminal", error)
+        self.assertIn("OpenGuildKit [OGK-PORTAL-003]: Portal verification needs an interactive terminal", error)
         self.assertEqual((prompt.call_count, Portal.calls), (0, []))
         _, error = self.run_cli("docs", "share", "verify", "--portal", self.portal, code=1)
         self.assertIn("docs share verify needs --portal and --user", error)
@@ -388,6 +389,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.assertIn("Remove credentials from --portal", error)
 
     def test_http_is_refused_off_this_machine_and_https_is_required_to_trust_the_server(self):
+        # OGK-PUBLISH-008
         self.share(["reader@example.test"], day(10))
         _, error = self.run_cli("docs", "share", "verify", "--portal", "http://docs.example.test/p/demo",
                                 "--user", "editor@example.test", code=1)
@@ -403,6 +405,7 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         with patch("sys.stdin.isatty", return_value=True), patch("getpass.getpass") as prompt:
             _, error = self.run_cli("docs", "share", "verify", "--portal", self.portal, "--user", "editor@example.test",
                                     code=1)
+        # OGK-PORTAL-002
         self.assertIn("The local register has no shares for", error)
         self.assertEqual(prompt.call_count, 0)
 

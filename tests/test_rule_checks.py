@@ -445,6 +445,7 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
                          [{"check": self.CHECK, "reason": "Only a stylesheet changes.", "owner": "Camille"}])
 
     def test_required_rules_make_the_evidence_a_must(self):
+        # OGK-RESULT-021
         self.approved([self.RECORD], data="internal", required_rules=["team-rules/record-processing"])
         _, error = self.report(self.RULE, self.NOT_APPLICABLE)
         self.assertIn("required_rules", error)

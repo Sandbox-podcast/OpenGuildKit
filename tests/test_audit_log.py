@@ -342,6 +342,7 @@ class SealTests(AuditCase):
 
     def test_changing_the_date_of_a_local_approval_breaks_its_seal(self):
         """Issue #454: decision.at was under neither the seal nor a signature."""
+        # OGK-DECISION-007
         task = self.sealed_task()
         self.assertEqual(task["decision"]["signed_at"], signing_time_of(task["decision"]["at"]))
         self.assertEqual(check_decision_seal(task)["signed_at"], task["decision"]["signed_at"])

@@ -44,6 +44,18 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-CORE-011` | `storage.py:write_text` | Refusing to replace a symbolic link: {path} | tests/test_storage.py |
 | `OGK-CORE-012` | `storage.py:_held_lock` | Another OpenGuildKit command is writing this project. Try again. | tests/e2e/test_concurrency.py |
 | `OGK-CORE-013` | `terminal.py:typed` | {cancelled} | tests/e2e/test_more_commands.py, tests/test_terminal.py |
+| `OGK-DECISION-001` | `decisions.py:signing_time` | --signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. Nothing was written. | tests/test_decisions.py |
+| `OGK-DECISION-002` | `decisions.py:signing_time` | --signed-at {value} is in the future: the signature cannot have been made yet. | tests/test_decisions.py |
+| `OGK-DECISION-003` | `decisions.py:verify_time` | signed_at must be a UTC time written {SIGNED_AT_FORMAT}. | tests/test_decisions.py |
+| `OGK-DECISION-004` | `decisions.py:committed_signers` | {shown} is not committed: a signature is verified against its version at HEAD. {retry} | tests/test_decisions.py |
+| `OGK-DECISION-005` | `decisions.py:committed_signers` | {shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is verified against the committed file, never against a working copy. {retry} | tests/test_decisions.py |
+| `OGK-DECISION-006` | `decisions.py:check_decision_seal` | The approval for {task['id']} has no seal: it was edited by hand or written by a release older than sealed decisions. {reconsult_hint(task['id'])} | tests/test_decisions.py |
+| `OGK-DECISION-007` | `decisions.py:check_decision_seal` | The date of the approval of {task['id']} was changed after it was sealed. {reconsult_hint(task['id'])} | tests/test_audit_log.py |
+| `OGK-DECISION-008` | `decisions.py:check_decision_seal` | The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])} | tests/test_decisions.py |
+| `OGK-DOCS-001` | `docs_cli.py:deliverable` | {args.path} is not UTF-8 text ({error}): save the draft as UTF-8. | tests/test_deliverables.py |
+| `OGK-DOCS-002` | `docs_cli.py:deliverable` | {unknown('deliverable', args.id, 'deliverable list')} | tests/test_error_forms.py |
+| `OGK-DOCS-003` | `references.py:find_references` | Unknown reference family: {family_id}. Run openguildkit references. | tests/e2e/test_cli_flow.py |
+| `OGK-DOCS-004` | `references.py:find_references` | Unknown reference ID: {record_id}. Run openguildkit references QUERY. | tests/test_error_forms.py |
 | `OGK-GUARD-001` | `allowlist.py:load_allow` | The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}. | tests/test_allow_list_scan.py |
 | `OGK-GUARD-002` | `allowlist.py:load_allow` | The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, each a list of non-empty text, alone or under the key allow; a server may be an object with server and name, a name of letters, digits, - and _. | tests/test_managed_settings.py |
 | `OGK-GUARD-003` | `guard.py:edited_paths` | the hook input names no tool input | tests/test_robustness.py |
@@ -96,6 +108,9 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-ORG-009` | `org_policy.py:refuse` | {where}: {problem}. Fix it in the organization catalog, then pin the new commit. | tests/test_org_policy.py |
 | `OGK-ORG-010` | `org_policy.py:refuse_lowering` | Refused: {' '.join(new.values())} A repository may be stricter than the organization policy, never less strict. Nothing was written. | tests/test_org_policy.py |
 | `OGK-ORG-011` | `org_policy_cli.py:ci_copy` | Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog --org-commit SHA. | tests/test_org_policy.py |
+| `OGK-PORTAL-001` | `portal_verification.py:redirect_request` | Documentalist redirected the request; no credentials were forwarded. | tests/test_portal_verification.py |
+| `OGK-PORTAL-002` | `portal_verification.py:verify_portal` | The local register has no shares for {space}. | tests/test_portal_verification.py |
+| `OGK-PORTAL-003` | `portal_verification.py:verify_portal` | Portal verification needs an interactive terminal for the Documentalist password. | tests/test_portal_verification.py |
 | `OGK-PROFILE-001` | `profile_edits.py:_decline` | Unknown pattern: {pattern_id}. Run openguildkit patterns. | tests/test_profile_commands.py |
 | `OGK-PROFILE-002` | `profile_edits.py:_known_rule` | Name one rule as PACK/RULE, such as python/follow-python-style: {value} is not. AGENTS.md lists the rules in force under their pack. Nothing was written. | tests/test_rule_decline.py |
 | `OGK-PROFILE-003` | `profile_edits.py:_known_rule` | Unknown rule {rule}.{hint} Nothing was written. | tests/test_rule_decline.py |
@@ -161,6 +176,50 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-PROJECT-042` | `projects_cli.py:read_policy` | The policy file cannot be read: {error} | tests/test_projects.py |
 | `OGK-PROJECT-043` | `projects_cli.py:read_policy` | The policy file {path.name} names {', '.join(unknown)}: a policy holds {', '.join(POLICY_FIELDS)}. | tests/test_projects.py |
 | `OGK-PROJECT-044` | `projects_cli.py:read_policy` | The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}. | tests/test_projects.py |
+| `OGK-PUBLISH-001` | `publishing.py:_exported_files` | {manifest_path.name} is not an export manifest: its "files" must be a list of paths. Restore {manifest_path.as_posix()} from git, or export to an empty folder. | tests/test_publishing.py |
+| `OGK-PUBLISH-002` | `publishing.py:export_docs` | Only completed tasks with recorded checks can be documented: {', '.join(not_done)}. | tests/test_publishing.py |
+| `OGK-PUBLISH-003` | `publishing.py:export_docs` | {output} is not empty and was not created by openguildkit docs export. | tests/test_publishing.py |
+| `OGK-PUBLISH-004` | `publishing.py:export_docs` | --openapi {openapi.name} is not UTF-8 text: {error} | tests/test_publishing.py |
+| `OGK-PUBLISH-005` | `publishing.py:export_docs` | {', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again. | tests/test_publishing.py |
+| `OGK-PUBLISH-006` | `publishing.py:_shared_item` | --deliverable {shown} does not exist. Name the file you share, or the folder that openguildkit docs export wrote. | tests/test_publishing.py |
+| `OGK-PUBLISH-007` | `publishing.py:_shared_item` | --deliverable {shown} is a folder that holds no documentation export. Name the file you share, or the folder that openguildkit docs export wrote. | tests/test_publishing.py |
+| `OGK-PUBLISH-008` | `publishing.py:portal_space` | Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal (http only for an instance on this machine: localhost, 127.0.0.1 or ::1). | tests/test_portal_verification.py, tests/test_publishing.py |
+| `OGK-PUBLISH-009` | `publishing.py:portal_space` | --portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: the recipients see every published page of that space. | tests/test_publishing.py |
+| `OGK-PUBLISH-010` | `publishing.py:add_share` | List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}. | tests/test_publishing.py |
+| `OGK-PUBLISH-011` | `publishing.py:_check_dedication` | Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its readers would see {share['deliverable']} too. Publish {share['deliverable']} in a space of its own and give its portal address. | tests/test_publishing.py |
+| `OGK-PUBLISH-012` | `publishing.py:_check_dedication` | Space {share['space']} already carries {listed}: its readers would see {share['deliverable']} too, so it cannot be dedicated to it. Use a new space, or revoke those shares and remove their pages from the space first. | tests/test_publishing.py |
+| `OGK-PUBLISH-013` | `publishing.py:_share_end` | Give the last day of access as YYYY-MM-DD, not {until!r}. | tests/test_publishing.py |
+| `OGK-PUBLISH-014` | `publishing.py:_share_end` | A share ends after today. | tests/test_clock.py |
+| `OGK-RESULT-001` | `deliverables.py:project_path` | {option} {shown} is outside the project, once links are followed. Give a path inside the project folder. | tests/test_deliverables.py |
+| `OGK-RESULT-002` | `deliverables.py:project_path` | {option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records the team does not share. Give a path outside .openguildkit/. | tests/test_deliverables.py |
+| `OGK-RESULT-003` | `deliverables.py:utm_link` | Give the landing page as an https address with a host and no credentials. | tests/test_deliverables.py |
+| `OGK-RESULT-004` | `deliverables.py:utm_link` | The landing URL already carries utm_ parameters. Give the page address without them. | tests/test_deliverables.py |
+| `OGK-RESULT-005` | `deliverables.py:utm_link` | utm_{name} looks like an email address: keep personal data out of UTM values. | tests/test_deliverables.py |
+| `OGK-RESULT-006` | `deliverables.py:utm_link` | Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, as agreed with the analytics owner: {value!r}. | tests/e2e/test_campaign_links.py, tests/test_deliverables.py |
+| `OGK-RESULT-007` | `deliverables.py:new_draft` | Start a deliverable from an approved or completed task. | tests/test_deliverables.py |
+| `OGK-RESULT-008` | `deliverables.py:new_draft` | {tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}. | tests/test_deliverables.py |
+| `OGK-RESULT-009` | `delivered_review.py:require_reviewable` | Record the delivered revision first: openguildkit task verify {task['id']} reads it from Git, or task result {task['id']} --file FILE names it. | tests/test_delivered_review.py |
+| `OGK-RESULT-010` | `delivered_review.py:board_brief` | Board {board_id} did not review this task. Its boards: {', '.join(_board_ids(task))}. | tests/test_delivered_review.py |
+| `OGK-RESULT-011` | `delivered_review.py:record_findings` | {'The findings cannot be recorded:\n- ' + '\n- '.join(problems) + f"\nFix them in the file and record it again: openguildkit task diff-review {task['id']} --submit FILE"} | tests/test_delivered_review.py |
+| `OGK-RESULT-012` | `questionnaire.py:_optional_answers` | Choose {question_id} values from {', '.join(allowed)}. | tests/test_robustness.py |
+| `OGK-RESULT-013` | `questionnaire.py:_optional_answers` | Choose {question_id} values or {alone}, not both. | tests/test_routing.py |
+| `OGK-RESULT-014` | `questionnaire.py:require_concerns` | Answer concerns, a list of the topics the task involves: choose from {choices}, for example "concerns": ["none"]; unsure keeps every topic's rules open and consults its boards. | tests/test_routing.py |
+| `OGK-RESULT-015` | `questionnaire.py:_assumptions` | Task assumptions must be a list of sentences, such as ["Requests are linked to accounts by the customer ID."], or left out. | tests/test_assumptions.py |
+| `OGK-RESULT-016` | `questionnaire.py:validate_answers` | Choose one or more {question_id} values from {', '.join(allowed)}. | tests/test_robustness.py |
+| `OGK-RESULT-017` | `questionnaire.py:validate_answers` | Choose {question_id} values or unsure, not both. | tests/test_questions.py |
+| `OGK-RESULT-018` | `questionnaire.py:validate_answers` | Choose {question_id} from {', '.join(allowed)}. | tests/test_robustness.py |
+| `OGK-RESULT-019` | `questionnaire.py:validate_answers` | Unknown task answer fields: {', '.join(sorted(unknown))}. | tests/test_robustness.py |
+| `OGK-RESULT-020` | `questionnaire.py:validate_answers` | Describe the answer marked 'other' in context. | tests/e2e/test_cli_flow.py |
+| `OGK-RESULT-021` | `result_form.py:_evidence_reference` | {check_id} evidence must be a project path such as docs/privacy/record.md or an https link. | tests/test_rule_checks.py |
+| `OGK-RESULT-022` | `result_form.py:raise_any` | {f'The result has {len(lines)} problems:\n- ' + '\n- '.join(lines) + f'\n{_shape(self.task)}'} | tests/test_robustness.py |
+| `OGK-RESULT-023` | `result_form.py:_check_entry` | {item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass. | tests/test_results.py |
+| `OGK-RESULT-024` | `result_form.py:_check_source` | Each check names its ID as text. Run task checks for the expected IDs. | tests/test_robustness.py |
+| `OGK-RESULT-025` | `result_form.py:_check_source` | {check_id} comes from a replay: run task verify --chaosfolk SUMMARY. | tests/test_results.py |
+| `OGK-RESULT-026` | `result_form.py:_check_source` | {check_id} is recorded by task verify, which runs the command. Run task verify. | tests/test_robustness.py |
+| `OGK-RESULT-027` | `result_form.py:_check_source` | {check_id} is recorded by task verify, which evaluates its check. Run task verify. | tests/test_robustness.py |
+| `OGK-RESULT-028` | `results.py:chaosfolk_checks` | {summary_path} is not a ChaosFolk regression summary with results. | tests/test_chaosfolk_results.py |
+| `OGK-RESULT-029` | `retro.py:facts_of_record` | An exported record names its task: this one does not. | tests/test_retro.py |
+| `OGK-RESULT-031` | `retro.py:write_draft` | {shown} already exists: review it, rename it or remove it before writing another draft today. Nothing was written. | tests/e2e/test_task_retro.py |
 | `OGK-ROUTE-001` | `routing.py:select_boards` | Only a required board can be delegated: {', '.join(unknown)}. | tests/test_brain_selection.py |
 | `OGK-ROUTE-002` | `routing.py:select_boards` | Required reviews are unavailable: {', '.join(missing)} not enabled in the profile. Enable them, or name the person who will review with --delegate BOARD=NAME. | tests/test_brain_selection.py |
 | `OGK-ROUTE-003` | `routing.py:select_boards` | Give a --reason for adding or removing a board. | tests/test_brain_selection.py |

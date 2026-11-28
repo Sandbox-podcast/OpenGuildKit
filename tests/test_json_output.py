@@ -82,7 +82,7 @@ class JsonErrorTests(ApprovalCase):
         self.assertEqual(error["error"]["code"], "OGK-TASK-021")
         self.assertTrue(error["error"]["message"].startswith("Unknown task: nope."), error)
         self.assertEqual(result.stderr, f"OpenGuildKit [OGK-TASK-021]: {error['error']['message']}\n")
-        uncoded = run_cli(self.root, "references", "--id", "nope", "--json", expect=1)
+        uncoded = run_cli(self.root, "recommend", "--answers", self.root / "missing.json", "--json", expect=1)
         self.assertEqual(json.loads(uncoded.stdout)["error"]["code"], None)
         self.assertEqual(uncoded.stderr, f"OpenGuildKit: {json.loads(uncoded.stdout)['error']['message']}\n")
         coded = json.loads(run_cli(self.root, "task", "list", "--since", "2026-02-30", "--json", expect=1).stdout)

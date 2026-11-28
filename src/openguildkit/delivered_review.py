@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from . import clock, git, lazy_re
+from .errors import OgkError
 from .records import Task
 from .sensitive import redact_credentials
 from .storage import print_json
@@ -49,7 +50,7 @@ def require_reviewable(task: Task) -> None:
         raise ValueError("The approval names no Git revision (the project was not in Git when it was approved): there "
                          "is no delivered diff to compare with it.")
     if not (task.get("result") or {}).get("revision"):
-        raise ValueError(f"Record the delivered revision first: openguildkit task verify {task['id']} reads it from "
+        raise OgkError("OGK-RESULT-009", f"Record the delivered revision first: openguildkit task verify {task['id']} reads it from "
                          f"Git, or task result {task['id']} --file FILE names it.")
 
 
@@ -145,7 +146,7 @@ def _asked(task: Task, board_id: str) -> list[str]:
 def board_brief(task: Task, change: dict, board_id: str) -> dict:
     """One board's brief: the diff, what the decision asked, its lens and the format of its findings."""
     if board_id not in _board_ids(task):
-        raise ValueError(f"Board {board_id} did not review this task. Its boards: {', '.join(_board_ids(task))}.")
+        raise OgkError("OGK-RESULT-010", f"Board {board_id} did not review this task. Its boards: {', '.join(_board_ids(task))}.")
     stored = task["consultation"].get("board_briefs", {}).get(board_id, {})
     diff = change["diff"]
     truncated = len(diff) > DIFF_LIMIT
@@ -247,7 +248,7 @@ def record_findings(task: Task, change: dict, payload: object) -> tuple[Task, st
     """The task with one board's findings on the delivered diff, which replace that board's earlier ones."""
     board, findings, problems = _problems(task, change, payload)
     if problems:
-        raise ValueError("The findings cannot be recorded:\n- " + "\n- ".join(problems) + "\nFix them in the file and "
+        raise OgkError("OGK-RESULT-011", "The findings cannot be recorded:\n- " + "\n- ".join(problems) + "\nFix them in the file and "
                          f"record it again: openguildkit task diff-review {task['id']} --submit FILE")
     review: dict = task.get("delivered_review", {"boards": {}})
     entry = {"base": change["base"], "revision": change["delivered"], "at": clock.timestamp(), "findings": findings}

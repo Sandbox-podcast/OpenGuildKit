@@ -292,6 +292,7 @@ class ResultTests(ResultCase):
         self.assertEqual(checks["command:1"]["status"], "failed")
 
     def test_a_check_with_a_non_zero_exit_code_cannot_pass(self):
+        # OGK-RESULT-023
         self.approved()
         rule = self.rule_outcomes()[0]["check"]
         _, error = self.report({"check": rule, "status": "passed", "evidence": "ci.log", "exit_code": 1}, code=1)
@@ -302,6 +303,7 @@ class ResultTests(ResultCase):
                 {"check": "command:1", "status": "passed", "evidence": "log", "exit_code": 2}]}, source="verify")
 
     def test_chaosfolk_checks_come_only_from_a_replay(self):
+        # OGK-RESULT-025
         self.approved()
         _, error = self.report({"check": "chaosfolk:anything", "status": "passed", "evidence": "trust me"}, code=1)
         self.assertIn("task verify --chaosfolk", error)

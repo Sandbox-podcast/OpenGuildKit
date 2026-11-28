@@ -12,5 +12,5 @@ class CampaignLinkTests(CliTestCase):
                                                 "?utm_source=linkedin&utm_medium=social&utm_campaign=spring-launch")
         refused = self.run_cli("deliverable", "utm", "--url", "https://www.example.test/", "--campaign", "Spring",
                                "--source", "linkedin", "--medium", "social", expect=1)
-        self.assertTrue(refused.stderr.startswith("OpenGuildKit: "), refused.stderr)
+        self.assertTrue(refused.stderr.startswith("OpenGuildKit [OGK-RESULT-006]: "), refused.stderr)
         self.assertNotIn("Traceback", refused.stderr)

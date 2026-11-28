@@ -30,7 +30,7 @@ from urllib.parse import urlsplit
 
 from . import clock
 from .deliverables import project_path
-from .errors import unknown
+from .errors import OgkError, unknown
 from .project_instructions import rule_text
 from .project_rules import pack_scopes, rule_plan
 from .records import Catalog, Profile
@@ -182,7 +182,7 @@ def _exported_files(manifest_path: Path) -> list[str]:
         return []
     files = read_json(manifest_path).get("files")
     if not isinstance(files, list) or not all(isinstance(path, str) for path in files):
-        raise ValueError(f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
+        raise OgkError("OGK-PUBLISH-001", f"{manifest_path.name} is not an export manifest: its \"files\" must be a list of paths. "
                          f"Restore {manifest_path.as_posix()} from git, or export to an empty folder.")
     return files
 
@@ -234,11 +234,11 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     tasks = [read_task(state, task_id) for task_id in task_ids]
     not_done = [task["id"] for task in tasks if task["status"] not in ("done", "done-with-reservations")]
     if not_done:
-        raise ValueError(f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
+        raise OgkError("OGK-PUBLISH-002", f"Only completed tasks with recorded checks can be documented: {', '.join(not_done)}.")
     manifest_path = output / MANIFEST
     previous = _exported_files(manifest_path)
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
-        raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
+        raise OgkError("OGK-PUBLISH-003", f"{output} is not empty and was not created by openguildkit docs export.")
     pages, warnings, published = _task_pages(tasks, version, sections)
     pages["SUMMARY.md"] = _summary_page(tasks, pages, published, project, version, sections, overview)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
@@ -246,10 +246,10 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
         try:
             pages[f"openapi/{openapi.name}"] = openapi.read_text(encoding="utf-8")
         except UnicodeError as error:
-            raise ValueError(f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
+            raise OgkError("OGK-PUBLISH-004", f"--openapi {openapi.name} is not UTF-8 text: {error}") from error
     escaping = sorted(path for path in pages if not _inside(output, path))
     if escaping:
-        raise ValueError(f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
+        raise OgkError("OGK-PUBLISH-005", f"{', '.join(escaping)} would be written outside {output}: remove the symbolic link and export again.")
     for relative, content in pages.items():
         write_text(output / relative, content)
     stale = [path for path in previous if isinstance(path, str) and path not in pages]
@@ -277,10 +277,10 @@ def _shared_item(state: Path, deliverable: str) -> str:
     target = project_path(state.parent, state, deliverable, "--deliverable")
     shown = Path(deliverable).as_posix()
     if not target.exists():
-        raise ValueError(f"--deliverable {shown} does not exist. Name the file you share, or the folder that "
+        raise OgkError("OGK-PUBLISH-006", f"--deliverable {shown} does not exist. Name the file you share, or the folder that "
                          "openguildkit docs export wrote.")
     if target.is_dir() and not (target / MANIFEST).is_file():
-        raise ValueError(f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
+        raise OgkError("OGK-PUBLISH-007", f"--deliverable {shown} is a folder that holds no documentation export. Name the file you "
                          "share, or the folder that openguildkit docs export wrote.")
     return target.relative_to(state.parent.resolve()).as_posix()
 
@@ -308,11 +308,11 @@ def portal_space(portal: str) -> str:
         host = port = None
     secure = address.scheme == "https" or (address.scheme == "http" and bool(host) and is_loopback(host))
     if not host or not secure:
-        raise ValueError("Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
+        raise OgkError("OGK-PUBLISH-008", "Give the https address of the Documentalist portal, such as https://docs.example.org/p/support-portal "
                          "(http only for an instance on this machine: localhost, 127.0.0.1 or ::1).")
     parts = address.path.split("/")
     if len(parts) < 3 or parts[1] != "p" or not parts[2]:
-        raise ValueError(f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
+        raise OgkError("OGK-PUBLISH-009", f"--portal {portal} names no space. Give the portal of the space you share, https://HOST/p/SPACE: "
                          "the recipients see every published page of that space.")
     shown = f"[{host}]" if ":" in host else host
     return f"{shown}{f':{port}' if port and port != _DEFAULT_PORTS[address.scheme] else ''}/p/{parts[2]}"
@@ -364,7 +364,7 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     shared = _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
-        raise ValueError(f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
+        raise OgkError("OGK-PUBLISH-010", f"List the recipients' email addresses{': ' + ', '.join(bad) if bad else ''}.")
     _share_end(until)
     refuse_link_credentials(portal, "--portal")
     space = portal_space(portal)
@@ -415,12 +415,12 @@ def _check_dedication(neighbours: list[dict], share: dict) -> None:
     claimed = [item for item in neighbours if item.get("dedicated")]
     if claimed:
         owner = claimed[0]
-        raise ValueError(f"Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its "
+        raise OgkError("OGK-PUBLISH-011", f"Space {share['space']} is dedicated to {owner['deliverable']} (share {owner['id']}): its "
                          f"readers would see {share['deliverable']} too. Publish {share['deliverable']} in a space of its "
                          "own and give its portal address.")
     if share.get("dedicated") and neighbours:
         listed = ", ".join(f"{item['deliverable']} (share {item['id']})" for item in neighbours)
-        raise ValueError(f"Space {share['space']} already carries {listed}: its readers would see "
+        raise OgkError("OGK-PUBLISH-012", f"Space {share['space']} already carries {listed}: its readers would see "
                          f"{share['deliverable']} too, so it cannot be dedicated to it. Use a new space, or revoke those "
                          "shares and remove their pages from the space first.")
 
@@ -437,10 +437,10 @@ def _share_end(until: str) -> date:
     except ValueError:
         end = None
     if end is None:
-        raise ValueError(f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
+        raise OgkError("OGK-PUBLISH-013", f"Give the last day of access as YYYY-MM-DD, not {until!r}.")
     today = clock.real_today()
     if end <= today:
-        raise ValueError("A share ends after today.")
+        raise OgkError("OGK-PUBLISH-014", "A share ends after today.")
     if end > today + timedelta(days=MAX_SHARE_DAYS):
         raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end

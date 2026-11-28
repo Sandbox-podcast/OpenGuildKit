@@ -66,6 +66,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
         self.assertIn("no longer in the project history", error)
 
     def test_a_decision_edited_outside_the_cli_is_refused(self):
+        # OGK-DECISION-006
         self.reviewed()
         record = json.loads(self.task_path().read_text())
         record["status"] = "approved"
@@ -139,6 +140,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_a_signature_is_verified_against_the_signers_file_committed_in_git(self):
+        # OGK-DECISION-004, OGK-DECISION-005
         keys = self.keys("camille")
         signers = self.root / "allowed_signers"
         signers.write_text(f"camille@example.org {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")
@@ -416,6 +418,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")
     def test_issue_478_an_approval_signed_while_the_certificate_was_valid_holds_after_it_expires(self):
         """Issue #478: the check ran at the current time, so an expiry invalidated every approval already recorded."""
+        # OGK-DECISION-003
         keys = self.authority("20250101:20250102")
         policy = {"mode": "signed", "allowed_signers": "allowed_signers", "approvers": [self.PRINCIPAL]}
 
@@ -439,6 +442,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_issue_478_task_decide_verifies_at_the_current_time_and_refuses_a_signature_after_the_expiry(self):
         """Issue #478: a new approval is judged now, whatever time the signature claims."""
+        # OGK-DECISION-001
         keys = self.authority("20250101:20250102")
         self.signed_project()
         for claimed in ("2026-01-15T10:00:00Z", "2025-01-01T12:00:00Z"):
@@ -448,6 +452,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
         for claimed, said in (("2099-01-01T00:00:00Z", "in the future"), ("tomorrow", "YYYY-MM-DDTHH:MM:SSZ")):
             for command in (("decision-payload",), ("decide", "--approve", "--signer", self.PRINCIPAL, "--signature",
                                                     keys / "decision.json.sig")):
+                # OGK-DECISION-002
                 _, error = self.run_cli("task", command[0], TASK, "--by", "Camille", "--reason", "Agreed", *command[1:],
                                         "--signed-at", claimed, code=1)
                 self.assertIn(said, error)
@@ -456,6 +461,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_issue_478_the_time_of_the_signature_is_signed_and_changing_it_breaks_the_signature(self):
         """Issue #478: signed_at is part of what the approver signs and of the seal."""
+        # OGK-DECISION-008
         keys = self.keys("camille")
         (self.root / "allowed_signers").write_text(
             f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")

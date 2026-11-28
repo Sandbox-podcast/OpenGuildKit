@@ -337,7 +337,7 @@ class DamagedRecordTests(unittest.TestCase):
         self.assertGreater(tried, 300)
 
     def test_an_exported_record_that_is_not_what_one_keeps_gives_facts_or_a_refusal(self):
-        record, tried = record_of(self.rich_task()), 0
+        record, tried = record_of(self.rich_task()), 0  # OGK-RESULT-029
         for path, damaged_record in damaged(record):
             tried += 1
             with self.subTest(path=path):

@@ -371,6 +371,7 @@ class DraftRulesTests(RetroCase):
     builder = build_a
 
     def test_the_draft_is_written_only_in_the_folder_given_and_is_not_active(self):
+        # OGK-RESULT-031
         before = fingerprint(self.root)
         result = self.retro("--all", "--draft-rules", "drafts")
         files = list((self.root / "drafts").glob("retro-draft-*.json"))

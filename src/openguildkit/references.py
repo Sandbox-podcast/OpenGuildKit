@@ -19,6 +19,7 @@ from .catalog import (
     validate_sources,
     validate_text,
 )
+from .errors import OgkError
 from .patterns import role_choices
 from .records import Catalog
 
@@ -263,7 +264,7 @@ def find_references(
     families: dict, *, family_id: str | None = None, query: str | None = None, record_id: str | None = None
 ) -> list[dict]:
     if family_id is not None and family_id not in families:
-        raise ValueError(f"Unknown reference family: {family_id}. Run openguildkit references.")
+        raise OgkError("OGK-DOCS-003", f"Unknown reference family: {family_id}. Run openguildkit references.")
     if record_id is not None and query is not None:
         raise ValueError("Choose either a search query or --id.")
     selected = [families[family_id]] if family_id is not None else families.values()
@@ -275,7 +276,7 @@ def find_references(
     if record_id is not None:
         found = [record for record in records if record_id == record["id"] or record_id in record.get("aliases", ())]
         if not found:
-            raise ValueError(f"Unknown reference ID: {record_id}. Run openguildkit references QUERY.")
+            raise OgkError("OGK-DOCS-004", f"Unknown reference ID: {record_id}. Run openguildkit references QUERY.")
         return found
     if query is None:
         return records

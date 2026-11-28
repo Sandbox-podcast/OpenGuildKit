@@ -72,6 +72,7 @@ class ChaosFolkResultTests(CapturedCli, unittest.TestCase):
         self.assertEqual(run["summary"], "qa-results/summary.json")
 
     def test_a_file_that_is_not_a_summary_is_refused(self):
+        # OGK-RESULT-028
         bad = self.root / "bad.json"
         write_json(bad, {"results": []})
         stderr = io.StringIO()

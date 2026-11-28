@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import clock
+from .errors import OgkError
 from .records import Profile, Task
 from .storage import canonical_sha256, read_json
 
@@ -110,10 +111,10 @@ def signing_time(value: str | None, *, now_ok: bool = False) -> str | None:
     if now_ok and value == "now":
         return current.strftime("%Y-%m-%dT%H:%M:%SZ")
     if not _SIGNED_AT.fullmatch(value):
-        raise ValueError(f"--signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. "
+        raise OgkError("OGK-DECISION-001", f"--signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. "
                          "Nothing was written.")
     if datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=current.tzinfo) > current + CLOCK_SKEW:
-        raise ValueError(f"--signed-at {value} is in the future: the signature cannot have been made yet.")
+        raise OgkError("OGK-DECISION-002", f"--signed-at {value} is in the future: the signature cannot have been made yet.")
     return value
 
 
@@ -142,7 +143,7 @@ def verify_time(payload: dict) -> str | None:
     if moment is None:
         return None
     if not isinstance(moment, str) or not _SIGNED_AT.fullmatch(moment):
-        raise ValueError(f"signed_at must be a UTC time written {SIGNED_AT_FORMAT}.")
+        raise OgkError("OGK-DECISION-003", f"signed_at must be a UTC time written {SIGNED_AT_FORMAT}.")
     return re.sub(r"[-:T]", "", moment)
 
 
@@ -218,9 +219,9 @@ def committed_signers(root: Path, relative: str) -> str:
     tracked = git.text(root, "ls-files", "--error-unmatch", "--", relative)
     committed = git.text(root, "show", f"HEAD:./{relative}")
     if tracked is None or committed is None:
-        raise ValueError(f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
+        raise OgkError("OGK-DECISION-004", f"{shown} is not committed: a signature is verified against its version at HEAD. {retry}")
     if git.text(root, "diff", "--quiet", "HEAD", "--", relative) is None:
-        raise ValueError(f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
+        raise OgkError("OGK-DECISION-005", f"{shown} differs from its version at HEAD (git diff HEAD -- {relative}): a signature is "
                          f"verified against the committed file, never against a working copy. {retry}")
     return committed
 
@@ -419,7 +420,7 @@ def check_decision_seal(task: Task) -> dict:
     """Check the seal without launching Git or verifying an SSH signature."""
     decision = task["decision"]
     if "seal" not in decision:
-        raise ValueError(f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
+        raise OgkError("OGK-DECISION-006", f"The approval for {task['id']} has no seal: it was edited by hand or written by a release "
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
     for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version,
@@ -427,10 +428,10 @@ def check_decision_seal(task: Task) -> dict:
                                    signed_at=decision.get("signed_at"))
         if seal(payload) == decision["seal"]:
             if date_moved(decision, payload):
-                raise ValueError(f"The date of the approval of {task['id']} was changed after it was sealed. "
+                raise OgkError("OGK-DECISION-007", f"The date of the approval of {task['id']} was changed after it was sealed. "
                                  f"{reconsult_hint(task['id'])}")
             return payload
-    raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
+    raise OgkError("OGK-DECISION-008", f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 
 
 def base_commit(task: Task) -> str | None:

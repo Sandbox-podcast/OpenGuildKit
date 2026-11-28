@@ -149,12 +149,12 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 149
+          "line": 150
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 196
+          "line": 197
         },
         {
           "file": "src/openguildkit/guard_records.py",
@@ -180,17 +180,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 232
+          "line": 233
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 204
+          "line": 205
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 331
+          "line": 332
         }
       ],
       "in_dossier": [

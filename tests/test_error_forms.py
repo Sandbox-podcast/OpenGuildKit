@@ -56,7 +56,7 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
 
     def test_an_unknown_identifier_reads_the_same_in_every_command(self):
         """Issue #528: an unknown task, deliverable and pattern had three forms."""
-        # OGK-CATALOG-001
+        # OGK-CATALOG-001, OGK-DOCS-002, OGK-DOCS-004
         self.assertEqual(unknown("deliverable", "nope", "deliverable list"),
                          "Unknown deliverable: nope. Run openguildkit deliverable list.")
         for command, kind in ((("deliverable", "show", "nope"), "deliverable"), (("patterns", "--id", "nope"), "pattern"),

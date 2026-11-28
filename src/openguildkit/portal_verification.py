@@ -21,6 +21,7 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 from . import clock
+from .errors import OgkError
 from .publishing import is_loopback, load_shares, portal_space, share_space
 from .storage import project_lock, read_json, write_json
 from .terminal import interactive
@@ -29,7 +30,7 @@ from .terminal import interactive
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         fp.close()
-        raise ValueError("Documentalist redirected the request; no credentials were forwarded.")
+        raise OgkError("OGK-PORTAL-001", "Documentalist redirected the request; no credentials were forwarded.")
 
 
 _DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -164,9 +165,9 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
     origin, space, slug = _origin(portal)
     shares = load_shares(state)
     if not any(share_space(share) == space for share in shares):
-        raise ValueError(f"The local register has no shares for {space}.")
+        raise OgkError("OGK-PORTAL-002", f"The local register has no shares for {space}.")
     if not interactive():
-        raise ValueError("Portal verification needs an interactive terminal for the Documentalist password.")
+        raise OgkError("OGK-PORTAL-003", "Portal verification needs an interactive terminal for the Documentalist password.")
     password = getpass.getpass(f"Documentalist password for {user}: ")
     opener = _opener(origin)
     logged_in = False

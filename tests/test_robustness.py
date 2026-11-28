@@ -219,6 +219,7 @@ class InputFileTests(FuzzTestCase):
         self.fuzz("init --answers", profile, run, count=12)
 
     def test_task_answers(self):
+        # OGK-RESULT-012, OGK-RESULT-016, OGK-RESULT-018, OGK-RESULT-019
         self.init()
         self.expect("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
@@ -255,6 +256,7 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"reviewed"}))
 
     def test_result_files(self):
+        # OGK-RESULT-022, OGK-RESULT-024, OGK-RESULT-026, OGK-RESULT-027
         self.reviewed()
         self.expect("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", typed=TASK)
         checks = json.loads(self.expect("task", "checks", TASK, "--json"))

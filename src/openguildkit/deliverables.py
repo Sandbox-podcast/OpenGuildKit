@@ -26,6 +26,7 @@ from .catalog import (
     validate_sources,
     validate_text,
 )
+from .errors import OgkError
 from .records import Catalog, Task
 from .storage import write_text
 from .wording import plural
@@ -63,10 +64,10 @@ def project_path(root: Path, state: Path, value: Path | str, option: str) -> Pat
     project = root.resolve()
     target = (project / Path(value)).resolve()
     if not _same_or_inside(target, project):
-        raise ValueError(f"{option} {shown} is outside the project, once links are followed. "
+        raise OgkError("OGK-RESULT-001", f"{option} {shown} is outside the project, once links are followed. "
                          "Give a path inside the project folder.")
     if _same_or_inside(target, state.resolve()):
-        raise ValueError(f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
+        raise OgkError("OGK-RESULT-002", f"{option} {shown} is in .openguildkit/, OpenGuildKit's own state, such as the task records "
                          "the team does not share. Give a path outside .openguildkit/.")
     return target
 
@@ -142,9 +143,9 @@ def utm_link(url: str, values: dict[str, str | None]) -> str:
     """
     address = urlsplit(url.strip())
     if address.scheme != "https" or not address.hostname or address.username is not None:
-        raise ValueError("Give the landing page as an https address with a host and no credentials.")
+        raise OgkError("OGK-RESULT-003", "Give the landing page as an https address with a host and no credentials.")
     if any(key.lower().startswith("utm_") for key, _ in parse_qsl(address.query, keep_blank_values=True)):
-        raise ValueError("The landing URL already carries utm_ parameters. Give the page address without them.")
+        raise OgkError("OGK-RESULT-004", "The landing URL already carries utm_ parameters. Give the page address without them.")
     tags = []
     for name in UTM_ORDER:
         value = values.get(name)
@@ -152,9 +153,9 @@ def utm_link(url: str, values: dict[str, str | None]) -> str:
             continue
         value = value.strip()
         if "@" in value:
-            raise ValueError(f"utm_{name} looks like an email address: keep personal data out of UTM values.")
+            raise OgkError("OGK-RESULT-005", f"utm_{name} looks like an email address: keep personal data out of UTM values.")
         if not _UTM_VALUE.fullmatch(value):
-            raise ValueError(f"Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, "
+            raise OgkError("OGK-RESULT-006", f"Write utm_{name} in lowercase letters, digits, '.', '-' or '_', without spaces, "
                              f"as agreed with the analytics owner: {value!r}.")
         tags.append((f"utm_{name}", value))
     query = "&".join(part for part in (address.query, urlencode(tags)) if part)
@@ -296,11 +297,11 @@ def new_draft(deliverable: dict, task: Task, tool: str | None, approved_tools: l
     one with task authorize. The draft may go to a client, so the approval stays in the task record.
     """
     if task["status"] not in ("approved", "done", "done-with-reservations"):
-        raise ValueError("Start a deliverable from an approved or completed task.")
+        raise OgkError("OGK-RESULT-007", "Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
         raise ValueError("This template needs --tool, one of the project's approved tools.")
     if tool is not None and approved_tools and tool not in approved_tools:
-        raise ValueError(f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
+        raise OgkError("OGK-RESULT-008", f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if deliverable.get("decision") and not is_decision_task(task):
         raise _decision_refusal(deliverable, task)
     if output.exists():

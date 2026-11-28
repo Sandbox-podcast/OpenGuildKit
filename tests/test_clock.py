@@ -129,6 +129,7 @@ class ClockTests(unittest.TestCase):
             self.assertNotIn("SOURCE_DATE_EPOCH", self.cli(root, "task", "new", "Show request history.", "--id", "history")[1])
 
     def test_shares_follow_the_real_clock_under_source_date_epoch(self):
+        # OGK-PUBLISH-014
         root = self.project()
         until = (clock.real_today() + timedelta(days=10)).isoformat()
         with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": LATER}):
