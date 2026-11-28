@@ -128,12 +128,13 @@
             "run",
             "--rm",
             "-i",
-            "grafana/mcp-k6"
+            "grafana/mcp-k6:0.7.2"
           ],
           "package": {
             "registry": "docker",
             "name": "grafana/mcp-k6"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "experimental",
@@ -185,12 +186,13 @@
           "transport": "stdio",
           "command": "npx",
           "args": [
-            "@playwright/mcp@latest"
+            "@playwright/mcp@0.0.86"
           ],
           "package": {
             "registry": "npm",
             "name": "@playwright/mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "unknown",
@@ -246,12 +248,13 @@
           "transport": "stdio",
           "command": "npx",
           "args": [
-            "@postman/postman-mcp-server"
+            "@postman/postman-mcp-server@2.15.0"
           ],
           "package": {
             "registry": "npm",
             "name": "@postman/postman-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "POSTMAN_API_KEY"

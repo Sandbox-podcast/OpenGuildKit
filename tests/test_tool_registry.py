@@ -247,7 +247,7 @@ class RegistryPackageListTests(unittest.TestCase):
         packages = {(registry, name, version) for _, registry, name, version in registry_packages()}
         self.assertIn(("docker", "hashicorp/terraform-mcp-server:1.4.1", None), packages)
         self.assertIn(("pypi", "mailchimp-mcp", "1.3.0"), packages)
-        self.assertIn(("npm", "@playwright/mcp", None), packages)
+        self.assertIn(("npm", "@playwright/mcp", "0.0.86"), packages)
         self.assertGreaterEqual(len(packages), 30)
 
 

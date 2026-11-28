@@ -370,6 +370,21 @@ class SignedTests(ProjectCase):
     """The signer is an SSH principal that the code does not link to a name: the requester is compared to both the
     name given with --by and the principal that signs."""
 
+    def test_issue_475_in_a_signed_project_the_requester_is_a_principal_of_the_signers_file(self):
+        """Issue #475: in a signed project, a requester named otherwise than their principal was not caught."""
+        (self.root / "allowed_signers").write_text(
+            "# The approvers\nann@example.org,*@ops.example.org ssh-ed25519 AAAA\n", encoding="utf-8")
+        self.run_cli("profile", "set", "approval", "signed", "--signers", "allowed_signers", "--approver",
+                     "ann@example.org", "--by", "Sam", "--reason", "Signed", typed="signed")
+        self.turn_on()
+        _, error = self.run_cli("task", "new", "Add a retry", "--id", "retry", "--requested-by", "Ann Lee", code=1)
+        self.assertIn("Ann Lee is not a principal of allowed_signers", error)
+        self.assertIn("(ann@example.org, *@ops.example.org)", error)
+        self.assertFalse((self.root / ".openguildkit" / "tasks" / "retry.json").exists())
+        self.run_cli("task", "new", "Add a retry", "--id", "retry", "--requested-by", "ann@example.org")
+        self.run_cli("task", "new", "Add a retry", "--id", "other", "--requested-by", "lou@ops.example.org")
+        self.assertEqual(self.task()["requested_by"], "ann@example.org")
+
     def test_the_requester_cannot_sign_the_approval_under_another_name(self):
         keys = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, keys, ignore_errors=True)

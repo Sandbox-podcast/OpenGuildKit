@@ -26,9 +26,15 @@ Each line is a JSON object on its own line, ASCII only, with `v` (1), `at` (UTC)
 | Event | Written when | Other fields |
 |---|---|---|
 | `guard.refused` | the pre-edit hook exits 2 | `host` (the host of the profile), `mode`, `paths` (project paths, at most 20, never the content of the edit) |
+| `guard.flagged` | the pre-edit hook lets an edit through in `observe` and flags it | the same as `guard.refused` |
 | `task.approved` | `task decide --approve` | `task`, `by`, `signer` (a signed approval), `seal` |
 | `task.revoked` | `task revoke` | `task`, `by` |
+| `blocker.cleared` | `task clear` | `task`, `blocker`, `by`, `signer` (a signed clearance) |
+| `blocker.waived` | `task waive` | `task`, `blocker`, `by`, `until` |
+| `task.authorized` | `task authorize` | `task`, `action`, `target`, `decision` (`allow` or `deny`), `by` |
 | `profile.changed` | any `profile` command, or a profile saved in `openguildkit ui` | `by`, `change` (the words of the history, such as `set host claude-code`) |
+| `org-catalog.pinned` | `org-catalog set` pins a commit | `by`, `name` (a pin by name), `commit` |
+| `org-catalog.off` | `org-catalog off` | `by`, `commit` (the commit left) |
 | `host.applied` | `host apply` writes a file | `host`, `paths` (the files written) |
 
 A reason, a brief, the content of an edit and any credential never go in. `by` and `signer` are personal data, listed in [personal data](personal-data.md#files-that-stay-on-one-machine).
@@ -38,11 +44,16 @@ One example of each event, which `tests/test_audit_log.py` reads and checks agai
 {"v":1,"at":"2026-11-27T09:14:02+00:00","event":"guard.refused","project":"portal","host":"claude-code","mode":"enforce","paths":["app.py"],"prev":"0000000000000000000000000000000000000000000000000000000000000000"}
 {"v":1,"at":"2026-11-27T09:20:41+00:00","event":"task.approved","project":"portal","task":"request-status","by":"CM","signer":"cm","seal":"4f1c0a9e8d7b6a5f4e3d2c1b0a9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7","prev":"9c1e5f0a7b3d28e64f1a0c9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e"}
 {"v":1,"at":"2026-11-27T10:02:13+00:00","event":"task.revoked","project":"portal","task":"request-status","by":"CM","prev":"2d7a9e1c3b5f40682a1c3e5f7091b3d5f70a2c4e6081a3c5e7f9b1d3f5a70c2e"}
+{"v":1,"at":"2026-11-27T09:15:30+00:00","event":"guard.flagged","project":"portal","host":"codex","mode":"observe","paths":["src/api.py"],"prev":"1b3d5f7a9c0e2f4a6b8d0c1e3f5a7b9d0e2c4f6a8b1d3e5f7a9c0b2d4e6f8a1c"}
+{"v":1,"at":"2026-11-27T09:18:04+00:00","event":"blocker.cleared","project":"portal","task":"request-status","blocker":"security:1","by":"CM","prev":"3c5e7a9b1d0f2e4a6c8b0d1f3e5a7c9b0d2f4e6a8c1b3d5f7e9a0c2b4d6f8e1a"}
+{"v":1,"at":"2026-11-27T09:19:11+00:00","event":"blocker.waived","project":"portal","task":"request-status","blocker":"legal:1","by":"AB","until":"2026-12-15","prev":"5e7a9c1b3d0f2e4c6a8b1d0f3e5c7a9b2d4f6e8a0c1b3d5f7e9a2c4b6d8f0e1a"}
+{"v":1,"at":"2026-11-27T10:03:27+00:00","event":"task.authorized","project":"portal","task":"request-status","action":"external-api","target":"status.example.test","decision":"allow","by":"CM","prev":"8a0c2e4b6d1f3a5c7e9b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c"}
 {"v":1,"at":"2026-11-27T10:05:50+00:00","event":"profile.changed","project":"portal","by":"CM","change":"set host claude-code","prev":"7e3b1d9f5a2c4086e1f3a5c7d9b0e2f4a6c8d1e3f5a7b9c0d2e4f6a8b1c3d5e7"}
+{"v":1,"at":"2026-11-27T10:05:58+00:00","event":"org-catalog.pinned","project":"portal","by":"CM","name":"acme","commit":"9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6","prev":"0a2c4e6b8d1f3a5c7e9b1d3f5a7c9e0b2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c"}
+{"v":1,"at":"2026-11-27T10:06:05+00:00","event":"org-catalog.off","project":"portal","by":"CM","commit":"9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6","prev":"c2e4a6b8d0f1a3c5e7b9d1f3a5c7e9b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8a1c3"}
 {"v":1,"at":"2026-11-27T10:06:12+00:00","event":"host.applied","project":"portal","host":"claude-code","paths":[".claude/settings.json"],"prev":"b5d3f1a9c7e5038a1c3e5f7a9b1d3f5a7c9e0b2d4f6a8c1e3a5c7e9b0d2f4a6c"}
 ```
 
-Not written yet, though the audit that asked for the log lists them (issue #454): `guard.flagged` (a hook in `observe`), `blocker.cleared`, `blocker.waived`, `task.authorized`, `org-catalog.pinned`, `org-catalog.off`.
 The hook records no reason code for a refusal: the line says which paths were refused, not whether no task covered them or the file is protected.
 
 ## Verify the chain
@@ -53,6 +64,7 @@ openguildkit audit verify PATH             # a copy, or an export
 ```
 
 It prints `3 events, chain intact` and exits 0, or exits 1 and names the first line that no longer follows the line before it (`line 3 does not follow line 2`): a line was changed or removed, or one was inserted.
+A line that follows the chain but is not an event of the table above (an unknown event, a field its event does not carry, a missing `at`) is named too, with what is wrong.
 The chain detects a change in the middle of the file. Removing the last lines, or changing the last one, leaves a chain that is intact: keep the hash of the last line in the collector to catch that.
 Whoever can write the file can also rewrite the whole chain from the first changed line: the log shows tampering by an agent that cannot recompute it, not by a person with the file system.
 
@@ -63,8 +75,8 @@ openguildkit audit export --since 2026-11-01 > events.jsonl
 ```
 
 The file of the audit log is already one event per line, which a log agent collects as it grows.
-`audit export` serves another need: it rebuilds events for the days before the log was on, from what the repository holds, the approvals of `.openguildkit/decisions/*.json` and the changes of the profile in `.openguildkit/project.json`, oldest first, chained like the log, each marked `"reconstructed":true`.
-The history of the profile keeps a day and no time, so a `profile.changed` event of an export is dated 00:00:00 UTC of that day. Withdrawals, refusals and the other events are in the live log only.
+`audit export` serves another need: it rebuilds events for the days before the log was on, from what the repository holds, the approvals of `.openguildkit/decisions/*.json`, the changes of the profile in `.openguildkit/project.json` and the pins and stops of the organization catalog in `.openguildkit/catalog.lock.json`, oldest first, chained like the log, each marked `"reconstructed":true`.
+The history of the profile and of the organization catalog keeps a day and no time, so a `profile.changed`, `org-catalog.pinned` or `org-catalog.off` event of an export is dated 00:00:00 UTC of that day. Withdrawals, refusals and the other events are in the live log only.
 
 ## The date of an approval
 

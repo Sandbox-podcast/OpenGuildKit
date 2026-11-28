@@ -25,13 +25,14 @@
           "command": "uvx",
           "args": [
             "--from",
-            "mcp-portainer~=2.45.0",
+            "mcp-portainer==2.45.3",
             "mcp-portainer"
           ],
           "package": {
             "registry": "pypi",
             "name": "mcp-portainer"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "PORTAINER_URL",

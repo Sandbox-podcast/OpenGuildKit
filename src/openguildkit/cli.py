@@ -1337,7 +1337,7 @@ def _run(args) -> int | None:
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
-    if args.command == "host" and (args.strict or args.allow) and args.mode != "scan":
+    if args.command == "host" and (args.strict and args.mode != "scan" or args.allow and args.mode not in ("scan", "managed")):
         raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     if args.command == "mcp" and args.project is None:
         raise ValueError("Supply --project PATH to open a project MCP server.")

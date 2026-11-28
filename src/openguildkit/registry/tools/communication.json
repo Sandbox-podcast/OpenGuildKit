@@ -38,12 +38,13 @@
             "DISCORD_TOKEN",
             "-e",
             "DISCORD_GUILD_ID",
-            "saseq/discord-mcp:latest"
+            "saseq/discord-mcp@sha256:0140dea884f13ff5c7c7696050a479c9b147efd24e8593f3daa09e2dcf9b105f"
           ],
           "package": {
             "registry": "docker",
             "name": "saseq/discord-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "DISCORD_TOKEN",
@@ -259,13 +260,14 @@
           "command": "npx",
           "args": [
             "-y",
-            "@microsoft/workiq",
+            "@microsoft/workiq@1.0.1",
             "mcp"
           ],
           "package": {
             "registry": "npm",
             "name": "@microsoft/workiq"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth",
           "env": [],
           "status": "ga",
@@ -327,13 +329,14 @@
           "command": "npx",
           "args": [
             "-y",
-            "@microsoft/workiq",
+            "@microsoft/workiq@1.0.1",
             "mcp"
           ],
           "package": {
             "registry": "npm",
             "name": "@microsoft/workiq"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth",
           "env": [],
           "status": "ga",

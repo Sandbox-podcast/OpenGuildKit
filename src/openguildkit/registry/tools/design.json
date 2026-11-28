@@ -37,13 +37,14 @@
           "command": "npx",
           "args": [
             "-y",
-            "@canva/cli@latest",
+            "@canva/cli@2.20.0",
             "mcp"
           ],
           "package": {
             "registry": "npm",
             "name": "@canva/cli"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "unknown",

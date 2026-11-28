@@ -31,9 +31,15 @@ _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 # Each event with the fields it may carry besides v, at, event, project, prev (and reconstructed).
 EVENTS = {
     "guard.refused": ("host", "mode", "paths"),
+    "guard.flagged": ("host", "mode", "paths"),
     "task.approved": ("task", "by", "signer", "seal"),
     "task.revoked": ("task", "by"),
+    "blocker.cleared": ("task", "blocker", "by", "signer"),
+    "blocker.waived": ("task", "blocker", "by", "until"),
+    "task.authorized": ("task", "action", "target", "decision", "by"),
     "profile.changed": ("by", "change"),
+    "org-catalog.pinned": ("by", "name", "commit"),
+    "org-catalog.off": ("by", "commit"),
     "host.applied": ("host", "paths"),
 }
 COMMON = ("v", "at", "event", "project", "prev", "reconstructed")
@@ -113,8 +119,9 @@ def record(root: Path, event: str, **fields) -> None:
               file=sys.stderr)
 
 
-def refused(raw: str | None, project: Path | None) -> None:
-    """The guard hook refused an edit: write guard.refused with the paths and the host, never what the edit changes."""
+def refused(raw: str | None, project: Path | None, event: str = "guard.refused") -> None:
+    """The guard hook refused an edit (guard.refused) or flagged it in observe (guard.flagged): write the event with
+    the paths and the host, never what the edit changes."""
     from .project import project_root
 
     try:
@@ -139,9 +146,9 @@ def refused(raw: str | None, project: Path | None) -> None:
         except (OSError, ValueError):
             profile = {}
         facts = profile if isinstance(profile, dict) else {}
-        record(root, "guard.refused", host=facts.get("host"), mode=facts.get("guard"), paths=paths)
+        record(root, event, host=facts.get("host"), mode=facts.get("guard"), paths=paths)
     except Exception as error:
-        print(f"OpenGuildKit: the audit log could not be written ({_text(error, 160)}): guard.refused is not in it.",
+        print(f"OpenGuildKit: the audit log could not be written ({_text(error, 160)}): {event} is not in it.",
               file=sys.stderr)
 
 
@@ -161,7 +168,8 @@ def problem_with_event(event: object) -> str | None:
 
 
 def verify(path: Path) -> tuple[int, str | None]:
-    """How many events the file holds before its first broken line, and what is wrong with that line, or None."""
+    """How many events the file holds before its first broken line, and what is wrong with that line, or None: a line
+    that does not follow the one before it, or that follows it but is not an event of EVENTS (docs/audit-log.md)."""
     # An export redirected on Windows, or a log checked out with autocrlf, ends its lines with \r\n: the \r is not
     # part of the hashed event.
     lines = [line.removesuffix(b"\r") for line in path.read_bytes().split(b"\n")]
@@ -176,6 +184,9 @@ def verify(path: Path) -> tuple[int, str | None]:
             after = f"line {number - 1}" if number > 1 else "the start of the chain: the lines before it were removed"
             return count, f"line {number} does not follow {after}" + (
                 ": a line was changed or removed, or one was inserted" if number > 1 else "")
+        wrong = problem_with_event(event)
+        if wrong:
+            return count, f"line {number} follows the chain but is not an event of the schema: {wrong}"
         prev, count = hashlib.sha256(raw).hexdigest(), count + 1
     return count, f"line {count + 1} is not terminated: the write was cut short" if cut else None
 
@@ -198,8 +209,9 @@ def _bad(text: str) -> str:
 
 
 def reconstruct(root: Path, since: str | None = None) -> list[bytes]:
-    """The approvals of the exported records and the changes of the profile history, as chained event lines, oldest
-    first. The day of a profile change is the only date it carries: its event is dated 00:00:00 UTC of that day."""
+    """The approvals of the exported records, the changes of the profile history and the pins and stops of the
+    organization catalog the lock keeps, as chained event lines, oldest first. A profile change, a pin and a stop carry
+    a day only: their event is dated 00:00:00 UTC of that day."""
     from .decisions import exported_records
     from .storage import read_json
 
@@ -215,6 +227,12 @@ def reconstruct(root: Path, since: str | None = None) -> list[bytes]:
         if isinstance(change, dict) and isinstance(change.get("on"), str):
             events.append({"at": f"{change['on']}T00:00:00+00:00", "event": "profile.changed", "by": change.get("by"),
                            "change": change.get("change")})
+    lock = read_json(state / "catalog.lock.json") if (state / "catalog.lock.json").is_file() else {}
+    history = lock.get("organization_history") if isinstance(lock, dict) else None
+    for entry in history if isinstance(history, list) else []:
+        if isinstance(entry, dict) and isinstance(entry.get("on"), str) and entry.get("action") in ("pinned", "stopped"):
+            events.append({"at": f"{entry['on']}T00:00:00+00:00", "by": entry.get("by"), "commit": entry.get("commit"),
+                           "event": "org-catalog.pinned" if entry["action"] == "pinned" else "org-catalog.off"})
     lines, prev = [], GENESIS
     for item in sorted(events, key=lambda item: item["at"]):
         if since and item["at"][:10] < since:

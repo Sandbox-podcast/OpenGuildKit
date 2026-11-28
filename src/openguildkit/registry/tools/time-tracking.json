@@ -196,12 +196,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "@togglhq/mcp"
+            "@togglhq/mcp@1.14.1"
           ],
           "package": {
             "registry": "npm",
             "name": "@togglhq/mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth",
           "env": [],
           "status": "unknown",

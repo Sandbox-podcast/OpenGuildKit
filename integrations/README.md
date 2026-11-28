@@ -11,6 +11,8 @@ Any agent that reads `AGENTS.md` and runs shell commands can follow the OpenGuil
 | `claude-code/agents/market-analyst.md` | Claude Code subagent that fills and refreshes a market dossier through `openguildkit market` commands, within the research policy |
 | `claude-code/agents/dependency-watch.md` | Claude Code subagent that runs the project's scanners, imports their reports into the alert register and opens a task per new confirmed alert |
 | `github/openguildkit-dependency-watch.yml`, `github/openguildkit-market-watch.yml` | Scheduled jobs: import a scanner report, open a task per new confirmed alert and propose the alert register in a pull request (the scanner runs in a read-only job; in guard mode `enforce` the pull request needs a review task's exported decision, and its checks wait for a maintainer's approval because the job's `GITHUB_TOKEN` opened it: [docs/alerts.md](../docs/alerts.md#the-pull-request-and-the-guard)); open an issue per competitor source due for review |
+| `github/openguildkit-org-catalog-update.yml` | Scheduled job: when the organization catalog moved past the commit the lock pins, open a pull request that shows what the new commit brings; a person pins it from that branch ([docs/catalog-format.md](../docs/catalog-format.md#organization-catalog)) |
+| `github/openguildkit-status.yml` | On each push to the default branch: keep `projects . --surfaces --json` as an artifact, which `gh` gathers for a fleet view without clones ([docs/workflow/several-projects.md](../docs/workflow/several-projects.md#a-fleet-without-clones)) |
 
 Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and `name` and `description` in the front matter).
 
@@ -71,7 +73,15 @@ The hooks call `openguildkit` by name. When that command is not on the PATH of t
 
 ### Paths the team closes to the agent
 
-A team can say that a folder (customer exports, secrets, scoring models) is closed to the agent. A person writes it in `.openguildkit/project.json`; no `profile set` command writes it yet:
+A team can say that a folder (customer exports, secrets, scoring models) is closed to the agent:
+
+```bash
+openguildkit profile set restricted-paths 'data/customers/**' 'secrets/**' --by DP --reason "Customer exports"
+openguildkit profile set restricted-paths 'data/customers/**' --by DP --reason "Secrets moved"   # lifts secrets/**: a person, at a terminal
+openguildkit profile set restricted-paths none --by DP --reason "Exports deleted"                # a person, at a terminal
+```
+
+The command writes the paths in `.openguildkit/project.json`, with who, when and why in its history. Closing a path asks nothing; lifting one weakens a protection, so an agent's command is refused and a person types it at a terminal. A person may also write the setting by hand, with a class and boards, which the command replaces:
 
 ```json
 "restricted_paths": [{"paths": ["data/customers/**", "secrets/**"], "class": "restricted", "boards": ["security", "legal"]}]
@@ -79,15 +89,17 @@ A team can say that a folder (customer exports, secrets, scoring models) is clos
 
 `paths` are project paths, without a leading `/` or `..` and without parentheses. `class` and `boards` are kept for the decision a later change will make and nothing reads them yet. The setting is read when the host acts, so it leaves standing approvals standing, as the guard and the host do.
 
+With the guard on, the `pre-edit` hook of the three hosts refuses an edit of a restricted path in `enforce` (and flags it in `observe`), even under an approved task: the person edits it, or lifts the path. The match ignores case, so `Data/Customers/x.csv` is refused too. The hook sees edits, not reads.
+
 | Host | What `host apply` and `host check` do |
 |---|---|
 | Claude Code | `host apply` adds `Read(/PATH)` and `Edit(/PATH)` to `permissions.deny` of `.claude/settings.json` for each path, and keeps the rules of the team; `host check` reports `restricted-paths` as `enforced` or `missing`. Those rules apply to its file tools: a shell command (`cat`, `sed`, a script) is not covered by them (à vérifier: the permissions page was not read again for this). |
-| Codex | Nothing: no setting of Codex that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
-| Gemini CLI | Nothing: no setting of Gemini CLI that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
+| Codex | No setting of Codex that refuses a read of a path was read (à vérifier): `host check` says so, as a rule `by instruction`. With the guard on, its `pre-edit` hook refuses an edit. |
+| Gemini CLI | No setting of Gemini CLI that refuses a read of a path was read (à vérifier): `host check` says so, as a rule `by instruction`. With the guard on, its `pre-edit` hook refuses an edit. |
 | Other hosts | Nothing. |
 
-Not done yet, though issue #519 asks for it: `profile set restricted-paths` with its history and its confirmation at a terminal, the `pre-edit` hook that refuses an edit on a restricted path even under an approved task, and the removal of the rules `host apply` wrote when a path leaves the setting.
-A rule it wrote cannot be told from the same rule the team wrote, so `host apply` removes none: delete the stale rule by hand. How `host apply` should recognise its own rules is an open question of that issue.
+When `profile set restricted-paths` lifts a path, its line in the history names it (`set restricted-paths data/customers/** (lifted: secrets/**)`), and the next `host apply` removes the `Read(/PATH)` and `Edit(/PATH)` rules of that path from `.claude/settings.json`, leaving every other rule as it is.
+A rule `host apply` wrote cannot be told from the same rule the team wrote: both go. A path lifted by an edit of `project.json`, by hand or in the web page, is not in that history, so its rules stay: delete them by hand.
 OpenGuildKit does not write the paths into `AGENTS.md` either, so an agent of Codex or Gemini CLI is not told about them.
 
 ### What the host documentation says

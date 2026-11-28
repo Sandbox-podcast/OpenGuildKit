@@ -16,7 +16,7 @@ from . import audit_log, incident, light_lane, requester
 from .cli_surface import add_by
 from .clock import today
 from .doc_links import doc_link
-from .hosts import HOSTS
+from .hosts import HOSTS, LIFTED
 from .lock import apply_lock, build_lock, installed_catalog, project_catalog, read_lock, write_lock
 from .patterns import pattern_selection, recommend_patterns, role_choices
 from .project import (
@@ -28,6 +28,7 @@ from .project import (
     load_profile,
     norm_reason,
     resolved_profile,
+    restricted_paths,
     rules_in_force,
     sync_instructions,
     unanswered_norms,
@@ -39,6 +40,7 @@ from .storage import print_json, project_lock, write_json
 from .tasks import tasks_touched
 from .terminal import interactive
 from .tools import load_tools, match_tools
+from .wording import plural
 
 LIST_FIELDS = {
     "pack": ("packs", "packs"), "role": ("roles", None), "tool": ("tools", None), "check": ("checks", None),
@@ -54,9 +56,10 @@ SET_FIELDS = {
     "freeze": ("on", "off"),
     "max-approval-age": None,  # A number of days, or none: set apart in _set.
     "approver-roles": None,  # A board and the people of its role, or none: set apart in _set.
+    "restricted-paths": None,  # Paths closed to the agents, or none: set apart in _set.
 }
 # Settings whose value is not one of a short list.
-FREE_VALUES = ("light-paths", "max-approval-age", "approver-roles")
+FREE_VALUES = ("light-paths", "max-approval-age", "approver-roles", "restricted-paths")
 # The options of profile set, each with the setting and value it belongs to.
 SET_OPTIONS = {"signers": ("approval", "signed"), "approver": ("approval", "signed"),
                "allowed_by": ("waivers", "allowed"), "max_days": ("waivers", "allowed")}
@@ -120,11 +123,12 @@ def add_parser(commands) -> None:
         "set", help="Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule "
                     "is asked, the paths of the short lane, whether the requester of a task may approve it, the "
                     "freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), "
-                    "or a setup answer.")
+                    "the paths closed to the agents (restricted-paths), or a setup answer.")
     setter.add_argument("field", choices=sorted(SET_FIELDS), help="The setting to change.")
     setter.add_argument("value", help="Its new value (light-paths: a folder or file glob such as 'docs/**', or none).")
     setter.add_argument("more", nargs="*", metavar="PATH",
-                        help="light-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.")
+                        help="light-paths and restricted-paths: more paths. approver-roles: the people of the role (VALUE is "
+                             "the board), or none.")
     setter.add_argument("--signers", metavar="PATH",
                         help="approval signed: the allowed signers file, a path inside the project.")
     setter.add_argument("--approver", action="append", metavar="NAME",
@@ -151,11 +155,13 @@ def weakening_changes(before: dict, after: dict, catalog: dict) -> list[tuple[st
     approvals turned off or on, an approver added or the signers file moved, waivers allowed or widened, a
     required rule, required board or check command removed, every rule no longer asked, a path added to the short
     lane, the separation of the requester and the approver turned on or off, a freeze lifted, the limit on the age of an
-    approval raised or removed, a role of a board removed or widened. The profile commands and the web page ask this."""
+    approval raised or removed, a role of a board removed or widened, a restricted path lifted. The profile commands and
+    the web page ask this."""
     person = ["--by", "INITIALS", "--reason", "WHY"]
     changes = [*_approval_changes(before, after, person), *_waiver_changes(before, after, person),
                *_light_changes(before, after, person), *_requester_changes(before, after, person),
-               *_incident_changes(before, after, person), *_role_changes(before, after, person)]
+               *_incident_changes(before, after, person), *_role_changes(before, after, person),
+               *_restricted_changes(before, after, person)]
     old_guard, new_guard = before.get("guard", "off"), after.get("guard", "off")
     if GUARD_LEVEL.get(new_guard, 0) < GUARD_LEVEL.get(old_guard, 0):
         changes.append((f"guard {old_guard} -> {new_guard}", ["profile", "set", "guard", str(new_guard), *person]))
@@ -313,6 +319,22 @@ def _role_changes(before: dict, after: dict, person: list[str]) -> list[tuple[st
     return changes
 
 
+def _restricted_changes(before: dict, after: dict, person: list[str]) -> list[tuple[str, list[str]]]:
+    """A path of restricted_paths that the new profile no longer closes to the agents. Closing a path asks nothing."""
+    lifted = lifted_paths(before, after)
+    if not lifted:
+        return []
+    kept = restricted_paths(after) or ["none"]
+    what = (f"{plural(len(lifted), 'restricted path')} lifted ({', '.join(lifted)}): agents may read and edit "
+            f"{'it' if len(lifted) == 1 else 'them'}")
+    return [(what, ["profile", "set", "restricted-paths", *kept, *person])]
+
+
+def lifted_paths(before: dict, after: dict) -> list[str]:
+    now = set(restricted_paths(after))
+    return [path for path in restricted_paths(before) if path not in now]
+
+
 def _adopt(profile: dict, pattern_id: str, catalog: dict) -> dict:
     if pattern_id not in catalog["patterns"]:
         raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
@@ -467,6 +489,12 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
             roles[board] = names
         rest = {key: item for key, item in approval.items() if key != "roles"}
         return "approval", {**rest, "roles": roles} if roles else (rest if len(rest) > 1 else None)
+    if field == "restricted-paths":
+        if value == "none":
+            if options["paths"][1:]:
+                raise ValueError("profile set restricted-paths none takes no other path. Nothing was written.")
+            return "restricted_paths", None
+        return "restricted_paths", [{"paths": list(dict.fromkeys(path.strip() for path in options["paths"]))}]
     if field == "max-approval-age":
         approval = options["approval"]
         if value == "none":
@@ -520,9 +548,15 @@ def _set(profile: dict, args, catalog: dict) -> dict:
     return updated if new is None else {**updated, key: new}
 
 
-def _set_change(args) -> str:
-    """The set command in a few words for the history, with who signs or who may waive."""
+def _set_change(args, before: dict, after: dict) -> str:
+    """The set command in a few words for the history, with who signs or who may waive, or the restricted paths it
+    lifts, which host apply reads to remove the rules it wrote for them (hosts.py:lifted_rules)."""
     change = f"set {args.field} {args.value}"
+    if args.field == "restricted-paths":
+        words = " ".join(shell_word(path, powershell=False) for path in restricted_paths(after)) or "none"
+        lifted = lifted_paths(before, after)
+        return f"set restricted-paths {words}" + (
+            f" ({LIFTED} {' '.join(shell_word(path, powershell=False) for path in lifted)})" if lifted else "")
     if args.field == "approval" and args.value == "signed":
         return f"{change} (signers {args.signers}; approvers {', '.join(args.approver or [])})"
     if args.field == "waivers" and args.value == "allowed":
@@ -551,7 +585,8 @@ def _changed(profile: dict, args, catalog: dict) -> tuple[dict, str]:
     if action in ("add", "remove"):
         updated = _change_list(profile, args.field, args.values, action == "add", catalog)
         return updated, f"{action} {args.field} {', '.join(args.values)}"
-    return _set(profile, args, catalog), _set_change(args)
+    updated = _set(profile, args, catalog)
+    return updated, _set_change(args, profile, updated)
 
 
 def check_proposal(profile: dict, catalog: dict, action: str, field: str | None, value: str) -> tuple[dict, list[str]]:
@@ -783,7 +818,8 @@ def run(args, root: Path, state: Path) -> int:
     updated, record, catalog = write_change(
         root, state, args, lambda profile, catalog: _changed(profile, args, catalog),
         args.by, args.reason, lambda change, weakened, voided: _confirm(change, target, weakened, voided))
-    host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research", "approval")
+    host_settings = args.profile_action == "set" and args.field in ("host", "guard", "research", "approval",
+                                                                    "restricted-paths")
     report_change(state, updated, record, catalog, host_settings)
     rule = _rule_argument(args) if args.profile_action in ("adopt", "decline") else None
     if rule is not None:
@@ -833,4 +869,5 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
                         f"terminal.{_voids(voided)} Nothing was written.", weakened)
 
     updated, record, catalog = write_change(root, state, None, edit, by, reason, refuse)
-    report_change(state, updated, record, catalog, bool({"host", "guard", "research", "approval"} & set(changed)))
+    report_change(state, updated, record, catalog,
+                  bool({"host", "guard", "research", "approval", "restricted_paths"} & set(changed)))

@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 
+from . import audit_log
 from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
@@ -202,6 +203,7 @@ def _set(args, root: Path, state: Path) -> int:
         pin = {"name" if args.name else "repo": stored, "commit": args.commit, "fingerprint": read["fingerprint"],
                "pinned": person, "exceptions": earlier.get("exceptions", [])}
         touched = _write_pinned(root, state, args, lock, read, pin, {"action": "pinned", "commit": args.commit, **person})
+    audit_log.record(root, "org-catalog.pinned", by=person["by"], name=args.name, commit=args.commit)
     if args.json:
         print_json({"repo": stored, "commit": args.commit, "applied": True, "changes": _public(found)})
     else:
@@ -285,6 +287,7 @@ def _off(args, root: Path, state: Path) -> int:
         lock = read_lock(state)
         left = (lock or {}).get("organization", {}).get("commit")
         touched = _write_pinned(root, state, args, lock, None, None, {"action": "stopped", "commit": left, **person})
+    audit_log.record(root, "org-catalog.off", by=person["by"], commit=left)
     print(f"The project no longer follows the organization catalog, by {person['by']}: {person['reason']}")
     print_touched(touched)
     return 0

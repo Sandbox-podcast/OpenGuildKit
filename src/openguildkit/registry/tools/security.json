@@ -45,13 +45,14 @@
           "command": "uvx",
           "args": [
             "--from",
-            "git+https://github.com/GitGuardian/ggmcp.git",
+            "git+https://github.com/GitGuardian/ggmcp.git@8ffb969e6bc33e11495138d36356b8b2a70b67d9",
             "gg-mcp-server"
           ],
           "package": {
             "registry": "github-release",
             "name": "GitGuardian/ggmcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth-or-token",
           "env": [
             "GITGUARDIAN_URL",

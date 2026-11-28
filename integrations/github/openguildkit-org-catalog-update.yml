@@ -1,0 +1,112 @@
+# Copy to .github/workflows/openguildkit-org-catalog-update.yml in a project that follows an organization catalog
+# (openguildkit org-catalog show). Every Monday it checks out the catalog repository and, when its default branch
+# moved past the commit the catalog lock pins, opens a pull request that shows what the new commit adds, removes and
+# changes: the output of openguildkit org-catalog set without --by. The job pins nothing and writes no file: the
+# branch holds one empty commit so that the pull request exists. A person checks out the branch, pins the commit at
+# their terminal with the command the pull request gives, then commits the lock and pushes (docs/catalog-format.md,
+# "Organization catalog"). With N repositories, each opens its own pull request.
+# The repository setting "Allow GitHub Actions to create and approve pull requests" must be on for the pull request.
+# A private catalog repository needs a token that can read it: set ORG_CATALOG_TOKEN and uncomment the token line.
+name: OpenGuildKit organization catalog update
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+# The job asks for what it needs.
+permissions: {}
+
+jobs:
+  propose:
+    concurrency: openguildkit-org-catalog-update
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+      # Set the repository of your organization catalog. fetch-depth: 0 keeps the commit pinned now, which the
+      # comparison reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          repository: your-organization/org-catalog
+          path: org-catalog
+          fetch-depth: 0
+          persist-credentials: false
+          # token: ${{ secrets.ORG_CATALOG_TOKEN }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Set the release your project uses and the wheel's hash from that release's SHA256SUMS.txt
+        # (docs/install.md). The step fails until the hash matches the downloaded wheel.
+        env:
+          OPENGUILDKIT_TAG: v0.17.0
+          OPENGUILDKIT_WHEEL: openguildkit-0.17.0-py3-none-any.whl
+          OPENGUILDKIT_WHEEL_SHA256: replace-with-the-wheel-hash-from-SHA256SUMS.txt
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" \
+            "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/$OPENGUILDKIT_WHEEL"
+          printf '%s  %s\n' "$OPENGUILDKIT_WHEEL_SHA256" "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" | sha256sum --strict -c -
+          python -m pip install "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL"
+      - name: Propose the new commit in a pull request
+        # The branch and its empty commit go through the GitHub API with the job's token, which never reaches
+        # .git/config.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          lock=.openguildkit/catalog.lock.json
+          pinned=$(jq -r '.organization.commit // empty' "$lock" 2>/dev/null || true)
+          if [ -z "$pinned" ]; then
+            echo "The project follows no organization catalog: no pull request."
+            exit 0
+          fi
+          name=$(jq -r '.organization.name // empty' "$lock")
+          latest=$(git -C org-catalog rev-parse HEAD)
+          if [ "$pinned" = "$latest" ]; then
+            echo "The lock already pins ${latest:0:12}, the head of the organization catalog: no pull request."
+            exit 0
+          fi
+          pending=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls" -X GET -f state=open -f base="$BASE" -F per_page=100 \
+            --jq '.[] | select(.head.repo.full_name == .base.repo.full_name) | select(.head.ref | startswith("openguildkit/org-catalog-")) | .number')
+          if [ -n "$pending" ]; then
+            echo "An organization catalog pull request is awaiting merge: $pending. Its branch is left untouched."
+            exit 0
+          fi
+          if [ -n "$name" ]; then
+            export "OPENGUILDKIT_ORG_CATALOG_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')=$PWD/org-catalog"
+            openguildkit org-catalog set --repo org-catalog --commit "$latest" --name "$name" > changes.txt
+            pin="openguildkit org-catalog set --repo PATH-OF-YOUR-COPY --commit $latest --name $name --by INITIALS --reason WHY"
+          else
+            openguildkit org-catalog set --repo org-catalog --commit "$latest" > changes.txt
+            pin="openguildkit org-catalog set --repo PATH-OF-YOUR-COPY --commit $latest --by INITIALS --reason WHY"
+          fi
+          branch="openguildkit/org-catalog-${latest:0:12}"
+          head=$(git rev-parse HEAD)
+          tree=$(git rev-parse "HEAD^{tree}")
+          commit=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/commits" -f message="Propose the organization catalog at ${latest:0:12}" \
+            -f tree="$tree" -f "parents[]=$head" --jq .sha)
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/heads/$branch" -f sha="$commit" >/dev/null
+          {
+            echo "The organization catalog moved from \`${pinned:0:12}\` to \`${latest:0:12}\`. What the new commit brings:"
+            echo
+            echo '```'
+            grep -v '^To pin it' changes.txt
+            echo '```'
+            echo
+            echo "Nothing is pinned yet. To pin it, a person checks out this branch and runs at their terminal:"
+            echo
+            echo '```bash'
+            echo "git -C PATH-OF-YOUR-COPY fetch"
+            echo "$pin"
+            echo "git add .openguildkit && git commit -m \"Pin the organization catalog at ${latest:0:12}\" && git push"
+            echo '```'
+            echo
+            echo "Or close this pull request to stay on \`${pinned:0:12}\`."
+          } > body.md
+          gh pr create --head "$branch" --base "$BASE" --title "Organization catalog: pin ${latest:0:12}" --body-file body.md

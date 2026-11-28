@@ -700,6 +700,31 @@ def pattern_ids(profile: dict) -> list[str]:
     return [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
 
 
+def restricted_paths(profile: dict) -> list[str]:
+    """The path patterns that `restricted_paths` of .openguildkit/project.json closes to the agent; none when it is
+    absent. Refused, with the file named, when it is not a list of {"paths": [project paths]} (a "class" text and a list
+    of "boards" may come with each): a path is relative to the project, without .. and without parentheses."""
+    entries = profile.get("restricted_paths")
+    if entries is None:
+        return []
+    shape = ('restricted_paths in .openguildkit/project.json must be a list of objects such as {"paths": '
+             '["data/customers/**"], "class": "restricted", "boards": ["security"]}: paths are project paths without a '
+             'leading / or .., and without parentheses.')
+    paths = []
+    for entry in entries if isinstance(entries, list) else [None]:
+        listed = entry.get("paths") if isinstance(entry, dict) else None
+        if (not isinstance(entry, dict) or set(entry) - {"paths", "class", "boards"} or not isinstance(listed, list)
+                or not listed or any(not isinstance(item, str) or not item.strip() or item.startswith(("/", "\\"))
+                                     or ".." in item.split("/") or any(char in item for char in "()\r\n")
+                                     for item in listed)
+                or not isinstance(entry.get("class", ""), str)
+                or (not isinstance(entry.get("boards", []), list)
+                    or any(not isinstance(item, str) for item in entry.get("boards", [])))):
+            raise ValueError(shape)
+        paths += [item.strip() for item in listed]
+    return list(dict.fromkeys(paths))
+
+
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
@@ -830,8 +855,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if not isinstance(answers["frozen"], dict) or set(answers["frozen"]) != set(DECISION_FIELDS):
             raise ValueError("frozen must name by, on and reason")
         profile["frozen"] = _decision(answers["frozen"], "frozen")
-    # Folders closed to the agent (hosts.py reads them when host apply and host check act, and refuses a bad shape).
+    # Folders closed to the agent: the edit hook refuses them, host apply writes them into the host settings.
     if answers.get("restricted_paths"):
+        restricted_paths(answers)
         profile["restricted_paths"] = answers["restricted_paths"]
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:

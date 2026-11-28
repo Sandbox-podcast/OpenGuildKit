@@ -38,8 +38,7 @@ The option is not part of what an approval rests on, so turning it on or off voi
   A request for changes stays open to the requester.
 - **A task opened before the option** names no requester and cannot be approved while the option is on: open the work again with `--requested-by`.
 - **Signed approvals** also compare the requester to the signer's principal (`--signer`).
-  The code does not link a principal to a person's name: a requester recorded as `Ann Lee` who signs as `ann@example.org` is not caught.
-  Record the requester by the principal they sign with when the project signs its approvals.
+  In a project with signed approvals, `task new` takes as `--requested-by` only a principal of the allowed signers file (a pattern such as `*@ops.example.org` counts), read from the working copy, and refuses `Ann Lee` with the principals it knows: a requester who signs as `ann@example.org` is recorded as `ann@example.org`, so the comparison is exact.
 - **The seal** of an approval given with the option on records `"separate_requester": true`, and the exported record carries it in `decision`.
 - **`guard --ci`** reads the option at the base revision, as it reads `light_paths`, so a pull request cannot turn it off for itself.
   When it is on there, a record whose approver (`by`, or the signer) is its requester is refused (`decision-requester-approved`), and so is a new record that names no requester (`decision-requester-missing`).

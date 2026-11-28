@@ -26,4 +26,5 @@ In a signed project the names are the principals of the allowed signers file.
   A record the base revision already carries is not judged again.
 - **What it does not do.** A name typed with `--by` is not linked to a person: someone can type a member's name at a terminal they control, as `separate-requester` says of requesters.
   Only signed approvals tie a role to a key.
-  The role does not void an approval, and it does not make `--requested-by` a principal: a requester is still compared by name.
+  The role does not void an approval.
+  With `separate-requester` on, `--requested-by` is a principal of the signers file in a signed project ([requester and approver](requester-and-approver.md)).

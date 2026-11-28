@@ -1115,6 +1115,8 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
+    audit_log.record(root, f"blocker.{details['kind']}", task=args.id, blocker=args.blocker, by=args.by,
+                     signer=details.get("signer"), until=details.get("until"))
     print(details["kind"])
 
 
@@ -1542,7 +1544,10 @@ def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
-    print(result["authorizations"][-1]["decision"])
+    entry = result["authorizations"][-1]
+    audit_log.record(root, "task.authorized", task=args.id, action=entry["action"], target=entry["target"],
+                     decision=entry["decision"], by=entry["by"])
+    print(entry["decision"])
 
 
 def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1575,7 +1580,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = light_lane.declare(args.lane, args.paths, profile)
-    requested_by = requester.declared(args.requested_by, profile)
+    requested_by = requester.declared(args.requested_by, profile, root)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():

@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -316,6 +317,48 @@ esac
         section = (ROOT / "docs" / "workflow" / "retrospective.md").read_text(encoding="utf-8")
         self.assertIn("integrations/github/openguildkit-retro.yml", section)
         self.assertIn("issues: write", section)
+
+
+@unittest.skipUnless(os.name == "posix" and shutil.which("jq"), "the template runs bash and jq on ubuntu-latest")
+class StatusTemplateTest(unittest.TestCase):
+    """Issue #479: a fleet view needed a clone of every repository."""
+
+    TEMPLATE = ROOT / "integrations" / "github" / "openguildkit-status.yml"
+
+    def test_issue_479_each_push_keeps_the_status_of_the_repository_as_an_artifact_with_a_read_only_token(self):
+        """Issue #479: the openguildkit-status.yml template did not exist, so a fleet view needed a clone of each repository."""
+        workflow = parse(self.TEMPLATE)
+        self.assertEqual(workflow["permissions"], {"contents": "read"})
+        self.assertIn("push", workflow["on"])
+        job = workflow["jobs"]["status"]
+        upload = next(step for step in steps(job) if str(step.get("uses", "")).startswith("actions/upload-artifact@"))
+        self.assertEqual(upload["with"]["name"], "openguildkit-status")
+        step = next(step for step in steps(job) if step.get("name") == "Read the status of the repository")
+        temp = Path(tempfile.mkdtemp(prefix="ogk-status-"))
+        self.addCleanup(shutil.rmtree, temp, True)
+        tools = temp / "bin"
+        tools.mkdir()
+        (tools / "openguildkit").write_text(f'#!/bin/sh\nPYTHONPATH="{ROOT / "src"}" exec "{sys.executable}" -m '
+                                            'openguildkit "$@"\n', encoding="utf-8")
+        (tools / "openguildkit").chmod(0o755)
+        repository = temp / "portal"
+        (repository / ".claude").mkdir(parents=True)
+        (repository / ".claude" / "settings.json").write_text("{}", encoding="utf-8")
+        environment = {**os.environ, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "REPOSITORY": "acme/portal",
+                       "REVISION": "0" * 40}
+        result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", step["run"]], cwd=repository, env=environment,
+                                capture_output=True, text=True, timeout=120, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        status = json.loads((repository / "openguildkit-status.json").read_text(encoding="utf-8"))
+        self.assertEqual((status["repository"], status["revision"]), ("acme/portal", "0" * 40))
+        [row] = status["projects"]
+        self.assertEqual((row["state"], row["tools"]), ("not-a-project", ["claude-code"]))
+
+    def test_issue_479_the_guide_gives_the_gh_loop_that_gathers_the_artifacts(self):
+        text = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
+        section = text.split("### A fleet without clones", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("integrations/github/openguildkit-status.yml", section)
+        self.assertIn("gh run download", section)
 
 
 class ReleaseWorkflowTest(unittest.TestCase):

@@ -27,7 +27,7 @@
           "command": "npx",
           "args": [
             "-y",
-            "@gravitee/apim-mcp-server",
+            "@gravitee/apim-mcp-server@0.2.1",
             "start",
             "--mode",
             "dynamic",
@@ -38,6 +38,7 @@
             "registry": "npm",
             "name": "@gravitee/apim-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "GRAVITEEAPIM_BEARER_AUTH"
@@ -60,7 +61,7 @@
             "how": "--scope read mounts only read tools.",
             "args": [
               "-y",
-              "@gravitee/apim-mcp-server",
+              "@gravitee/apim-mcp-server@0.2.1",
               "start",
               "--mode",
               "dynamic",

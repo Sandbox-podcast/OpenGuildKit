@@ -82,6 +82,22 @@ class CapturedCli:
     cli = run_cli
 
 
+def registry_days_on_the_real_clock(test) -> None:
+    """Check the days the bundled tool registry was read (verified, pin_read) on the real clock while the test stops
+    the clock at the day of an upgrade fixture: a registry read after that day is not in the future (#489)."""
+    from openguildkit import clock, tools
+
+    real_now, validate_day = clock.real_now, tools.validate_day
+
+    def validate_on_the_real_clock(value, label):
+        with patch("openguildkit.clock.real_now", real_now):
+            validate_day(value, label)
+
+    registry = patch("openguildkit.tools.validate_day", validate_on_the_real_clock)
+    registry.start()
+    test.addCleanup(registry.stop)
+
+
 def openguildkit_on_path(test) -> Path:
     """Put an openguildkit launcher on the PATH for the test, as pipx or uv would: host apply and check fail while
     the hooks cannot find the command, and a source checkout does not install it. Returns the launchers' folder."""

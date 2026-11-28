@@ -20,8 +20,7 @@ from openguildkit import light_lane, profile_cli, surfaces
 from openguildkit.decisions import check_decision_seal, record_digest
 from openguildkit.project import profile_fingerprint, validate_profile
 from openguildkit.storage import write_json
-
-from tests.support import run_cli, subprocess_environment
+from tests.support import registry_days_on_the_real_clock, run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[1]
 DOCS_AND_TESTS = ["docs/**", "tests/**"]
@@ -996,6 +995,7 @@ class BeforeTheShortLaneTests(unittest.TestCase):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content.encode("utf-8"))
+        registry_days_on_the_real_clock(self)
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)

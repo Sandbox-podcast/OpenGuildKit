@@ -611,7 +611,7 @@ class AllowListTests(SurfaceCase):
     def test_allow_is_an_option_of_scan_only_and_the_scan_stays_read_only(self):
         write(self.root, ".mcp.json", json.dumps(self.UNKNOWN))
         path = self.allow({"mcp_servers": []})
-        for mode in ("check", "apply", "managed"):
+        for mode in ("check", "apply"):  # host managed takes it too, to write the locks of the hosts (#480)
             with self.subTest(mode=mode):
                 self.assertIn("--allow is an option of openguildkit host scan",
                               run_cli(self.root, "host", mode, "--allow", path, expect=1).stderr)
