@@ -1,11 +1,17 @@
 """The task actions a person decides: decide, revoke, decision-payload, authorize, blockers, clear, waive and
-alerts. What only a person may do waits for them at a terminal (terminal.typed)."""
+alerts. What only a person may do waits for them at a terminal (terminal.typed).
+
+Entry: run_decide, run_revoke, run_resolve, run_authorize
+Tests: tests/test_approval_lifecycle.py, tests/test_blockers.py, tests/test_requester.py
+"""
 
 import sys
 from pathlib import Path
 
 from . import audit_log, requester, roles, short_lane
 from .alerts import blocking_alerts, load_register
+from .approval_check import approval_problem
+from .board_entries import validate_review
 from .decisions import (
     DECISIONS_DIR,
     NAMESPACE,
@@ -18,26 +24,20 @@ from .decisions import (
     signing_time,
     verify_signature,
 )
+from .handoff import review_lines
 from .lock import project_catalog, require_instructions
 from .project import load_profile
 from .results import evidence_state
 from .storage import print_json, project_lock
-from .tasks import last_approval, read_task, task_path, write_task
-from .tasks_approval import approval_problem, decided_message, require_approval, require_current_scope
+from .task_files import read_task, task_path
+from .tasks import last_approval, write_task
+from .tasks_approval import decided_message, require_approval, require_current_scope
 from .tasks_blockers import expired_on, require_blocker_status, resolve_blocker
 from .tasks_closing import record_authorization, record_decision, revoke_approval
 from .tasks_command import TaskCommand
 from .tasks_review import decision_text, previous_round_line
 from .terminal import interactive, typed
-from .workflow import (
-    TaskStateError,
-    blocker_list,
-    is_decision_task,
-    pending_removals,
-    review_lines,
-    validate_review,
-    verdict_lines,
-)
+from .workflow import TaskStateError, blocker_list, is_decision_task, pending_removals, verdict_lines
 
 
 def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> None:

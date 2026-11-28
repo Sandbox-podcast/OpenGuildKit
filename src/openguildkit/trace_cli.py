@@ -3,6 +3,9 @@
 A reviewer, a security officer or an auditor asks which decision covers a file. The exported records list the files
 of each change; this command reads them, says for each whether it still holds, and asks Git whether the file changed
 after the last decision. It reads and writes nothing else: no task, no record, no Git index.
+
+Entry: add_parser, run
+Tests: tests/test_command_output_budget.py, tests/test_trace.py
 """
 
 import os
@@ -11,11 +14,12 @@ from pathlib import Path
 from . import git
 from .command import Command
 from .decisions import exported_records
-from .guard import exported_decisions
+from .guard_records import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
 from .project_rules import Fingerprints
-from .storage import file_sha256, print_json
+from .results import changed_journals
+from .storage import print_json
 
 _COMMIT = frozenset("0123456789abcdef")
 
@@ -119,26 +123,10 @@ def _decision(root: Path, shown: str, record: dict, row: dict) -> dict:
         "checks": {"passed": sorted(name for name, status in checks.items() if status == "passed"),
                    "failed": sorted(name for name, status in checks.items() if status == "failed"),
                    "other": sorted(name for name, status in checks.items() if status not in ("passed", "failed"))},
-        "evidence_changed": _evidence_changed(root, result),
+        "evidence_changed": changed_journals(root, result),
         "holds": row.get("status") != "unreadable" and problem is None,
         "problem": problem, "withdrawn": withdrawn, "local": bool(row.get("local")),
     }
-
-
-def _evidence_changed(root: Path, result: dict) -> list[str]:
-    """The checks whose journal is in this tree and no longer matches the sha256 the record holds."""
-    changed = []
-    for item in result.get("journals") if isinstance(result.get("journals"), list) else []:
-        if not isinstance(item, dict) or not all(isinstance(item.get(key), str) for key in ("check", "evidence", "sha256")):
-            continue
-        path = root / item["evidence"]
-        try:
-            current = file_sha256(path) if path.is_file() else None
-        except OSError:
-            current = None
-        if current is not None and current != item["sha256"]:
-            changed.append(item["check"])
-    return changed
 
 
 def _printed_lines(root: Path, *args: str) -> list[str] | None:

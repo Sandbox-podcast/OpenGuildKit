@@ -1,9 +1,14 @@
-"""Load and validate OpenGuildKit's declarative knowledge catalog."""
+"""Load and validate OpenGuildKit's declarative knowledge catalog.
+
+Entry: is_positive_integer, CatalogError, record_files, validate_fields, validate_text, validate_id, bundle_sources,
+read_record_files, bundled_ids
+Tests: tests/test_catalog_bundle.py, tests/test_catalog_format_doc.py, tests/test_catalog_load.py,
+tests/test_catalog_sources.py, tests/test_org_catalog.py
+"""
 
 import copy
 import json
 import os
-import re
 import unicodedata
 from collections.abc import Iterator
 from datetime import date, timedelta
@@ -190,63 +195,7 @@ def rule_check(rule: dict) -> dict | None:
     return {**LEGACY_EXPORT_CHECK, "max": check["max_minutes"]}
 
 
-def recorded_value(task: dict, check_id: str, item: dict | None = None) -> dict:
-    """The value a rule's `records` asks a task to write in its result, such as an agreed threshold.
-
-    Without item, the fields the result template shows for the check. With item, a reported outcome:
-    a passed or failed check of such a rule carries the value with its unit, which is returned to keep.
-    """
-    name = check_id[len("rule:"):] if check_id.startswith("rule:") else ""
-    pack_id, _, rule_id = name.partition("/")
-    packs = task.get("consultation", {}).get("scope", {}).get("packs", [])
-    rules = [rule for pack in packs if pack["id"] == pack_id for rule in pack["rules"] if rule["id"] == rule_id]
-    records = rules[0].get("records") if rules else None
-    if records is None:
-        return {}
-    if item is None:
-        bounds = bounds_text(records)
-        accepted = f" Write a number {bounds}, with its unit." if bounds else " Write a number with its unit."
-        return {"records": f"{records['name']}: {records['description']}{accepted}", "value": ""}
-    if item.get("status") not in ("passed", "failed"):
-        return {}
-    value = item.get("value")
-    if not isinstance(value, str) or not re.search(r"[0-9]", value) or not re.search(r"[^0-9\s.,+-]", value):
-        raise ValueError(
-            f"{check_id} records the {records['name']}: write it in value, a number with its unit "
-            f"such as \"90 % of cases\" ({records['description']})."
-        )
-    problem = _out_of_bounds(records, value)
-    if problem:
-        raise ValueError(f"{check_id} records the {records['name']}: {problem} ({records['description']}).")
-    return {"value": " ".join(value.split())}
-
-
-_NUMBER = lazy_re.compile(r"(?<![\w.])[-+]?[0-9]+(?:[.,][0-9]+)?")
 BOUND_FIELDS = ("min", "above", "max")
-
-
-def bounds_text(records: dict) -> str:
-    """The range a recorded value accepts, in words: 'above 0 and at most 100'."""
-    parts = []
-    if "min" in records:
-        parts.append(f"at least {records['min']}")
-    if "above" in records:
-        parts.append(f"above {records['above']}")
-    if "max" in records:
-        parts.append(f"at most {records['max']}")
-    return " and ".join(parts)
-
-
-def _out_of_bounds(records: dict, value: str) -> str | None:
-    """Why the number of a recorded value falls outside the bounds its rule declares, or None."""
-    if not any(field in records for field in BOUND_FIELDS):
-        return None
-    match = _NUMBER.search(value)
-    number = float(match.group(0).replace(",", ".")) if match else None
-    if number is None or ("min" in records and number < records["min"]) or (
-            "above" in records and number <= records["above"]) or ("max" in records and number > records["max"]):
-        return f"{value.strip()!r} is out of range: write a number {bounds_text(records)}, with its unit"
-    return None
 
 
 def _validate_records(records: Any, label: str) -> None:
@@ -532,44 +481,6 @@ def overlaid_boards(catalog: dict) -> set[str]:
     return set(catalog.get("overlays", {}).get("boards", []))
 
 
-def _changed_fields(before: dict, after: dict) -> list[str]:
-    return sorted(key for key in before.keys() | after.keys() if before.get(key) != after.get(key))
-
-
-def board_replacements(catalog: dict) -> list[str]:
-    """One line per bundled brain whose title, description or specialists the project catalog replaces.
-
-    A project may replace them (docs/catalog-format.md), and a weaker security brain reads like the bundled one:
-    check and task consult print these lines so that the person sees what the project changed.
-    """
-    return list(replaced_boards(catalog).values())
-
-
-def replaced_boards(catalog: dict) -> dict[str, str]:
-    """The line board_replacements prints, by the ID of the brain it is about."""
-    from .wording import plural
-
-    bundled = _validated_bundled(_registry())["boards"]
-    lines = {}
-    for board_id in sorted(overlaid_boards(catalog)):
-        before, after = bundled.get(board_id), catalog["boards"].get(board_id)
-        if before is None or after is None:
-            continue
-        changes = [f"{key} {after[key]!r} in place of {before[key]!r}" for key in ("title", "description")
-                   if after[key] != before[key]]
-        earlier = {item["id"]: item for item in before.get("review", {}).get("specialists", [])}
-        replaced = [f"{item['id']} ({', '.join(_changed_fields(earlier[item['id']], item))})"
-                    for item in after.get("review", {}).get("specialists", [])
-                    if item["id"] in earlier and item != earlier[item["id"]]]
-        if replaced:
-            changes.append(f"{plural(len(replaced), 'specialist')} replaced: {', '.join(replaced)}")
-        if changes:
-            lines[board_id] = (f"the project catalog replaces parts of the bundled brain {board_id} "
-                               f"(.openguildkit/catalog/boards/{board_id}.json): {'; '.join(changes)}. Check that the "
-                               "person accepted this change to the brain's review.")
-    return lines
-
-
 def validate_dependencies(packs: dict[str, dict[str, Any]]) -> None:
     graph = {pack_id: pack.get("depends_on", []) for pack_id, pack in packs.items()}
     for pack_id, dependencies in graph.items():
@@ -598,7 +509,7 @@ def package_file(*parts: str):
     return files("openguildkit").joinpath(*parts)
 
 
-def _registry():
+def registry_folder():
     return package_file("registry")
 
 
@@ -672,7 +583,7 @@ _MERGED: dict[tuple, dict[str, dict[str, dict[str, Any]]]] = {}
 _MERGED_KEPT = 8
 
 
-def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
+def validated_bundle(builtin) -> dict[str, dict[str, dict[str, Any]]]:
     """The validated bundled records, read once per process. Callers that change them work on a copy."""
     key = str(builtin)
     if key not in _BUNDLED:
@@ -683,7 +594,7 @@ def _validated_bundled(builtin) -> dict[str, dict[str, dict[str, Any]]]:
 
 def bundled_ids() -> dict[str, set[str]]:
     """The IDs of the records that ship with OpenGuildKit, by collection, without copying the records."""
-    bundled = _validated_bundled(_registry())
+    bundled = validated_bundle(registry_folder())
     return {collection: set(bundled[collection]) for collection in COLLECTION_FIELDS}
 
 
@@ -750,7 +661,7 @@ def _merged_records(builtin, project: Path | None, organization: dict | None = N
     """The bundled records with the organization's, if the project follows one, then the project's, each validated,
     ordered by ID. A project record that replaces or completes an organization record is listed as replaced.
     Without project or organization records, nothing changes the bundled ones: load_catalog copies what it hands out."""
-    bundled = _validated_bundled(builtin)
+    bundled = validated_bundle(builtin)
     if project is not None or organization is not None:
         bundled = json_copy(bundled)
     catalog: dict[str, dict[str, dict[str, Any]]] = {}
@@ -810,8 +721,8 @@ def load_catalog(
     organization, from org_catalog.read_files, holds the files read at a pinned commit; without it (the
     default) nothing changes. The catalog then carries an "organization" entry: the IDs it provides and the
     project records that replace one of them."""
-    builtin = _registry()
-    _validated_bundled(builtin)
+    builtin = registry_folder()
+    validated_bundle(builtin)
     if extra_dir is not None and extra_dir.exists() and not extra_dir.is_dir():
         raise CatalogError(f"{extra_dir} must be a directory")
     project = extra_dir if extra_dir is not None and extra_dir.is_dir() else None
@@ -827,17 +738,6 @@ def load_catalog(
         _add_central_policy(catalog, central_policy)
     _check_links(catalog)
     return catalog
-
-
-def undated_sources(records: dict[str, dict[str, dict[str, Any]]]) -> list[str]:
-    """The records, as collection/id, that cite a source without a checked date."""
-    return [
-        f"{collection}/{record_id}"
-        for collection, entries in records.items()
-        if collection not in ("overlays", "organization")
-        for record_id, record in entries.items()
-        if any("checked" not in source for source in record.get("sources", []))
-    ]
 
 
 def latest_checked(*record_lists) -> str | None:

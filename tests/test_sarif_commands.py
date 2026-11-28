@@ -16,7 +16,6 @@ from pathlib import Path
 from openguildkit.cli import command_parser
 from openguildkit.decisions import export_digest
 from openguildkit.storage import write_json
-
 from tests.support import openguildkit_on_path, run_cli
 from tests.test_sarif import machine_paths, structure_problems
 
@@ -454,7 +453,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report.items, [])
 
     def test_every_kind_of_approval_problem_of_a_task_has_a_rule(self):
-        from openguildkit.check_findings import Report, RULES
+        from openguildkit.check_findings import RULES, Report
 
         report = Report(True)
         kinds = ("no-seal", "invalid-seal", "earlier-rules", "unsigned", "invalid-signature", "outside-history")
@@ -473,8 +472,8 @@ class ReportTests(unittest.TestCase):
 RULE_LIKE = re.compile(r"^(?:decision|instructions|host|catalog|task|source|brain|approvals|evidence|guard|policy)-[a-z]+(?:-[a-z]+)*$")
 # The modules that write a rule code, and the words of theirs that look like one and are not: the `task decision-payload`
 # command, and the kind of sharing issue that is not a finding.
-WRITERS = ("check_findings.py", "check_cli.py", "cli.py", "guard.py", "lock.py", "org_policy.py", "project.py",
-           "project_instructions.py", "requester.py", "tasks_cli.py")
+WRITERS = ("check_findings.py", "check_cli.py", "cli.py", "guard.py", "guard_ci.py", "guard_records.py", "lock.py",
+           "org_policy.py", "project.py", "project_instructions.py", "requester.py", "tasks_cli.py")
 NOT_CODES = {"decision-payload", "task-absent"}
 
 

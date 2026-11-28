@@ -3,8 +3,10 @@
 import copy
 import unittest
 
-from openguildkit.catalog import CatalogError, _validate_rule, load_catalog, recorded_value
-from openguildkit.results import completion_problems, result_template, validate_result
+from openguildkit.catalog import CatalogError, _validate_rule, load_catalog
+from openguildkit.catalog_queries import recorded_value
+from openguildkit.result_form import result_template, validate_result
+from openguildkit.results import completion_problems
 
 PACKS = ("llm-evaluations", "nist-ai-risk")
 

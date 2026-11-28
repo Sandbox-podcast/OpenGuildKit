@@ -17,13 +17,11 @@ import unittest
 from pathlib import Path
 
 from openguildkit.cli import command_parser
-
 from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 CHECK_INSTALLED = ROOT / ".github" / "scripts" / "check-installed-cli.py"
-MAKE_SBOM = ROOT / "scripts" / "make_sbom.py"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
 
 
@@ -277,92 +275,6 @@ class ReleaseDocsTest(unittest.TestCase):
         self.assertRegex(constraints, r"(?m)^build==\d+\.\d+\.\d+$")
         self.assertRegex(constraints, r"(?m)^setuptools==\d+\.\d+\.\d+$")
         self.assertIn(".github/build-constraints.txt", _read("docs/install.md"))
-
-
-def run_sbom(*arguments: str, env=None) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, "-I", str(MAKE_SBOM), *arguments], capture_output=True, text=True,
-                          encoding="utf-8", timeout=60, check=False, env={**os.environ, **(env or {})})
-
-
-LOCK = {"lockfileVersion": 3, "packages": {
-    "": {"name": "web", "dependencies": {"react": "^19.0.0", "@scope/font": "^1.0.0"}},
-    "node_modules/react": {"version": "19.3.1", "integrity": "sha512-" + "QUJD" * 21 + "QQ==", "license": "MIT"},
-    "node_modules/@scope/font": {"version": "1.2.3", "integrity": "sha512-" + "QUJD" * 21 + "QQ==",
-                                 "license": "(OFL-1.1 OR MIT)"},
-    "node_modules/react/node_modules/scheduler": {"version": "0.28.0", "optional": True},
-    "node_modules/vite": {"version": "8.0.0", "dev": True, "integrity": "sha512-" + "QUJD" * 21 + "QQ=="},
-    "node_modules/fsevents": {"version": "2.3.3", "dev": True, "optional": True},
-    "node_modules/esbuild-helper": {"version": "1.0.0", "devOptional": True},
-    "node_modules/linked": {"resolved": "../linked", "link": True},
-}}
-
-
-class SbomTest(unittest.TestCase):
-    """Issue #503: the release has no SBOM of the web interface its wheel embeds."""
-
-    def setUp(self):
-        self.temp = Path(tempfile.mkdtemp(prefix="ogk-sbom-"))
-        self.addCleanup(shutil.rmtree, self.temp, True)
-        self.wheel = self.temp / "openguildkit-9.9.9-py3-none-any.whl"
-        self.wheel.write_bytes(b"wheel bytes")
-
-    def sbom(self, lock: dict, **env) -> dict:
-        path = self.temp / "package-lock.json"
-        path.write_text(json.dumps(lock), encoding="utf-8")
-        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel), env=env)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        return json.loads(done.stdout)
-
-    def test_lists_the_runtime_packages_with_their_versions_and_leaves_the_development_ones(self):
-        """Issue #503: the SBOM lists react and the other runtime packages, not vite or fsevents."""
-        bom = self.sbom(LOCK)
-        self.assertEqual((bom["bomFormat"], bom["specVersion"]), ("CycloneDX", "1.5"))
-        found = {component["purl"]: component["version"] for component in bom["components"]}
-        self.assertEqual(found, {"pkg:npm/react@19.3.1": "19.3.1", "pkg:npm/%40scope/font@1.2.3": "1.2.3",
-                                 "pkg:npm/scheduler@0.28.0": "0.28.0"})
-
-    def test_a_component_carries_its_group_hash_and_licence(self):
-        font = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "font")
-        self.assertEqual(font["group"], "@scope")
-        self.assertEqual(font["bom-ref"], font["purl"])
-        self.assertEqual(font["hashes"], [{"alg": "SHA-512", "content": (b"ABC" * 21 + b"A").hex()}])
-        self.assertEqual(font["licenses"], [{"expression": "(OFL-1.1 OR MIT)"}])
-        react = next(component for component in self.sbom(LOCK)["components"] if component["name"] == "react")
-        self.assertEqual(react["licenses"], [{"license": {"id": "MIT"}}])
-
-    def test_the_main_component_is_the_wheel_with_its_sha256(self):
-        main = self.sbom(LOCK)["metadata"]["component"]
-        self.assertEqual((main["name"], main["version"]), ("openguildkit", "9.9.9"))
-        self.assertEqual(main["hashes"], [{"alg": "SHA-256", "content": hashlib.sha256(b"wheel bytes").hexdigest()}])
-
-    def test_the_same_inputs_give_the_same_bytes_when_the_date_is_fixed(self):
-        first = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
-        second = self.sbom(LOCK, SOURCE_DATE_EPOCH="1795000000")
-        self.assertEqual(first, second)
-        self.assertEqual(first["metadata"]["timestamp"], "2026-11-18T11:06:40Z")
-        self.assertRegex(first["serialNumber"], r"^urn:uuid:[0-9a-f-]{36}$")
-        self.assertNotEqual(first["serialNumber"], self.sbom({**LOCK, "packages": {}}, SOURCE_DATE_EPOCH="1795000000")["serialNumber"])
-
-    def test_a_lock_without_the_packages_table_is_refused(self):
-        path = self.temp / "old-lock.json"
-        path.write_text(json.dumps({"lockfileVersion": 1, "dependencies": {}}), encoding="utf-8")
-        done = run_sbom("--lock", str(path), "--wheel", str(self.wheel))
-        self.assertEqual(done.returncode, 1)
-        self.assertIn("lockfile version 2 or 3", done.stderr)
-
-    def test_the_real_lock_lists_every_runtime_dependency_of_the_web_interface(self):
-        """Issue #503: the acceptance criterion, on web/package-lock.json."""
-        direct = json.loads(_read("web/package.json"))["dependencies"]
-        lock = json.loads(_read("web/package-lock.json"))["packages"]
-        done = run_sbom("--lock", str(ROOT / "web" / "package-lock.json"), "--wheel", str(self.wheel))
-        self.assertEqual(done.returncode, 0, done.stderr)
-        components = {(c.get("group", "") + "/" if c.get("group") else "") + c["name"]: c["version"]
-                      for c in json.loads(done.stdout)["components"]}
-        for name in direct:
-            self.assertEqual(components[name], lock[f"node_modules/{name}"]["version"], name)
-        self.assertIn("react", components)
-        for development in json.loads(_read("web/package.json"))["devDependencies"]:
-            self.assertNotIn(development, components)
 
 
 def setuptools_floor() -> bool:

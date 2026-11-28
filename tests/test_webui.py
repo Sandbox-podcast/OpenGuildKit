@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import storage, tasks, webui
+from openguildkit import storage, task_files, web_requests, webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
@@ -416,7 +416,7 @@ class WebInterfaceTests(unittest.TestCase):
         runs in its own process, stopped after a minute."""
         runs = ("Qk1aYz_0-" * 80_000, "mysql " * 60_000, "a-" * 200_000, "a" * 300_000)
         text = "\n".join(runs)
-        self.assertLessEqual(len(text.encode("utf-8")), webui.MAX_FILE)
+        self.assertLessEqual(len(text.encode("utf-8")), web_requests.MAX_FILE)
         (self.root / "blob.txt").write_text(text, encoding="utf-8")
         script = ("import sys; from pathlib import Path; from openguildkit.webui import ProjectFiles; "
                   "print(len(ProjectFiles(Path(sys.argv[1])).read('blob.txt')['text']))")
@@ -830,7 +830,7 @@ class WebInterfaceTests(unittest.TestCase):
         old = 1_700_000_000_000_000_000
         for path in (self.root / ".openguildkit" / "tasks").glob("*.json"):
             os.utime(path, ns=(old, old))
-        hashed, original = [], tasks.file_signature
+        hashed, original = [], task_files.file_signature
 
         def counting(path, info=None, *, content=False):
             if content:
@@ -839,7 +839,7 @@ class WebInterfaceTests(unittest.TestCase):
 
         opening = {"tasks": ["task", "list", "--json"], "check": ["check"], "alpha": ["task", "show", "alpha"]}
         self.parsed_task_records(opening)
-        with patch("openguildkit.tasks.file_signature", counting):
+        with patch("openguildkit.task_files.file_signature", counting):
             second, parsed = self.parsed_task_records(opening)
         self.assertEqual((hashed, parsed), ([], []))
         self.assertEqual(second["alpha"]["json"]["brief"], "Show the alpha requests")
@@ -848,18 +848,18 @@ class WebInterfaceTests(unittest.TestCase):
         """Issue #537: a command changes the record it reads; the next one must not see the change."""
         self.run_in_page("task", "new", "Show the alpha requests", "--id", "alpha")
         state = self.root / ".openguildkit"
-        kept = tasks.KeptRecords()
-        with tasks.keeping_records(kept):
-            first = tasks.read_task(state, "alpha")
+        kept = task_files.KeptRecords()
+        with task_files.keeping_records(kept):
+            first = task_files.read_task(state, "alpha")
             first["brief"] = "changed by a command"
             first["answers"] = {"changed": True}
-            second = tasks.read_task(state, "alpha")
+            second = task_files.read_task(state, "alpha")
             self.assertEqual(len(kept.entries), 1)
         self.assertEqual(second, json.loads((state / "tasks" / "alpha.json").read_text(encoding="utf-8")))
-        self.assertIsNone(tasks._KEPT)
-        small = tasks.KeptRecords(limit=1)
-        with tasks.keeping_records(small):
-            self.assertEqual(tasks.read_task(state, "alpha"), second)
+        self.assertIsNone(task_files._KEPT)
+        small = task_files.KeptRecords(limit=1)
+        with task_files.keeping_records(small):
+            self.assertEqual(task_files.read_task(state, "alpha"), second)
         self.assertEqual((small.entries, small.size), ({}, 0))
 
     def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):
@@ -923,7 +923,7 @@ class WebInterfaceTests(unittest.TestCase):
         status, result = self.run_in_page("alerts", "set", high, "--status", "dismissed", "--by", "Camille",
                                           "--reason", "Build only")
         self.assertEqual((status, result["code"]), (200, 0), result)
-        self.assertNotIn("high", webui.REFUSALS["alert-status-at-terminal"])
+        self.assertNotIn("high", web_requests.REFUSALS["alert-status-at-terminal"])
 
     def test_the_command_the_cli_names_in_its_refusal_is_the_one_to_type(self):
         message = ("OpenGuildKit: 1 data protection, security or AI point is skipped, failed or declared not "
@@ -940,7 +940,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertTrue(closing["command"].endswith(" task complete request-history --by Camille"), closing["command"])
 
     def test_the_named_command_keeps_its_words_and_stops_at_the_end_of_the_sentence(self):
-        from openguildkit.webui import named_command
+        from openguildkit.web_requests import named_command
 
         self.assertEqual(named_command("A person confirms closing over them: openguildkit task complete t1 --by INITIALS, "
                                        "at a terminal."), ["task", "complete", "t1", "--by", "INITIALS"])
@@ -951,7 +951,7 @@ class WebInterfaceTests(unittest.TestCase):
     def test_every_refusal_carries_a_stable_code(self):
         from types import SimpleNamespace
 
-        from openguildkit.webui import REFUSALS, Refused, check_request
+        from openguildkit.web_requests import REFUSALS, Refused, check_request
 
         self.run_in_page("task", "new", "Show request status", "--id", "request-status")
         (self.root / ".env").write_text("A=1", encoding="utf-8")
@@ -1068,7 +1068,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual((response.status, answer["reason"]), (403, "stale-token"))
 
     def test_every_code_is_listed_in_the_interface_documentation(self):
-        from openguildkit.webui import REFUSALS
+        from openguildkit.web_requests import REFUSALS
 
         text = (Path(__file__).resolve().parents[1] / "web" / "docs" / "interface-projet.md").read_text(encoding="utf-8")
         missing = [code for code in REFUSALS if f"`{code}`" not in text]
@@ -1185,7 +1185,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertFalse((self.root / ".openguildkit" / "storybook" / "proposals.json").exists())
 
     def test_only_the_lock_makes_a_write_busy(self):
-        with patch("openguildkit.webui.write_text", side_effect=ValueError("not the lock")), \
+        with patch("openguildkit.web_requests.write_text", side_effect=ValueError("not the lock")), \
                 contextlib.redirect_stderr(io.StringIO()):
             status, _, raw = self.request("/api/files/write", {"path": ".openguildkit/storybook/proposals.json",
                                                                "text": "{}"})

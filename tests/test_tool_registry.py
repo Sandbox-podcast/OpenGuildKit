@@ -15,7 +15,9 @@ from pathlib import Path
 
 from openguildkit.catalog import CatalogError
 from openguildkit.cli import main
-from openguildkit.tools import NOT_RECORDED, _validate_tool, check_settings, load_tools, plan_connections
+from openguildkit.tool_connections import check_settings
+from openguildkit.tool_registry import _validate_tool, load_tools
+from openguildkit.tools import NOT_RECORDED, plan_connections
 from tests.support import run_cli
 
 # A local server as a publisher documents it, before the checks below change one field.

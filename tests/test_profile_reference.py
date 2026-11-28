@@ -129,7 +129,7 @@ class ProfileReferenceTests(unittest.TestCase):
 
     def test_every_profile_command_the_page_cites_exists_and_every_one_is_cited(self):
         """Issue #491: the page was written by hand; a setting or a list the profile command gains must reach it."""
-        from openguildkit.profile_changes import LIST_FIELDS, SET_FIELDS
+        from openguildkit.profile_edits import LIST_FIELDS, SET_FIELDS
         cited = re.findall(r"profile (add|remove|set) ([a-z-]+)", " ".join(row[2] for row in page_rows().values()))
         known = {"add": LIST_FIELDS, "remove": LIST_FIELDS, "set": SET_FIELDS}
         self.assertEqual(sorted({f"{verb} {kind}" for verb, kind in cited if kind not in known[verb]}), [])
@@ -138,7 +138,7 @@ class ProfileReferenceTests(unittest.TestCase):
 
     def test_the_values_of_a_setting_in_the_page_and_the_schema_are_those_the_code_accepts(self):
         """Issue #491: host, guard and research list their values in three places: the code is the source."""
-        from openguildkit.profile_changes import SET_FIELDS
+        from openguildkit.profile_edits import SET_FIELDS
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         rows = page_rows()
         for field in ("host", "guard", "research"):

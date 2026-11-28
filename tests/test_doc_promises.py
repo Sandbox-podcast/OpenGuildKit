@@ -15,7 +15,6 @@ from unittest.mock import patch
 from openguildkit import clock
 from openguildkit.market import dossier_gaps, validate_dossier
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

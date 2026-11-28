@@ -43,7 +43,8 @@ class FirstContributionTests(unittest.TestCase):
         out, err = io.StringIO(), io.StringIO()
         with contextlib.ExitStack() as stack:
             if registry is not None:
-                stack.enter_context(patch("openguildkit.catalog._registry", return_value=registry))
+                stack.enter_context(patch("openguildkit.catalog.registry_folder", return_value=registry))
+                stack.enter_context(patch("openguildkit.catalog_queries.registry_folder", return_value=registry))
                 stack.enter_context(patch.dict(catalog._BUNDLED, clear=True))
             stack.enter_context(contextlib.redirect_stdout(out))
             stack.enter_context(contextlib.redirect_stderr(err))
@@ -61,7 +62,7 @@ class FirstContributionTests(unittest.TestCase):
         self.assertNotIn(lens["title"], before)
 
         registry = self.folder / "registry"
-        shutil.copytree(catalog._registry(), registry)
+        shutil.copytree(catalog.registry_folder(), registry)
         path = registry / "boards" / "hr.json"
         board = json.loads(path.read_text(encoding="utf-8"))
         board["review"]["specialists"].append(lens)

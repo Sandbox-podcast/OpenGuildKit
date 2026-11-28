@@ -21,7 +21,7 @@ A task answers only the rules that concern it; the others are listed as not conc
 Each bundled pack has a subject, the task answers that call for it, and for a few packs the boards the task consults or the words of its brief.
 A pack concerns the task when its subject meets the task's `kind`, `surface`, `data` and `concerns`, and the way it reached the project still holds.
 Having a board of its role, or personal data, does not bring a pack by itself.
-For each regulatory pack, `relevance.LEGAL_BASIS` gives the subject retained and its legal reason.
+For each regulatory pack, `legal_basis.LEGAL_BASIS` gives the subject retained and its legal reason.
 
 | Subject | Called for by | Packs |
 |---|---|---|

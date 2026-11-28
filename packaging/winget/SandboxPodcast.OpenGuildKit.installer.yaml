@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+# Template: scripts/release_manifests.py fills it from the SHA256SUMS.txt of a release (docs/install.md).
+# winget installs an executable, not a wheel: the release must carry openguildkit-X.Y.Z-windows-x64.zip with
+# openguildkit.exe at its root, which release.yml does not build yet.
+PackageIdentifier: SandboxPodcast.OpenGuildKit
+PackageVersion: @VERSION@
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: openguildkit.exe
+    PortableCommandAlias: openguildkit
+Installers:
+  - Architecture: x64
+    InstallerUrl: @WINDOWS_ZIP_URL@
+    InstallerSha256: @WINDOWS_ZIP_SHA256@
+ManifestType: installer
+ManifestVersion: 1.28.0

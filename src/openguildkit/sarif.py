@@ -8,6 +8,9 @@ it the same way every time, so two runs on the same project give the same bytes.
 
 The document holds no folder of the machine: a path is relative, and the project folder and the home folder are
 taken out of every message.
+
+Entry: finding, fingerprint, to_sarif, sarif_text
+Tests: tests/test_sarif.py
 """
 
 import hashlib

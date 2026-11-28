@@ -2,6 +2,9 @@
 existing React application.
 
 The Storybook modules load when the command runs, so the other commands start without them.
+
+Entry: add_parser, run
+Tests: tests/test_architecture.py, tests/test_storybook.py, tests/test_storybook_extract.py
 """
 
 import argparse
@@ -115,8 +118,9 @@ def _print_extract(result: dict, output: str) -> list[str]:
 def run(command: Command) -> int | None:
     """Run one storybook action and print what it did, or its result as JSON."""
     args, root, state = command.args, command.root, command.state
-    from .storybook import INVENTORY, committed_path, compose, generate, import_indexes, propose
+    from .storybook import INVENTORY, committed_path, compose, import_indexes, propose
     from .storybook_extract import extract
+    from .storybook_stories import generate
 
     if args.action == "compose":
         result = compose(root, args.ref, args.url, args.title, args.remove, args.config_dir)

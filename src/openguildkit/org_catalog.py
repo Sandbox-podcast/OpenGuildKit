@@ -9,6 +9,9 @@ up to date with `git fetch`. A project whose lock has no "organization" entry ru
 The lock names the catalog (`name`) or, in the first format, the path of a copy (`repo`). A name carries no path: each
 machine finds its copy in OPENGUILDKIT_ORG_CATALOG_NAME, and `guard --ci` in `--org-catalog NAME=PATH`. The stops and
 the pins stay in `organization_history`.
+
+Entry: read_files, organization_in, validate_pin, changes, replacements
+Tests: tests/test_command_output_budget.py, tests/test_org_catalog.py, tests/test_org_policy.py
 """
 
 import hashlib

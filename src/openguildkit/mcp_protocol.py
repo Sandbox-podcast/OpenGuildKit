@@ -1,11 +1,14 @@
-"""Shared newline-delimited MCP transport for local tool servers."""
+"""Shared newline-delimited MCP transport for local tool servers.
+
+Entry: ProtocolError, ToolServer, handle, serve
+Tests: tests/e2e/test_tool_mocks.py, tests/test_project_mcp.py
+"""
 
 import json
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import BinaryIO
-
 
 # Revisions up to 2025-11-25 open with an initialize handshake. From 2026-07-28 every request
 # names its protocol version in params._meta and the server keeps no connection state.

@@ -22,6 +22,9 @@ One time zone, UTC, dates everything on both clocks: a time is written in UTC (+
 (today, real_today, a share's last day, a waiver's end, the day of a profile change) is the UTC day,
 as Documentalist counts a reader's last day. The local time zone is never read: two acts seconds
 apart show the same day, and a share ends at the same instant on every machine.
+
+Entry: now, today, timestamp, real_now, real_today, real_timestamp
+Tests: tests/test_clock.py
 """
 
 import os

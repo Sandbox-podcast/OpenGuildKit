@@ -12,6 +12,9 @@ Documentalist gives a reader a whole space. The local register follows the real 
 observation may compare it with a compatible portal's invitation settings. A share can mark its space as
 dedicated to its deliverable: the register then refuses another deliverable in that space, so that
 one space per deliverable gives each deliverable its own reader list.
+
+Entry: project_overview, export_docs, load_shares, portal_space, share_space, add_share
+Tests: tests/test_publishing.py
 """
 
 import ipaddress
@@ -30,7 +33,7 @@ from .project_instructions import rule_text
 from .project_rules import pack_scopes, rule_plan
 from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
-from .tasks import read_task
+from .task_files import read_task
 from .wording import plural
 from .workflow import objections
 
@@ -181,6 +184,43 @@ def _exported_files(manifest_path: Path) -> list[str]:
     return files
 
 
+def _task_pages(tasks: list[dict], version: str, sections: tuple[str, ...]) -> tuple[dict, list[str], dict]:
+    """The pages of each task, with what may hold a credential replaced; the warnings on what they replaced and on
+    the personal data they show; and each task as published."""
+    pages, warnings, published = {}, [], {}
+    for position, task in enumerate(tasks, start=1):
+        # What leaves the project is checked again: a record written before, or by hand, may hold what the CLI now refuses.
+        shown = {**task, **{key: redact_data(task[key]) for key in ("brief", "answers", "result") if key in task}}
+        written = _pages(shown, position, version, sections)
+        if shown != task:
+            warnings.append(f"{task['id']}: replaced a possible credential with a placeholder before publishing it: {WHERE}.")
+        kinds = list(dict.fromkeys(kind for text in written.values() for kind in personal_data_kinds(text)))
+        if kinds:
+            warnings.append(f"{task['id']}: the pages contain {' and '.join(kinds)}, and Documentalist shows them to every "
+                            "reader: keep personal data out unless it is a role address.")
+        pages.update(written)
+        published[task["id"]] = shown
+    return pages, warnings, published
+
+
+def _summary_page(tasks: list[dict], pages: dict, published: dict, project: str, version: str,
+                  sections: tuple[str, ...], overview: dict | None) -> str:
+    """The SUMMARY.md of the export, adding the project page to pages when the project section is asked."""
+    summary = [f"# {project}", ""]
+    if "project" in sections and overview is not None:
+        consulted = list(dict.fromkeys(board for task in tasks for board in task["consultation"]["boards"]))
+        titles = {item["id"]: item["title"] for item in overview["boards"]}
+        boards = [{"id": board, "title": titles.get(board, board)} for board in consulted]
+        pages[PROJECT_PAGE] = _project_page({**overview, "boards": boards}, version)
+        summary += ["## Project", "", f"- [Overview]({PROJECT_PAGE})", ""]
+    for section in ("reference", "learn"):
+        entries = [path for path in pages if path.startswith(f"{section}/")]
+        if entries:
+            summary += [f"## {section.capitalize()}", ""] + [
+                f"- [{_title(published[Path(path).stem])}]({path})" for path in entries] + [""]
+    return "\n".join(summary)
+
+
 def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
                 sections: tuple[str, ...] = SECTIONS, openapi: Path | None = None, project: str = "Project",
                 overview: dict | None = None) -> dict:
@@ -196,32 +236,8 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     previous = _exported_files(manifest_path)
     if output.exists() and not manifest_path.is_file() and any(output.iterdir()):
         raise ValueError(f"{output} is not empty and was not created by openguildkit docs export.")
-    pages, warnings, published = {}, [], {}
-    for position, task in enumerate(tasks, start=1):
-        # What leaves the project is checked again: a record written before, or by hand, may hold what the CLI now refuses.
-        shown = {**task, **{key: redact_data(task[key]) for key in ("brief", "answers", "result") if key in task}}
-        written = _pages(shown, position, version, sections)
-        if shown != task:
-            warnings.append(f"{task['id']}: replaced a possible credential with a placeholder before publishing it: {WHERE}.")
-        kinds = list(dict.fromkeys(kind for text in written.values() for kind in personal_data_kinds(text)))
-        if kinds:
-            warnings.append(f"{task['id']}: the pages contain {' and '.join(kinds)}, and Documentalist shows them to every "
-                            "reader: keep personal data out unless it is a role address.")
-        pages.update(written)
-        published[task["id"]] = shown
-    summary = [f"# {project}", ""]
-    if "project" in sections and overview is not None:
-        consulted = list(dict.fromkeys(board for task in tasks for board in task["consultation"]["boards"]))
-        titles = {item["id"]: item["title"] for item in overview["boards"]}
-        boards = [{"id": board, "title": titles.get(board, board)} for board in consulted]
-        pages[PROJECT_PAGE] = _project_page({**overview, "boards": boards}, version)
-        summary += ["## Project", "", f"- [Overview]({PROJECT_PAGE})", ""]
-    for section in ("reference", "learn"):
-        entries = [path for path in pages if path.startswith(f"{section}/")]
-        if entries:
-            summary += [f"## {section.capitalize()}", ""] + [
-                f"- [{_title(published[Path(path).stem])}]({path})" for path in entries] + [""]
-    pages["SUMMARY.md"] = "\n".join(summary)
+    pages, warnings, published = _task_pages(tasks, version, sections)
+    pages["SUMMARY.md"] = _summary_page(tasks, pages, published, project, version, sections, overview)
     pages["README.md"] = f"# {project}\n\nDocumentation for version {version}, generated from completed OpenGuildKit tasks.\n"
     if openapi is not None:
         try:

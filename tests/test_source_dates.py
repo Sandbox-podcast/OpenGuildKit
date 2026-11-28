@@ -16,14 +16,14 @@ from unittest.mock import patch
 
 from openguildkit import catalog as catalog_module
 from openguildkit import clock
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
+from openguildkit.deliverables import _validate as validate_deliverable
+from openguildkit.deliverables import load_deliverables
 from openguildkit.lock import read_lock
 from openguildkit.project_rules import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
-from openguildkit.tools import load_tools
-
+from openguildkit.tool_registry import load_tools
 from tests.support import CapturedCli, run_cli
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -232,9 +232,8 @@ class ProjectSourceDateTests(CapturedCli, unittest.TestCase):
         self.cli("task", "consult", "status", "--answers", examples / "answers.json")
 
     def test_a_project_reference_may_name_a_pack_the_lock_keeps_after_a_release_drops_it(self):
-        from tests.test_upgrades import ANSWERS, release_without_playwright
-
         from openguildkit import lock
+        from tests.test_upgrades import ANSWERS, release_without_playwright
 
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

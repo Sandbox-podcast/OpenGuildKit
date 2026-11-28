@@ -5,7 +5,7 @@ their signature, the profile changes, the history of the allowed signers file in
 controls and a manifest with the SHA-256 of each file. It reads the project, writes only a new folder inside it and
 states no conformity to any framework. `verify` recomputes the manifest of a dossier.
 Entry: add_parser, run.
-Tests: tests/test_evidence.py.
+Tests: tests/test_evidence.py, tests/test_command_output_budget.py.
 """
 
 import hashlib
@@ -20,7 +20,7 @@ from .alerts import load_register
 from .catalog import package_file
 from .command import Command
 from .decisions import approval_policy, export_digest, exported_records, git_revision, seal, verify_recorded_signature
-from .guard import exported_decisions
+from .guard_records import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
 from .project_rules import Fingerprints

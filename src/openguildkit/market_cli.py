@@ -1,12 +1,32 @@
-"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources."""
+"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources.
+
+Entry: add_parser, run
+Tests: tests/test_architecture.py, tests/test_cli_coverage.py
+"""
 
 from pathlib import Path
 
 from .cli_surface import add_by
 from .command import Command
 from .market import (
-    KINDS, MARKET_DIR, add_competitor, add_observation, describe, dossier_gaps, dossier_path, due_issue, due_sources,
-    load_dossier, mark_checked, mark_provided, new_dossier, record_change, save_dossier, set_paused, set_unknown, watch_source,
+    KINDS,
+    MARKET_DIR,
+    add_competitor,
+    add_observation,
+    describe,
+    dossier_gaps,
+    dossier_path,
+    due_issue,
+    due_sources,
+    load_dossier,
+    mark_checked,
+    mark_provided,
+    new_dossier,
+    record_change,
+    save_dossier,
+    set_paused,
+    set_unknown,
+    watch_source,
 )
 from .storage import json_text, project_lock
 

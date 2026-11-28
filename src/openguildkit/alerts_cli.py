@@ -1,19 +1,39 @@
-"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project."""
+"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project.
+
+Entry: add_parser, run, task_command, consultation_task
+Tests: tests/test_architecture.py, tests/test_requester.py
+"""
 
 import sys
 from pathlib import Path
 
 from . import requester
 from .alerts import (
-    SEVERITIES, STATUS_CHOICES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
-    load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
-    task_brief, unhandled_alerts,
+    SEVERITIES,
+    STATUS_CHOICES,
+    STATUSES,
+    accept_alert,
+    alert_task_id,
+    find_alert,
+    import_report,
+    link_alert,
+    load_register,
+    migrate_task,
+    needs_person,
+    save_register,
+    set_severity,
+    set_status,
+    summary,
+    task_alerts,
+    task_brief,
+    unhandled_alerts,
 )
+from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
-from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
-from .tasks import create_task, read_task, task_path
+from .task_files import read_task, task_path
+from .tasks import create_task
 from .terminal import typed
 from .wording import plural
 

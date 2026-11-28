@@ -11,11 +11,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
-from openguildkit.init_cli import _prompt_checks
 from openguildkit.detect import detect_stack
+from openguildkit.init_cli import _prompt_checks
 from openguildkit.project_checks import failure_message, propose_checks
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

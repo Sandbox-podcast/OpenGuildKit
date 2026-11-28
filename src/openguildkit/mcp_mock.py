@@ -6,6 +6,9 @@ can be connected to "Jira" or "Snyk" without an account. List and get tools read
 records, so an id one call returns is accepted by the others; a project can swap in its own
 records with a scenario file. The mock's tool names are
 OpenGuildKit's own: it rehearses the agent's flow, it does not imitate a vendor's API.
+
+Entry: validate_mock, reference_problems, check_synthetic, apply_scenario, is_generic, signature
+Tests: tests/e2e/test_tool_mocks.py, tests/test_tools.py
 """
 
 import copy
@@ -14,8 +17,9 @@ import json
 import re
 from pathlib import Path
 
-from .mcp_protocol import INVALID_PARAMS, ProtocolError as MockError, ToolServer, serve as serve_stdio
-
+from .mcp_protocol import INVALID_PARAMS, ToolServer
+from .mcp_protocol import ProtocolError as MockError
+from .mcp_protocol import serve as serve_stdio
 
 SERVER_VERSION = "1"
 _JSON_TYPES = {
@@ -149,10 +153,17 @@ def reference_problems(mock: dict) -> list[str]:
     for name, collection in records.items():
         for path, target in collection.get("refs", {}).items():
             known = {_norm(item.get(records[target]["key"])) for item in records[target]["items"]}
-            for item in collection["items"]:
-                for value in _values_at(item, path.split(".")):
-                    if value is not None and _norm(value) not in known:
-                        problems.append(f"{name} cites {path} {value}, which {target} does not hold.")
+            problems += _cited_problems(name, collection["items"], path, target, known)
+    return problems
+
+
+def _cited_problems(name: str, items: list, path: str, target: str, known: set) -> list[str]:
+    """The values the items of a collection cite at path that the target collection does not hold."""
+    problems = []
+    for item in items:
+        for value in _values_at(item, path.split(".")):
+            if value is not None and _norm(value) not in known:
+                problems.append(f"{name} cites {path} {value}, which {target} does not hold.")
     return problems
 
 

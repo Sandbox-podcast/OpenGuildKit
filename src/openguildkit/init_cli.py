@@ -16,16 +16,17 @@ from .lock import apply_lock, build_lock, installed_catalog, read_lock, unshippe
 from .patterns import patterns_to_review
 from .profile_changes import print_touched
 from .project import RULES_NOTE, load_profile, profile_recommendations
+from .project_checks import propose_checks
 from .project_instructions import ALREADY_INITIALIZED, initialize, sync_instructions
 from .project_rules import require_resolved_conflicts, rule_plan
 from .project_setup import GUARD_MODES, init_questions, is_norm, setup_profile, unsure_answers
-from .project_checks import propose_checks
 from .prompts import prompt_questions
 from .rule_plan_text import print_rule_plan
 from .storage import print_json, project_lock, read_json
 from .tasks import tasks_touched
 from .terminal import interactive
-from .tools import detect_tools, load_tools, match_tools
+from .tool_registry import load_tools
+from .tools import detect_tools, match_tools
 from .wording import plural
 
 

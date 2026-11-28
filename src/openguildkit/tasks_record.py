@@ -1,12 +1,21 @@
 """The shape of a task record: the fields each part may hold, the checks of a record read from disk and of a
-brief, and the time stamp records carry."""
+brief, and the time stamp records carry.
+
+Entry: timestamp, task_record_problem, board_brief_problem, validate_brief
+Tests: tests/test_blocker_clearances.py, tests/test_task_dependencies.py
+"""
 
 from collections.abc import Iterator
 from typing import cast
 
-from . import clock, delivered_review, short_lane
-from .sensitive import redact_credentials
-from .workflow import RESOLUTION_FIELDS
+from . import clock, short_lane
+
+# The severities and actions of a finding of task diff-review (delivered_review.py).
+SEVERITIES = ("blocking", "important", "minor")
+ACTIONS = ("fix", "defer", "decision")
+# Clearances and waivers are stored apart by phase, because the approval's seal covers only those given before it.
+# blocker_resolutions(task) reads both: every reader goes through it.
+RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
 
 
 def timestamp() -> str:
@@ -108,8 +117,8 @@ _RECORD = {
     "dependency_alerts?": {"alerts?": [dict]},
     "delivered_review?": {"boards": {"*": {
         "base": str, "revision": str, "at": str,
-        "findings": [{"file": str, "line": int, "severity": frozenset(delivered_review.SEVERITIES),
-                      "action": frozenset(delivered_review.ACTIONS), "finding": str}]}}},
+        "findings": [{"file": str, "line": int, "severity": frozenset(SEVERITIES),
+                      "action": frozenset(ACTIONS), "finding": str}]}}},
 }
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
 
@@ -128,27 +137,33 @@ def shape_problem(value: object, shape: object, field: str) -> str | None:
         problems = (shape_problem(item, shape[0], f"{field}[{index}]") for index, item in enumerate(value))
         return next((problem for problem in problems if problem), None)
     if isinstance(shape, dict):
-        if not isinstance(value, dict):
-            return f"{field} must be an object"
-        for key, inner in shape.items():
-            if key == "*":
-                problems = (shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
-            else:
-                name = key.rstrip("?")
-                if name not in value:
-                    if key.endswith("?"):
-                        continue
-                    return f"{field}.{name} is missing" if field else f"{name} is missing"
-                problems = iter([shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
-            problem = next((problem for problem in problems if problem), None)
-            if problem:
-                return problem
-        return None
+        return _dict_shape_problem(value, shape, field)
     if shape is int:
         return None if type(value) is int else f"{field} must be a whole number"
     if shape is str:
         return None if isinstance(value, str) else f"{field} must be text"
     return None if isinstance(value, cast(type, shape)) else f"{field} must be {'an object' if shape is dict else 'a list'}"
+
+
+def _dict_shape_problem(value: object, shape: dict, field: str) -> str | None:
+    """Where value departs from an object shape: a missing key, or the first of its fields that departs."""
+    problems: Iterator[str | None]
+    if not isinstance(value, dict):
+        return f"{field} must be an object"
+    for key, inner in shape.items():
+        if key == "*":
+            problems = (shape_problem(item, inner, f"{field}.{name}") for name, item in value.items())
+        else:
+            name = key.rstrip("?")
+            if name not in value:
+                if key.endswith("?"):
+                    continue
+                return f"{field}.{name} is missing" if field else f"{name} is missing"
+            problems = iter([shape_problem(value[name], inner, f"{field}.{name}" if field else name)])
+        problem = next((problem for problem in problems if problem), None)
+        if problem:
+            return problem
+    return None
 
 
 def task_record_problem(task: dict) -> str | None:
@@ -193,4 +208,6 @@ def validate_brief(brief: str) -> str:
     brief = brief.strip()
     if not brief:
         raise ValueError("Supply a task brief.")
+    from .sensitive import redact_credentials  # Only a new brief needs it: the edit hook reads records (#539).
+
     return redact_credentials(brief)

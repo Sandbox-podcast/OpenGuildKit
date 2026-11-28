@@ -1,5 +1,9 @@
 """The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass,
-submit, progress, review, deliberate, respond and challenge, with the input files they read."""
+submit, progress, review, deliberate, respond and challenge, with the input files they read.
+
+Entry: run_consult, run_route, run_pass, run_review, input_file
+Tests: tests/test_brain_knowledge.py
+"""
 
 import sys
 from contextlib import contextmanager
@@ -7,9 +11,9 @@ from pathlib import Path
 
 from . import short_lane
 from .alerts import load_register
+from .board_brief import board_brief, pack_rules
 from .brains import BriefKnowledge, consultation_context
-from .catalog import board_replacements
-from .consultation import board_brief, pack_rules
+from .catalog_queries import board_replacements
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -22,7 +26,8 @@ from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json
-from .tasks import last_approval, read_task, task_path, write_task
+from .task_files import read_task, task_path
+from .tasks import last_approval, write_task
 from .tasks_closing import record_deliberation
 from .tasks_command import TaskCommand
 from .tasks_record import board_brief_problem
@@ -39,7 +44,9 @@ from .tasks_review import (
 )
 from .tasks_status import passes_left
 from .terminal import interactive
-from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
+from .tool_connections import connected_tools
+from .tool_registry import load_tools
+from .tools import match_tools, tool_evidence_warnings
 from .workflow import RESOLUTION_RULE, TaskStateError, challenge_report, deliberation_request, nothing_to_deliberate
 
 

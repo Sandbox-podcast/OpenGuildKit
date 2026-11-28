@@ -8,6 +8,10 @@ blockers, the person's sealed decision, the handoff, the checks, the results, th
 Everything here is a pure function of paths and records, so that every reader asks the same questions: which paths
 are never in the lane, what a path in the profile or in a task may be, and which board a set of paths calls for. A glob
 matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole segment that crosses folders.
+
+Entry: excluded_reason, declared_excluded, normalize_entries, matches, covers, declare, board_for, default_answers,
+proposed_routing, lane_problem, files_outside
+Tests: tests/e2e/test_short_lane.py
 """
 
 import re

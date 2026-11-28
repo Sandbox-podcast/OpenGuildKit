@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import patterns_to_review, recommend_patterns, technology_version
 from openguildkit.project import validate_profile

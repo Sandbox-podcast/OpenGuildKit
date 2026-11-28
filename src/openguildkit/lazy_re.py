@@ -4,6 +4,9 @@ A command imports many more modules than it runs code of, and compiling each mod
 about 10 ms per command (#539). compile() gives an object that stands for the pattern: it compiles the pattern the
 first time one of its attributes is read, then keeps each attribute it hands out, so later calls cost what calls on
 a compiled pattern cost. Use its methods (search, match, sub, finditer...); do not pass it to the functions of re.
+
+Entry: compile
+Tests: tests/test_performance.py, tests/test_routing.py, tests/test_sensitive.py
 """
 
 import re

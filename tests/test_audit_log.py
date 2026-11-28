@@ -369,7 +369,7 @@ class SealTests(AuditCase):
         path = self.root / self.run_cli("task", "export", TASK)[0].strip()
         record = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(record["decision"]["payload"]["signed_at"], signing_time_of(task["decision"]["at"]))
-        from openguildkit.guard import _record_fault
+        from openguildkit.guard_records import _record_fault
 
         self.assertIsNone(_record_fault(record, "r.json", self.fingerprint(), {"mode": "local"}, self.root, {}))
         record["decision"]["at"] = "2024-01-01T00:00:00+00:00"

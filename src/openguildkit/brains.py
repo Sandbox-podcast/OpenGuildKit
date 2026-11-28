@@ -3,6 +3,9 @@
 A brain's knowledge is assembled from the catalog instead of being copied into each board:
 the patterns whose roles name the brain, the packs those patterns apply, and the references
 tagged with the brain. The consultation carries this knowledge to each selected brain.
+
+Entry: brain_knowledge, knowledge_gaps, consultation_context, brief_knowledge, brain_skeleton, write_brain_skeleton
+Tests: tests/test_new_brains.py
 """
 
 import json

@@ -1,21 +1,25 @@
 """The task actions after the approval: checks, verify, result, complete, runs, export, handoff and diff-review, with
-the declarations that a check command cannot run."""
+the declarations that a check command cannot run.
+
+Entry: run_checks, run_outcome, run_export, run_handoff, run_diff_review
+Tests: tests/test_closing_points.py, tests/test_evidence_fingerprints.py, tests/test_results.py
+"""
 
 import sys
 from pathlib import Path
 
 from . import delivered_review, short_lane
 from .alerts import blocking_alerts, load_register
+from .approval_check import DONE_STATUSES
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
-from .guard import changes_since_approval, export_decision, export_withdrawal, untracked_files
+from .guard_export import changes_since_approval, export_decision, export_withdrawal, untracked_files
+from .handoff import handoff
 from .lock import require_instructions
 from .project import STATE_DIR
 from .relevance import changed_files, pack_relevance
+from .result_form import SUPPLY, SUPPLY_OR_NOT_APPLICABLE, result_template
 from .results import (
-    DONE_STATUSES,
-    SUPPLY,
-    SUPPLY_OR_NOT_APPLICABLE,
     answers_to_report,
     chaosfolk_checks,
     compare_runs,
@@ -28,13 +32,13 @@ from .results import (
     keep_declarations,
     missing_scenarios,
     outcomes,
-    result_template,
     run_command_checks,
     set_aside_rules,
 )
 from .sensitive import redact_data
 from .storage import print_json, project_lock, read_json, write_json
-from .tasks import read_task, task_path, waiting_for, waits_line, write_task
+from .task_files import read_task, task_path
+from .tasks import waiting_for, waits_line, write_task
 from .tasks_blockers import verification_blocker_problems
 from .tasks_closing import SENSITIVE_GROUP, complete_task, defer_evidence, points_left_open, record_result
 from .tasks_command import TaskCommand
@@ -44,7 +48,7 @@ from .tasks_record import timestamp
 from .tasks_review import cited_evidence
 from .terminal import interactive, typed
 from .wording import plural
-from .workflow import TaskStateError, handoff, is_decision_task
+from .workflow import TaskStateError, is_decision_task
 
 
 def _relevance(root: Path, task: dict, profile: dict, catalog: dict, every: bool = False) -> dict:
@@ -281,6 +285,72 @@ def run_result_template(command: TaskCommand) -> None:
         print(decision_revision_message(changed), file=sys.stderr)
 
 
+def _verify_payload(args, root: Path, state: Path, task: dict, profile: dict, relevance: dict,
+                    decision: bool) -> tuple[dict, list[str]]:
+    """What task verify records: the revision and the checks run, declared cannot-run, withdrawn or imported from
+    a ChaosFolk replay; and the notes on the declarations kept."""
+    payload: dict = {}
+    notes: list[str] = []
+    if not decision:
+        revision = git_revision(root)
+        payload["revision"] = revision["commit"] if revision else "working tree"
+    if decision and args.chaosfolk:
+        raise ValueError("ChaosFolk replays are for implementation tasks.")
+    if args.chaosfolk and (args.cannot_run or args.withdraw):
+        raise ValueError("--cannot-run and --withdraw concern a check command: run them without --chaosfolk.")
+    if args.cannot_run:
+        payload["checks"] = [_cannot_run(args, root, state, task, profile, relevance)]
+    elif args.withdraw:
+        payload["checks"] = [_withdraw(args, root, state, task, profile, relevance)]
+    elif args.chaosfolk:
+        imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
+        payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
+    elif not decision:
+        payload["checks"], notes = keep_declarations(
+            task, run_command_checks(root, state, task, profile, relevance=relevance))
+    return payload, notes
+
+
+def _print_export_next(state: Path, task_id: str) -> None:
+    """After task complete: commit the work, then export the decision record again."""
+    exported = (state / DECISIONS_DIR / f"{task_id}.json").is_file()
+    print(f"OpenGuildKit: commit the work (git add, git commit), then "
+          f"{'export the decision record again' if exported else 'export the decision record'} so it says the "
+          f"task is completed, and commit it: openguildkit task export {task_id}. The record lists the files Git "
+          "tracks, so a new file left out of Git is in no record. guard --ci accepts it with the work, or in a "
+          "pull request of its own once the approval's record is merged: the same approval, with its completion "
+          "added.", file=sys.stderr)
+
+
+def _print_recorded(result: dict, profile: dict, held: list, decision: bool, task_id: str) -> None:
+    """Print what the result recorded: the answers held back, each check and its status, the missing replays, the
+    checks waiting for someone, the criteria and the warnings."""
+    kept = {item["check"] for item in result["result"]["checks"]}
+    for item in held:
+        earlier = " The earlier answer stays recorded." if item["check"] in kept else ""
+        print(f"Not recorded: {item['message']}{earlier}", file=sys.stderr)
+    machine = {check["id"] for check in expected_checks(result, profile) if check["kind"] == "machine"}
+    for item in result["result"]["checks"]:
+        print(f"{item['check']}: {item['status']}")
+        if item["status"] == "failed" and item.get("message"):
+            print(f"    {item['message']}")
+        elif item.get("cannot_run"):
+            print(f"    Cannot run here, declared by {item['owner']}: {item['reason']}")
+        elif item["check"] in machine and item.get("evidence"):
+            # What the check found or did not find: the rule's own sentence reads the same either way.
+            print(f"    {item['evidence']}")
+    for name in (() if decision else missing_scenarios(result)):
+        print(f"chaosfolk:{name}: missing")
+    for item in result["result"].get("waiting_for", []):
+        print(f"Waiting for {item['check']}: {item['title']}, provided by {item['owner']} (required because "
+              f"{item['why']}). Ask them for it, or hand it to a follow-up task: task complete {task_id} "
+              f"--defer {item['check']}=FOLLOW-UP --by INITIALS.")
+    if criteria_summary(result["result"]):
+        print(criteria_summary(result["result"]))
+    for warning in result["result"].get("warnings", []):
+        print(f"Warning: {warning}", file=sys.stderr)
+
+
 def run_outcome(command: TaskCommand) -> int | None:
     """Run the checks, record a result file, or close the task; then what is left before it is done."""
     args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
@@ -294,24 +364,7 @@ def run_outcome(command: TaskCommand) -> int | None:
     relevance = _relevance(root, task, profile, catalog, getattr(args, "all", False))
     notes: list[str] = []
     if action == "verify":
-        payload = {}
-        if not decision:
-            revision = git_revision(root)
-            payload["revision"] = revision["commit"] if revision else "working tree"
-        if decision and args.chaosfolk:
-            raise ValueError("ChaosFolk replays are for implementation tasks.")
-        if args.chaosfolk and (args.cannot_run or args.withdraw):
-            raise ValueError("--cannot-run and --withdraw concern a check command: run them without --chaosfolk.")
-        if args.cannot_run:
-            payload["checks"] = [_cannot_run(args, root, state, task, profile, relevance)]
-        elif args.withdraw:
-            payload["checks"] = [_withdraw(args, root, state, task, profile, relevance)]
-        elif args.chaosfolk:
-            imported = chaosfolk_checks(root, args.chaosfolk, args.tool_version)
-            payload.update(checks=imported["checks"], run={**imported["run"], "at": timestamp()})
-        elif not decision:
-            payload["checks"], notes = keep_declarations(
-                task, run_command_checks(root, state, task, profile, relevance=relevance))
+        payload, notes = _verify_payload(args, root, state, task, profile, relevance, decision)
     elif action == "complete":
         closing = _closing(args, state, task, profile, relevance, root, changed)
     with project_lock(state):
@@ -333,40 +386,11 @@ def run_outcome(command: TaskCommand) -> int | None:
         print(f"OpenGuildKit: {warning}", file=sys.stderr)
     if action == "complete":
         _print_closing(result, listed=bool(args.by))
-        exported = (state / DECISIONS_DIR / f"{args.id}.json").is_file()
-        print(f"OpenGuildKit: commit the work (git add, git commit), then "
-              f"{'export the decision record again' if exported else 'export the decision record'} so it says the "
-              f"task is completed, and commit it: openguildkit task export {args.id}. The record lists the files Git "
-              "tracks, so a new file left out of Git is in no record. guard --ci accepts it with the work, or in a "
-              "pull request of its own once the approval's record is merged: the same approval, with its completion "
-              "added.", file=sys.stderr)
+        _print_export_next(state, args.id)
         return None
     for line in notes:
         print(line)
-    kept = {item["check"] for item in result["result"]["checks"]}
-    for item in held:
-        earlier = " The earlier answer stays recorded." if item["check"] in kept else ""
-        print(f"Not recorded: {item['message']}{earlier}", file=sys.stderr)
-    machine = {check["id"] for check in expected_checks(result, profile) if check["kind"] == "machine"}
-    for item in result["result"]["checks"]:
-        print(f"{item['check']}: {item['status']}")
-        if item["status"] == "failed" and item.get("message"):
-            print(f"    {item['message']}")
-        elif item.get("cannot_run"):
-            print(f"    Cannot run here, declared by {item['owner']}: {item['reason']}")
-        elif item["check"] in machine and item.get("evidence"):
-            # What the check found or did not find: the rule's own sentence reads the same either way.
-            print(f"    {item['evidence']}")
-    for name in (() if decision else missing_scenarios(result)):
-        print(f"chaosfolk:{name}: missing")
-    for item in result["result"].get("waiting_for", []):
-        print(f"Waiting for {item['check']}: {item['title']}, provided by {item['owner']} (required because "
-              f"{item['why']}). Ask them for it, or hand it to a follow-up task: task complete {args.id} "
-              f"--defer {item['check']}=FOLLOW-UP --by INITIALS.")
-    if criteria_summary(result["result"]):
-        print(criteria_summary(result["result"]))
-    for warning in result["result"].get("warnings", []):
-        print(f"Warning: {warning}", file=sys.stderr)
+    _print_recorded(result, profile, held, decision, args.id)
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 

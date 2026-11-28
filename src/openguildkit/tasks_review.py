@@ -1,5 +1,10 @@
 """The consultation and the boards' review of a task: recording them, the rounds kept when it is consulted again,
-the sequential passes, and the text a person reads before deciding."""
+the sequential passes, and the text a person reads before deciding.
+
+Entry: record_consultation, record_review, start_pass, submit_pass, assemble_review, decision_text
+Tests: tests/test_approval_lifecycle.py, tests/test_blocker_clearances.py, tests/test_blockers.py,
+tests/test_deliberation.py
+"""
 
 from collections.abc import Mapping
 from pathlib import Path
@@ -7,22 +12,16 @@ from typing import cast
 
 from . import requester, short_lane
 from .alerts import resolution_line, resolved_by_import
-from .consultation import code_lookup, consult
+from .approval_check import approval_problem
+from .board_entries import review_warnings, validate_board_entry, validate_review
+from .code_lookup import code_lookup
+from .consultation import consult
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
 from .sensitive import redact_data
-from .tasks_approval import approval_problem, decided_message, stale_review_message
-from .tasks_record import timestamp, validate_brief
-from .workflow import (
-    RESOLUTION_FIELDS,
-    TaskStateError,
-    blocker_resolutions,
-    decision_summary,
-    is_decision_task,
-    review_warnings,
-    validate_board_entry,
-    validate_review,
-)
+from .tasks_approval import decided_message, stale_review_message
+from .tasks_record import RESOLUTION_FIELDS, timestamp, validate_brief
+from .workflow import TaskStateError, blocker_resolutions, decision_summary, is_decision_task
 
 
 def cited_evidence(task: dict) -> list[str]:

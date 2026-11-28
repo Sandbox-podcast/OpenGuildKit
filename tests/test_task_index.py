@@ -11,7 +11,6 @@ from unittest.mock import patch
 from openguildkit import guard, task_index, tasks
 from openguildkit.results import evidence_fingerprint
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, run_cli
 from tests.test_performance import close_and_export
 
@@ -57,7 +56,7 @@ class TaskIndexTests(CapturedCli, unittest.TestCase):
 
     def read_ids(self):
         """The covered tasks, and the task records the guard opened to find them (to check one, or for its status)."""
-        with patch("openguildkit.guard._read_task", wraps=guard._read_task) as reader, \
+        with patch("openguildkit.guard.read_task_lazily", wraps=guard.read_task_lazily) as reader, \
                 patch("openguildkit.task_index._record_status", wraps=task_index._record_status) as status:
             covered = self.covered()
         opened = {call.args[1] for call in reader.call_args_list} | {call.args[0].stem for call in status.call_args_list}

@@ -3,6 +3,9 @@ then apply the project's required boards and the requester's changes.
 
 Routing changes with each edition of the catalog's triggers; the consultation (consultation.py) and the rest of
 the workflow read its result.
+
+Entry: normalize_text, normalize_with_offsets, trigger_pattern, scan_triggers, trigger_matches, task_concepts
+Tests: tests/test_short_lane.py
 """
 
 import re

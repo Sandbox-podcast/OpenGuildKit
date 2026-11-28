@@ -3,6 +3,9 @@
 The sources are read with text patterns and the standard library, not a JavaScript parser: React function
 components with their props, literal defaults and string-union prop types, the export aliases and re-exports of
 index files, and CSS and SCSS stylesheets. Each item keeps the file and line it comes from.
+
+Entry: normalize_color, extract
+Tests: tests/test_storybook_extract.py
 """
 
 import json
@@ -440,24 +443,7 @@ def _scan_components(label: str, path: Path, text: str, definitions: dict, usage
             export, public = _export_of(name, prefix, exported.get(name, []))
             if not export or not has_jsx or name in definitions:
                 continue
-            props = _destructured_props(code, match.end())
-            if props is not None:
-                members = _props_type(code, _closing(code, code.index("{", match.end())) + 1, match.group(0))
-                destructured = {prop["name"] for prop in props}
-                props.extend({"name": member} for member, (_, required) in members.items()
-                             if required and member not in destructured)
-                for prop in props:
-                    annotation, required = members.get(prop["name"], ("", False))
-                    options = _string_union(code, annotation)
-                    if options:
-                        prop["options"] = options
-                    if required:
-                        prop["required"] = True
-                        known, value = _sample_arg(code, prop["name"], annotation)
-                        if known:
-                            prop["sample"] = value
-                        elif _callback_type(annotation):
-                            prop["callback"] = True
+            props = _component_props(code, match)
             definitions[name] = {
                 "name": name, "file": label, "line": _line_of(starts, match.start(2)),
                 "export": export, "props": props if props is not None else [],
@@ -470,22 +456,52 @@ def _scan_components(label: str, path: Path, text: str, definitions: dict, usage
     for match in _TAG.finditer(code):
         if match.start() > 0 and (code[match.start() - 1].isalnum() or code[match.start() - 1] in "_$).]"):
             continue
-        attributes, _, closes = _tag_attributes(code, match.end())
-        if attributes is None:
-            continue
-        name = match.group(1)
-        usage = usages.setdefault(name, {"count": 0, "origins": [], "with_children": 0, "props": {}, "calls": []})
-        usage["count"] += 1
-        origin = _origin(label, _line_of(starts, match.start()))
-        usage["origins"].append(origin)
-        usage["with_children"] += not closes
-        literals = {}
-        for prop, known, value in attributes:
-            entry = usage["props"].setdefault(prop, {"literal": 0, "dynamic": 0})
-            entry["literal" if known else "dynamic"] += 1
+        _count_usage(label, code, starts, match, usages)
+
+
+def _component_props(code: str, match: re.Match) -> list[dict] | None:
+    """The props a component definition destructures, with the required members of its props type added, each with
+    its options, whether it is required, and a sample or callback mark; None when it destructures none."""
+    props = _destructured_props(code, match.end())
+    if props is None:
+        return None
+    members = _props_type(code, _closing(code, code.index("{", match.end())) + 1, match.group(0))
+    destructured = {prop["name"] for prop in props}
+    props.extend({"name": member} for member, (_, required) in members.items()
+                 if required and member not in destructured)
+    for prop in props:
+        annotation, required = members.get(prop["name"], ("", False))
+        options = _string_union(code, annotation)
+        if options:
+            prop["options"] = options
+        if required:
+            prop["required"] = True
+            known, value = _sample_arg(code, prop["name"], annotation)
             if known:
-                literals[prop] = value
-        usage["calls"].append((origin, literals, [prop for prop, _, _ in attributes]))
+                prop["sample"] = value
+            elif _callback_type(annotation):
+                prop["callback"] = True
+    return props
+
+
+def _count_usage(label: str, code: str, starts: list, match: re.Match, usages: dict) -> None:
+    """Count one JSX tag of a component in usages: where, with children or not, and its literal or dynamic props."""
+    attributes, _, closes = _tag_attributes(code, match.end())
+    if attributes is None:
+        return
+    name = match.group(1)
+    usage = usages.setdefault(name, {"count": 0, "origins": [], "with_children": 0, "props": {}, "calls": []})
+    usage["count"] += 1
+    origin = _origin(label, _line_of(starts, match.start()))
+    usage["origins"].append(origin)
+    usage["with_children"] += not closes
+    literals = {}
+    for prop, known, value in attributes:
+        entry = usage["props"].setdefault(prop, {"literal": 0, "dynamic": 0})
+        entry["literal" if known else "dynamic"] += 1
+        if known:
+            literals[prop] = value
+    usage["calls"].append((origin, literals, [prop for prop, _, _ in attributes]))
 
 
 def _variant_prop(prop: str, options: list[str] | None = None) -> bool:
@@ -621,39 +637,50 @@ def _scan_styles(label: str, path: Path, text: str, tokens: dict, variables: dic
             for variable in _SCSS_VAR.findall(value):
                 variables.setdefault(f"${variable}", []).append(origin)
         if prop.startswith(("--", "$")):
-            hint = prop.lstrip("-$")
-            colors = _COLOR.findall(value)
-            lengths = _LENGTH.findall(value)
-            if len(colors) == 1 and _COLOR.fullmatch(value) and normalize_color(colors[0]):
-                add("color", normalize_color(colors[0]), origin, prop)
-            elif len(lengths) == 1 and _LENGTH.fullmatch(value) and _length(*lengths[0]):
-                add(_dimension_kind(hint), _length(*lengths[0]), origin, prop)
-            elif "family" in hint.casefold() or ("," in value and not colors and "(" not in value):
-                add("font-family", ", ".join(part.strip() for part in value.split(",")), origin, prop)
-            else:
-                add("other", f"{prop}: {value}", origin, prop)
+            _custom_property_token(prop, value, origin, add)
             continue
-        name = prop.casefold()
         if "var(" in value and not _COLOR.search(value) and not _LENGTH.search(value):
             continue
-        for color in _COLOR.findall(value):
-            normalized = normalize_color(color)
-            if normalized:
-                add("color", normalized, origin)
-        if name == "font-size":
-            for number, unit in _LENGTH.findall(value):
-                if _length(number, unit):
-                    add("font-size", _length(number, unit), origin)
-        elif name == "font-family" and "var(" not in value:
-            add("font-family", ", ".join(part.strip() for part in value.split(",")), origin)
-        elif name.startswith(("margin", "padding")) or name in ("gap", "row-gap", "column-gap"):
-            for number, unit in _LENGTH.findall(value):
-                if _length(number, unit):
-                    add("spacing", _length(number, unit), origin)
-        elif name.endswith("radius"):
-            for number, unit in _LENGTH.findall(value):
-                if _length(number, unit):
-                    add("radius", _length(number, unit), origin)
+        _declaration_tokens(prop.casefold(), value, origin, add)
+
+
+def _custom_property_token(prop: str, value: str, origin: str, add) -> None:
+    """The token candidate a custom property or SCSS variable defines: a color, a dimension, a font family or
+    other."""
+    hint = prop.lstrip("-$")
+    colors = _COLOR.findall(value)
+    lengths = _LENGTH.findall(value)
+    if len(colors) == 1 and _COLOR.fullmatch(value) and normalize_color(colors[0]):
+        add("color", normalize_color(colors[0]), origin, prop)
+    elif len(lengths) == 1 and _LENGTH.fullmatch(value) and _length(*lengths[0]):
+        add(_dimension_kind(hint), _length(*lengths[0]), origin, prop)
+    elif "family" in hint.casefold() or ("," in value and not colors and "(" not in value):
+        add("font-family", ", ".join(part.strip() for part in value.split(",")), origin, prop)
+    else:
+        add("other", f"{prop}: {value}", origin, prop)
+
+
+def _declaration_tokens(name: str, value: str, origin: str, add) -> None:
+    """The token candidates the literal values of one declaration carry: its colors, then its font size, font
+    family, spacing or radius."""
+    for color in _COLOR.findall(value):
+        normalized = normalize_color(color)
+        if normalized:
+            add("color", normalized, origin)
+    if name == "font-size":
+        kind = "font-size"
+    elif name == "font-family" and "var(" not in value:
+        add("font-family", ", ".join(part.strip() for part in value.split(",")), origin)
+        return
+    elif name.startswith(("margin", "padding")) or name in ("gap", "row-gap", "column-gap"):
+        kind = "spacing"
+    elif name.endswith("radius"):
+        kind = "radius"
+    else:
+        return
+    for number, unit in _LENGTH.findall(value):
+        if _length(number, unit):
+            add(kind, _length(number, unit), origin)
 
 
 def _confidence(count: int, basis: str = "code") -> str:
@@ -662,6 +689,77 @@ def _confidence(count: int, basis: str = "code") -> str:
 
 def _capped(origins: list[str], limit: int = 20) -> list[str]:
     return list(dict.fromkeys(origins))[:limit]
+
+
+def _used_variants(name: str, definition: dict, calls: list, variants: dict) -> None:
+    """Count in variants the visual states each scanned use of a component sets, by a literal prop or by a default
+    it leaves."""
+    defaults = {prop["name"]: prop["default"] for prop in definition["props"] if "default" in prop}
+    options = {prop["name"]: prop["options"] for prop in definition["props"] if "options" in prop}
+    for origin, literals, given in calls:
+        found = []
+        for prop, value in literals.items():
+            if not _variant_prop(prop, options.get(prop)):
+                continue
+            if value is True or (isinstance(value, str) and (
+                    _VARIANT_VALUE.fullmatch(value) or
+                    (value in options.get(prop, []) and _TYPED_VARIANT.fullmatch(value)))):
+                found.append((prop, value, "usage"))
+        for prop, value in defaults.items():
+            if prop not in given and _variant_prop(prop, options.get(prop)) and isinstance(value, str) \
+                    and _VARIANT_VALUE.fullmatch(value):
+                found.append((prop, value, "default"))
+        for prop, value, basis in found:
+            key = f"{name}:{prop}={json.dumps(value)}"
+            item = variants.setdefault(key, {
+                "key": key, "component": name, "props": {prop: value}, "occurrences": 0, "origins": [],
+                "basis": basis})
+            item["occurrences"] += 1
+            item["origins"].append(origin)
+            if basis == "usage":
+                item["basis"] = "usage"
+
+
+def _typed_variants(name: str, definition: dict, variants: dict) -> None:
+    """Values a typed string union allows, and the other value of a boolean with a default, unseen in the
+    scanned uses: states to confirm on the screens."""
+    for prop in definition["props"]:
+        if not _variant_prop(prop["name"], prop.get("options")):
+            continue
+        if isinstance(prop.get("default"), bool):
+            key = f"{name}:{prop['name']}={json.dumps(not prop['default'])}"
+            variants.setdefault(key, {
+                "key": key, "component": name, "props": {prop["name"]: not prop["default"]}, "occurrences": 0,
+                "origins": [_origin(definition["file"], definition["line"])], "basis": "type"})
+        for value in prop.get("options", []):
+            key = f"{name}:{prop['name']}={json.dumps(value)}"
+            if _TYPED_VARIANT.fullmatch(value) and key not in variants:
+                variants[key] = {
+                    "key": key, "component": name, "props": {prop["name"]: value}, "occurrences": 0,
+                    "origins": [_origin(definition["file"], definition["line"])],
+                    "basis": "default" if prop.get("default") == value else "type"}
+
+
+def _scan_source(label: str, path: Path, text: str, scanned: dict, components: tuple, styles: tuple) -> None:
+    """Scan one source file by its suffix: a component module, a module that may re-export, or a style sheet."""
+    if path.suffix in (".tsx", ".jsx"):
+        scanned["components"] += 1
+        _scan_components(label, path, text, *components)
+    elif path.suffix in (".ts", ".js"):
+        _scan_reexports(path, text, components[3])
+    else:
+        scanned["styles"] += 1
+        _scan_styles(label, path, text, *styles)
+
+
+def _token_list(tokens: dict) -> list[dict]:
+    """The token candidates by kind, the most frequent first, each with its capped origins and its confidence."""
+    token_list = []
+    for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["key"])):
+        token["origins"] = _capped(token["origins"])
+        token["confidence"] = _confidence(token["occurrences"])
+        token_list.append(token)
+    return token_list
 
 
 def extract(root: Path, sources: list[Path], previews: list[Path] | None = None, today: date | None = None) -> dict:
@@ -678,14 +776,7 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         label = _file_label(root, base, path)
-        if path.suffix in (".tsx", ".jsx"):
-            scanned["components"] += 1
-            _scan_components(label, path, text, definitions, usages, modules, reexports)
-        elif path.suffix in (".ts", ".js"):
-            _scan_reexports(path, text, reexports)
-        else:
-            scanned["styles"] += 1
-            _scan_styles(label, path, text, tokens, variables)
+        _scan_source(label, path, text, scanned, (definitions, usages, modules, reexports), (tokens, variables))
     aliases = _aliases(definitions, modules, reexports)
     # A custom property counts once where it is defined and once per var() that uses it.
     for token in tokens.values():
@@ -700,58 +791,15 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
             "usages": usage["count"], "origins": _capped(usage["origins"]),
             "confidence": _confidence(usage["count"]),
         })
-        defaults = {prop["name"]: prop["default"] for prop in definition["props"] if "default" in prop}
-        options = {prop["name"]: prop["options"] for prop in definition["props"] if "options" in prop}
-        for origin, literals, given in usage["calls"]:
-            found = []
-            for prop, value in literals.items():
-                if not _variant_prop(prop, options.get(prop)):
-                    continue
-                if value is True or (isinstance(value, str) and (
-                        _VARIANT_VALUE.fullmatch(value) or
-                        (value in options.get(prop, []) and _TYPED_VARIANT.fullmatch(value)))):
-                    found.append((prop, value, "usage"))
-            for prop, value in defaults.items():
-                if prop not in given and _variant_prop(prop, options.get(prop)) and isinstance(value, str) \
-                        and _VARIANT_VALUE.fullmatch(value):
-                    found.append((prop, value, "default"))
-            for prop, value, basis in found:
-                key = f"{name}:{prop}={json.dumps(value)}"
-                item = variants.setdefault(key, {
-                    "key": key, "component": name, "props": {prop: value}, "occurrences": 0, "origins": [],
-                    "basis": basis})
-                item["occurrences"] += 1
-                item["origins"].append(origin)
-                if basis == "usage":
-                    item["basis"] = "usage"
-        # Values a typed string union allows, and the other value of a boolean with a default, unseen in the
-        # scanned uses: states to confirm on the screens.
-        for prop in definition["props"]:
-            if not _variant_prop(prop["name"], prop.get("options")):
-                continue
-            if isinstance(prop.get("default"), bool):
-                key = f"{name}:{prop['name']}={json.dumps(not prop['default'])}"
-                variants.setdefault(key, {
-                    "key": key, "component": name, "props": {prop["name"]: not prop["default"]}, "occurrences": 0,
-                    "origins": [_origin(definition["file"], definition["line"])], "basis": "type"})
-            for value in prop.get("options", []):
-                key = f"{name}:{prop['name']}={json.dumps(value)}"
-                if _TYPED_VARIANT.fullmatch(value) and key not in variants:
-                    variants[key] = {
-                        "key": key, "component": name, "props": {prop["name"]: value}, "occurrences": 0,
-                        "origins": [_origin(definition["file"], definition["line"])],
-                        "basis": "default" if prop.get("default") == value else "type"}
+        _used_variants(name, definition, usage["calls"], variants)
+        _typed_variants(name, definition, variants)
     for item in variants.values():
         item["origins"] = _capped(item["origins"])
         item["confidence"] = _confidence(item["occurrences"])
     aliased = {alias for names in aliases.values() for alias in names}
     external = [{"name": name, "usages": usage["count"]} for name, usage in sorted(usages.items())
                 if name not in definitions and name not in aliased and len(name) > 1]
-    token_list = []
-    for token in sorted(tokens.values(), key=lambda item: (item["kind"], -item["occurrences"], item["key"])):
-        token["origins"] = _capped(token["origins"])
-        token["confidence"] = _confidence(token["occurrences"])
-        token_list.append(token)
+    token_list = _token_list(tokens)
     inventory = {
         "schema_version": 1,
         "extracted": today.isoformat(),

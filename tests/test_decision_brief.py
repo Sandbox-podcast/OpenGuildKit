@@ -7,13 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.board_entries import validate_review
 from openguildkit.catalog import load_catalog
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import resolved_profile
-from openguildkit.storage import write_json
 from openguildkit.routing import select_boards
-from openguildkit.workflow import validate_review
-
+from openguildkit.storage import write_json
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

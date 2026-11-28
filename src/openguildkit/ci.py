@@ -1,4 +1,8 @@
-"""Read versioned evidence from Git and evaluate the central policy's field check on it."""
+"""Read versioned evidence from Git and evaluate the central policy's field check on it.
+
+Entry: read_policy_pack, check_export
+Tests: tests/e2e/test_export_ci.py
+"""
 
 import re
 from pathlib import Path
@@ -9,7 +13,6 @@ from .project_instructions import rule_text
 from .project_rules import profile_fingerprint, resolved_profile
 from .rule_checks import compare_field, parse_fields
 from .storage import parse_json
-
 
 POLICY_PATH = f"packs/{EXPORT_EXPIRY_ID}.json"
 ORG_POLICY = "policy.json"  # org_policy.py

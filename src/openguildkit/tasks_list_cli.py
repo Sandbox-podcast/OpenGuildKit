@@ -1,16 +1,21 @@
 """The task actions that read the tasks: list, show and retro, with the exported records of a teammate and the
-warnings on what the team does not share."""
+warnings on what the team does not share.
+
+Entry: run_list, run_show, run_retro, sharing_issues
+Tests: tests/test_next_steps.py, tests/test_retro.py, tests/test_task_index.py
+"""
 
 import sys
 from pathlib import Path
 
+from .approval_check import DONE_STATUSES
 from .clock import today
 from .decisions import DECISIONS_DIR, export_digest, exported_records, ignored_by_git
 from .doc_links import doc_link
-from .guard import exported_decisions, record_of_another_task
+from .guard_export import record_of_another_task
+from .guard_records import exported_decisions
 from .project import STATE_DIR
 from .project_rules import Fingerprints
-from .results import DONE_STATUSES
 from .retro import (
     DEFAULT_MINIMUM,
     draft_pack,
@@ -24,7 +29,8 @@ from .retro import (
     write_draft,
 )
 from .storage import print_json, read_json
-from .tasks import list_tasks, read_task, task_path
+from .task_files import read_task, task_path
+from .tasks import list_tasks
 from .tasks_command import TaskCommand
 from .tasks_review import cited_evidence
 from .tasks_status import decision_words, next_step, state_refusal

@@ -13,7 +13,6 @@ from pathlib import Path
 from openguildkit import clock
 from openguildkit.market import dossier_gaps, due_sources, relevance_note, scope_entry, validate_dossier
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]

@@ -2,21 +2,76 @@
 
 import ast
 import inspect
+import json
+import math
+import subprocess
 import unittest
 from pathlib import Path
 
 from openguildkit import (
-    alerts_cli, market_cli, profile_cli, projects_cli, storybook_cli, tasks_cli, tools_cli, trace_cli,
+    alerts_cli,
+    market_cli,
+    profile_cli,
+    projects_cli,
+    storybook_cli,
+    tasks_cli,
+    tools_cli,
+    trace_cli,
 )
 
 REPO = Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "src" / "openguildkit"
-MAX_MODULE_LINES = 2000
+# Issue #486: the code of the repository in files a reader can open whole. A file above MAX_FILE_BYTES is listed in
+# tests/byte_budget.json with its size rounded up to the thousand as its ceiling, which only goes down.
+MAX_FILE_BYTES = 40_000
+BUDGETED = ("src", "tests", "scripts", "web/src", "integrations/ci/lib")
+CODE_SUFFIXES = (".py", ".ts", ".tsx", ".mjs", ".js", ".css")
+BYTE_BUDGET = REPO / "tests" / "byte_budget.json"
 MAX_CLI_LINES = 1500
 MAX_CLI_FUNCTION_LINES = 120
 # Top-level function names that more than one module of the package defines (#530): a name searched from its
 # command should lead to one function. Lower the ceiling when a copy goes; never raise it.
-MAX_SHARED_FUNCTION_NAMES = 68
+MAX_SHARED_FUNCTION_NAMES = 64
+# Issue #508: a function a reader can hold in mind, measured as scripts of the audit measure it. Length is its lines,
+# complexity counts one plus each branch (BRANCH, and each extra operand of and/or), nesting the deepest block of NEST
+# (an elif does not nest); a nested function, class or lambda counts for itself, not for its parent.
+MAX_FUNCTION_LINES = 80
+MAX_COMPLEXITY = 25
+MAX_NESTING = 4
+BRANCH = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.IfExp, ast.Assert, ast.comprehension,
+          ast.match_case)
+NEST = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try, ast.With, ast.AsyncWith, ast.Match)
+OWN_SCOPE = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+# The functions still above a threshold, with why. The list only shrinks: bring a function under every threshold
+# and remove its line; a new function above one fails, and so does a line whose function is now under them all.
+SHAPE_EXCEPTIONS = {
+    "cli.py:command_parser": "120 lines: the parser of every command, one add_parser call after another (#508)",
+    "project_setup.py:init_questions": "88 lines: the questions of init as one list of literals (#508)",
+    "catalog.py:_validate_pattern": "cc 32: checks each field of a catalog pattern in turn",
+    "code_lookup.py:code_lookup": "cc 26: the file and function names a bug brief cites, each searched",
+    "consultation.py:scope_lines": "cc 27: one optional line per field of the scope",
+    "detect.py:_parse": "cc 28: one branch per manifest format",
+    "detect.py:detect_stack": "cc 29: one branch per detected technology",
+    "detect_gradle.py:gradle_components": "cc 33: one pattern per form a Gradle build declares a version in",
+    "guard.py:guard_hook": "cc 31: the hook's decision for each host payload and guard mode",
+    "guard_export.py:record_shape": "cc 29: checks each field of an exported record in turn",
+    "mcp_mock.py:validate_mock": "cc 28: checks each part of a mock definition in turn",
+    "patterns.py:recommend_patterns": "cc 26: scores each pattern against the stack and the answers",
+    "profile_changes.py:export_answers": "cc 27: one answer per profile field",
+    "projects_cli.py:_print": "cc 29: the table of projects with each optional column",
+    "questionnaire.py:validate_answers": "cc 26: checks each answer by its question type",
+    "result_form.py:_check_entry": "cc 33: checks each field of a check outcome in turn",
+    "results.py:completion_problems": "cc 26: each condition task complete refuses",
+    "routing.py:scan_triggers": "cc 34: the trigger and exclusion passages of each board",
+    "routing.py:select_boards": "cc 34: each reason a board is selected or left out",
+    "surface_servers.py:configured_server": "cc 31: each finding about a configured MCP server",
+    "tasks.py:list_tasks": "cc 35: reads, judges and filters each task with the status index",
+    "tasks_blockers.py:resolve_blocker": "cc 32: checks a clearing or a waiver of a blocker in turn",
+    "tasks_consult_cli.py:_print_route": "cc 31: each part of the printed route",
+    "tasks_decide_cli.py:run_decide": "cc 30: each option of task decide",
+    "workflow.py:challenge_report": "cc 26: each line of the challenge report",
+    "workflow.py:validate_deliberation": "cc 29: checks each field of a deliberation in turn",
+}
 # The public names several modules define: the entry points every command module has, and the homonyms #530 lists
 # that are not merged yet. A public name added to two modules fails.
 SHARED_PUBLIC_NAMES = {
@@ -43,11 +98,70 @@ def imported_modules(tree: ast.Module, top_level: bool) -> set[str]:
     return found
 
 
+def code_sizes() -> dict[str, int]:
+    """The size in bytes of each tracked code file of BUDGETED, as committed: without the carriage returns of a
+    Windows checkout."""
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", *BUDGETED], capture_output=True, check=True)
+    names = [name for name in listed.stdout.decode("utf-8").split("\0") if name.endswith(CODE_SUFFIXES)]
+    return {name: len((REPO / name).read_bytes().replace(b"\r\n", b"\n")) for name in names if (REPO / name).is_file()}
+
+
+def own_nodes(function: ast.AST):
+    """The nodes of a function, without those of the functions, classes and lambdas it defines."""
+    stack = list(ast.iter_child_nodes(function))
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, OWN_SCOPE):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def complexity(function: ast.AST) -> int:
+    return 1 + sum(1 if isinstance(node, BRANCH) else len(node.values) - 1 if isinstance(node, ast.BoolOp) else 0
+                   for node in own_nodes(function))
+
+
+def nesting(node: ast.AST, level: int = 0) -> int:
+    best = level
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, OWN_SCOPE):
+            continue
+        if isinstance(child, ast.If) and isinstance(node, ast.If) and child in node.orelse and len(node.orelse) == 1:
+            best = max(best, nesting(child, level))  # elif does not nest
+        else:
+            best = max(best, nesting(child, level + isinstance(child, NEST)))
+    return best
+
+
+def functions(node: ast.AST, prefix: str = ""):
+    """Every function of a module by qualified name (Class.method, outer.inner), nested ones included."""
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield f"{prefix}{child.name}", child
+            yield from functions(child, f"{prefix}{child.name}.")
+        elif isinstance(child, ast.ClassDef):
+            yield from functions(child, f"{prefix}{child.name}.")
+        else:
+            yield from functions(child, prefix)
+
+
 class ModuleShapeTests(unittest.TestCase):
-    def test_no_module_of_the_package_passes_two_thousand_lines(self):
-        long = {path.name: count for path in PACKAGE.glob("*.py")
-                if (count := len(path.read_text(encoding="utf-8").splitlines())) > MAX_MODULE_LINES}
-        self.assertEqual(long, {})
+    def test_issue_486_no_code_file_passes_its_byte_budget(self):
+        """Issue #486: the only guard counted lines, and 16 modules passed 40 KB, tasks_cli.py at 94,758 bytes."""
+        budget = json.loads(BYTE_BUDGET.read_text(encoding="utf-8"))
+        over = {name: size for name, size in code_sizes().items() if size > budget.get(name, MAX_FILE_BYTES)}
+        self.assertEqual(over, {}, f"split these files below {MAX_FILE_BYTES:,} bytes, or below their ceiling in "
+                                   f"{BYTE_BUDGET.name}")
+
+    def test_issue_486_a_ceiling_of_the_byte_budget_only_goes_down(self):
+        """Issue #486: a listed file keeps the ceiling of its size rounded up to the thousand, and leaves the list
+        once below MAX_FILE_BYTES, so that the ceiling cannot be raised without failing here."""
+        sizes = code_sizes()
+        for name, ceiling in json.loads(BYTE_BUDGET.read_text(encoding="utf-8")).items():
+            with self.subTest(file=name):
+                self.assertIn(name, sizes, "remove it from the budget: the file is gone")
+                self.assertGreater(sizes[name], MAX_FILE_BYTES, "remove it from the budget: it fits the default")
+                self.assertEqual(ceiling, math.ceil(sizes[name] / 1000) * 1000, f"{name} holds {sizes[name]:,} bytes")
 
     def test_the_cli_stays_short_and_so_do_its_functions(self):
         text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
@@ -122,6 +236,32 @@ class ModuleShapeTests(unittest.TestCase):
         self.assertNotIn("cli.main", projects)
         self.assertNotIn("redirect_stderr", projects)
 
+    def test_issue_502_each_module_names_its_entry_points_and_its_tests_in_its_header(self):
+        """Issue #502: the module headers named no test file and the entry points of 3 modules of 65; the map, written
+        by hand, missed 51 tests that import a module."""
+        from tests.support import load_script
+
+        header = load_script(REPO / "scripts" / "build_map.py").header
+        for path in sorted(PACKAGE.glob("*.py")):
+            with self.subTest(module=path.name):
+                entry, tests = header(path)
+                tree = parsed(path)
+                defined = {node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+                defined |= {target.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+                            for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                            if isinstance(target, ast.Name)}
+                self.assertTrue(entry, "an Entry: line in the docstring")
+                self.assertTrue(tests, "a Tests: line in the docstring")
+                self.assertEqual([name for name in entry if name not in defined | {"module"}], [])
+                self.assertEqual([test for test in tests if not (REPO / test).is_file()], [])
+
+    def test_issue_530_each_task_action_runs_in_the_function_named_after_it(self):
+        """Issue #530: task verify, result and complete ran in _outcome, clear and waive in _resolve, submit in _pass:
+        a search for the action's name found no function."""
+        for action, handler in tasks_cli.HANDLERS.items():
+            with self.subTest(action=action):
+                self.assertEqual(handler.__name__, "run_" + action.replace("-", "_"))
+
     def test_issue_530_a_function_name_leads_to_one_function(self):
         """Issue #530: 68 function names were defined in several modules, with different contracts (_git five
         times), so a search by name found the wrong one."""
@@ -133,6 +273,21 @@ class ModuleShapeTests(unittest.TestCase):
         shared = {name for name, found in modules.items() if len(found) > 1}
         self.assertLessEqual(len(shared), MAX_SHARED_FUNCTION_NAMES, sorted(shared))
         self.assertEqual(sorted(name for name in shared if not name.startswith("_") and name not in SHARED_PUBLIC_NAMES), [])
+
+    def test_issue_508_no_function_passes_the_size_complexity_and_nesting_thresholds(self):
+        """Issue #508: 13 functions passed 80 lines, 52 a complexity of 25 and 9 a nesting of 4 (ci_guard: 137 lines,
+        complexity 65), so a reader could not hold one in mind to find the line a symptom comes from."""
+        over = {}
+        for path in sorted(PACKAGE.glob("*.py")):
+            for name, function in functions(parsed(path)):
+                key = f"{path.name}:{name}"
+                shape = (function.end_lineno - function.lineno + 1, complexity(function), nesting(function))
+                if shape[0] > MAX_FUNCTION_LINES or shape[1] > MAX_COMPLEXITY or shape[2] > MAX_NESTING:
+                    over[key] = "lines {}, complexity {}, nesting {}".format(*shape)
+        self.assertEqual({key: shape for key, shape in over.items() if key not in SHAPE_EXCEPTIONS}, {},
+                         "split these functions under the thresholds")
+        self.assertEqual(sorted(key for key in SHAPE_EXCEPTIONS if key not in over), [],
+                         "under every threshold now, or gone: remove these lines from SHAPE_EXCEPTIONS")
 
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.

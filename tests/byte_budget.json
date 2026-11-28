@@ -1,0 +1,22 @@
+{
+  "tests/test_command_output_budget.py": 50000,
+  "tests/test_publishing.py": 57000,
+  "tests/test_release.py": 42000,
+  "tests/test_results.py": 56000,
+  "tests/test_retro.py": 50000,
+  "tests/test_sectors.py": 50000,
+  "tests/test_short_lane.py": 67000,
+  "tests/test_tools.py": 79000,
+  "tests/test_webui.py": 97000,
+  "web/src/demo/domain/selectors.ts": 43000,
+  "web/src/demo/features/blueprint/Blueprint.tsx": 51000,
+  "web/src/demo/features/council/Council.tsx": 44000,
+  "web/src/demo/features/forge/Forge.tsx": 43000,
+  "web/src/demo/features/kingdom/Kingdom.tsx": 43000,
+  "web/src/demo/features/library/Library.tsx": 47000,
+  "web/src/demo/features/quests/Quests.tsx": 44000,
+  "web/src/demo/features/watchtower/Watchtower.tsx": 43000,
+  "web/src/demo/fixtures/nova.ts": 86000,
+  "web/src/project/views/Council.tsx": 53000,
+  "web/src/project/views/Forge.tsx": 73000
+}

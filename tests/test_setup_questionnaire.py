@@ -10,12 +10,11 @@ from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
-from openguildkit.init_cli import _interactive_init
 from openguildkit.guard import guard_mode
+from openguildkit.init_cli import _interactive_init
 from openguildkit.project import load_profile, validate_profile
 from openguildkit.project_setup import init_questions, setup_profile
 from openguildkit.storage import read_json, write_json
-
 from tests.support import CapturedCli
 
 NEXTJS = ["Next.js 14.2", "React 18.3", "TypeScript"]

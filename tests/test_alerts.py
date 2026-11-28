@@ -10,11 +10,20 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.alerts import (
-    accept_alert, alert_task_id, blocking_alerts, find_alert, import_report, link_alert, load_register, migrate_task,
-    read_report, set_status, summary, task_alerts,
+    accept_alert,
+    alert_task_id,
+    blocking_alerts,
+    find_alert,
+    import_report,
+    link_alert,
+    load_register,
+    migrate_task,
+    read_report,
+    set_status,
+    summary,
+    task_alerts,
 )
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, run_cli
 
 FIXTURES = Path(__file__).with_name("fixtures") / "alerts"

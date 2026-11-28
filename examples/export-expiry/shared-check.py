@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 MAX_SAFE_INTEGER = (1 << 53) - 1
 
 

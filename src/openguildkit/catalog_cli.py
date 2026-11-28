@@ -32,7 +32,7 @@ from .references import english_title, find_references, load_references, with_pa
 from .rule_plan_text import print_recommendations, print_rule_plan
 from .storage import print_json, project_lock, read_json
 from .tasks import tasks_touched
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 

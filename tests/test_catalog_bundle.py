@@ -44,7 +44,8 @@ class CatalogBundleTests(unittest.TestCase):
     def fresh(self):
         """The copy as the bundled catalog, read as a new process reads it; yields the mock that counts the record
         folders read one file at a time."""
-        with patch("openguildkit.catalog._registry", return_value=self.registry), \
+        with patch("openguildkit.catalog.registry_folder", return_value=self.registry), \
+                patch("openguildkit.catalog_queries.registry_folder", return_value=self.registry), \
                 patch.dict(catalog._BUNDLED, clear=True), patch.dict(catalog._MERGED, clear=True), \
                 patch("openguildkit.catalog._read_records", wraps=catalog._read_records) as folders:
             yield folders
@@ -73,7 +74,7 @@ class CatalogBundleTests(unittest.TestCase):
             "from pathlib import Path\n"
             "from openguildkit import catalog\n"
             "registry = Path(sys.argv[1])\n"
-            "catalog._registry = lambda: registry\n"
+            "catalog.registry_folder = lambda: registry\n"
             "opened = []\n"
             "sys.addaudithook(lambda event, args: event == 'open' and opened.append(str(args[0])))\n"
             "catalog.load_catalog()\n"

@@ -11,12 +11,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import clock
+from openguildkit.board_entries import _evidence_day
 from openguildkit.guard import _age_days
-from openguildkit.market import due_sources, dossier_gaps, mark_checked, validate_dossier
+from openguildkit.market import dossier_gaps, due_sources, mark_checked, validate_dossier
 from openguildkit.market import scope_entry as market_scope
-from openguildkit.storybook import scope_entry as storybook_scope
-from openguildkit.workflow import _evidence_day
 from openguildkit.storage import write_json
+from openguildkit.storybook import scope_entry as storybook_scope
 from openguildkit.tasks_blockers import expired_on
 from tests.support import run_cli
 from tests.test_approval_lifecycle import ApprovalCase

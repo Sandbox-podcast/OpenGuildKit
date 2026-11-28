@@ -6,6 +6,9 @@ blocking advice (a block verdict, or a blocker) is approved only by a member of 
 clearance compares the signer, a principal; a local one compares the name typed with --by, without case or spaces,
 which the code does not link to a person. `guard --ci` reads the roles of the base revision. A board without a role,
 and a project without roles, are judged as before.
+
+Entry: members, clearance_problem, blocking_boards, approval_problem, record_problems
+Tests: tests/test_roles.py
 """
 
 from .requester import same_person

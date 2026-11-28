@@ -1,17 +1,20 @@
 """The next step of a task and the command that takes it, what its status refuses, the words that describe its
-decision, and the line the task list shows for it, kept while nothing it was built from changed."""
+decision, and the line the task list shows for it, kept while nothing it was built from changed.
+
+Entry: next_step, next_command, state_refusal, task_row, kept_line
+Tests: tests/test_closing_points.py
+"""
 
 import hashlib
 import os
 import time
-from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 
-from . import clock, short_lane, task_index
+from . import short_lane, task_index
+from .approval_check import DONE_STATUSES, STALE_DAYS, days_since
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
 from .project_rules import Fingerprints
-from .results import DONE_STATUSES
 from .storage import file_signature
 from .tasks_approval import decided_message, revoke_command, stale_review_message
 from .tasks_blockers import expired_waiver_step, expired_waivers, unresolved_blockers, waiver_policy
@@ -112,23 +115,6 @@ def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
         return f"{refused} {decided}"
     words = _STATUS_WORDS.get(task["status"], task["status"])
     return f"{refused} Task {task['id']} is {words}: next, {next_command(task)}."
-
-
-# An approval older than this, with nothing recorded since, may be abandoned: task list and the guard say so.
-STALE_DAYS = 14
-
-
-def days_since(moment: str | None) -> int | None:
-    """Whole days since a recorded time; None when the time cannot be read."""
-    if moment is None:
-        return None
-    try:
-        then = datetime.fromisoformat(moment)
-    except (TypeError, ValueError):
-        return None
-    if then.tzinfo is None:
-        then = then.replace(tzinfo=UTC)
-    return (clock.real_now() - then).days
 
 
 def _conditions_step(task: dict, profile: dict | None) -> str:
@@ -244,7 +230,7 @@ def line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
     under and the signature of its exported record (None without one). None when the line depends on more than the
     record and the rules: an approval that does not hold, evidence whose file may change, an exported record of
     another task under its ID, which task list names at each run."""
-    from .guard import record_of_another_task  # The guard reads task records: it is loaded once this module is.
+    from .guard_export import record_of_another_task  # The guard reads task records: it is loaded once this module is.
 
     code = _code_stamp()
     if task["status"] not in DONE_STATUSES or problem or fingerprints is None or code is None or \
