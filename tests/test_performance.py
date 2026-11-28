@@ -144,11 +144,8 @@ class CatalogLoadTests(unittest.TestCase):
     def bundled_reads(self, *arguments, stdin="", code=0):
         """How many times one command read the bundled catalog, starting as a fresh process does."""
         catalog._BUNDLED.clear()
-        with patch("openguildkit.catalog._read_bundled", wraps=catalog._read_bundled) as reader, \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error, \
-                patch("sys.stdin", io.StringIO(stdin)):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, error.getvalue())
+        with patch("openguildkit.catalog._read_bundled", wraps=catalog._read_bundled) as reader:
+            run_cli(self.root, *arguments, expect=code, stdin=stdin)
         return reader.call_count
 
     def test_each_command_validates_the_bundled_catalog_once(self):
@@ -347,18 +344,16 @@ class ClosedTaskReadTests(unittest.TestCase):
         with contextlib.ExitStack() as stack:
             for module in holders:
                 stack.enter_context(patch.object(module, "read_task", counting))
-            error = stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
-            stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
-            self.assertEqual(main([*map(str, arguments)]), 0, error.getvalue())
+            run_cli(self.root, *arguments)
         return reads
 
     def test_check_reads_each_closed_and_exported_task_once(self):
         """Issue #534: check read each closed and exported task three times (7.4 s at 1,000 tasks)."""
-        self.assertEqual(sorted(self.reads("--project", self.root, "check")), self.ids)
+        self.assertEqual(sorted(self.reads("check")), self.ids)
 
     def test_task_list_reads_each_closed_and_exported_task_at_most_once(self):
         """Issue #534: task list read each closed and exported task twice (4.9 s at 1,000 tasks)."""
-        reads = self.reads("--project", self.root, "task", "list")
+        reads = self.reads("task", "list")
         self.assertLessEqual(set(reads), set(self.ids))
         self.assertEqual(len(reads), len(set(reads)), reads)
 
