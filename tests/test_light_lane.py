@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import light_lane, profile_cli, surfaces
+from openguildkit import light_lane, profile_changes, surfaces
 from openguildkit.decisions import check_decision_seal, record_digest
 from openguildkit.project import profile_fingerprint, validate_profile
 from openguildkit.storage import write_json
@@ -283,17 +283,17 @@ class ActivationTests(ProjectCase):
         catalog = load_catalog()
         before = {**self.profile()}
         after = {**before, "light_paths": ["docs/**", "tests/**"]}
-        on = profile_cli.weakening_changes(before, after, catalog)
+        on = profile_changes.weakening_changes(before, after, catalog)
         self.assertEqual(len(on), 1)
         self.assertEqual(on[0][1], ["profile", "set", "light-paths", "docs/**", "tests/**", "--by", "INITIALS", "--reason", "WHY"])
-        self.assertEqual(profile_cli.weakening_changes(after, {**after, "light_paths": ["docs/**"]}, catalog), [])
-        self.assertEqual(profile_cli.weakening_changes(after, before, catalog), [])
-        self.assertEqual(profile_cli.weakening_changes(after, after, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, {**after, "light_paths": ["docs/**"]}, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, before, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, after, catalog), [])
 
     def test_the_web_page_cannot_turn_the_lane_on_and_is_told_the_command(self):
         edited = {**self.profile(), "light_paths": ["docs/**"]}
-        with self.assertRaises(profile_cli.Weakening) as raised:
-            profile_cli.save_edited(self.root, self.root / ".openguildkit", edited, "Page", "Edited in the page")
+        with self.assertRaises(profile_changes.Weakening) as raised:
+            profile_changes.save_edited(self.root, self.root / ".openguildkit", edited, "Page", "Edited in the page")
         self.assertIn("short lane turned on for docs/**", str(raised.exception))
         self.assertNotIn("light_paths", self.profile())
 

@@ -14,7 +14,7 @@ from .doc_links import doc_link
 from .hosts import HOOK_HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, unshipped_records, write_lock
 from .patterns import patterns_to_review
-from .profile_cli import print_touched
+from .profile_changes import print_touched
 from .project import (
     ALREADY_INITIALIZED,
     GUARD_MODES,

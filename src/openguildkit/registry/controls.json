@@ -247,14 +247,14 @@
       ],
       "code": [
         {
-          "file": "src/openguildkit/profile_cli.py",
+          "file": "src/openguildkit/profile_changes.py",
           "symbol": "write_change",
-          "line": 642
+          "line": 595
         },
         {
-          "file": "src/openguildkit/profile_cli.py",
+          "file": "src/openguildkit/profile_changes.py",
           "symbol": "weakening_changes",
-          "line": 152
+          "line": 117
         },
         {
           "file": "src/openguildkit/project.py",

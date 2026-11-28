@@ -23,7 +23,7 @@ from .lock import (
     write_lock,
 )
 from .patterns import patterns_to_review, role_choices
-from .profile_cli import print_touched
+from .profile_changes import print_touched
 from .project import (
     complete_answers,
     load_profile,

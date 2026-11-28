@@ -53,7 +53,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `completion_cli.py` | The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh. |
 | `wording.py` | The words of the outputs: a count with its noun, in the singular when the count is one. |
 | `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
-| `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
+| `profile_cli.py` | The `profile` commands: parse a change and confirm at a terminal what weakens a protection; the change itself goes through `profile_changes.py`. |
+| `profile_changes.py` | How a profile changes: what each change writes, what weakens a protection, and the one path every change takes, from a command at a terminal or from the web page. Imported by `webui`, `retro` and `features_cli`; no `argparse`. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
 | `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |
 | `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
