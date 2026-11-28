@@ -13,6 +13,7 @@ from pathlib import Path
 from . import delivered_review, light_lane, requester
 from .alerts import STATUS_CHOICES as ALERT_STATUSES
 from .cli_surface import add_by
+from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
 from .lock import require_instructions
 from .project import WORK_DIR
@@ -397,9 +398,10 @@ HANDLERS = {
 READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete", "diff-review")
 
 
-def run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:
+def run(command: Command) -> int | None:
     """Run one task action. Every action refused in the task's status ends with the status and the command that runs
     next."""
+    args, root, state, profile, catalog = command.args, command.root, command.state, command.profile, command.catalog
     try:
         return _run(args, root, state, profile, catalog)
     except TaskStateError as error:

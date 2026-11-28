@@ -93,9 +93,8 @@ class ModuleShapeTests(unittest.TestCase):
         for name, (module, needs) in sorted(COMMANDS.items()):
             with self.subTest(command=name):
                 self.assertIn(needs, NEEDS)
-                if module != "tasks_cli":  # Left to the split of tasks_cli, which is under way apart.
-                    run = import_module(f"openguildkit.{module}").run
-                    self.assertEqual(list(inspect.signature(run).parameters), ["command"])
+                run = import_module(f"openguildkit.{module}").run
+                self.assertEqual(list(inspect.signature(run).parameters), ["command"])
         text = (PACKAGE / "cli.py").read_text(encoding="utf-8")
         self.assertNotIn("_on_first_call", text)
         self.assertEqual(text.count("args.command =="), 2)  # The exit code 2 of ci-check, in main.

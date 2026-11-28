@@ -190,8 +190,6 @@ def _run(args) -> int | None:
     module, needs = COMMANDS[args.command]
     command = Command(args)
     command.read(needs)
-    if module == "tasks_cli":  # Its run takes the five values until the split of tasks_cli gives it run(command).
-        return tasks_cli.run(args, command.root, command.state, command.profile, command.catalog)
     return import_module(f"{__package__}.{module}").run(command)
 
 
