@@ -77,7 +77,7 @@ def guard_mode(profile: dict) -> str:
 
 
 def _age_days(moment: str) -> int | None:
-    from .tasks import days_since
+    from .tasks_status import days_since
 
     return days_since(moment)
 
@@ -115,7 +115,8 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
     if not approved:
         return []
     from .project_rules import Fingerprints
-    from .tasks import STALE_DAYS, approval_problem
+    from .tasks_approval import approval_problem
+    from .tasks_status import STALE_DAYS
 
     fingerprints = Fingerprints(profile, catalog)
     outside = revisions_outside_history(root, [base_commit(task) for task in approved])
@@ -213,7 +214,7 @@ def _describe(approvals: list[dict]) -> str:
         if item.get("lane") and mixed:
             text += f", short lane limited to {', '.join(item['paths'])}"
         if item["stale"]:
-            from .tasks import STALE_DAYS
+            from .tasks_status import STALE_DAYS
 
             text += f", approved more than {STALE_DAYS} days ago: ask the person whether it still applies"
         parts.append(text)
@@ -269,7 +270,7 @@ def scope_note(approvals: list[dict]) -> str:
 
 def approval_text(item: dict) -> str:
     """One covering task in a line of guard: its ID and brief, its lane, and a warning on an old approval."""
-    from .tasks import STALE_DAYS
+    from .tasks_status import STALE_DAYS
 
     lane = f" (short lane: {', '.join(item['paths'])})" if item.get("lane") else ""
     stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
@@ -457,7 +458,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     """
     from .delivered_review import exported_review
     from .results import verification_of
-    from .tasks import evidence_states
+    from .tasks_closing import evidence_states
     from .workflow import TaskStateError, exported_blockers, mock_evidence
 
     if task["status"] not in ("approved", "done", "done-with-reservations"):
@@ -1176,7 +1177,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     from . import org_policy, requester, roles
     from .org_catalog import copies_read_from, parse_copies
     from .project_rules import Fingerprints
-    from .tasks import expired_waiver_problem
+    from .tasks_blockers import expired_waiver_problem
 
     if _git(root, "rev-parse", "--is-inside-work-tree").returncode:
         raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")

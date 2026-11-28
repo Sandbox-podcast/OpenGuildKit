@@ -51,7 +51,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         "checks": profile.get("checks", []),
         "research": research,
         "open_points": open_points(task["brief"], answers),
-        # The settings an approval rests on besides the rules, so a later change can be named (tasks.rule_changes).
+        # The settings an approval rests on besides the rules, so a later change can be named (tasks_approval.rule_changes).
         "settings": profile_settings(profile),
     }
     if task.get("rounds"):

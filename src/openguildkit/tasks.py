@@ -6,7 +6,6 @@ closing) and tasks_status (the next step and the line of the task list)."""
 
 import contextlib
 import difflib
-import importlib
 import json
 import marshal
 import re
@@ -395,27 +394,3 @@ def _latest_approval(task: dict) -> dict | None:
             latest = {"task": task["id"], "at": decision["at"],
                       "checks": entry.get("consultation", {}).get("scope", {}).get("checks", [])}
     return latest
-
-
-# #506 moved these names to their own modules: they are read from here for one release, then this goes.
-_MOVED = {name: module for module, names in (
-    ("tasks_record", "board_brief_problem"),
-    ("tasks_approval", ("revoke_command rule_changes require_approval decided_message stale_review_message "
-      "require_current_scope")),
-    ("tasks_blockers", ("waiver_policy expired_on expired_waivers expired_waiver_step expired_waiver_problem "
-      "require_blocker_status resolve_blocker unresolved_blockers verification_blocker_problems")),
-    ("tasks_review", ("cited_evidence record_consultation ROUND_FIELDS archived_round kept_passes kept_passes_note "
-      "previous_round_line check_command_lines decision_text record_review start_pass "
-      "earlier_sequential_pass submit_pass pass_progress assemble_review")),
-    ("tasks_closing", ("CHANGED_EVIDENCE_GROUP evidence_states changed_evidence record_result defer_evidence "
-      "complete_task SENSITIVE_GROUP NOT_RUN_GROUP OTHER_RULES_GROUP VERDICTS_GROUP NO_COMMAND "
-      "points_left_open record_deliberation record_decision revoke_approval ACTIONS "
-      "record_authorization")),
-    ("tasks_status", "next_step next_command passes_left state_refusal STALE_DAYS days_since decision_words"),
-) for name in names.split()}
-
-
-def __getattr__(name: str):
-    if name in _MOVED:
-        return getattr(importlib.import_module(f".{_MOVED[name]}", __package__), name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
