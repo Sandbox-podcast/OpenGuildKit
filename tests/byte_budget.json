@@ -1,7 +1,7 @@
 {
   "tests/test_command_output_budget.py": 50000,
   "tests/test_publishing.py": 57000,
-  "tests/test_release.py": 47000,
+  "tests/test_release.py": 42000,
   "tests/test_results.py": 56000,
   "tests/test_retro.py": 50000,
   "tests/test_sectors.py": 50000,
