@@ -378,6 +378,9 @@ jobs:
           {
             echo "PR_TITLE<<$delimiter"; gh api "repos/$GH_REPO/pulls/$NUMBER" --jq .title; echo "$delimiter"
             echo "PR_BODY<<$delimiter"; gh api "repos/$GH_REPO/pulls/$NUMBER" --jq '.body // ""'; echo "$delimiter"
+            # In a stack, github.base_ref names the bottom of the stack (main), not the branch this pull request
+            # targets: the checks would then count the lower pull requests' changes as this one's.
+            echo "BASE=origin/$(gh api "repos/$GH_REPO/pulls/$NUMBER" --jq .base.ref)"
           } >> "$GITHUB_ENV"
       - name: Pull request text
         # Dependabot writes its own body, with no "Not verified" section; the other two checks still read its diff.
