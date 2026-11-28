@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Release: PyPI by trusted publishing and a container image on ghcr.io are two jobs of `release.yml` that stay off until the repository variables `PYPI_PUBLISH` and `GHCR_PUBLISH` are `true`; `scripts/release_manifests.py` fills the Homebrew formula and winget manifests of `packaging/` from `SHA256SUMS.txt`; nothing is published yet (#503)
 - Code: `tasks.py` (1,822 lines) and `tasks_cli.py` (1,793) split into eleven modules of 150 to 440 lines along the task path, code moved unchanged; `tasks_cli.py` imports 51 names from 21 modules instead of 143 from 28 (#506)
 - `task` actions: each of the 25 handlers takes one `TaskCommand` (`tasks_command.py`) instead of six parameters, 52 of which were never read; ten of the new task modules have no mypy error and leave `mypy_excluded` (mypy errors 295 to 245) (#507)
 - Confirmations typed at a terminal: the eleven prompts of `task decide`, `revoke`, `clear`, `waive`, `authorize`, `complete --by`, `verify --cannot-run`, `alerts`, `org-catalog` and `profile` go through `terminal.typed`, and the four lock, re-read and write blocks of `task` through one function; a test fails on any other comparison with `input()`; messages unchanged (#461)

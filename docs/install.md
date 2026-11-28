@@ -102,6 +102,16 @@ To serve the wheel to many workstations or to CI, put it in the internal Python 
 Use `--index-url`, not `--extra-index-url`: with both, a package named `openguildkit` on a public index could be chosen over yours.
 The CI workflow templates still download the wheel from GitHub; pointing them at the mirror is a change of their `curl` line.
 
+## Package managers
+
+The release is ready for PyPI, a container image on ghcr.io, Homebrew and winget, but none of them is published yet: each needs an account or a setting only the maintainer can create (step 8 of [the release steps](../GOVERNANCE.md#releases)).
+Until a channel is announced in `CHANGELOG.md`, a package named `openguildkit` on any of them is not ours.
+
+- PyPI: the `pypi` job of `.github/workflows/release.yml` uploads the attested wheel by trusted publishing, with no stored token, once the repository variable `PYPI_PUBLISH` is `true` ([trusted publishers](https://docs.pypi.org/trusted-publishers/using-a-publisher/), read 2026-11-28). Then `pipx install openguildkit==X.Y.Z` will install the same bytes as the GitHub release.
+- Container image: the `image` job builds the `Dockerfile` (Python 3.13 slim pinned by digest, the attested wheel installed with `--no-index`, a user other than root, `openguildkit` as entry point) and pushes it to `ghcr.io` once `GHCR_PUBLISH` is `true` ([GitHub Packages](https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions), read 2026-11-28). Run it on a project with `docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" ghcr.io/sandbox-podcast/openguildkit:X.Y.Z check`.
+- Homebrew: `scripts/release_manifests.py` fills the formula `packaging/homebrew/openguildkit.rb` from the `SHA256SUMS.txt` of a release, for a tap ([Python formulae](https://docs.brew.sh/Language-Specific-Formulae#python), read 2026-11-28).
+- winget: the same script fills the manifests of `packaging/winget/` (schema 1.28.0, [winget-pkgs manifests](https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema/1.28.0), read 2026-11-28) when the release carries a Windows archive with `openguildkit.exe`. winget installs an executable, not a wheel, and the release does not build one yet: on Windows, use `install.ps1` or the wheel.
+
 ## How the release assets are built
 
 Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml` on GitHub Actions, on `ubuntu-latest`, from the tagged commit.
@@ -110,7 +120,7 @@ It sets `SOURCE_DATE_EPOCH` to the date of the commit and builds the web interfa
 The versions of `build` and of setuptools come from `.github/build-constraints.txt`, which the job gives to pip as `PIP_CONSTRAINT`: the `Generator` line of the wheel names the setuptools that built it.
 It refuses a wheel that does not contain `openguildkit/web_dist/index.html`, then builds the wheel a second time from sources whose file dates it has changed and stops unless both builds have the same SHA-256 (the web interface is built once).
 It writes the CycloneDX SBOM of the web interface (`scripts/make_sbom.py`), packs the Node archive (`npm pack ./integrations/ci`), copies the one-line installers `scripts/install.sh` and `scripts/install.ps1`, and writes `SHA256SUMS.txt` with `sha256sum`, one line per file.
-A separate job, the only one that holds `id-token: write` and `attestations: write`, attests the build provenance of the six files; only then does the last job attach them to the release of the tag.
+A separate job, the only one that holds `attestations: write`, attests the build provenance of the six files; only then does the last job attach them to the release of the tag.
 When that release does not exist yet, the workflow creates it as a draft, which a maintainer reviews and publishes.
 The run log on the Actions tab prints the hashes it computed.
 The `package` job of `.github/workflows/ci.yml` builds the wheel with the same steps on every pull request, installs it on Linux, macOS and Windows (with `pipx` on Windows), and checks that `openguildkit ui` serves the interface.

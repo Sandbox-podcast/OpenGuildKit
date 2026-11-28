@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.28.0.schema.json
+# Template: scripts/release_manifests.py fills it from the SHA256SUMS.txt of a release (docs/install.md).
+PackageIdentifier: SandboxPodcast.OpenGuildKit
+PackageVersion: @VERSION@
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.28.0

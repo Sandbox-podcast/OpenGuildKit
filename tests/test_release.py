@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github" / "scripts" / "release-notes.sh"
 CHECK_INSTALLED = ROOT / ".github" / "scripts" / "check-installed-cli.py"
 MAKE_SBOM = ROOT / "scripts" / "make_sbom.py"
+RELEASE_MANIFESTS = ROOT / "scripts" / "release_manifests.py"
 VERSION = re.compile(r"\bv(\d+\.\d+\.\d+)\b|openguildkit-(\d+\.\d+\.\d+)")
 
 
@@ -363,6 +364,81 @@ class SbomTest(unittest.TestCase):
         self.assertIn("react", components)
         for development in json.loads(_read("web/package.json"))["devDependencies"]:
             self.assertNotIn(development, components)
+
+
+
+WHEEL_SHA, ZIP_SHA = "a" * 64, "b" * 64
+SUMS = (f"{WHEEL_SHA}  openguildkit-9.8.7-py3-none-any.whl\n{'c' * 64}  openguildkit-9.8.7.tgz\n"
+        f"{'d' * 64}  openguildkit-9.8.7.cdx.json\n{'e' * 64}  install.sh\n{'f' * 64}  install.ps1\n")
+
+
+class ReleaseManifestsTest(unittest.TestCase):
+    """Issue #503: OpenGuildKit is on no package manager; the Homebrew formula and winget manifests come from the
+    SHA256SUMS.txt of a release, so the maintainer publishes them without copying a hash by hand."""
+
+    def setUp(self):
+        self.temp = Path(tempfile.mkdtemp(prefix="ogk-manifests-"))
+        self.addCleanup(shutil.rmtree, self.temp, True)
+        self.out = self.temp / "out"
+
+    def fill(self, sums: str, *extra: str) -> subprocess.CompletedProcess:
+        (self.temp / "SHA256SUMS.txt").write_text(sums, encoding="utf-8")
+        return subprocess.run([sys.executable, "-I", str(RELEASE_MANIFESTS), "--sums", str(self.temp / "SHA256SUMS.txt"),
+                               "--output", str(self.out), *extra], capture_output=True, text=True, encoding="utf-8",
+                              timeout=60, check=False)
+
+    def test_the_formula_gets_the_url_and_sha256_of_the_wheel_of_the_release(self):
+        """Issue #503: the Homebrew formula is filled from the release manifest, with nothing left to fill."""
+        done = self.fill(SUMS)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        formula = (self.out / "homebrew" / "openguildkit.rb").read_text(encoding="utf-8")
+        url = "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/v9.8.7/openguildkit-9.8.7-py3-none-any.whl"
+        self.assertIn(f'url "{url}", using: :nounzip', formula)
+        self.assertIn(f'sha256 "{WHEEL_SHA}"', formula)
+        self.assertIn('version "9.8.7"', formula)
+        self.assertNotRegex(formula, r"@[A-Z_]+@")
+        template = _read("packaging/homebrew/openguildkit.rb")
+        for fact in ("include Language::Python::Virtualenv", 'depends_on "python@3', "virtualenv_create(libexec",
+                     "pip_install_and_link", "openguildkit --version"):
+            self.assertIn(fact, template)
+
+    def test_winget_manifests_need_the_windows_archive_and_are_filled_when_the_release_has_it(self):
+        """Issue #503: winget installs an executable, not a wheel; without a Windows archive the script says so."""
+        done = self.fill(SUMS)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("Warning: winget:", done.stderr)
+        self.assertIn("openguildkit-9.8.7-windows-x64.zip", done.stderr)
+        self.assertFalse((self.out / "winget").exists())
+        done = self.fill(SUMS + f"{ZIP_SHA}  openguildkit-9.8.7-windows-x64.zip\n")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        folder = self.out / "winget" / "manifests" / "s" / "SandboxPodcast" / "OpenGuildKit" / "9.8.7"
+        names = sorted(path.name for path in folder.iterdir())
+        self.assertEqual(names, ["SandboxPodcast.OpenGuildKit.installer.yaml", "SandboxPodcast.OpenGuildKit.locale.en-US.yaml",
+                                 "SandboxPodcast.OpenGuildKit.yaml"])
+        installer = (folder / "SandboxPodcast.OpenGuildKit.installer.yaml").read_text(encoding="utf-8")
+        self.assertIn("InstallerUrl: https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/v9.8.7/"
+                      "openguildkit-9.8.7-windows-x64.zip", installer)
+        self.assertIn(f"InstallerSha256: {ZIP_SHA.upper()}", installer)
+        for path in folder.iterdir():
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("PackageVersion: 9.8.7", text, path.name)
+            self.assertIn("ManifestVersion: 1.28.0", text, path.name)
+            self.assertIn("manifest.", text.splitlines()[0], "the schema line editors read")
+            self.assertNotRegex(text, r"@[A-Z_]+@", path.name)
+
+    def test_a_manifest_without_the_wheel_or_with_a_wrong_hash_is_refused(self):
+        done = self.fill(SUMS.replace("openguildkit-9.8.7-py3-none-any.whl", "other.whl"))
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("no openguildkit-X.Y.Z-py3-none-any.whl", done.stderr)
+        done = self.fill(SUMS.replace(WHEEL_SHA, "z" * 64))
+        self.assertEqual(done.returncode, 1)
+        self.assertFalse(self.out.exists(), "nothing is written from a manifest the script refuses")
+
+    def test_another_repository_changes_every_url(self):
+        done = self.fill(SUMS, "--repository", "example/fork")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("https://github.com/example/fork/releases/download/v9.8.7/",
+                      (self.out / "homebrew" / "openguildkit.rb").read_text(encoding="utf-8"))
 
 
 def setuptools_floor() -> bool:
