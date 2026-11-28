@@ -73,29 +73,9 @@ def _rules_section(task: dict, checks: list[dict] | None) -> list[str]:
     return [*lines, ""]
 
 
-def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None,
-            root: Path | None = None) -> str:
-    """Render the authorized scope, decision and advisory findings, with the named evidence first.
-
-    checks are the expected checks of the approved task (results.expected_checks): the rules to apply are those
-    they ask. With the project root, the code owners of what the task touches, read from CODEOWNERS and never
-    recorded."""
-    owner = owners.owner_line(root, task) if root is not None else None
-    status = task.get("status")
-    if status == "changes-requested":
-        raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
-                         f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
-    if status not in ("approved", "done", "done-with-reservations"):
-        raise TaskStateError("A human approval is required before implementation.")
-    pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
-                            and not item["resolution"]]
-    consultation = task["consultation"]
-    review = validate_review(consultation, task["review"])
-    decision = task["decision"]
-    approval = {
-        "by": required_text(decision.get("by"), "Approver"),
-        "reason": required_text(decision.get("reason"), "Approval reason"),
-    }
+def _handoff_heading(task: dict, status: str) -> tuple[str, str]:
+    """The heading and the instruction of a handoff: a decision to report, a scope to implement, or a task already
+    closed and shown for reference."""
     if is_decision_task(task):
         heading = "# Approved decision record"
         instruction = (
@@ -118,6 +98,61 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
             f"Task {task['id']} is {status}: nothing is left to implement. This handoff is shown for reference. To "
             f"change the work, open a follow-up with `openguildkit task new \"BRIEF\" --follows {task['id']}`."
         )
+    return heading, instruction
+
+
+def _conditions_section(task: dict) -> list[str]:
+    """The blockers the approval left open for the verification phase, which only the finished work clears."""
+    pending_verification = [item for item in blocker_list(task) if item.get("phase") == "verification"
+                            and not item["resolution"]]
+    if not pending_verification:
+        return []
+    return ["## Conditions of the approval, to meet before the task completes", "",
+            "The person approved with these blockers open: only the finished work can clear them. Build the "
+            "evidence each one names, show it to the person, and let them clear it in their terminal with "
+            f"openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS. "
+            "task complete refuses the task while one is open.", "",
+            *(f"- {item['id']} ({item['owner']}): {item['finding']} Clears when: {item['clears_when']}"
+              for item in pending_verification), ""]
+
+
+def _resolved_section(task: dict) -> list[str]:
+    """The waivers and resolutions of the blockers resolved before the approval, to respect."""
+    if not any(item["resolution"] for item in blocker_list(task)):
+        return []
+    return [
+        "## Conditions from resolved blockers",
+        "",
+        "Respect each waiver's scope and expiry. A waiver that expires before the work ships needs a "
+        "new decision.",
+        "",
+        json_section([item for item in blocker_list(task) if item["resolution"]]),
+        "",
+    ]
+
+
+def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] | None = None,
+            root: Path | None = None) -> str:
+    """Render the authorized scope, decision and advisory findings, with the named evidence first.
+
+    checks are the expected checks of the approved task (results.expected_checks): the rules to apply are those
+    they ask. With the project root, the code owners of what the task touches, read from CODEOWNERS and never
+    recorded."""
+    owner = owners.owner_line(root, task) if root is not None else None
+    status = task.get("status")
+    if status == "changes-requested":
+        raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
+                         f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
+    if status not in ("approved", "done", "done-with-reservations"):
+        raise TaskStateError("A human approval is required before implementation.")
+    consultation = task["consultation"]
+    review = validate_review(consultation, task["review"])
+    decision = task["decision"]
+    approval = {
+        "by": required_text(decision.get("by"), "Approver"),
+        "reason": required_text(decision.get("reason"), "Approval reason"),
+    }
+    heading, instruction = _handoff_heading(task, status)
     task_id = task["id"]
     return "\n".join(
         [
@@ -125,16 +160,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
             "",
             instruction,
             "",
-            *(
-                ["## Conditions of the approval, to meet before the task completes", "",
-                 "The person approved with these blockers open: only the finished work can clear them. Build the "
-                 "evidence each one names, show it to the person, and let them clear it in their terminal with "
-                 f"openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS. "
-                 "task complete refuses the task while one is open.", "",
-                 *(f"- {item['id']} ({item['owner']}): {item['finding']} Clears when: {item['clears_when']}"
-                   for item in pending_verification), ""]
-                if pending_verification else []
-            ),
+            *_conditions_section(task),
             *_evidence_section(evidence or []),
             *_checks_section(task),
             "## Human approval",
@@ -162,18 +188,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
                 ["## External actions decided by a person", "", json_section(task["authorizations"]), ""]
                 if task.get("authorizations") else []
             ),
-            *(
-                [
-                    "## Conditions from resolved blockers",
-                    "",
-                    "Respect each waiver's scope and expiry. A waiver that expires before the work ships needs a "
-                    "new decision.",
-                    "",
-                    json_section([item for item in blocker_list(task) if item["resolution"]]),
-                    "",
-                ]
-                if any(item["resolution"] for item in blocker_list(task)) else []
-            ),
+            *_resolved_section(task),
         ]
     )
 
