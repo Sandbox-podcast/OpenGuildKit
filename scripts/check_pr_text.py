@@ -6,7 +6,8 @@ CI passes the title and the body of the pull request in PR_TITLE and PR_BODY, an
 each problem: a title or a commit subject since the common ancestor of REF and HEAD that names a range or a list of
 issues (`#377 to #407`, `#12, #13`), so that `git log --grep '#N'` finds each issue; a `Closes #N` in the body with
 no line `#N what it fixed (file:function)`, which the squash commit keeps; no `## Not verified` section in the body,
-or an empty one (write what was not run, or "nothing").
+or an empty one (write what was not run, or "nothing"). Merge commits are not read, nor the commits a squash already
+brought to the base (its body lists them as `* SUBJECT`).
 """
 
 import argparse
@@ -42,6 +43,14 @@ def problems(title: str, body: str, subjects: tuple[str, ...] | list[str] = ()) 
     return found
 
 
+def squashed(root: Path, base: str) -> set[str]:
+    """The commit subjects a squash merge already brought to the base: its body lists them as `* SUBJECT`. Once the
+    pull request below is squashed, its commits come back in the range of the next one; they are not asked again."""
+    log = subprocess.run(["git", "-C", str(root), "log", "-n", "200", "--format=%B", base], capture_output=True, text=True,
+                         check=False)
+    return {line[2:].strip() for line in log.stdout.splitlines() if line.startswith("* ")}
+
+
 def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     parser = argparse.ArgumentParser(description="Check the title, the body and the commit subjects of a pull request.")
     parser.add_argument("--base", help="check the commit subjects since the common ancestor of this revision and HEAD")
@@ -50,8 +59,10 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     if args.base:
         mine = subprocess.run(["git", "-C", str(root), "merge-base", args.base, "HEAD"], capture_output=True, text=True, check=False)
         since = mine.stdout.strip() if mine.returncode == 0 and mine.stdout.strip() else args.base
-        log = subprocess.run(["git", "-C", str(root), "log", "--format=%s", f"{since}..HEAD"], capture_output=True, text=True, check=False)
-        subjects = log.stdout.splitlines()
+        log = subprocess.run(["git", "-C", str(root), "log", "--no-merges", "--format=%s", f"{since}..HEAD"],
+                             capture_output=True, text=True, check=False)
+        already = squashed(root, since)
+        subjects = [subject for subject in log.stdout.splitlines() if subject not in already]
     found = problems(os.environ.get("PR_TITLE", ""), os.environ.get("PR_BODY", ""), subjects)
     for line in found:
         print(f"check_pr_text: {line}")
