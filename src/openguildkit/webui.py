@@ -706,6 +706,34 @@ class Handler(BaseHTTPRequestHandler):
         return body
 
 
+# The page's preferences, kept by the project so that they outlive the run's host name (#463): a closed list of keys,
+# each with its allowed values or, for a name, a single line of at most PREF_NAME_LENGTH characters.
+PREF_CHOICES = {"mode": ("explorer", "focus"), "motion": ("system", "reduced"), "shortcuts": ("on", "off")}
+PREF_NAMES = ("decider", "signer")
+PREF_NAME_LENGTH = 80
+PREFS_FILE = Path(".openguildkit", "work", "ui-prefs.json")
+
+
+def _pref_problem(key, value) -> str | None:
+    if key in PREF_CHOICES:
+        return None if value in PREF_CHOICES[key] else f"{key} must be one of {', '.join(PREF_CHOICES[key])}."
+    if key in PREF_NAMES:
+        fits = isinstance(value, str) and len(value) <= PREF_NAME_LENGTH and value.isprintable()
+        return None if fits else f"{key} must be one line of at most {PREF_NAME_LENGTH} characters."
+    return f"Unknown preference: {key}"
+
+
+def read_prefs(root: Path) -> dict:
+    """The preferences the project keeps for the page, each one the endpoint would accept; none for a missing or
+    unreadable file."""
+    try:
+        data = json.loads((root / PREFS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {key: value for key, value in data.items() if _pref_problem(key, value) is None} \
+        if isinstance(data, dict) else {}
+
+
 def _same(given: str, secret: str) -> bool:
     """Compare a secret in constant time, whatever characters a request sent."""
     return secrets.compare_digest(given.encode("utf-8", "replace"), secret.encode("utf-8"))
@@ -808,6 +836,7 @@ class WebApp:
             "token": self.token,
             "project": {"root": str(self.root), "name": self.root.name,
                         "initialized": (self.root / ".openguildkit" / "project.json").is_file()},
+            "prefs": read_prefs(self.root),
             "human_only": ["task decide --approve", "task revoke", "task clear", "task waive",
                            "task authorize --allow", "task verify --cannot-run", "task verify --withdraw",
                            "task complete --by", "alerts accept", "alerts severity",
@@ -840,7 +869,30 @@ class WebApp:
             return self.files.write(body.get("path", ""), body.get("text"))
         if path == "/api/profile/save":
             return self.save_profile(body.get("text"), body.get("by"), body.get("reason"))
+        if path == "/api/prefs":
+            return {"prefs": self.save_prefs(body.get("prefs"))}
         raise Refused("Unknown endpoint.", status=HTTPStatus.NOT_FOUND, reason="not-found")
+
+    def save_prefs(self, patch) -> dict:
+        """Merge the page's preferences into the file the project keeps for them, in .openguildkit/work/ (which the
+        project's .gitignore leaves out), and return them all. Nothing is written for an unknown key, a value out of
+        its bounds, a project not set up, or a folder on the way that is a link."""
+        if not isinstance(patch, dict) or not patch:
+            raise Refused("prefs must be an object of preferences.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+        problem = next(filter(None, (_pref_problem(key, value) for key, value in patch.items())), None)
+        if problem:
+            raise Refused(problem, status=HTTPStatus.BAD_REQUEST, reason="bad-request")
+        state = self.root / ".openguildkit"
+        if not (state / "project.json").is_file():
+            raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
+        target = self.root / PREFS_FILE
+        if state.is_symlink() or target.parent.is_symlink() or target.is_symlink():
+            raise Refused(f"{PREFS_FILE.parent.as_posix()} is a link: the preferences are not written.",
+                          status=HTTPStatus.BAD_REQUEST, reason="outside-project")
+        with self.runner.lock:
+            prefs = {**read_prefs(self.root), **patch}
+            write_text(target, json.dumps(prefs, ensure_ascii=False, indent=2) + "\n")
+        return prefs
 
     def save_profile(self, text, by=None, reason=None) -> dict:
         """Save the profile edited in the page by the profile commands' own path: under the project lock, recorded

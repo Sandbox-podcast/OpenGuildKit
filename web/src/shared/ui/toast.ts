@@ -1,7 +1,13 @@
 import { useSyncExternalStore } from 'react';
 
 /** lang: 'en' when the text is a command's English output, so that a screen reader reads it in English. */
-export interface Toast { id: number; tone: 'success' | 'danger' | 'info' | 'warning'; title: string; text?: string; lang?: 'en' }
+export interface Toast {
+  id: number;
+  tone: 'success' | 'danger' | 'info' | 'warning';
+  title: string;
+  text?: string;
+  lang?: 'en';
+}
 let toasts: Toast[] = [];
 let seq = 0;
 const listeners = new Set<() => void>();
@@ -13,5 +19,15 @@ export function toast(t: Omit<Toast, 'id'>) {
   emit();
   setTimeout(() => dismissToast(id), t.tone === 'danger' ? 9000 : 3500);
 }
-export function dismissToast(id: number) { toasts = toasts.filter((t) => t.id !== id); emit(); }
-export const useToasts = () => useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => toasts);
+export function dismissToast(id: number) {
+  toasts = toasts.filter((t) => t.id !== id);
+  emit();
+}
+export const useToasts = () =>
+  useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => toasts,
+  );

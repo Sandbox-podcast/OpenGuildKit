@@ -1,8 +1,9 @@
 // Four rules the code does not meet yet, counted per file against a baseline frozen in style-baseline.json: a file may
 // get better, never worse, and a file that got better must lower its number.
-//   longLines       the lines of src/*.ts and src/*.tsx over MAX_LINE characters
-//   indexedAccess   the errors tsc gives src/project and src/shared (tsconfig.index.json) with noUncheckedIndexedAccess,
-//                   in every file they import: the product reaches into src/domain, src/adapters and src/fixtures
+//   longLines       the lines of src/*.ts and src/*.tsx over MAX_LINE characters once their string, template and
+//                   regular expression literals are counted as empty: a long message or pattern stays on its line
+//   indexedAccess   the errors tsc gives src/project and src/shared (tsconfig.index.json) with noUncheckedIndexedAccess:
+//                   none since #515, so any new one fails
 //   lint            the problems ESLint reports (eslint.config.mjs), among them the product importing the demo
 //   unformatted     1 for each file Prettier would change (.prettierrc.json); a file formatted by `npm run format` stays so
 // Run: npm run check:ratchet (longLines and indexedAccess), npm run lint, npm run format:check; or
@@ -22,13 +23,23 @@ function sources(folder) {
   });
 }
 
-/** The lines of `src` over MAX_LINE characters, by file. */
+const LITERALS = [
+  /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g,
+  /(^\s*|[=(,:[!&|?{};]\s*)\/(?![/*])(?:[^/\\\n[]|\\.|\[(?:[^\]\\]|\\.)*\])+\/[a-z]*/g,
+];
+
+/** The width of a line once its literals are empty: `'…'`, `"…"`, a template on one line, a regular expression. */
+export function codeWidth(line) {
+  return line.replace(LITERALS[0], '""').replace(LITERALS[1], '$1//').length;
+}
+
+/** The lines of `src` over MAX_LINE characters outside their literals, by file. */
 export function longLines(root) {
   const counts = {};
   for (const path of sources(join(root, 'src'))) {
     const n = readFileSync(path, 'utf8')
       .split('\n')
-      .filter((line) => line.length > MAX_LINE).length;
+      .filter((line) => codeWidth(line) > MAX_LINE).length;
     if (n) counts[relative(root, path)] = n;
   }
   return counts;

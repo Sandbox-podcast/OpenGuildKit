@@ -6,12 +6,27 @@
 import { usePrefs } from './prefs';
 
 export const GLOSSARY_TERMS = {
-  task: 'tâche', lens: 'angle de spécialiste', blocker: 'point bloquant', guard: 'garde-fou', approval: 'approbation',
-  handoff: 'brief d’implémentation', pattern: 'modèle de projet', brain: 'cerveau métier', board: 'comité métier',
+  task: 'tâche',
+  lens: 'angle de spécialiste',
+  blocker: 'point bloquant',
+  guard: 'garde-fou',
+  approval: 'approbation',
+  handoff: 'brief d’implémentation',
+  pattern: 'modèle de projet',
+  brain: 'cerveau métier',
+  board: 'comité métier',
 } as const;
 
 export const WORDS = {
-  focus: { task: 'tâche', tasks: 'tâches', Task: 'Tâche', Tasks: 'Tâches', lenses: 'angles de spécialiste', Lenses: 'Angles de spécialiste', lens: 'angle de spécialiste' },
+  focus: {
+    task: 'tâche',
+    tasks: 'tâches',
+    Task: 'Tâche',
+    Tasks: 'Tâches',
+    lenses: 'angles de spécialiste',
+    Lenses: 'Angles de spécialiste',
+    lens: 'angle de spécialiste',
+  },
   explorer: { task: 'quête', tasks: 'quêtes', Task: 'Quête', Tasks: 'Quêtes', lenses: 'lentilles', Lenses: 'Lentilles', lens: 'lentille' },
 } as const;
 

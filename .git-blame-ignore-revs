@@ -1,0 +1,4 @@
+# Commits that only reformat, left out of `git blame` (GitHub reads this file; locally:
+# git config blame.ignoreRevsFile .git-blame-ignore-revs). A squash or a rebase changes these hashes: write the new one.
+# Format web/src with Prettier at width 140 (#515)
+7edf4b36331c955c9ac1aad968c633d05302db8c

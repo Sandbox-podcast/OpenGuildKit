@@ -14,7 +14,15 @@ import { useAction, useCli } from '../query';
 import { ActionForm, CommandLine, Q, useRemembered } from '../parts';
 
 /** A row of tools status --json; an unconnected request has a reason and no connection. */
-interface Connection { key: string; host: string; mode: string; covers: string[]; configured: boolean; changed: boolean; reason?: string }
+interface Connection {
+  key: string;
+  host: string;
+  mode: string;
+  covers: string[];
+  configured: boolean;
+  changed: boolean;
+  reason?: string;
+}
 
 export function Arsenal() {
   const features = useCli<Feature[]>(['features', 'list', '--json']);
@@ -31,33 +39,72 @@ export function Arsenal() {
     <div className="page-grid">
       <Notice tone="info">
         Choisis les outils de l’équipe : chaque fonctionnalité propose un outil de référence et ses trois alternatives les plus connues.
-        Activer un outil l’ajoute au profil du projet, avec qui et pourquoi. Pour brancher son serveur MCP sur l’agent, passe ensuite par la <a href="#/forge/outils">Forge, onglet Outils et MCP</a>.
+        Activer un outil l’ajoute au profil du projet, avec qui et pourquoi. Pour brancher son serveur MCP sur l’agent, passe ensuite par la{' '}
+        <a href="#/forge/outils">Forge, onglet Outils et MCP</a>.
       </Notice>
-      {left && still.map((c) => (
-        <Notice key={`${c.host}:${c.key}`} tone="warn" title={`${left.title} reste connecté à l’agent`}>
-          Le serveur MCP {c.key} ({c.host}, {c.mode === 'mock' ? 'simulation' : 'serveur réel'}) donne toujours à l’agent l’accès à {c.covers.map((tool) => (tool === left.tool ? left.title : tool)).join(', ')} : désactiver la fonctionnalité ne retire pas la connexion. Pour la retirer, lance cette commande ou « Retirer » dans la <a href="#/forge/outils">Forge, onglet Outils et MCP</a>.
-          <CommandLine command={terminalCommand(['tools', 'remove', c.key, ...(c.host === profile.data?.host ? [] : ['--host', c.host])])} label="Commande qui retire la connexion" />
-        </Notice>
-      ))}
-      <Q q={features}>{(list) => <>
-        <Panel title={`${list.filter((f) => f.enabled).length} fonctionnalité(s) active(s) sur ${list.length}`}>
-          <p className="small muted">Un outil partagé active toutes les fonctionnalités qui l’utilisent. Le Blueprint garde la liste des outils du profil.</p>
-        </Panel>
-        <FeatureCards features={list} busy={busy !== null} onToggle={(option, feature) => setPicked({ option, feature })} />
-      </>}</Q>
-      <Dialog open={!!picked} onClose={() => setPicked(null)} title={picked ? `${enabling ? 'Activer' : 'Désactiver'} ${picked.option.title}` : ''}>
-        {picked && <>
-          <p className="small">{purposeLabel(picked.feature.purpose)} : {picked.option.tool_title ?? picked.option.tool} {enabling ? 'rejoint' : 'quitte'} la liste des outils du profil. Le changement est inscrit dans l’historique du profil.</p>
-          <ActionForm busy={busy !== null} submit={enabling ? 'Activer' : 'Désactiver'} initial={{ by }} fields={[
-            { name: 'by', label: 'Personne qui décide', required: true },
-            { name: 'reason', label: 'Pourquoi', required: true, placeholder: enabling ? 'L’équipe suit ses tickets dans cet outil' : 'L’équipe ne s’en sert plus' },
-          ]} onSubmit={async (v) => {
-            setBy(v.by);
-            const done = await act(['features', enabling ? 'enable' : 'disable', picked.option.tool, '--by', v.by, '--reason', v.reason],
-              { success: enabling ? 'Fonctionnalité activée' : 'Fonctionnalité désactivée' });
-            if (done) { setLeft(enabling ? null : picked.option); setPicked(null); }
-          }} />
-        </>}
+      {left &&
+        still.map((c) => (
+          <Notice key={`${c.host}:${c.key}`} tone="warn" title={`${left.title} reste connecté à l’agent`}>
+            Le serveur MCP {c.key} ({c.host}, {c.mode === 'mock' ? 'simulation' : 'serveur réel'}) donne toujours à l’agent l’accès à{' '}
+            {c.covers.map((tool) => (tool === left.tool ? left.title : tool)).join(', ')} : désactiver la fonctionnalité ne retire pas la
+            connexion. Pour la retirer, lance cette commande ou « Retirer » dans la <a href="#/forge/outils">Forge, onglet Outils et MCP</a>
+            .
+            <CommandLine
+              command={terminalCommand(['tools', 'remove', c.key, ...(c.host === profile.data?.host ? [] : ['--host', c.host])])}
+              label="Commande qui retire la connexion"
+            />
+          </Notice>
+        ))}
+      <Q q={features}>
+        {(list) => (
+          <>
+            <Panel title={`${list.filter((f) => f.enabled).length} fonctionnalité(s) active(s) sur ${list.length}`}>
+              <p className="small muted">
+                Un outil partagé active toutes les fonctionnalités qui l’utilisent. Le Blueprint garde la liste des outils du profil.
+              </p>
+            </Panel>
+            <FeatureCards features={list} busy={busy !== null} onToggle={(option, feature) => setPicked({ option, feature })} />
+          </>
+        )}
+      </Q>
+      <Dialog
+        open={!!picked}
+        onClose={() => setPicked(null)}
+        title={picked ? `${enabling ? 'Activer' : 'Désactiver'} ${picked.option.title}` : ''}
+      >
+        {picked && (
+          <>
+            <p className="small">
+              {purposeLabel(picked.feature.purpose)} : {picked.option.tool_title ?? picked.option.tool} {enabling ? 'rejoint' : 'quitte'} la
+              liste des outils du profil. Le changement est inscrit dans l’historique du profil.
+            </p>
+            <ActionForm
+              busy={busy !== null}
+              submit={enabling ? 'Activer' : 'Désactiver'}
+              initial={{ by }}
+              fields={[
+                { name: 'by', label: 'Personne qui décide', required: true },
+                {
+                  name: 'reason',
+                  label: 'Pourquoi',
+                  required: true,
+                  placeholder: enabling ? 'L’équipe suit ses tickets dans cet outil' : 'L’équipe ne s’en sert plus',
+                },
+              ]}
+              onSubmit={async (v) => {
+                setBy(v.by!);
+                const done = await act(
+                  ['features', enabling ? 'enable' : 'disable', picked.option.tool, '--by', v.by!, '--reason', v.reason!],
+                  { success: enabling ? 'Fonctionnalité activée' : 'Fonctionnalité désactivée' },
+                );
+                if (done) {
+                  setLeft(enabling ? null : picked.option);
+                  setPicked(null);
+                }
+              }}
+            />
+          </>
+        )}
       </Dialog>
     </div>
   );

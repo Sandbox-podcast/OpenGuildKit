@@ -25,9 +25,11 @@ openguildkit ui --port 0 --no-browser
 
 Le serveur écoute seulement sur 127.0.0.1, sous un nom d'hôte propre à chaque lancement (`ogk-….localhost`), que les navigateurs envoient à la boucle locale. Si le port 7311 est pris, il en choisit un libre et l'affiche. Ctrl+C l'arrête.
 
-Les préférences de la page (style RPG ou Pro, mouvement réduit, raccourcis à une touche, nom de la personne qui décide) sont gardées par le navigateur, pour une origine : le nom d'hôte et le port. Comme le nom change à chaque lancement, chaque lancement les retrouve à leur valeur par défaut. `openguildkit ui --stable-address` donne au projet un nom fixe, `ogk-<empreinte du chemin du projet>.localhost` : le navigateur retrouve ses préférences d'un lancement à l'autre. Cette option est désactivée par défaut, avec deux limites :
+Les préférences de la page (style RPG ou Pro, mouvement réduit, raccourcis à une touche, noms de la personne qui décide et de la personne qui signe) sont gardées par le projet, dans `.openguildkit/work/ui-prefs.json`, que le `.gitignore` du projet laisse hors de Git : chaque lancement les retrouve, quel que soit le nom d'hôte. La page les écrit par `POST /api/prefs`, qui refuse toute autre clé, une valeur hors de sa liste et un nom de plus de 80 caractères ou sur plusieurs lignes. Le navigateur en garde aussi une copie, pour une origine (le nom d'hôte et le port), lue tant que la session n'a pas répondu.
 
-- l'origine ne reste la même qu'au même port : si 7311 est pris, le serveur en prend un autre, et les préférences repartent de zéro ;
+`openguildkit ui --stable-address` donne en plus au projet un nom fixe, `ogk-<empreinte du chemin du projet>.localhost`, ce qui garde aussi le cache du navigateur d'un lancement à l'autre. Cette option est désactivée par défaut, avec deux limites :
+
+- l'origine ne reste la même qu'au même port : si 7311 est pris, le serveur en prend un autre, et le cache repart de zéro ;
 - le nom vient du chemin du projet, et non de la clé du lancement : un processus local qui connaît le chemin peut le calculer. La clé reste secrète (elle ne vit que dans l'adresse imprimée et le cookie), et le serveur répond sous ce seul nom ; mais un nom que personne d'autre ne peut deviner n'existe plus.
 
 Dans un projet sans `.openguildkit/project.json`, la page ouvre l'installation : le questionnaire de `init`, le plan des packs de règles qui s'appliqueront, puis l'écriture du profil.
@@ -143,7 +145,7 @@ cd web && npm ci --ignore-scripts && npm run build && npm run bundle   # copie d
 python -m build --wheel
 ```
 
-`npm run bundle` refuse une construction qui contient les images de la démo ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 263 Ko, soit 1 148 Ko mesurés le 27 novembre 2026 plus 10 % ; la construction pèse 1 148 Ko ce jour-là, ce qui laisse 115 Ko, soit 9 %, de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
+`npm run bundle` refuse une construction qui contient les images de la démo, une règle de style pour une classe qu'aucun script de la construction ne nomme, ou qui dépasse son budget (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 263 Ko, soit 1 148 Ko mesurés le 27 novembre 2026 plus 10 % ; le 28 novembre 2026, sans les règles de style de la démo, la construction pèse 1 124 Ko, ce qui laisse 139 Ko, soit 11 %, de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors). La release (`.github/workflows/release.yml`) et le job CI `package` font ces étapes, et refusent une roue sans `openguildkit/web_dist/index.html`. Le job `package` installe ensuite la roue sur Linux, macOS et Windows (avec `pipx` sous Windows) et vérifie que `openguildkit ui` répond 200 sur `/` avec chaque script de la page (`.github/scripts/check-installed-cli.py`). Dans un dépôt source, le serveur prend la plus récente des deux : `web/dist` ou la copie de `web_dist`.
 
 ## Performances
 

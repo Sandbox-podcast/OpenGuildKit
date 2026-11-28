@@ -1,8 +1,8 @@
 import { expect } from 'vitest';
-import { check, execute, type CommandDef } from '@/domain/engine';
-import { cmd } from '@/domain/commands';
-import { emptyState } from '@/domain/state';
-import type { Actor, AppState } from '@/domain/types';
+import { check, execute, type CommandDef } from '@/demo/domain/engine';
+import { cmd } from '@/demo/domain/commands';
+import { emptyState } from '@/demo/domain/state';
+import type { Actor, AppState } from '@/demo/domain/types';
 
 export const human = (userId: string): Actor => ({ type: 'human', userId });
 export const agent = (key: string): Actor => ({ type: 'agent', expertId: `exp-org-nova-${key}` });

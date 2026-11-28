@@ -1,5 +1,5 @@
 /** Building blocks shared by the places of the project interface. */
-import { useCallback, useEffect, useId, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { Badge, Button, Notice, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
@@ -11,7 +11,7 @@ import { offPath, onlyTasksFail } from './data';
 import type { TaskListItem } from './types';
 import { showTerminal, showTouched, useTerminalRequest, useTouched, type Query } from './query';
 import { STEPS, needsReconsult, stepOf, taskStatus, touchedStep } from './labels';
-import { usePrefs } from './prefs';
+import { rememberName, usePrefs, useRememberedName } from './prefs';
 
 export function Loading({ label = 'Chargement' }: { label?: string }) {
   return (
@@ -434,7 +434,7 @@ export function ActionForm({
   const [values, setValues] = useState<Record<string, string>>(initial ?? {});
   const [tried, setTried] = useState(false);
   const missing = fields.filter((f) => f.required && !values[f.name]?.trim());
-  const errorOf = (f: (typeof fields)[number]) => (values[f.name]?.trim() && f.check ? f.check(values[f.name].trim()) : null);
+  const errorOf = (f: (typeof fields)[number]) => (values[f.name]?.trim() && f.check ? f.check(values[f.name]!.trim()) : null);
   const refused = fields.filter((f) => errorOf(f));
   const set = (name: string, value: string) => setValues((v) => ({ ...v, [name]: value }));
   return (
@@ -522,38 +522,10 @@ export function useKept<T>(value: T | undefined): T | undefined {
   return value !== undefined ? value : kept;
 }
 
-/** Keeps a field's value in this browser between visits (the name of the decision owner), shared by every form of the page. */
-const remembered = new Map<string, string>();
-const rememberedListeners = new Set<() => void>();
+/** Keeps a field's value between visits (the name of the decision owner), shared by every form of the page (prefs.ts). */
 export function useRemembered(key: string, initial = '') {
-  const read = () => {
-    if (!remembered.has(key)) {
-      try {
-        remembered.set(key, localStorage.getItem(`ogk-ui:${key}`) ?? initial);
-      } catch {
-        remembered.set(key, initial);
-      }
-    }
-    return remembered.get(key)!;
-  };
-  const value = useSyncExternalStore((l) => {
-    rememberedListeners.add(l);
-    return () => {
-      rememberedListeners.delete(l);
-    };
-  }, read);
-  const setValue = useCallback(
-    (next: string) => {
-      remembered.set(key, next);
-      try {
-        localStorage.setItem(`ogk-ui:${key}`, next);
-      } catch {
-        /* private mode */
-      }
-      rememberedListeners.forEach((l) => l());
-    },
-    [key],
-  );
+  const value = useRememberedName(key, initial);
+  const setValue = useCallback((next: string) => rememberName(key, next), [key]);
   return [value, setValue] as const;
 }
 

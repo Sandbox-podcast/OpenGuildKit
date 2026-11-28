@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { AGENT_CAPABILITIES, CAPABILITIES, ROLE_CAPABILITIES, ROLES, type Capability, type RoleId } from '../src/domain/permissions';
+import { AGENT_CAPABILITIES, CAPABILITIES, ROLE_CAPABILITIES, ROLES, type Capability, type RoleId } from '../src/demo/domain/permissions';
 
 const roles = Object.keys(ROLES) as RoleId[];
 const permissions = Object.entries(CAPABILITIES) as [Capability, string][];
@@ -16,7 +16,7 @@ writeFileSync(new URL('../docs/roles.md', import.meta.url), `# Rôles et capacit
 
 > Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
 
-Matrice générée depuis [permissions.ts](../src/domain/permissions.ts) avec \`npm run docs:roles\`. Une case vide indique que le rôle ne donne pas cette capacité.
+Matrice générée depuis [permissions.ts](../src/demo/domain/permissions.ts) avec \`npm run docs:roles\`. Une case vide indique que le rôle ne donne pas cette capacité.
 
 ${matrix}
 

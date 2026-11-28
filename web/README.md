@@ -32,9 +32,9 @@ npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_d
 npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
 
-`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Ce jour-là la construction pèse 1 148 Ko, avec 115 Ko (9 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
+`npm run bundle` refuse une construction qui contient la démo, une règle de style pour une classe qu'aucun script de la construction ne nomme (sauf `KEPT_FOR_THE_DEMO`), ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Le 28 novembre 2026, sans les règles de style de la démo, la construction pèse 1 124 Ko, avec 139 Ko (11 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
 
-Les préférences de la page (style, mouvement, raccourcis, nom du décideur) sont gardées par le navigateur pour une origine, et le nom d'hôte change à chaque lancement de `openguildkit ui` : sans réglage, chaque lancement les remet à zéro. `openguildkit ui --stable-address` fixe le nom d'après le chemin du projet pour les garder ; l'origine ne reste la même qu'au même port, et un processus local qui connaît le chemin peut calculer le nom ([détails](docs/interface-projet.md#lancer)).
+Les préférences de la page (style, mouvement, raccourcis, noms du décideur et du signataire) sont gardées par le projet, dans `.openguildkit/work/ui-prefs.json` (hors de Git) : chaque lancement de `openguildkit ui` les retrouve, bien que le nom d'hôte change à chaque fois ([détails](docs/interface-projet.md#lancer)).
 
 Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://ogk-….localhost:7311 npm run dev` avec l'origine de l'adresse imprimée, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de cette adresse avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
@@ -43,14 +43,14 @@ Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un proje
 ```bash
 npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
 npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage, et neuf composants du mode réel montés dans happy-dom (tests/project/views : faux fetch, ni Chrome ni serveur ; `// @vitest-environment happy-dom` en tête de chaque fichier)
-npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères et les erreurs de noUncheckedIndexedAccess (tsconfig.index.json) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`node scripts/check-ratchet.mjs longLines indexedAccess --update`, qui refuse d'écrire un fichier plus mauvais)
+npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères hors chaînes, et tsc avec noUncheckedIndexedAccess sur src/project et src/shared (tsconfig.index.json, 0 erreur) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`node scripts/check-ratchet.mjs longLines indexedAccess --update`)
 npm run lint         # ESLint (eslint.config.mjs : typescript-eslint, react-hooks, frontière produit / démo), même cliquet par fichier ; `npx eslint .` donne le détail
 npm run format:check # Prettier (.prettierrc.json : largeur 140, apostrophes simples), même cliquet : un fichier formaté reste formaté, un autre n'est pas reformaté d'office
 npm run format -- src/project/query.ts   # formate les fichiers nommés, puis `node scripts/check-ratchet.mjs unformatted --update`
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- 'http://ogk-….localhost:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
-npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
+npm run catalogue    # régénère src/demo/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
 CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et docs/captures-pro
 node scripts/measure.mjs http://localhost:5209 5   # mesures de performance de la démo servie par `npm run preview:demo`
@@ -70,7 +70,7 @@ Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` a
 - Ne lance pas `npm ci` quand un serveur `vite` tourne sur ce dossier : Windows verrouille `@rolldown/.../*.node`. Arrête les serveurs d'abord, ou répare avec `npm install`.
 - Teste la démonstration sur un autre port que celui de ton serveur de développement (5199) : le localStorage est propre à chaque origine. `playwright.config.ts` tire par défaut un port entre 5201 et 6200 du chemin de la copie du dépôt (`PW_PORT`), si bien que deux copies lancent leurs parcours en même temps.
 - Les chaînes de l'interface sont en français avec l'apostrophe typographique `’` : les tests comparent des messages.
-- Démonstration : les règles métier vivent dans `src/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
+- Démonstration : les règles métier vivent dans `src/demo/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
 
 ## Parcours de démonstration
 
@@ -84,15 +84,16 @@ Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` a
 
 | Dossier | Rôle |
 | --- | --- |
-| `src/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`), commande du terminal de chaque décision d'une personne (`terminal.ts`). |
-| `src/adapters` | Catalogue (parseur Markdown/JSON, validation, doublons), stockage versionné, exports réels (MD, JSON, YAML, HTML autonome, SVG), simulations (`simulation/`) derrière `services.ts`. |
-| `src/fixtures` | Scénario Atelier Nova, expertises, skills et contrôles, réutilisation du registre CLI (`../src/openguildkit/registry`). |
-| `src/shared` | Design system (`ui/`), moteur pixel art (`pixel/` : bâtiments, portraits, carte, icônes dessinés par primitives). |
-| `src/features` | Un dossier par lieu de la démonstration. |
+| `src/demo/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`), commande du terminal de chaque décision d'une personne (`terminal.ts`). |
+| `src/demo/adapters` | Catalogue (parseur Markdown/JSON, validation, doublons), stockage versionné, exports réels (MD, JSON, YAML, HTML autonome, SVG), simulations (`simulation/`) derrière `services.ts`. |
+| `src/demo/fixtures` | Scénario Atelier Nova, expertises, skills et contrôles, réutilisation du registre CLI (`../src/openguildkit/registry`). |
+| `src/demo` | Tout ce qui n'est qu'à la démonstration Atelier Nova, absente du paquet : `app/` (entrée `App.tsx`, coquille, recherche, magasin), `ui/` (composants liés au magasin), `styles/` (feuilles de la démo) et les dossiers ci-dessous. `src/project` et `src/shared` n'en importent rien (`tests/project/boundary.test.ts`, `npm run lint`). |
+| `src/shared` | Ce que le produit et la démo partagent : design system (`ui/`), moteur pixel art (`pixel/` : bâtiments, portraits, carte, icônes dessinés par primitives), routeur, marque, raccourcis. |
+| `src/demo/features` | Un dossier par lieu de la démonstration. |
 | `src/project` | Mode réel : client de l'API locale, cache des commandes, libellés, un fichier par lieu dans `views/`. Le serveur est `../src/openguildkit/webui.py`. |
 | `tests/domain`, `tests/project`, `tests/scripts`, `tests/e2e` | Tests Vitest et Playwright. |
 
-Données d’entrée : `data/SOCLE_Catalogue_395_References.md` (395 références, 37 catégories, 12 familles, édition du 20 novembre 2026), converti en `src/fixtures/catalogue.json` avec contrôle de comptage.
+Données d’entrée : `data/SOCLE_Catalogue_395_References.md` (395 références, 37 catégories, 12 familles, édition du 20 novembre 2026), converti en `src/demo/fixtures/catalogue.json` avec contrôle de comptage.
 
 ## Documentation
 

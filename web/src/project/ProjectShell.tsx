@@ -3,9 +3,9 @@
  * project the local server opened. Counters come from the CLI; nothing here is simulated.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { navigate, useRoute } from '@/app/router';
-import { Brand } from '@/app/Brand';
-import { NavigationIcon } from '@/app/NavigationIcon';
+import { navigate, useRoute } from '@/shared/router';
+import { Brand } from '@/shared/Brand';
+import { NavigationIcon } from '@/shared/NavigationIcon';
 import { PLACES, PLACE_GROUPS, type Place } from '@/shared/places';
 import type { PlaceKey } from '@/shared/pixel/buildings';
 import { Icon } from '@/shared/pixel/icons';

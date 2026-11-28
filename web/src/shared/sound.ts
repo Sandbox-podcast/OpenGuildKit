@@ -16,5 +16,7 @@ export function playSound(kind: keyof typeof NOTES) {
       osc.start(ctx!.currentTime + i * 0.08);
       osc.stop(ctx!.currentTime + i * 0.08 + 0.13);
     });
-  } catch { /* audio unavailable: silently ignored */ }
+  } catch {
+    /* audio unavailable: silently ignored */
+  }
 }
