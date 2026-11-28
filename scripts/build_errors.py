@@ -2,7 +2,8 @@
 
     python scripts/build_errors.py [--check]
 
-Each `raise OgkError("OGK-AREA-NNN", message)` of src/openguildkit is one entry: the code, the module, the function
+Each `OgkError("OGK-AREA-NNN", message)` of src/openguildkit, raised or returned, is one entry (and each error of a
+class of CODED, which takes its code first): the code, the module, the function
 that raises it, the message as written (a value computed at run time in braces) and the test files that cite the
 code. The JSON file holds one entry per line, so `grep -n OGK-TASK-004 docs/agents/errors.json` prints a whole entry.
 
@@ -39,22 +40,26 @@ def _template(node: ast.expr) -> str:
     return "{" + ast.unparse(node) + "}"
 
 
+# The classes whose first argument is the code: OgkError and the errors of one area that derive from it.
+CODED = ("OgkError",)
+
+
 def raise_sites(root: Path) -> list[dict]:
-    """Every `raise OgkError(CODE, message)` of the package, in the order of the files and lines."""
+    """Every construction of a coded error, `OgkError(CODE, message)` or a class of CODED, raised or returned, in the
+    order of the files and lines."""
     found = []
     for path in sorted((root / "src" / "openguildkit").glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         functions = [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
-        for node in ast.walk(tree):
-            call = node.exc if isinstance(node, ast.Raise) else None
-            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "OgkError"):
-                continue
-            code = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) else None
+        calls = sorted((node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                        and node.func.id in CODED and node.args), key=lambda node: (node.lineno, node.col_offset))
+        for call in calls:
+            code = call.args[0].value if isinstance(call.args[0], ast.Constant) else None
             owner = min((function for function in functions
-                         if function.lineno <= node.lineno <= (function.end_lineno or function.lineno)),
+                         if function.lineno <= call.lineno <= (function.end_lineno or function.lineno)),
                         key=lambda function: (function.end_lineno or 0) - function.lineno, default=None)
             found.append({"code": code, "module": path.relative_to(root).as_posix(),
-                          "function": owner.name if owner else None, "line": node.lineno,
+                          "function": owner.name if owner else None, "line": call.lineno,
                           "message": _template(call.args[1]) if len(call.args) > 1 else ""})
     return found
 
