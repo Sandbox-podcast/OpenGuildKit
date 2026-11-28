@@ -21,7 +21,8 @@ from openguildkit.sensitive import (
     redact_data,
 )
 from openguildkit.storage import write_json
-from openguildkit.tools import load_tools, plan_connections
+from openguildkit.tool_registry import load_tools
+from openguildkit.tools import plan_connections
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

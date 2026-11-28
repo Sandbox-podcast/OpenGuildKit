@@ -14,10 +14,23 @@ from .shell import shell_command
 from .storage import json_text, project_lock, write_text
 from .tasks import read_task
 from .terminal import interactive
+from .tool_registry import CATEGORIES, PROJECT_ORIGIN, PROJECT_TOOLS, check_tool_links, load_tools
 from .tools import (
-    CATEGORIES, HOSTS, PROJECT_ORIGIN, PROJECT_TOOLS, SCENARIO, apply_connections, check_settings, check_tool_links,
-    choose_server, connection_status, load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools,
-    remove_connections, resolve_tool, scenario_fields, scenario_records,
+    HOSTS,
+    SCENARIO,
+    apply_connections,
+    check_settings,
+    choose_server,
+    connection_status,
+    load_mock,
+    mock_ids,
+    plan_connections,
+    read_manifest,
+    recommend_tools,
+    remove_connections,
+    resolve_tool,
+    scenario_fields,
+    scenario_records,
 )
 from .wording import plural
 

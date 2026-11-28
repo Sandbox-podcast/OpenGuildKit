@@ -23,7 +23,8 @@ from .sensitive import redact_credentials
 from .shell import shell_word
 from .storage import project_lock, write_json
 from .tasks import tasks_touched
-from .tools import load_tools, match_tools
+from .tool_registry import load_tools
+from .tools import match_tools
 from .wording import plural
 
 LIST_FIELDS = {

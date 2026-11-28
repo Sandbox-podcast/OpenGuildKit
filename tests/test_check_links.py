@@ -47,7 +47,7 @@ class CitationTests(unittest.TestCase):
         cls.citations = check_links.collect_citations(cls.catalog, load_references())
 
     def test_the_tool_registry_sources_are_checked_too(self):
-        from openguildkit.tools import load_tools
+        from openguildkit.tool_registry import load_tools
 
         tools = load_tools()
         citations = check_links.collect_citations(self.catalog, load_references(), tools)

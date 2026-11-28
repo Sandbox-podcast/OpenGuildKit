@@ -31,7 +31,7 @@ from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks
 from .tasks_blockers import unresolved_blockers
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 SHOWN_MATCHES = 50

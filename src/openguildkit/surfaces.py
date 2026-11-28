@@ -26,7 +26,7 @@ from .allowlist import address_allowed, load_allow, mcp_allowed
 from .hosts import HOOK_HOSTS, UNHOOKED_TOOLS, board_control, unhooked_detail, unhooked_source
 from .project_instructions import managed_block_lines
 from .sensitive import looks_like_credential, redact_credentials
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 MAX_FILES = 200

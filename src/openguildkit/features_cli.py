@@ -13,7 +13,8 @@ from .cli_surface import add_by
 from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
-from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
+from .tool_registry import load_tools
+from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, resolve_tool
 from .wording import plural
 
 

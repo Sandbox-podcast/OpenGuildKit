@@ -36,7 +36,7 @@ from .references import load_references
 from .storage import print_json
 from .tasks import list_tasks
 from .tasks_list_cli import sharing_issues
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}

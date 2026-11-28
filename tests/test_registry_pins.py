@@ -5,7 +5,8 @@ import unittest
 
 from openguildkit import surfaces
 from openguildkit.catalog import CatalogError
-from openguildkit.tools import _validate_tool, load_tools, review_facts
+from openguildkit.tool_registry import _validate_tool, load_tools
+from openguildkit.tools import review_facts
 from tests.test_tool_registry import local_tool
 
 # The servers of the registry whose launch names no one version (npm, PyPI or Docker), each with the day it was counted.

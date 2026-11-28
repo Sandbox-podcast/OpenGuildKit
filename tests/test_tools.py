@@ -12,9 +12,19 @@ from unittest import mock as patching
 
 from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.mcp_mock import call_tool, describe, example_arguments, list_all_arguments, reference_problems
+from openguildkit.tool_registry import CATEGORIES, _validate_tool, check_tool_links, load_tools
 from openguildkit.tools import (
-    CATEGORIES, NOT_DOCUMENTED, _validate_tool, apply_connections, check_tool_links, choose_server, connection_status,
-    detect_tools, load_mock, load_tools, match_tools, mock_ids, plan_connections, read_manifest, remove_connections,
+    NOT_DOCUMENTED,
+    apply_connections,
+    choose_server,
+    connection_status,
+    detect_tools,
+    load_mock,
+    match_tools,
+    mock_ids,
+    plan_connections,
+    read_manifest,
+    remove_connections,
     scenario_records,
 )
 from tests.support import run_cli
@@ -1087,6 +1097,7 @@ class PolishTests(unittest.TestCase):
 
     def test_a_hint_never_repeats_a_credential_shaped_setting(self):
         import argparse
+
         from openguildkit.tools_cli import _apply_command
         secret = "gl" + "pat-" + "k" * 20
         args = argparse.Namespace(tool=["zendesk"], mock=False, community=False, read_only=False, log=None,
