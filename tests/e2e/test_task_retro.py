@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.decisions import record_digest
+from openguildkit.retro import MAX_REASON
 from openguildkit.storage import write_json
 from tests.support import run_cli
 
@@ -423,7 +424,11 @@ class CheckCommandTests(RetroCase):
         self.assertEqual(stuck["point"], f"`{READY_COMMAND}` could not run: The sandbox has no network for the tests")
         self.assertEqual(shlex.split(stuck["command"]), ["openguildkit", "profile", "remove", "check", READY_COMMAND,
                                                          "--by", "INITIALS", "--reason", stuck["proposed_reason"]])
-        self.assertTrue(stuck["proposed_reason"].startswith(f"task retro: `{READY_COMMAND}` could not run"))
+        # The reason is cut to MAX_REASON characters, and READY_COMMAND holds the interpreter's path, which a virtual
+        # environment (as under coverage) makes long: compare what fits before the tasks.
+        expected = f"task retro: `{READY_COMMAND}` could not run"
+        room = MAX_REASON - len(" in 3 tasks (c1, c2, c3)")
+        self.assertTrue(stuck["proposed_reason"].startswith(expected[:room - 3]), stuck["proposed_reason"])
         self.assertIn("in 3 tasks (c1, c2, c3)", stuck["proposed_reason"])
         self.assertTrue(stuck["needs_terminal"])
         self.assertEqual([item for item in self.found("--min", "4") if item["kind"] == "reservation"], [])

@@ -74,7 +74,8 @@ class TraceTests(unittest.TestCase):
         self.assertTrue(traced.stderr.endswith(plain.stderr))
 
     def test_importing_the_cli_does_not_load_the_traceback_module(self):
-        done = subprocess.run([sys.executable, "-c", "import sys, openguildkit.cli; print('traceback' in sys.modules)"],
+        # -S: no site module, so no .pth file of a tool, such as the coverage of a child process, loads traceback first.
+        done = subprocess.run([sys.executable, "-S", "-c", "import sys, openguildkit.cli; print('traceback' in sys.modules)"],
                               capture_output=True, text=True, check=False,
                               env={**os.environ, "PYTHONPATH": str(REPO / "src")})
         self.assertEqual(done.stdout.strip(), "False", done.stderr)
