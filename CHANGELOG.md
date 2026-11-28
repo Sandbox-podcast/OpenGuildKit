@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `task consult` of a bug looks for the code its brief names in the file the brief names first, then with one `git grep` over every source file of a Git repository; outside Git, a walk stopped at 5,000 source files says so instead of calling the rest absent (`code_not_searched`): 2.1 s to 1.2 s at 20,000 files (#536)
 - `task retro --all`, `task challenge` and `task decide`: the objections between boards scan each text once for every board's domain instead of once per pair of boards, and an ASCII text is folded at once: `task retro --all` at 1,000 tasks from 13.4 s to 6.6 s, same output (#540)
 - `task consult` works out the reading list of the boards routing convenes only, not of every board of the catalog, and folds the task's words and each reference's words once: about 26 ms less per consultation; the consultation written is the same (#541)
 - `task decide` and `task challenge` find the project's last approval through the status index, which now keeps each record's latest approval date, and read that one record instead of every task: `task challenge` at 1,000 tasks from 2.0 s to 0.27 s; a missing, stale or garbled index still reads them all (#535)

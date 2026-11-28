@@ -42,7 +42,7 @@ BUDGETS = {
     "catalog --json": 6,
     "init": 6,
     "task consult": 9,
-    "task consult, bug, with node_modules": 18,
+    f"task consult, bug, {bench.SOURCE_FILES} source files": 18,
     f"task list ({bench.TASKS} tasks)": 13,
     f"check ({bench.TASKS} tasks)": 29,
     # Issue #534: three times the highest ratio seen, as the rule above says: 1.5 to 2.9 for task list, which read every

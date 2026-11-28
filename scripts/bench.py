@@ -7,7 +7,8 @@ built in a temporary folder: the request status example (guard off), the same
 project with 500 tasks of which 5 are approved (guard enforce), that project
 again inside a Git repository whose commit the approvals record, a project of
 500 tasks closed and exported as the normal path leaves them, a web project
-whose node_modules holds FILES files (50 000 by default), a monorepo of 200
+in a Git repository with 5 000 source files whose node_modules holds FILES files
+(50 000 by default), a monorepo of 200
 packages, a Git repository whose base revision holds 200 exported decision
 records, for guard --ci, and a folder of 30 copies of the example project for
 `projects`. Python caches the bytecode in that folder, as an installed package
@@ -53,6 +54,7 @@ PACKAGES = 200
 MERGED = 200
 FLEET = 30
 DEPENDENCY_FILES = 50_000
+SOURCE_FILES = 5_000  # in the web project, outside node_modules: a bug consult looks for the code its brief names
 BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
              "is never called.")
 GIT_IDENTITY = ("-c", "user.name=Bench", "-c", "user.email=bench@example.test", "-c", "commit.gpgsign=false")
@@ -205,10 +207,20 @@ def closed_tasks(folder: Path) -> Path:
 
 
 def web_project(folder: Path, dependencies: int) -> Path:
-    """The example project with a front end and a node_modules of that many files, as npm install leaves it."""
+    """The example project in a Git repository, with a front end of SOURCE_FILES source files and a node_modules of
+    that many files, as npm install leaves it (Git ignores it)."""
     project = example_project(folder)
     (project / "src").mkdir()
     (project / "src" / "app.ts").write_text("export function renderStatus() { return 'open'; }\n", encoding="utf-8")
+    for index in range(SOURCE_FILES - 1):
+        module = project / "services" / f"svc-{index // 100:02d}"
+        module.mkdir(parents=True, exist_ok=True)
+        (module / f"file_{index}.ts").write_text(f"export function render{index}() {{ return {index}; }}\n",
+                                                 encoding="utf-8")
+    (project / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+    git(project, "init", "-q")
+    git(project, "add", "-A")
+    git(project, "commit", "-qm", "Start")
     for index in range(dependencies):
         package = project / "node_modules" / f"pkg-{index // 50:04d}" / "lib"
         package.mkdir(parents=True, exist_ok=True)
@@ -289,7 +301,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         ("catalog --json", lambda: cli(plain, "catalog", "--json")),
         ("init", fresh_init),
         ("task consult", consult),
-        ("task consult, bug, with node_modules", consult_bug),
+        (f"task consult, bug, {SOURCE_FILES} source files", consult_bug),
         (f"task list ({TASKS} tasks)", lambda: cli(big, "task", "list")),
         (f"check ({TASKS} tasks)", lambda: cli(big, "check")),
         (f"task list ({TASKS} closed tasks)", lambda: cli(closed, "task", "list")),

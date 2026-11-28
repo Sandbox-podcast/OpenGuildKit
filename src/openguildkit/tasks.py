@@ -16,7 +16,7 @@ from pathlib import Path
 
 from . import clock, delivered_review, incident, light_lane, requester, roles, task_index
 from .alerts import resolution_line, resolved_by_import
-from .consultation import code_not_found, consult, profile_settings
+from .consultation import code_lookup, consult, profile_settings
 from .decisions import (
     DECISIONS_DIR,
     EARLIER_SIGNERS,
@@ -199,6 +199,7 @@ _SCOPE = {
     "open_points?": [str],
     "checks?": [str],
     "code_not_found?": [str],
+    "code_not_searched?": [str],
     "packs?": [{"id": str, "rules": [_RULE]}],
     "market?": {"id": str, "observations": [{"id": str}], "changes?": [dict]},
     "tools?": [{"id": str}],
@@ -984,15 +985,15 @@ def record_consultation(
     result = {**task, "answers": validated, "rounds": rounds}
     if brief is not None:
         result["brief"] = validate_brief(brief)
-    missing = None
+    missing, not_searched = None, None
     if root is not None and validated["kind"] == "bug":
-        missing = code_not_found(" ".join([result["brief"], validated.get("context", "")]), root)
+        missing, not_searched = code_lookup(" ".join([result["brief"], validated.get("context", "")]), root)
     result.update(
         status="consulting",
         consultation=consult(
             task_scope_profile(profile, catalog, validated.get("components", [])),
             catalog, result, selection, host_controls, market, storybook,
-            knowledge, tools, missing,
+            knowledge, tools, missing, not_searched,
         ),
         profile_fingerprint=profile_fingerprint(profile, catalog),
     )
