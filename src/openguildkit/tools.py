@@ -44,14 +44,14 @@ CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CODEX_BLOCK_START = "# >>> OpenGuildKit tools (openguildkit tools apply rewrites this block)\n"
 CODEX_BLOCK_END = "# <<< OpenGuildKit tools\n"
 
-_ID = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+TOOL_ID = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENV = lazy_re.compile(r"[A-Z][A-Z0-9_]{1,63}")
 _VARIABLE = lazy_re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
-_SETTING = lazy_re.compile(r"\{([a-z][a-z0-9_]*)\}")
-_SECRET_WORD = lazy_re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
+SETTING_NAME = lazy_re.compile(r"\{([a-z][a-z0-9_]*)\}")
+SECRET_WORD = lazy_re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
 _INLINE_VALUE = lazy_re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
 # A plain value: a name, a host, or a path on the workstation, absolute ones included.
-_SETTING_VALUE = lazy_re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}|/[A-Za-z0-9][A-Za-z0-9._:/@-]{0,198}")
+SETTING_VALUE = lazy_re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}|/[A-Za-z0-9][A-Za-z0-9._:/@-]{0,198}")
 # What a publisher writes in place of a value the reader fills in: /path/to/server, <your-site>.
 _STAND_IN = lazy_re.compile(r"(?i)path/to/|[<>]")
 TOOL_FIELDS = {"id", "title", "vendor", "summary", "homepage", "brains", "servers"}
@@ -75,11 +75,11 @@ def _text(value: object, label: str) -> str:
 def _https(value: object, label: str, placeholders: bool = False) -> str:
     """An https URL. A server endpoint may also be a loopback address: some servers run on the workstation."""
     text = _text(value, label)
-    probe = _SETTING.sub("x", text) if placeholders else text
+    probe = SETTING_NAME.sub("x", text) if placeholders else text
     if not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::\d+)?(?:/[^\s?#]*)?(?:\?[^\s#]*)?", probe) and not (
             placeholders and re.fullmatch(r"http://(?:127\.0\.0\.1|localhost):\d{2,5}(?:/[^\s?#]*)?", probe)):
         raise CatalogError(f"{label} must be an https URL")
-    if "?" in text and _SECRET_WORD.search(text.split("?", 1)[1]):
+    if "?" in text and SECRET_WORD.search(text.split("?", 1)[1]):
         raise CatalogError(f"{label} must not carry a credential in its query string")
     return text
 
@@ -97,7 +97,7 @@ def _validate_server(server: object, label: str) -> None:
         raise CatalogError(f"{label}: a server needs {', '.join(sorted(SERVER_FIELDS))}" + (
             f"; missing {', '.join(missing)}" if missing else ""))
     label = f"{label}/{server['id']}"
-    if not isinstance(server["id"], str) or not _ID.fullmatch(server["id"]):
+    if not isinstance(server["id"], str) or not TOOL_ID.fullmatch(server["id"]):
         raise CatalogError(f"{label}: use a lowercase id with hyphens")
     for field in ("name", "maintainer", "capabilities"):
         _text(server[field], f"{label} {field}")
@@ -137,7 +137,7 @@ def _validate_server(server: object, label: str) -> None:
         if set(server) & {"command", "args", "package"} or "url" not in server:
             raise CatalogError(f"{label}: a remote server has a url and no command")
         _https(server["url"], f"{label} url", placeholders=True)
-        used = set(_SETTING.findall(server["url"]))
+        used = set(SETTING_NAME.findall(server["url"]))
     else:
         if "url" in server or not {"command", "args", "package"} <= server.keys():
             raise CatalogError(f"{label}: a stdio server has command, args and package, and no url")
@@ -152,9 +152,9 @@ def _validate_server(server: object, label: str) -> None:
         _check_stand_ins([server["command"], *server["args"]], label)
         for arg in server["args"]:
             inline = _INLINE_VALUE.match(arg)
-            if inline and _SECRET_WORD.search(arg.split("=", 1)[0]) and not _SETTING.fullmatch(inline.group(1)):
+            if inline and SECRET_WORD.search(arg.split("=", 1)[0]) and not SETTING_NAME.fullmatch(inline.group(1)):
                 raise CatalogError(f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
-        used = {name for text in [server["command"], *server["args"]] for name in _SETTING.findall(text)}
+        used = {name for text in [server["command"], *server["args"]] for name in SETTING_NAME.findall(text)}
     if used != declared:
         raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
     if "read_only" in server:
@@ -197,16 +197,16 @@ def _validate_read_only(server: dict, label: str) -> None:
     _text(variant["how"], f"{label} read_only how")
     if "url" in variant:
         _https(variant["url"], f"{label} read_only url", placeholders=True)
-        if set(_SETTING.findall(variant["url"])) != set(_SETTING.findall(server["url"])):
+        if set(SETTING_NAME.findall(variant["url"])) != set(SETTING_NAME.findall(server["url"])):
             raise CatalogError(f"{label}: read_only url uses the same settings as url")
     headers = variant.get("headers", {})
     if not isinstance(headers, dict) or any(
-            not isinstance(value, str) or name.casefold() in ("authorization", "cookie") or _SECRET_WORD.search(name)
-            or _SECRET_WORD.search(value) for name, value in headers.items()):
+            not isinstance(value, str) or name.casefold() in ("authorization", "cookie") or SECRET_WORD.search(name)
+            or SECRET_WORD.search(value) for name, value in headers.items()):
         raise CatalogError(f"{label}: read_only headers are plain names and values, never a credential")
     if "args" in variant:
         if not isinstance(variant["args"], list) or any(not isinstance(arg, str) or not arg for arg in variant["args"]) \
-                or set(_SETTING.findall(" ".join(variant["args"]))) != set(_SETTING.findall(" ".join(server["args"]))):
+                or set(SETTING_NAME.findall(" ".join(variant["args"]))) != set(SETTING_NAME.findall(" ".join(server["args"]))):
             raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
         _check_stand_ins(variant["args"], f"{label} read_only")
         if server["command"] == "docker":
@@ -215,8 +215,8 @@ def _validate_read_only(server: dict, label: str) -> None:
         # A variable set to a plain value, never a credential; a container receives it only through -e in args.
         env = variant["env"]
         if server["command"] == "docker" or not isinstance(env, dict) or not env or any(
-                not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or _SECRET_WORD.search(name)
-                or not isinstance(value, str) or not _SETTING_VALUE.fullmatch(value) or _SECRET_WORD.search(value)
+                not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or SECRET_WORD.search(name)
+                or not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(value)
                 for name, value in env.items()):
             raise CatalogError(f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
 
@@ -224,7 +224,7 @@ def _validate_read_only(server: dict, label: str) -> None:
 def _validate_tool(tool: object, label: str) -> None:
     if not isinstance(tool, dict) or not TOOL_FIELDS <= tool.keys() <= TOOL_FIELDS | TOOL_OPTIONAL:
         raise CatalogError(f"{label}: a tool needs {', '.join(sorted(TOOL_FIELDS))}")
-    if not isinstance(tool["id"], str) or not _ID.fullmatch(tool["id"]):
+    if not isinstance(tool["id"], str) or not TOOL_ID.fullmatch(tool["id"]):
         raise CatalogError(f"{label}: use a lowercase id with hyphens")
     label = f"{label}/{tool['id']}"
     for field in ("title", "vendor", "summary"):
@@ -232,7 +232,7 @@ def _validate_tool(tool: object, label: str) -> None:
     _https(tool["homepage"], f"{label} homepage")
     if not tool["brains"]:
         raise CatalogError(f"{label}: name at least one brain")
-    _names(tool["brains"], f"{label} brains", _ID)
+    _names(tool["brains"], f"{label} brains", TOOL_ID)
     if "aliases" in tool and (not isinstance(tool["aliases"], list) or any(
             not isinstance(alias, str) or not alias.strip() for alias in tool["aliases"])):
         raise CatalogError(f"{label}: aliases is a list of names")
@@ -279,7 +279,7 @@ def tool_names(tool: dict) -> list[str]:
 def _check_project_names(tool: dict, bundled: dict[str, str], tools: dict) -> None:
     """Refuse a project tool that takes the name of a bundled one: the person would install it by typing that name."""
     for name in tool_names(tool):
-        taken = bundled.get(_key(name))
+        taken = bundled.get(tool_key(name))
         if taken is not None:
             raise CatalogError(
                 f"tool {tool['id']}: the name {name!r} is the bundled tool {taken} ({tools[taken]['title']}). "
@@ -299,7 +299,7 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
     tools, endpoints, bundled = {}, {}, {}
     for from_project, root in enumerate(roots):
         if from_project:
-            bundled = {_key(name): tool["id"] for tool in tools.values() for name in tool_names(tool)}
+            bundled = {tool_key(name): tool["id"] for tool in tools.values() for name in tool_names(tool)}
         for path, record in record_files(root):
             try:
                 if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
@@ -351,7 +351,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
     """The mock file of a tool: bundled, or the project's own in .openguildkit/catalog/tool-mocks/.
 
     The project's scenario file, when it gives records for this tool, replaces the bundled ones."""
-    if not _ID.fullmatch(tool_id) or tool_id == SCENARIO[:-5]:
+    if not TOOL_ID.fullmatch(tool_id) or tool_id == SCENARIO[:-5]:
         raise ValueError("Use a tool ID of lowercase letters, digits and hyphens.")
     candidates = [package_file("registry", "tool-mocks", f"{tool_id}.json")]
     if extra_dir is not None:
@@ -434,7 +434,7 @@ def scenario_records(tool_ids: list[str], project: str, tools: dict, task_id: st
     return {"about": about, "records": records}
 
 
-def _key(text: str) -> str:
+def tool_key(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", text.casefold())
 
 
@@ -443,10 +443,10 @@ def match_tools(names: list[str], tools: dict) -> tuple[list[str], list[str]]:
     index = {}
     for tool in tools.values():
         for name in tool_names(tool):
-            index.setdefault(_key(name), tool["id"])
+            index.setdefault(tool_key(name), tool["id"])
     matched, unknown = [], []
     for name in names:
-        tool_id = index.get(_key(name))
+        tool_id = index.get(tool_key(name))
         if tool_id is None:
             unknown.append(name)
         elif tool_id not in matched:
@@ -560,7 +560,7 @@ def _settings(server: dict, values: dict, label: str) -> tuple[dict, list[str]]:
         value = values.get(item["name"])
         if value is None:
             missing.append(item["name"])
-        elif not isinstance(value, str) or not _SETTING_VALUE.fullmatch(value) or _SECRET_WORD.search(item["name"]):
+        elif not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(item["name"]):
             raise ValueError(f"{label}: {item['name']} must be a plain value such as a name or a host, never a credential.")
         else:
             filled[item["name"]] = value
@@ -571,7 +571,7 @@ def _settings(server: dict, values: dict, label: str) -> tuple[dict, list[str]]:
 
 
 def _fill(text: str, values: dict) -> str:
-    return _SETTING.sub(lambda match: values.get(match.group(1), match.group(0)), text)
+    return SETTING_NAME.sub(lambda match: values.get(match.group(1), match.group(0)), text)
 
 
 def _read_only_server(server: dict) -> dict:
