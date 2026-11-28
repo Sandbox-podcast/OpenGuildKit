@@ -113,6 +113,7 @@ class FreezeTests(EarlierProject):
 
     def test_issue_481_freezing_needs_no_terminal_and_lifting_it_needs_a_person(self):
         """Issue #481: a freeze only restricts; lifting it weakens a protection."""
+        # OGK-PROFILE-020
         self.freeze()
         again = self.cli("profile", "set", "freeze", "on", "--by", "AB", "--reason", "x", code=1)
         self.assertIn(f"already frozen by CM since {self.profile()['frozen']['on']}", again.stderr)
@@ -195,6 +196,7 @@ class MaxAgeTests(EarlierProject):
 
     def test_issue_481_the_limit_is_a_whole_number_of_days_and_signing_keeps_it(self):
         """Issue #481: 1 to 366 days, like a waiver; turning signed approvals off leaves the limit in place."""
+        # OGK-PROFILE-015
         for bad in ("0", "400", "soon"):
             self.assertIn("1 to 366", self.limit(bad, code=1).stderr)
         self.limit("30")

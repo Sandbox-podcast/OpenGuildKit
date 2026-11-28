@@ -152,6 +152,7 @@ class ActivationTests(ProjectCase):
                          ("set separate-requester on", "Four eyes"))
         self.assertIn("--requested-by", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
         _, error = self.run_cli("profile", "set", "separate-requester", "on", "--by", "Sam", "--reason", "x", code=1)
+        # OGK-PROFILE-021
         self.assertIn("separate-requester is already on. Nothing was written.", error)
         self.run_cli("check")
 

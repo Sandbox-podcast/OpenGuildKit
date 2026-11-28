@@ -18,6 +18,7 @@ from .catalog import load_catalog
 from .cli_surface import add_by
 from .clock import today
 from .command import Command
+from .errors import OgkError
 from .lock import (
     COLLECTIONS,
     apply_lock,
@@ -177,7 +178,7 @@ def _set(args, root: Path, state: Path) -> int:
     if (args.by is None) != (args.reason is None):
         raise ValueError("Supply --by and --reason together to pin the commit, or neither to see what it brings.")
     if args.name is not None and not NAME.fullmatch(args.name):
-        raise ValueError("--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
+        raise OgkError("OGK-ORG-007", "--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
     folder = args.repo.resolve()
     stored = args.name or _stored_repo(args.repo, root)
     read = read_files(stored, args.commit, root, folder if args.name else None)
@@ -244,7 +245,7 @@ def _write_pinned(root: Path, state: Path, args, lock: dict | None, read: dict |
             profile = load_profile(state, catalog)
         except ValueError as error:
             remedy = "" if pin is None else ", or pin another commit"
-            raise ValueError(f"{error} Without it, the profile uses a record the catalog no longer provides: remove it "
+            raise OgkError("OGK-ORG-008", f"{error} Without it, the profile uses a record the catalog no longer provides: remove it "
                              f"from the profile first (openguildkit profile remove pack ID {PERSON}){remedy}. Nothing "
                              "was written.") from None
         touched = tasks_touched(state, profile, catalog)

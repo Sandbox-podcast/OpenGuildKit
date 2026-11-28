@@ -276,6 +276,7 @@ class ActivationTests(ProjectCase):
         self.assertIn("takes one value", error)
         _, error = self.run_cli("profile", "set", "light-paths", "docs/**", "--signers", "keys", "--by", "Sam",
                                 "--reason", "x", typed="docs/**", code=1)
+        # OGK-PROFILE-018, OGK-PROFILE-019
         self.assertIn("--signers belongs to profile set approval signed", error)
 
     def test_the_weakening_is_named_with_the_command_a_person_types(self):

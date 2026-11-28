@@ -8,6 +8,7 @@ Tests: tests/test_org_policy.py
 import sys
 from pathlib import Path
 
+from .errors import OgkError
 from .lock import project_catalog, read_lock
 from .org_policy import findings, from_read, pinned
 from .project import STATE_DIR, load_profile
@@ -35,7 +36,7 @@ def add_guard_options(guard) -> None:
 def ci_copy(args) -> tuple[str, str] | None:
     """(PATH, SHA) of --org-policy and --org-commit, or None without them."""
     if (args.org_policy is None) != (args.org_commit is None):
-        raise ValueError("Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog "
+        raise OgkError("OGK-ORG-011", "Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog "
                          "--org-commit SHA.")
     return None if args.org_policy is None else (args.org_policy, args.org_commit)
 

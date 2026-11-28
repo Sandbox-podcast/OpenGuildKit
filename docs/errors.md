@@ -7,6 +7,10 @@ A code is raised from one place and keeps its meaning when its words change: sea
 
 | Code | Raised by | Message | Tests |
 |---|---|---|---|
+| `OGK-CATALOG-001` | `catalog_cli.py:print_patterns` | {unknown('pattern', args.id, 'patterns')} | tests/test_error_forms.py |
+| `OGK-CATALOG-002` | `catalog_cli.py:print_brains` | Unknown brain: {args.id}. Run openguildkit brains. | tests/test_clean_errors.py |
+| `OGK-CATALOG-003` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: write it in value, a number with its unit such as "90 % of cases" ({records['description']}). | tests/test_recorded_values.py |
+| `OGK-CATALOG-004` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: {problem} ({records['description']}). | tests/test_recorded_values.py |
 | `OGK-CHECK-001` | `check_cli.py:check` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit check --format sarif for code scanning, or openguildkit check --json for a program. | tests/test_json_output.py |
 | `OGK-CORE-001` | `clock.py:_source_date_epoch` | SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it. | tests/test_clock.py |
 | `OGK-CORE-002` | `detect.py:_json_manifest` | {path.as_posix()}: JSON nested too deeply | tests/test_clean_errors.py |
@@ -21,6 +25,38 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-CORE-011` | `storage.py:write_text` | Refusing to replace a symbolic link: {path} | tests/test_storage.py |
 | `OGK-CORE-012` | `storage.py:_held_lock` | Another OpenGuildKit command is writing this project. Try again. | tests/e2e/test_concurrency.py |
 | `OGK-CORE-013` | `terminal.py:typed` | {cancelled} | tests/e2e/test_more_commands.py, tests/test_terminal.py |
+| `OGK-ORG-001` | `org_catalog.py:parse_copies` | --org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}. | tests/test_org_catalog.py |
+| `OGK-ORG-002` | `org_catalog.py:_named_folder` | This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to your Git copy of it (guard --ci: --org-catalog {name}=PATH). | tests/test_org_catalog.py |
+| `OGK-ORG-003` | `org_catalog.py:read_files` | Give the full commit SHA of the organization catalog, not {commit!r}: git -C {shell_word(repo)} rev-parse COMMIT prints it. | tests/test_org_catalog.py |
+| `OGK-ORG-004` | `org_catalog.py:read_files` | The organization catalog {shown} is not a Git repository on this machine. Clone it at that path, or point the project at your copy at a terminal: {SET_COMMAND}. | tests/test_org_catalog.py |
+| `OGK-ORG-005` | `org_catalog.py:read_files` | Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C {shell_word(str(folder) if named else repo)} fetch, then the command again, or pin a commit the copy has at a terminal: {SET_COMMAND}. | tests/test_org_catalog.py |
+| `OGK-ORG-006` | `org_catalog.py:organization_in` | The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint pinned in {LOCK_NAME}. Restore the lock from Git, or review the commit and pin it again at a terminal: {SET_COMMAND}. | tests/test_org_catalog.py |
+| `OGK-ORG-007` | `org_catalog_cli.py:_set` | --name is lowercase letters, digits, - and _, such as acme. Nothing was written. | tests/test_org_catalog.py |
+| `OGK-ORG-008` | `org_catalog_cli.py:_write_pinned` | {error} Without it, the profile uses a record the catalog no longer provides: remove it from the profile first (openguildkit profile remove pack ID {PERSON}){remedy}. Nothing was written. | tests/test_org_catalog.py |
+| `OGK-ORG-009` | `org_policy.py:refuse` | {where}: {problem}. Fix it in the organization catalog, then pin the new commit. | tests/test_org_policy.py |
+| `OGK-ORG-010` | `org_policy.py:refuse_lowering` | Refused: {' '.join(new.values())} A repository may be stricter than the organization policy, never less strict. Nothing was written. | tests/test_org_policy.py |
+| `OGK-ORG-011` | `org_policy_cli.py:ci_copy` | Supply --org-policy and --org-commit together, such as --org-policy ../acme-catalog --org-commit SHA. | tests/test_org_policy.py |
+| `OGK-PROFILE-001` | `profile_edits.py:_decline` | Unknown pattern: {pattern_id}. Run openguildkit patterns. | tests/test_profile_commands.py |
+| `OGK-PROFILE-002` | `profile_edits.py:_known_rule` | Name one rule as PACK/RULE, such as python/follow-python-style: {value} is not. AGENTS.md lists the rules in force under their pack. Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-003` | `profile_edits.py:_known_rule` | Unknown rule {rule}.{hint} Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-004` | `profile_edits.py:_decline_rule` | agent-workflow is required by OpenGuildKit: its rules cannot be declined. Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-005` | `profile_edits.py:_decline_rule` | Rule {rule} is already declined. Nothing was written. | tests/test_retro.py |
+| `OGK-PROFILE-006` | `profile_edits.py:_decline_rule` | Rule {rule} is not in force: its pack {pack_id} is not active in this profile, so no task is asked it. Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-007` | `profile_edits.py:_decline_rule` | Rule {rule} is required by the profile (required_rules lists {required[0]}): remove it from the required rules first, at a terminal: openguildkit profile remove required-rule {required[0]} --by INITIALS --reason WHY. Nothing was written. | tests/test_retro.py |
+| `OGK-PROFILE-008` | `profile_edits.py:_decline_rule` | {rule_id} is the last rule of pack {pack_id} in force: remove the pack (openguildkit profile remove pack {pack_id}) or decline the pattern that brings it, rather than each of its rules. Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-009` | `profile_edits.py:_adopt_rule` | Rule {rule} is not declined (declined rules: {declined}). Nothing was written. | tests/test_rule_decline.py |
+| `OGK-PROFILE-010` | `profile_edits.py:_change_tools` | {value} is {'already in' if add else 'not in'} the profile's tools. Nothing was written. | tests/test_profile_commands.py |
+| `OGK-PROFILE-011` | `profile_edits.py:_change_list` | Unknown {field}: {value}. Run openguildkit catalog or openguildkit patterns. | tests/test_profile_commands.py |
+| `OGK-PROFILE-012` | `profile_edits.py:_change_list` | {value} is {state} the profile's {key}. Nothing was written. | tests/test_profile_commands.py |
+| `OGK-PROFILE-013` | `profile_edits.py:_change_list` | agent-workflow is required by OpenGuildKit and cannot be removed. | tests/test_profile_commands.py |
+| `OGK-PROFILE-014` | `profile_edits.py:_approval_setting` | profile set approval signed needs --signers PATH and at least one --approver NAME. | tests/test_profile_commands.py |
+| `OGK-PROFILE-015` | `profile_edits.py:_max_age_setting` | profile set max-approval-age takes a whole number of days, 1 to 366, or none. Nothing was written. | tests/test_incident.py |
+| `OGK-PROFILE-016` | `profile_edits.py:_waivers_setting` | profile set waivers allowed needs at least one --allowed-by NAME and --max-days DAYS. | tests/test_profile_commands.py |
+| `OGK-PROFILE-017` | `profile_edits.py:_set` | {field} must be one of {', '.join(allowed)}. | tests/test_profile_commands.py |
+| `OGK-PROFILE-018` | `profile_edits.py:_set` | profile set {field} takes one value, not {len(args.more) + 1}. Nothing was written. | tests/test_short_lane.py |
+| `OGK-PROFILE-019` | `profile_edits.py:_set` | --{option} belongs to profile set {' '.join(owner)}. Nothing was written. | tests/test_short_lane.py |
+| `OGK-PROFILE-020` | `profile_edits.py:_set` | The project is already frozen by {as_dict(profile)[key]['by']} since {as_dict(profile)[key]['on']}. Nothing was written. | tests/test_incident.py |
+| `OGK-PROFILE-021` | `profile_edits.py:_set` | {field} is already {value}. Nothing was written. | tests/test_requester.py |
 | `OGK-PROJECT-001` | `project.py:_texts` | {field} must be a list of non-empty strings | tests/test_robustness.py |
 | `OGK-PROJECT-002` | `project.py:_texts` | Each entry of {field} must be a single line | tests/test_instruction_files.py |
 | `OGK-PROJECT-003` | `project.py:catalog_ids` | Unknown {field}: {', '.join(unknown)}.{hint} | tests/test_robustness.py |

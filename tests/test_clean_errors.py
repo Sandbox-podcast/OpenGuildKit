@@ -107,7 +107,7 @@ class CleanErrorTests(unittest.TestCase):
             capture_output=True, env={**os.environ, "PYTHONPATH": str(REPO / "src")},
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn(b"OpenGuildKit: Unknown brain", result.stderr)
+        self.assertIn(b"OpenGuildKit [OGK-CATALOG-002]: Unknown brain", result.stderr)
         self.assertNotIn(b"Traceback", result.stderr)
 
     def test_a_project_folder_that_does_not_exist_is_named_in_one_sentence(self):

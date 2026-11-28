@@ -10,6 +10,7 @@ from typing import Any
 
 from . import lazy_re
 from .catalog import BOUND_FIELDS, overlaid_boards, registry_folder, validated_bundle
+from .errors import OgkError
 from .records import Catalog, Task
 
 
@@ -34,13 +35,13 @@ def recorded_value(task: Task, check_id: str, item: dict | None = None) -> dict:
         return {}
     value = item.get("value")
     if not isinstance(value, str) or not re.search(r"[0-9]", value) or not re.search(r"[^0-9\s.,+-]", value):
-        raise ValueError(
+        raise OgkError("OGK-CATALOG-003", 
             f"{check_id} records the {records['name']}: write it in value, a number with its unit "
             f"such as \"90 % of cases\" ({records['description']})."
         )
     problem = _out_of_bounds(records, value)
     if problem:
-        raise ValueError(f"{check_id} records the {records['name']}: {problem} ({records['description']}).")
+        raise OgkError("OGK-CATALOG-004", f"{check_id} records the {records['name']}: {problem} ({records['description']}).")
     return {"value": " ".join(value.split())}
 
 

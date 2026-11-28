@@ -128,6 +128,7 @@ class ProfileCommandTests(unittest.TestCase):
                 self.assertIn(f"board {board} no longer advises", error)
 
     def test_lists_change_by_command_and_refuse_what_is_unknown_or_already_there(self):
+        # OGK-PROFILE-011
         self.run_cli("profile", "add", "check", "python -m unittest", "--by", "Sam", "--reason", "Tests exist")
         self.run_cli("profile", "add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
         self.run_cli("profile", "add", "role", "backend", "--by", "Sam", "--reason", "API team")
@@ -147,6 +148,7 @@ class ProfileCommandTests(unittest.TestCase):
         self.assertEqual(self.profile()["checks"], [])
         self.run_cli("profile", "set", "host", "codex", "--by", "Sam", "--reason", "Team moved")
         self.assertEqual(self.profile()["host"], "codex")
+        # OGK-PROFILE-017
         for arguments, message in ((("add", "pack", "no-such-pack"), "Unknown pack"),
                                    (("add", "tool", "Jira"), "already in"),
                                    (("remove", "pack", "agent-workflow"), "required"),
@@ -189,6 +191,7 @@ class ProfileCommandTests(unittest.TestCase):
             return self.run_cli("profile", *arguments)
 
     def test_signed_approvals_waivers_and_required_reviews_have_their_commands(self):
+        # OGK-PROFILE-014, OGK-PROFILE-016
         signers = ("--signers", ".openguildkit/allowed_signers", "--approver", "camille@example.test")
         self.run_cli("profile", "add", "required-board", "security", "--by", "Sam", "--reason", "Audit")
         self.run_cli("profile", "add", "required-rule", "secure-sdlc", "--by", "Sam", "--reason", "Audit")
@@ -362,7 +365,7 @@ class ProposalCheckTests(unittest.TestCase):
                          ["board security no longer advises"])
 
     def test_it_refuses_what_the_command_refuses(self):
-        # OGK-PROJECT-022
+        # OGK-PROFILE-001, OGK-PROFILE-012, OGK-PROFILE-013, OGK-PROJECT-022
         for arguments, message in ((("remove", "check", "make"), "not in the profile's checks"),
                                    (("add", "required-rule", "python/no-such-rule"), "Unknown required rule"),
                                    (("decline", None, "no-such-pattern"), "Unknown pattern"),
@@ -523,6 +526,7 @@ class ToolListTests(unittest.TestCase):
         """Issue #526: `profile add tool jira` after `features enable jira` gave two entries, "Jira" and "jira"."""
         self.change("features", "enable", "jira")
         refused = self.change("profile", "add", "tool", "jira", code=1)
+        # OGK-PROFILE-010
         self.assertIn("jira is already in the profile's tools", refused.stderr)
         self.assertEqual(self.tools(), ["Jira"])
 

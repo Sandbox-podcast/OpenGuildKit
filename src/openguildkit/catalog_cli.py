@@ -10,7 +10,7 @@ from pathlib import Path
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .command import Command
 from .detect import detect_stack
-from .errors import unknown
+from .errors import OgkError, unknown
 from .lock import (
     apply_lock,
     build_lock,
@@ -194,7 +194,7 @@ def print_patterns(args, patterns: dict) -> None:
         if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])
     ]
     if args.id and not matches:
-        raise ValueError(unknown("pattern", args.id, "patterns"))
+        raise OgkError("OGK-CATALOG-001", unknown("pattern", args.id, "patterns"))
     if args.json:
         print_json(matches)
         return
@@ -238,7 +238,7 @@ def print_detection(detected: dict, as_json: bool) -> None:
 def print_brains(args, catalog: Catalog, families: dict) -> int:
     boards = catalog["boards"]
     if args.id and args.id not in boards:
-        raise ValueError(f"Unknown brain: {args.id}. Run openguildkit brains.")
+        raise OgkError("OGK-CATALOG-002", f"Unknown brain: {args.id}. Run openguildkit brains.")
     if args.check:
         gaps = knowledge_gaps(catalog, families)
         for gap in gaps:

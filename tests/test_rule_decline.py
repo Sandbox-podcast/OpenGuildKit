@@ -88,6 +88,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertIn("before", output)
 
     def test_restoring_the_rule_gives_back_the_same_instructions_and_fingerprint(self):
+        # OGK-PROFILE-009
         agents, catalog = self.agents(), load_catalog()
         fingerprint = profile_fingerprint(self.profile(), catalog)
         self.cli(*DECLINE, typed=RULE)
@@ -103,9 +104,11 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertEqual(self.agents(), agents)
 
     def test_an_unknown_rule_is_refused_with_the_closest_one(self):
+        # OGK-PROFILE-002
         before = self.profile()
         _, error = self.cli("profile", "decline", "rule", "python/declare-package-metadat", "--by", "S", "--reason", "x",
                             code=1, typed="x")
+        # OGK-PROFILE-003
         self.assertIn("Unknown rule python/declare-package-metadat", error)
         self.assertIn(f"Did you mean {RULE}?", error)
         _, error = self.cli("profile", "decline", "rule", "python", "--by", "S", "--reason", "x", code=1)
@@ -117,6 +120,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertEqual([entry["id"] for entry in self.profile()["declined_rules"]], [RULE])
 
     def test_a_rule_not_in_force_already_declined_or_of_the_workflow_is_refused(self):
+        # OGK-PROFILE-004, OGK-PROFILE-006
         cases = (("gdpr/update-processing-record", "not in force"),
                  ("agent-workflow/scope-before-edits", "required by OpenGuildKit"))
         for rule, words in cases:
@@ -128,6 +132,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         self.assertIn("already declined", error)
 
     def test_the_last_rule_of_a_pack_in_force_is_not_declined_one_by_one(self):
+        # OGK-PROFILE-008
         for rule in ("python/follow-python-style", "python/type-public-interfaces"):
             self.cli("profile", "decline", "rule", rule, "--by", "S", "--reason", "x", typed=rule)
         _, error = self.cli(*DECLINE, code=1, typed=RULE)
