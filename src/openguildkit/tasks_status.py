@@ -244,7 +244,7 @@ def line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
     under and the signature of its exported record (None without one). None when the line depends on more than the
     record and the rules: an approval that does not hold, evidence whose file may change, an exported record of
     another task under its ID, which task list names at each run."""
-    from .guard_export import record_of_another_task
+    from .guard_export import record_of_another_task  # The guard reads task records: it is loaded once this module is.
 
     code = _code_stamp()
     if task["status"] not in DONE_STATUSES or problem or fingerprints is None or code is None or \

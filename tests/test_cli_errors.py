@@ -70,7 +70,7 @@ class TraceTests(unittest.TestCase):
         plain = run_cli(self.root, "guard", "--ci", "--base", "HEAD", expect=1, subprocess_mode=True, env={"PATH": empty})
         traced = run_cli(self.root, "guard", "--ci", "--base", "HEAD", expect=1, subprocess_mode=True,
                          env={"PATH": empty, **DEBUG})
-        self.assertIn("guard.py", traced.stderr)
+        self.assertIn("guard_ci.py", traced.stderr)
         self.assertTrue(traced.stderr.endswith(plain.stderr))
 
     def test_importing_the_cli_does_not_load_the_traceback_module(self):
