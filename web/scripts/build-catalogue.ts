@@ -1,10 +1,10 @@
 /**
- * Converts the supplied Markdown catalogue into src/fixtures/catalogue.json.
+ * Converts the supplied Markdown catalogue into src/demo/fixtures/catalogue.json.
  * Fails when the parsed counts differ from the counts declared by the file.
  * Usage: npm run catalogue [-- path/to/catalogue.md]
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { catalogueStats, parseCatalogueMarkdown } from '../src/adapters/catalogue';
+import { catalogueStats, parseCatalogueMarkdown } from '../src/demo/adapters/catalogue';
 
 const input = process.argv[2] ?? 'data/SOCLE_Catalogue_395_References.md';
 const { catalogue, issues } = parseCatalogueMarkdown(readFileSync(input, 'utf8'));
@@ -21,5 +21,5 @@ if (problems.length) {
   console.error(`Catalogue refusé :\n- ${problems.join('\n- ')}`);
   process.exit(1);
 }
-writeFileSync('src/fixtures/catalogue.json', `${JSON.stringify(catalogue, null, 1)}\n`);
+writeFileSync('src/demo/fixtures/catalogue.json', `${JSON.stringify(catalogue, null, 1)}\n`);
 console.log(`Catalogue écrit : ${stats.references} références, ${stats.categories} catégories, ${stats.families} familles (édition ${catalogue.edition}).`);

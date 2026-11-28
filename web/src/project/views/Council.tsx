@@ -3,7 +3,7 @@
  * pass, read the reviews, deliberate, clear blockers and decide. Approval stays in the person's terminal.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { navigate } from '@/app/router';
+import { navigate } from '@/shared/router';
 import { Badge, Button, Empty, Notice, Panel, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Markdown } from '@/shared/ui/markdown';

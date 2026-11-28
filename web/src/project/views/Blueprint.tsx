@@ -3,7 +3,7 @@
  * origin, the components detected in the repository and the patterns recommended for the stack.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Brand } from '@/app/Brand';
+import { Brand } from '@/shared/Brand';
 import { Badge, Button, Checkbox, KV, Notice, Panel, Tabs, TextArea, TextField } from '@/shared/ui/core';
 import { Icon } from '@/shared/pixel/icons';
 import { ApiError, cliMessage, currentSession, run, saveProfile, terminalCommand } from '../api';

@@ -1,6 +1,6 @@
 /** Bibliothèque: the reference library, the stack patterns, the rule packs and the sectors of the catalog. */
 import { useMemo } from 'react';
-import { setQuery, useRoute } from '@/app/router';
+import { setQuery, useRoute } from '@/shared/router';
 import { Badge, Empty, KV, Panel, Tabs } from '@/shared/ui/core';
 import { Icon } from '@/shared/pixel/icons';
 import { norm } from '@/shared/text';

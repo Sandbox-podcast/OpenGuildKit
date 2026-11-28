@@ -1,6 +1,6 @@
 /** Tour de guet: instruction drift, host enforcement, guard coverage, the dependency alert register and open blockers. */
 import { useCallback, useState } from 'react';
-import { navigate } from '@/app/router';
+import { navigate } from '@/shared/router';
 import { Badge, Button, Panel, Tabs } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';

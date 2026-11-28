@@ -1,0 +1,25 @@
+/** The tone of a badge or a notice and the names of the state icons, shared by the product and the demo. */
+export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'ai' | 'muted';
+export type IconName =
+  | 'dot'
+  | 'check'
+  | 'cross'
+  | 'pause'
+  | 'clock'
+  | 'warn'
+  | 'lock'
+  | 'archive'
+  | 'play'
+  | 'eye'
+  | 'draft'
+  | 'replace'
+  | 'ban'
+  | 'question'
+  | 'stale'
+  | 'star'
+  | 'link'
+  | 'flag'
+  | 'spark'
+  | 'shield'
+  | 'book'
+  | 'scroll';

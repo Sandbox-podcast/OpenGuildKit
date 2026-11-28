@@ -1,7 +1,7 @@
 /** Routes of the project interface. Each place is its own chunk; a direct link survives a reload. */
 import { Suspense, useEffect } from 'react';
 import { lazyPlace, preloadWhenIdle, type Place } from '@/shared/lazyPlace';
-import { navigate, useRoute } from '@/app/router';
+import { navigate, useRoute } from '@/shared/router';
 import { Empty } from '@/shared/ui/core';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 import { currentSession } from './api';

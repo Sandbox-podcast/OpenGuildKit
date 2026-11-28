@@ -2,7 +2,7 @@
  * Pixel icons (9×9 bitmaps) rendered as inline SVG in `currentColor`, so they follow the
  * text colour and contrast of their context. Statuses always pair an icon with text.
  */
-import type { IconName } from '@/domain/machines';
+import type { IconName } from '@/shared/tone';
 
 const B: Record<string, string[]> = {
   dot: ['.........', '.........', '...###...', '..#####..', '..#####..', '..#####..', '...###...', '.........', '.........'],

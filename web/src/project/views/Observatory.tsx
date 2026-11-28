@@ -1,6 +1,6 @@
 /** Observatoire: market dossiers with dated, sourced observations, their gaps, and the competitor watch. */
 import { useCallback, useState } from 'react';
-import { navigate } from '@/app/router';
+import { navigate } from '@/shared/router';
 import { Badge, Button, Empty, Notice, Panel } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';

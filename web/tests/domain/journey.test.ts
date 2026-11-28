@@ -3,9 +3,9 @@
  * "Permettre à un administrateur d'exporter les données de ses clients."
  */
 import { describe, expect, it } from 'vitest';
-import { cmd } from '@/domain/commands';
-import { closureBlocked, closureReport, lineage, resultFreshness, shareStatus } from '@/domain/selectors';
-import type { AppState, DeliverableType } from '@/domain/types';
+import { cmd } from '@/demo/domain/commands';
+import { closureBlocked, closureReport, lineage, resultFreshness, shareStatus } from '@/demo/domain/selectors';
+import type { AppState, DeliverableType } from '@/demo/domain/types';
 import { agent, human, latest, nova, ok, refused, run, ticks } from './helpers';
 
 const YANIS = human('u-yanis');

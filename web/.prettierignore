@@ -11,5 +11,5 @@ data
 package-lock.json
 *.md
 *.css
-src/fixtures/catalogue.json
+src/demo/fixtures/catalogue.json
 src/shared/pixel/character-miniatures.json

@@ -48,7 +48,7 @@ async function start() {
     await project.preloadRoute(session.project.initialized);
     App = project.ProjectApp;
   } else if (__OGK_DEMO__) {
-    const demoApp = await import('./app/App');
+    const demoApp = await import('./demo/app/App');
     await demoApp.preloadRoute();
     App = demoApp.App;
   } else {

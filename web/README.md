@@ -50,7 +50,7 @@ npm run format -- src/project/query.ts   # formate les fichiers nommés, puis `n
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- 'http://ogk-….localhost:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel
-npm run catalogue    # régénère src/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
+npm run catalogue    # régénère src/demo/fixtures/catalogue.json depuis data/SOCLE_Catalogue_395_References.md
 npm run docs:roles   # régénère docs/roles.md depuis les capacités du domaine
 CAPTURES=1 npm run e2e -- captures   # régénère docs/captures-apres (RPG) et docs/captures-pro
 node scripts/measure.mjs http://localhost:5209 5   # mesures de performance de la démo servie par `npm run preview:demo`
@@ -70,7 +70,7 @@ Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` a
 - Ne lance pas `npm ci` quand un serveur `vite` tourne sur ce dossier : Windows verrouille `@rolldown/.../*.node`. Arrête les serveurs d'abord, ou répare avec `npm install`.
 - Teste la démonstration sur un autre port que celui de ton serveur de développement (5199) : le localStorage est propre à chaque origine. `playwright.config.ts` utilise 5201 par défaut (`PW_PORT`).
 - Les chaînes de l'interface sont en français avec l'apostrophe typographique `’` : les tests comparent des messages.
-- Démonstration : les règles métier vivent dans `src/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
+- Démonstration : les règles métier vivent dans `src/demo/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
 
 ## Parcours de démonstration
 
@@ -84,15 +84,16 @@ Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` a
 
 | Dossier | Rôle |
 | --- | --- |
-| `src/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`), commande du terminal de chaque décision d'une personne (`terminal.ts`). |
-| `src/adapters` | Catalogue (parseur Markdown/JSON, validation, doublons), stockage versionné, exports réels (MD, JSON, YAML, HTML autonome, SVG), simulations (`simulation/`) derrière `services.ts`. |
-| `src/fixtures` | Scénario Atelier Nova, expertises, skills et contrôles, réutilisation du registre CLI (`../src/openguildkit/registry`). |
-| `src/shared` | Design system (`ui/`), moteur pixel art (`pixel/` : bâtiments, portraits, carte, icônes dessinés par primitives). |
-| `src/features` | Un dossier par lieu de la démonstration. |
+| `src/demo/domain` | Types, permissions (`authorize`), machines d’états (`machines.ts`), moteur de commandes atomiques (`engine.ts`), sélecteurs dérivés (fraîcheur, clôture, impacts, notifications, traçabilité), commandes métier (`commands/`), commande du terminal de chaque décision d'une personne (`terminal.ts`). |
+| `src/demo/adapters` | Catalogue (parseur Markdown/JSON, validation, doublons), stockage versionné, exports réels (MD, JSON, YAML, HTML autonome, SVG), simulations (`simulation/`) derrière `services.ts`. |
+| `src/demo/fixtures` | Scénario Atelier Nova, expertises, skills et contrôles, réutilisation du registre CLI (`../src/openguildkit/registry`). |
+| `src/demo` | Tout ce qui n'est qu'à la démonstration Atelier Nova, absente du paquet : `app/` (entrée `App.tsx`, coquille, recherche, magasin), `ui/` (composants liés au magasin), `styles/` (feuilles de la démo) et les dossiers ci-dessous. `src/project` et `src/shared` n'en importent rien (`tests/project/boundary.test.ts`, `npm run lint`). |
+| `src/shared` | Ce que le produit et la démo partagent : design system (`ui/`), moteur pixel art (`pixel/` : bâtiments, portraits, carte, icônes dessinés par primitives), routeur, marque, raccourcis. |
+| `src/demo/features` | Un dossier par lieu de la démonstration. |
 | `src/project` | Mode réel : client de l'API locale, cache des commandes, libellés, un fichier par lieu dans `views/`. Le serveur est `../src/openguildkit/webui.py`. |
 | `tests/domain`, `tests/project`, `tests/scripts`, `tests/e2e` | Tests Vitest et Playwright. |
 
-Données d’entrée : `data/SOCLE_Catalogue_395_References.md` (395 références, 37 catégories, 12 familles, édition du 20 novembre 2026), converti en `src/fixtures/catalogue.json` avec contrôle de comptage.
+Données d’entrée : `data/SOCLE_Catalogue_395_References.md` (395 références, 37 catégories, 12 familles, édition du 20 novembre 2026), converti en `src/demo/fixtures/catalogue.json` avec contrôle de comptage.
 
 ## Documentation
 

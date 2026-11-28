@@ -1,5 +1,5 @@
 /** French labels and tones for the values the CLI prints. Unknown values are shown as they are. */
-import type { Tone } from '@/domain/machines';
+import type { Tone } from '@/shared/tone';
 import type { PixelIconName } from '@/shared/pixel/icons';
 import type { TaskStatus } from './types';
 

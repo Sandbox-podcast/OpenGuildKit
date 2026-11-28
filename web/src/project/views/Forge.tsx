@@ -3,7 +3,7 @@
  * deliverables, connect the tools of the stack with their MCP servers or mocks, and extract a design system.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { setQuery, useRoute } from '@/app/router';
+import { setQuery, useRoute } from '@/shared/router';
 import { Badge, Button, Empty, Notice, Panel, Tabs, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Markdown } from '@/shared/ui/markdown';

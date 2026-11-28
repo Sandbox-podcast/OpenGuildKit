@@ -1,7 +1,7 @@
 /** Design system primitives. Each one covers rest, hover, focus, active, busy, error and disabled states. */
 import { useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';
-import type { Tone } from '@/domain/machines';
+import type { Tone } from '@/shared/tone';
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'danger' | 'ai' | 'ghost'; size?: 'small'; icon?: PixelIconName; busy?: boolean };
 export function Button({ variant, size, icon, busy, className, children, ...rest }: BtnProps) {

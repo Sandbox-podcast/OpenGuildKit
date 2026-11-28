@@ -1,6 +1,6 @@
 /** Tâches: every task of the project by state, a new task, and the sheet of one task with its next step. */
 import { useMemo, useState } from 'react';
-import { navigate, setQuery, useRoute } from '@/app/router';
+import { navigate, setQuery, useRoute } from '@/shared/router';
 import { Badge, Button, Empty, KV, Notice, Panel, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon } from '@/shared/pixel/icons';
