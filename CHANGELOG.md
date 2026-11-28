@@ -157,6 +157,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - `docs/agents/map.json` is written by `scripts/build_map.py`: each test that imports a module is attached to it (76 missing), each fixture of `tests/` takes the tests that name it, a `paths` section replaces the tables of `check_fast.py` (catalog, `web/`, `integrations/ci/`, scripts), a `commands` section leads each of the 98 commands to its function, and `--check` fails on a stale map (#502)
 - Tests: `tests/test_dead_code.py` resolves each read to the module it reaches through the imports, so a function no longer passes for used because another module has one of the same name; it finds `webui.weakening_changes` and `patterns.VERSION_PATTERN`, listed as pending until their removal from `src/` (#511)
 - Contributors: `scripts/check_fast.py`, `scripts/run_tests.py` and `scripts/build_map.py` tell a Python older than 3.11 so in one line, and `python scripts/doctor.py` prints one line for each missing tool or wrong version (Python, Git, Node of `.nvmrc`, npm, `origin/main`, `web/node_modules`) and exits 1 (#520)
+- CI coordinator: the `ci-coordinator` job runs `tsc --checkJs` on `bin/`, `lib/` and `pilot/` (`integrations/ci/jsconfig.json`) and fails when the count of errors passes its ceiling, 59 today, which each fix lowers (#531)
 
 ## 0.17.0
 

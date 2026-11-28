@@ -262,6 +262,17 @@ jobs:
           node-version: "22"
       - run: npm test
       - run: npm pack --dry-run
+      - name: Type-check the JavaScript, whose count of errors can only go down
+        # tsc --checkJs on bin/, lib/ and pilot/ (jsconfig.json), with the TypeScript and Node types of web/. 59
+        # errors on 28 November 2026, most of them in the option parsing of bin/openguildkit.mjs: lower the
+        # ceiling with each fix (#531).
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts typescript@5.9.3 @types/node@24.19.2
+          count=$(npx --no-install tsc -p jsconfig.json | grep -c 'error TS' || true)
+          echo "tsc --checkJs: $count errors, ceiling 59"
+          test "$count" -le 59
 
   web:
     name: Web app

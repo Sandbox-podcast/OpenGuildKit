@@ -288,6 +288,20 @@ class CiLogTest(unittest.TestCase):
         self.assertTrue((ROOT / "scripts" / "run_tests.py").is_file())
 
 
+class CoordinatorTypeCheckTest(unittest.TestCase):
+    def test_issue_531_the_coordinator_job_type_checks_its_javascript_under_a_ceiling(self):
+        """Issue #531: the Node coordinator had no static check."""
+        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["ci-coordinator"]
+        step = next(item for item in job["steps"] if "tsc" in item.get("run", ""))
+        self.assertIn("npx --no-install tsc -p jsconfig.json", step["run"])
+        ceiling = re.search(r'test "\$count" -le (\d+)', step["run"])
+        self.assertIsNotNone(ceiling)
+        self.assertIn(f"ceiling {ceiling.group(1)}", step["run"])
+        config = json.loads((ROOT / "integrations" / "ci" / "jsconfig.json").read_text(encoding="utf-8"))
+        self.assertTrue(config["compilerOptions"]["checkJs"])
+        self.assertEqual(config["include"], ["bin/*.mjs", "lib/*.mjs", "pilot/*.mjs"])
+
+
 class ToolVersionFilesTest(unittest.TestCase):
     """Issue #520: the versions of Python and Node of a workstation and of CI live in .python-version and .nvmrc."""
 
