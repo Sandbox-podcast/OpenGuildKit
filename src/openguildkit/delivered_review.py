@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import clock, git, lazy_re
 from .sensitive import redact_credentials
-from .storage import print_json, project_lock, read_json, write_json
+from .storage import print_json
 from .wording import plural
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
@@ -23,19 +23,8 @@ DIFF_LIMIT = 6000
 FINDINGS_GROUP = "Findings on the delivered diff"
 _COMMIT = lazy_re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
 _HUNK = lazy_re.compile(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
-HELP = "Have each board review the diff the task delivered, then record its findings."
 FORMAT = {"board": "BOARD", "findings": [{"file": "path/of/the/change.py", "line": 42, "severity": "blocking",
                                           "action": "fix", "finding": "What is wrong, and where the diff shows it."}]}
-
-
-def add_parser(actions) -> None:
-    """The diff-review action of the task command."""
-    command = actions.add_parser("diff-review", help=HELP)
-    command.add_argument("id", help="Task ID.")
-    shown = command.add_mutually_exclusive_group()
-    shown.add_argument("--board", help="Print this board's brief: the diff, what the decision asked and its lens.")
-    shown.add_argument("--submit", type=Path, metavar="FILE", help="Record one board's findings from a JSON file.")
-    command.add_argument("--json", action="store_true", help="Print the brief or the review status as JSON.")
 
 
 def _git(root: Path, *args: str) -> str | None:
@@ -326,33 +315,8 @@ def exported_review(task: dict) -> dict | None:
     return {board: {key: record[key] for key in ("revision", "at", "findings")} for board, record in sorted(reviewed.items())}
 
 
-def run(args, root: Path, state: Path, task: dict) -> None:
-    """Print the review status or one board's brief, or record one board's findings."""
-    from .tasks import read_task, task_path
-
-    change = delivered_change(root, task)
-    if args.submit:
-        payload = read_json(args.submit)
-        with project_lock(state):
-            if read_task(state, args.id) != task:
-                raise ValueError("The task changed meanwhile. Retry.")
-            try:
-                updated, board = record_findings(task, change, payload)
-            except ValueError as error:
-                raise ValueError(f"{args.submit.as_posix()}: {error}") from None
-            write_json(task_path(state, args.id), updated)
-        findings = updated["delivered_review"]["boards"][board]["findings"]
-        print(f"{board}: {plural(len(findings), 'finding')} recorded.")
-        print(status_line(updated))
-        return
-    if args.board:
-        brief = board_brief(task, change, args.board)
-        print_json(brief) if args.json else print(render_brief(brief))
-        return
-    _print_overview(args, task, change)
-
-
-def _print_overview(args, task: dict, change: dict) -> None:
+def print_overview(args, task: dict, change: dict) -> None:
+    """The diff a task delivered and each board's review of it, as text or as JSON."""
     status = review_status(task)
     if args.json:
         print_json({"task": task["id"], "base": change["base"], "revision": change["revision"],

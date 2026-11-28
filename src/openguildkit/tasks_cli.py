@@ -10,7 +10,7 @@ this module keeps the parser, task new and the table that runs the others.
 import sys
 from pathlib import Path
 
-from . import delivered_review, light_lane, requester
+from . import light_lane, requester
 from .alerts import STATUS_CHOICES as ALERT_STATUSES
 from .cli_surface import add_by
 from .command import Command
@@ -22,7 +22,16 @@ from .sensitive import redact_credentials
 from .storage import project_lock
 from .tasks import create_task, read_task, task_path, waiting_for, waits_line
 from .tasks_approval import approval_problem
-from .tasks_close_cli import run_checks, run_export, run_handoff, run_outcome, run_result_template, run_runs
+from .tasks_close_cli import (
+    add_diff_review_parser,
+    run_checks,
+    run_diff_review,
+    run_export,
+    run_handoff,
+    run_outcome,
+    run_result_template,
+    run_runs,
+)
 from .tasks_closing import ACTIONS
 from .tasks_command import TaskCommand
 from .tasks_consult_cli import (
@@ -137,7 +146,7 @@ def add_parser(commands) -> None:
         command.add_argument("id", help="Task ID.")
         for add_options in ACTION_OPTIONS.get(action, ()):
             add_options(command)
-    delivered_review.add_parser(actions)
+    add_diff_review_parser(actions)
 
 
 def _json_option(text: str):
@@ -392,7 +401,7 @@ HANDLERS = {
     "consult": run_consult, "review": run_review, "pass": run_pass, "submit": run_pass, "progress": run_progress,
     "decide": run_decide, "revoke": run_revoke, "decision-payload": run_decision_payload, "authorize": run_authorize,
     "handoff": run_handoff,
-    "diff-review": lambda command: delivered_review.run(command.args, command.root, command.state, command.task),
+    "diff-review": run_diff_review,
 }
 # The actions that read an approval: an approval that no longer holds stops them, or is shown with show and checks.
 READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete", "diff-review")

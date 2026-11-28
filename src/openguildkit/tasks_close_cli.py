@@ -1,10 +1,10 @@
-"""The task actions after the approval: checks, verify, result, complete, runs, export and handoff, with the
-declarations that a check command cannot run."""
+"""The task actions after the approval: checks, verify, result, complete, runs, export, handoff and diff-review, with
+the declarations that a check command cannot run."""
 
 import sys
 from pathlib import Path
 
-from . import light_lane
+from . import delivered_review, light_lane
 from .alerts import blocking_alerts, load_register
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
@@ -33,7 +33,7 @@ from .results import (
     set_aside_rules,
 )
 from .sensitive import redact_data
-from .storage import print_json, project_lock, read_json
+from .storage import print_json, project_lock, read_json, write_json
 from .tasks import read_task, task_path, waiting_for, waits_line, write_task
 from .tasks_blockers import verification_blocker_problems
 from .tasks_closing import SENSITIVE_GROUP, complete_task, defer_evidence, points_left_open, record_result
@@ -433,3 +433,41 @@ def _status_of(state: Path, task_id: str) -> str:
         return read_task(state, task_id)["status"]
     except ValueError:
         return "unknown"
+
+
+DIFF_REVIEW_HELP = "Have each board review the diff the task delivered, then record its findings."
+
+
+def add_diff_review_parser(actions) -> None:
+    """The diff-review action of the task command."""
+    command = actions.add_parser("diff-review", help=DIFF_REVIEW_HELP)
+    command.add_argument("id", help="Task ID.")
+    shown = command.add_mutually_exclusive_group()
+    shown.add_argument("--board", help="Print this board's brief: the diff, what the decision asked and its lens.")
+    shown.add_argument("--submit", type=Path, metavar="FILE", help="Record one board's findings from a JSON file.")
+    command.add_argument("--json", action="store_true", help="Print the brief or the review status as JSON.")
+
+
+def run_diff_review(command: TaskCommand) -> None:
+    """Print the review status or one board's brief, or record one board's findings."""
+    args, root, state, task = command.args, command.root, command.state, command.task
+    change = delivered_review.delivered_change(root, task)
+    if args.submit:
+        payload = read_json(args.submit)
+        with project_lock(state):
+            if read_task(state, args.id) != task:
+                raise ValueError("The task changed meanwhile. Retry.")
+            try:
+                updated, board = delivered_review.record_findings(task, change, payload)
+            except ValueError as error:
+                raise ValueError(f"{args.submit.as_posix()}: {error}") from None
+            write_json(task_path(state, args.id), updated)
+        findings = updated["delivered_review"]["boards"][board]["findings"]
+        print(f"{board}: {plural(len(findings), 'finding')} recorded.")
+        print(delivered_review.status_line(updated))
+        return
+    if args.board:
+        brief = delivered_review.board_brief(task, change, args.board)
+        print_json(brief) if args.json else print(delivered_review.render_brief(brief))
+        return
+    delivered_review.print_overview(args, task, change)

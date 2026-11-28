@@ -61,7 +61,7 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `tasks_cli.py` | The `task` command: its parser, `task new`, and the table that runs each action, with a refusal that names the command to run next. |
 | `tasks_consult_cli.py` | The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass, submit, progress, review, deliberate, respond, challenge. |
 | `tasks_decide_cli.py` | The task actions a person decides at a terminal: decide, revoke, decision-payload, authorize, blockers, clear, waive, alerts. |
-| `tasks_close_cli.py` | The task actions after the approval: checks, verify, result, complete, runs, export, handoff, and the declarations that a check cannot run. |
+| `tasks_close_cli.py` | The task actions after the approval: checks, verify, result, complete, runs, export, handoff, diff-review, and the declarations that a check cannot run. |
 | `tasks_list_cli.py` | The task actions that read the tasks: list, show and retro, with a teammate's exported records and what the team does not share. |
 | `tasks_command.py` | The one argument of every task action that acts on a task: the command line, the project, its profile and catalog, and the task record. |
 | `profile_cli.py` | The `profile` commands: parse a change and confirm at a terminal what weakens a protection; the change itself goes through `profile_changes.py`. |

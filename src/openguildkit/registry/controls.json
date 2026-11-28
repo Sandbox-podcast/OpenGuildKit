@@ -47,12 +47,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 279
+          "line": 280
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 329
+          "line": 330
         },
         {
           "file": "src/openguildkit/hosts.py",
@@ -86,7 +86,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 756
+          "line": 757
         }
       ],
       "in_dossier": [
@@ -149,7 +149,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1160
+          "line": 1161
         }
       ],
       "in_dossier": [
@@ -170,7 +170,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1160
+          "line": 1161
         }
       ],
       "in_dossier": [],
@@ -189,12 +189,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "export_decision",
-          "line": 453
+          "line": 454
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 898
+          "line": 899
         },
         {
           "file": "src/openguildkit/trace_cli.py",
@@ -224,7 +224,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 748
+          "line": 749
         },
         {
           "file": "src/openguildkit/check_cli.py",
