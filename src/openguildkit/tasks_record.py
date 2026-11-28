@@ -4,7 +4,7 @@ brief, and the time stamp records carry."""
 from collections.abc import Iterator
 from typing import cast
 
-from . import clock, delivered_review, light_lane
+from . import clock, delivered_review, short_lane
 from .sensitive import redact_credentials
 from .workflow import RESOLUTION_FIELDS
 
@@ -80,7 +80,7 @@ _RESOLUTION = {"kind": frozenset({"cleared", "waived"}), "by": str, "evidence?":
                "reason?": str, "scope?": str, "until?": str, "signer?": str, "signature?": str}
 _RECORD = {
     "created_at": str,
-    "lane?": frozenset({light_lane.LANE}),
+    "lane?": frozenset({short_lane.LANE}),
     "paths?": [str],
     "completed_at?": str,
     "profile_fingerprint?": str,

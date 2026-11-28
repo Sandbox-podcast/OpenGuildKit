@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from . import lazy_re, light_lane
+from . import lazy_re, short_lane
 from .patterns import (
     check_pattern_choices,
     pattern_selection,
@@ -534,9 +534,9 @@ def _add_options(profile: dict, answers: dict, catalog: dict) -> None:
         if type(max_days) is not int or not 1 <= max_days <= 366:
             raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
         profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
-    # The short lane (light_lane.py): absent, or an empty list, means it is off.
+    # The short lane (short_lane.py): absent, or an empty list, means it is off.
     if answers.get("light_paths"):
-        profile["light_paths"] = light_lane.normalize_entries(answers["light_paths"], "light_paths")
+        profile["light_paths"] = short_lane.normalize_entries(answers["light_paths"], "light_paths")
     # The requester and the approver (requester.py, RFC #445): absent means off; only true is written.
     if "separate_requester" in answers:
         if answers["separate_requester"] is not True:

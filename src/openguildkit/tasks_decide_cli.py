@@ -4,7 +4,7 @@ alerts. What only a person may do waits for them at a terminal (terminal.typed).
 import sys
 from pathlib import Path
 
-from . import audit_log, light_lane, requester, roles
+from . import audit_log, requester, roles, short_lane
 from .alerts import blocking_alerts, load_register
 from .decisions import (
     DECISIONS_DIR,
@@ -93,7 +93,7 @@ def run_decide(command: TaskCommand) -> None:
                                                  command.catalog, command.task)
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
-    if args.approve and (lane := light_lane.lane_problem(task, profile)):
+    if args.approve and (lane := short_lane.lane_problem(task, profile)):
         raise ValueError(lane)
     if args.approve and (same := requester.approval_problem(task, profile, args.by, args.signer)):
         raise ValueError(same)

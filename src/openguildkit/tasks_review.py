@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
-from . import light_lane, requester
+from . import requester, short_lane
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_lookup, consult
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
@@ -191,7 +191,7 @@ def decision_text(task: dict, profile: dict, previous: dict | None = None, regis
     decision-payload: the decision summary (verdicts, warnings, conditions of approval, removals, blockers), the check
     commands task verify will run with those changed since the project's last approval, and the task's confirmed
     critical alerts that an import resolved since its last decision."""
-    lines = (requester.brief_line(task, profile) + light_lane.decision_lines(task) + decision_summary(task)) + check_command_lines(task, profile, previous)
+    lines = (requester.brief_line(task, profile) + short_lane.decision_lines(task) + decision_summary(task)) + check_command_lines(task, profile, previous)
     if register is not None:
         since = task["rounds"][-1]["decision"]["at"] if task["rounds"] else None
         lines += [resolution_line(alert) for alert in resolved_by_import(register, task, since)]

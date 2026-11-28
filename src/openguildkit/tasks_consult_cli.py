@@ -5,7 +5,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import light_lane
+from . import short_lane
 from .alerts import load_register
 from .brains import BriefKnowledge, consultation_context
 from .catalog import board_replacements
@@ -147,8 +147,8 @@ def warn_inputs(original: object, recorded: object, label: str) -> None:
 def run_questions(command: TaskCommand) -> None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
     args, task = command.args, command.task
-    if light_lane.is_light(task):
-        raise ValueError(light_lane.no_questions_message(args.id))
+    if short_lane.is_light(task):
+        raise ValueError(short_lane.no_questions_message(args.id))
     # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
     if args.answers is None:
         answers, validated, open_list = {}, None, []
@@ -234,8 +234,8 @@ def run_challenge(command: TaskCommand) -> None:
 def run_route(command: TaskCommand) -> None:
     """Preview the boards a consultation would select, and why."""
     args, state, profile, catalog, task = command.args, command.state, command.profile, command.catalog, command.task
-    if light_lane.is_light(task):
-        raise ValueError(light_lane.no_route_message(args.id))
+    if short_lane.is_light(task):
+        raise ValueError(short_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
         raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
@@ -267,7 +267,7 @@ def run_consult(command: TaskCommand) -> None:
     if args.brief_file is not None:
         with input_file(args.brief_file):
             args.revised_brief = args.brief_file.read_text(encoding="utf-8-sig")
-    if light_lane.is_light(task):
+    if short_lane.is_light(task):
         answers = _light_answers(args, task, profile)
     elif args.reuse_answers:
         answers = _reused_answers(args, task)
@@ -326,11 +326,11 @@ def _light_answers(args, task: dict, profile: dict) -> dict:
     requester's, so those options are refused, and a lane the profile no longer allows stops the consultation."""
     used = [option for option, given in (("--answers", args.answers), ("--add", args.add), ("--remove", args.remove)) if given]
     if used:
-        raise ValueError(light_lane.options_message(args.id, used))
-    problem = light_lane.lane_problem(task, profile)
+        raise ValueError(short_lane.options_message(args.id, used))
+    problem = short_lane.lane_problem(task, profile)
     if problem:
         raise ValueError(problem)
-    return light_lane.default_answers(task)
+    return short_lane.default_answers(task)
 
 
 def _reused_answers(args, task: dict) -> dict:

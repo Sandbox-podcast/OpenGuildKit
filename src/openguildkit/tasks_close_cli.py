@@ -4,7 +4,7 @@ the declarations that a check command cannot run."""
 import sys
 from pathlib import Path
 
-from . import delivered_review, light_lane
+from . import delivered_review, short_lane
 from .alerts import blocking_alerts, load_register
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
@@ -81,11 +81,11 @@ def _print_checks(checks: list[dict], reported: dict, task_id: str) -> None:
 def _lane_problems(root: Path, task: dict, profile: dict) -> list[str]:
     """What keeps a short-lane task from being done: the profile no longer allows its paths, or a file changed since
     its approval is outside them. A project outside Git has no list of changed files to compare."""
-    problem = light_lane.lane_problem(task, profile)
-    if problem or not light_lane.is_light(task):
+    problem = short_lane.lane_problem(task, profile)
+    if problem or not short_lane.is_light(task):
         return [problem] if problem else []
-    outside = light_lane.files_outside(task["paths"], profile["light_paths"], changes_since_approval(root, task) or [])
-    return [light_lane.outside_message(task["id"], task["paths"], profile["light_paths"], outside, "this project")] \
+    outside = short_lane.files_outside(task["paths"], profile["light_paths"], changes_since_approval(root, task) or [])
+    return [short_lane.outside_message(task["id"], task["paths"], profile["light_paths"], outside, "this project")] \
         if outside else []
 
 

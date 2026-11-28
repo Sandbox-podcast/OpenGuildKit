@@ -15,7 +15,7 @@ import time
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
-from . import git, incident, lazy_re, light_lane
+from . import git, incident, lazy_re, short_lane
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -129,7 +129,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
             brief = task["brief"].strip().splitlines()
             entry = {"task": task["id"], "brief": brief[0][:120] if brief else "",
                      "approved_at": task["decision"].get("at"), "stale": age is None or age > STALE_DAYS}
-            if light_lane.is_light(task):
+            if short_lane.is_light(task):
                 entry.update(lane=task["lane"], paths=task["paths"])
             covered.append(entry)
         except Exception:  # A broken record covers nothing; it must not stop the guard.
@@ -262,7 +262,7 @@ def scope_note(approvals: list[dict]) -> str:
     are the only ones approved."""
     if not approvals or any(not item.get("lane") for item in approvals):
         return SCOPE_NOTE
-    return (f"The guard holds each edit to the paths of the short-lane {'task' if len(approvals) == 1 else 'tasks'} ({light_lane.covered_summary(approvals)}), "
+    return (f"The guard holds each edit to the paths of the short-lane {'task' if len(approvals) == 1 else 'tasks'} ({short_lane.covered_summary(approvals)}), "
             "not to the brief: keep this work within the approved brief and bring anything else back to the person.")
 
 
@@ -343,7 +343,7 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     if freeze and inside:  # Whatever the mode and the approvals: the person lifts the freeze.
         return 2, "", f"OpenGuildKit: Edit refused: {incident.frozen_text(freeze)}. {incident.LIFT}"
     closed = [pattern.casefold() for pattern in restricted_paths(profile)]
-    restricted = [relative for relative in inside if any(light_lane.matches(pattern, relative.casefold()) for pattern in closed)]
+    restricted = [relative for relative in inside if any(short_lane.matches(pattern, relative.casefold()) for pattern in closed)]
     if restricted:  # Even under an approved task: the person edits a restricted path, or changes the setting.
         return hook_answer(event, mode, "restricted", ", ".join(restricted), dialect)
     signers = signers_file(root, profile)
@@ -361,10 +361,10 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
         # A task of the full path covers every edit; a short-lane task, only the files its paths and the profile name.
         light = profile.get("light_paths") or []
         left = [relative for relative in work if not any(
-            not item.get("lane") or light_lane.covers(relative, item["paths"], light) for item in approvals)]
+            not item.get("lane") or short_lane.covers(relative, item["paths"], light) for item in approvals)]
         if left:
             return hook_answer(event, mode, "lane", f"{', '.join(left)} (approved short-lane {'task' if len(approvals) == 1 else 'tasks'}: "
-                                                    f"{light_lane.covered_summary(approvals)})", dialect)
+                                                    f"{short_lane.covered_summary(approvals)})", dialect)
         return hook_answer(event, mode, "covered", _describe(approvals), dialect, scope_note(approvals))
     return hook_answer(event, mode, "outside")
 
@@ -1060,13 +1060,13 @@ def _lane_fault(record: dict, files: list[str] | None, light: list[str], base: s
     """Why a short-lane record cannot cover the change: the base revision has no light_paths (a change cannot turn on
     the lane it is judged by), or a file the record lists is outside its paths or the base revision's light_paths. The
     files a record covers are those of its base version when the base holds the same approval."""
-    if record.get("lane") != light_lane.LANE:
+    if record.get("lane") != short_lane.LANE:
         return None
     where = f"the base revision {base}"
     if not light:
-        return light_lane.off_message(record["task"], where)
-    outside = light_lane.files_outside(record["paths"], light, files or [])
-    return light_lane.outside_message(record["task"], record["paths"], light, outside, where) if outside else None
+        return short_lane.off_message(record["task"], where)
+    outside = short_lane.files_outside(record["paths"], light, files or [])
+    return short_lane.outside_message(record["task"], record["paths"], light, outside, where) if outside else None
 
 
 def _signed_late(root: Path, base: str, record: dict, relative: str) -> str | None:

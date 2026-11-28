@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 
-from . import clock, light_lane, task_index
+from . import clock, short_lane, task_index
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
 from .project_rules import Fingerprints
 from .results import DONE_STATUSES
@@ -26,7 +26,7 @@ def next_step(task: dict, profile: dict | None = None) -> str:
     """The open point that keeps a task from moving on; with the profile, whether a waiver can still close it."""
     status = task["status"]
     if status == "draft":
-        return ("Consult the boards: the short lane asks no questions." if light_lane.is_light(task)
+        return ("Consult the boards: the short lane asks no questions." if short_lane.is_light(task)
                 else "Answer the questionnaire and consult the boards.")
     if status == "consulting":
         progress = pass_progress(task)
@@ -61,7 +61,7 @@ def next_command(task: dict) -> str:
     """The command that moves a task on from its status, said to the agent: a refusal ends with it, so that a refused
     command leads to one that runs."""
     task_id, status = task["id"], task["status"]
-    if status == "draft" and light_lane.is_light(task):
+    if status == "draft" and short_lane.is_light(task):
         return (f"consult the one board its paths call for with openguildkit task consult {task_id}: the short lane asks "
                 "no questions")
     if status == "draft":
@@ -209,7 +209,7 @@ def task_row(task: dict, problem: dict | None, profile: dict | None, fingerprint
         row["closed_by"] = closed_by
     if task.get("follows"):
         row["follows"] = task["follows"]["task"]
-    if light_lane.is_light(task):
+    if short_lane.is_light(task):
         row.update(lane=task["lane"], paths=task["paths"])
     changed = changed_evidence(task, root) if root is not None else []
     if changed:

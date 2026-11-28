@@ -10,7 +10,7 @@ this module keeps the parser, task new and the table that runs the others.
 import sys
 from pathlib import Path
 
-from . import light_lane, requester
+from . import requester, short_lane
 from .alerts import STATUS_CHOICES as ALERT_STATUSES
 from .cli_surface import add_by
 from .command import Command
@@ -110,7 +110,7 @@ def add_parser(commands) -> None:
     new.add_argument("--requested-by", metavar="NAME",
                      help="The person who asked for the work; required when the profile separates the requester from "
                           "the approver, who cannot then be the same person.")
-    new.add_argument("--lane", choices=(light_lane.LANE,),
+    new.add_argument("--lane", choices=(short_lane.LANE,),
                      help="Open the task in the short lane, which a person turned on in the profile: one board, no "
                           "questionnaire, limited to --paths.")
     new.add_argument("--paths", nargs="+", metavar="GLOB",
@@ -365,7 +365,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         raise ValueError("Supply either a task brief or --file PATH.")
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
-    lane = light_lane.declare(args.lane, args.paths, profile)
+    lane = short_lane.declare(args.lane, args.paths, profile)
     requested_by = requester.declared(args.requested_by, profile, root)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
@@ -384,7 +384,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
     if lane:
-        print(light_lane.next_line(task_id, lane["paths"]), file=sys.stderr)
+        print(short_lane.next_line(task_id, lane["paths"]), file=sys.stderr)
         return
     print(f"Next: read the questions with openguildkit task questions {task_id}; save the answers in {WORK_DIR}/ "
           f"(Git ignores it), get the follow-up questions they call for with openguildkit task questions {task_id} "

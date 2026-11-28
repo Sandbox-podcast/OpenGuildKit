@@ -127,7 +127,7 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `git.py` | Runs Git for every module: one place for its options, for a machine without Git, and for file names read with `-z` as they are on disk. |
 | `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
 | `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
-| `light_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
+| `short_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
 | `requester.py` | The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445). |
 | `roles.py` | Roles by board, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |

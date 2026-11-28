@@ -3,14 +3,14 @@ every change takes, from a command at a terminal or from the web page (write_cha
 
 Entry: weakening_changes, write_change, save_edited, check_proposal, report_change, print_touched, Weakening,
 InvalidProfile.
-Tests: tests/test_profile_commands.py, tests/test_rule_decline.py, tests/test_light_lane.py, tests/test_requester.py.
+Tests: tests/test_profile_commands.py, tests/test_rule_decline.py, tests/test_short_lane.py, tests/test_requester.py.
 """
 
 import difflib
 from argparse import Namespace
 from pathlib import Path
 
-from . import audit_log, incident, light_lane, org_policy, requester
+from . import audit_log, incident, org_policy, requester, short_lane
 from .clock import today
 from .hosts import HOSTS, LIFTED
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
@@ -474,7 +474,7 @@ def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
             if options["paths"][1:]:
                 raise ValueError("profile set light-paths none takes no other path. Nothing was written.")
             return "light_paths", None
-        return "light_paths", light_lane.normalize_entries(options["paths"], "light-paths")
+        return "light_paths", short_lane.normalize_entries(options["paths"], "light-paths")
     return field.replace("-", "_"), value == "yes" if field in ("personal-data", "people-decisions") else value
 
 
@@ -517,7 +517,7 @@ def _set_change(args, before: dict, after: dict) -> str:
     if args.field == "waivers" and args.value == "allowed":
         return f"{change} (by {', '.join(args.allowed_by or [])}; up to {args.max_days} days)"
     if args.field == "light-paths" and args.value != "none":
-        return f"set light-paths {', '.join(light_lane.normalize_entries([args.value, *args.more], 'light-paths'))}"
+        return f"set light-paths {', '.join(short_lane.normalize_entries([args.value, *args.more], 'light-paths'))}"
     if args.field == "approver-roles":
         return f"set approver-roles {args.value} {' '.join(args.more)}"
     return change

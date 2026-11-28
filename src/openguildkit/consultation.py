@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
-from . import lazy_re, light_lane
+from . import lazy_re, short_lane
 from .catalog import rule_check
 from .detect import SKIPPED_DIRECTORIES, walk
 from .patterns import is_stack_pattern, pattern_selection
@@ -68,8 +68,8 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
     for field in ("roles", "components", "patterns", "declined", "resolutions", "declined_rules"):
         if profile.get(field):
             scope[field] = profile[field]
-    if light_lane.is_light(task):
-        scope["lane"] = {"id": light_lane.LANE, "paths": task["paths"]}
+    if short_lane.is_light(task):
+        scope["lane"] = {"id": short_lane.LANE, "paths": task["paths"]}
     return deepcopy(scope)
 
 
@@ -195,7 +195,7 @@ def scope_lines(scope: dict) -> list[str]:
             f"{item['id']} by {item['by']} on {item['on']}: {item['reason']}" for item in scope["declined_rules"]) + ".")
     lines.append(f"- Research: {scope['research']}.")
     if scope.get("lane"):
-        lines.append(light_lane.scope_line(scope["lane"]))
+        lines.append(short_lane.scope_line(scope["lane"]))
     for control in scope.get("host_controls", []):
         lines.append(f"- Host control {control['id']}: {control['status']}. {control.get('title', '')}".rstrip())
     if scope.get("tools"):
@@ -640,7 +640,7 @@ def consult(
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
-    selected = select_boards(profile, catalog, task, answers, selection, light_lane.proposed_routing(task, profile, catalog))
+    selected = select_boards(profile, catalog, task, answers, selection, short_lane.proposed_routing(task, profile, catalog))
     routing, delegations = selected["routing"], selected["delegations"]
     scope = _scope_snapshot(profile, catalog, task, answers)
     if host_controls:
