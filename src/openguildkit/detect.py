@@ -192,7 +192,7 @@ def _technology(name: str, version: str | None) -> str:
     return f"{name} {version}" if version else name
 
 
-class _Component:
+class DetectedComponent:
     def __init__(self, path: str):
         self.path = path
         self.technologies: dict[str, dict] = {}
@@ -214,7 +214,7 @@ class _Component:
                 self.technologies[name]["note"] = note
 
 
-def _read_text(path: Path) -> str | None:
+def read_manifest_text(path: Path) -> str | None:
     try:
         if path.is_symlink() or path.stat().st_size > MAX_MANIFEST_BYTES:
             return None
@@ -224,7 +224,7 @@ def _read_text(path: Path) -> str | None:
 
 
 def _json_manifest(path: Path) -> dict:
-    text = _read_text(path)
+    text = read_manifest_text(path)
     try:
         data = json.loads(text) if text else None
     except RecursionError as error:
@@ -235,7 +235,7 @@ def _json_manifest(path: Path) -> dict:
 
 
 def _toml_manifest(path: Path) -> dict:
-    text = _read_text(path)
+    text = read_manifest_text(path)
     try:
         data = tomllib.loads(text) if text else None
     except (tomllib.TOMLDecodeError, RecursionError):
@@ -259,7 +259,7 @@ def detected_project_name(root: Path) -> str:
         or root.name or "Project"
 
 
-def _package_json(component: _Component, path: Path, label: str) -> None:
+def _package_json(component: DetectedComponent, path: Path, label: str) -> None:
     data = _json_manifest(path)
     for field in ("dependencies", "devDependencies", "peerDependencies"):
         dependencies = data.get(field)
@@ -276,7 +276,7 @@ def _package_json(component: _Component, path: Path, label: str) -> None:
         component.add("Node.js", declared_version(engines["node"]), label)
 
 
-def _python_requirement(component: _Component, line: str, label: str) -> None:
+def _python_requirement(component: DetectedComponent, line: str, label: str) -> None:
     match = _REQUIREMENT.match(line)
     if not match:
         return
@@ -289,8 +289,8 @@ def _python_requirement(component: _Component, line: str, label: str) -> None:
         component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
-def _pyproject(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path)
+def _pyproject(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path)
     try:
         data = tomllib.loads(text) if text else {}
     except tomllib.TOMLDecodeError:
@@ -322,16 +322,16 @@ def _pyproject(component: _Component, path: Path, label: str) -> None:
                     component.add(name, version, label, inferred=name in INFERRED, note=note)
 
 
-def _requirements(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _requirements(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     component.add("Python", None, label)
     for line in text.splitlines():
         if not line.strip().startswith(("#", "-")):
             _python_requirement(component, line, label)
 
 
-def _go_mod(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _go_mod(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     version = re.search(r"(?m)^go\s+(\d+(?:\.\d+){0,2})", text)
     component.add("Go", version.group(1) if version else None, label)
     for module, name in GO_MODULES.items():
@@ -348,7 +348,7 @@ def _cargo_dependencies(data: dict) -> list[dict]:
     return tables
 
 
-def _cargo(component: _Component, path: Path, label: str) -> None:
+def _cargo(component: DetectedComponent, path: Path, label: str) -> None:
     """A Cargo.toml names the Rust version, the edition and the crates; a workspace root can state the first two
     for its members, which then write `workspace = true`, and the versions of their crates."""
     data = _toml_manifest(path)
@@ -400,8 +400,8 @@ def _cargo_members(directory: Path) -> list[Path]:
     return [member for member in _cargo_folders(directory, workspace.get("members")) if member not in excluded]
 
 
-def _maven(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _maven(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     component.add("Java", declared_version(_xml_value(text, "java.version") or _xml_value(text, "maven.compiler.release")), label)
     if "spring-boot" in text:
         parent = re.search(r"<artifactId>spring-boot-starter-parent</artifactId>\s*<version>([^<]+)</version>", text)
@@ -419,7 +419,7 @@ def _gradle_catalog_plugins(path: Path, text: str) -> dict:
     if not aliases:
         return {}
     try:
-        catalog = tomllib.loads(_read_text(path) or "")
+        catalog = tomllib.loads(read_manifest_text(path) or "")
     except tomllib.TOMLDecodeError:
         return {}
     versions = catalog.get("versions", {})
@@ -441,7 +441,7 @@ def _gradle_variable(name: str, text: str, directory: Path) -> str | None:
     assigned = re.search(rf"""\b{re.escape(name)}\s*=\s*['"]([^'"]+)['"]""", text)
     if assigned:
         return assigned.group(1)
-    properties = _read_text(directory / "gradle.properties") or ""
+    properties = read_manifest_text(directory / "gradle.properties") or ""
     declared = re.search(rf"(?m)^[ \t]*{re.escape(name)}[ \t]*[=:][ \t]*(\S+)", properties)
     return declared.group(1) if declared else None
 
@@ -470,7 +470,7 @@ def _gradle_catalog_ktor(path: Path, text: str) -> tuple[bool, str | None]:
     if not used:
         return False, None
     try:
-        catalog = tomllib.loads(_read_text(path) or "")
+        catalog = tomllib.loads(read_manifest_text(path) or "")
     except tomllib.TOMLDecodeError:
         return False, None
     sections = [catalog.get(name, {}) for name in ("versions", "libraries", "bundles")]
@@ -513,7 +513,7 @@ def _gradle_ktor(text: str, base: Path, plugins: dict, catalog_path: Path) -> tu
     in_catalog, catalog_version = _gradle_catalog_ktor(catalog_path, text)
     published = None
     for name in ("settings.gradle.kts", "settings.gradle"):
-        declared = _KTOR_SETTINGS_CATALOG.search(_read_text(base / name) or "")
+        declared = _KTOR_SETTINGS_CATALOG.search(read_manifest_text(base / name) or "")
         if declared and re.search(rf"\b{re.escape(declared.group(1))}\.server\.", text):
             published = (declared_version(declared.group(2)), base / name)
             break
@@ -532,8 +532,8 @@ def _gradle_ktor(text: str, base: Path, plugins: dict, catalog_path: Path) -> tu
     return (True, *published) if published and published[0] else (True, None, None)
 
 
-def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
-    text = _read_text(path) or ""
+def gradle_components(component: DetectedComponent, path: Path, label: str, root: Path) -> None:
+    text = read_manifest_text(path) or ""
     java = re.search(r"""(?:jvmToolchain|JavaLanguageVersion\.of)\s*\(\s*(\d+)|"""
                      r"""sourceCompatibility\s*(?:=\s*)?(?:JavaVersion\.VERSION_|["']?)(\d+(?:[._]\d+)?)""", text)
     catalog_path = root / component.path / "gradle" / "libs.versions.toml"
@@ -572,8 +572,8 @@ def _gradle(component: _Component, path: Path, label: str, root: Path) -> None:
         component.add("Ktor", ktor_version, ktor_source.relative_to(root).as_posix() if ktor_source else label)
 
 
-def _gradle_modules(directory: Path) -> list[Path]:
-    settings = _read_text(directory / "settings.gradle.kts") or _read_text(directory / "settings.gradle") or ""
+def gradle_modules(directory: Path) -> list[Path]:
+    settings = read_manifest_text(directory / "settings.gradle.kts") or read_manifest_text(directory / "settings.gradle") or ""
     modules = []
     for arguments, line in re.findall(r"(?m)^[ \t]*include(?:[ \t]*\(([^)]*)\)|[ \t]+([^\n/]*))", settings):
         for name in re.findall(r"""["'](:?[\w.-]+(?::[\w.-]+)*)["']""", arguments or line):
@@ -588,17 +588,17 @@ def _xml_value(text: str, tag: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _csproj(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _csproj(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     framework = re.search(r"<TargetFrameworks?>\s*net(\d+(?:\.\d+)?)", text)
     component.add(".NET", framework.group(1) if framework else None, label)
     if "Microsoft.NET.Sdk.Web" in text or "Microsoft.AspNetCore" in text:
         component.add("ASP.NET Core", framework.group(1) if framework else None, label)
 
 
-def _gemfile(component: _Component, path: Path, label: str) -> None:
+def _gemfile(component: DetectedComponent, path: Path, label: str) -> None:
     """A Gemfile names the Ruby version and the gems; Rails comes from its gem."""
-    text = _read_text(path) or ""
+    text = read_manifest_text(path) or ""
     ruby = re.search(r"""(?m)^\s*ruby\s+["']([^"']+)["']""", text)
     component.add("Ruby", declared_version(ruby.group(1)) if ruby else None, label)
     for gem, spec in _GEM.findall(text):
@@ -609,7 +609,7 @@ def _gemfile(component: _Component, path: Path, label: str) -> None:
             component.add(name, declared_version(spec), label, inferred=name in INFERRED)
 
 
-def _composer(component: _Component, path: Path, label: str) -> None:
+def _composer(component: DetectedComponent, path: Path, label: str) -> None:
     data = _json_manifest(path)
     if not data:
         return
@@ -623,9 +623,9 @@ def _composer(component: _Component, path: Path, label: str) -> None:
             component.add(name, declared_version(spec), label)
 
 
-def _xcode_project(component: _Component, path: Path, label: str) -> None:
+def _xcode_project(component: DetectedComponent, path: Path, label: str) -> None:
     """An Xcode project builds Swift code; its SDK setting tells an iOS app from a Mac one."""
-    text = _read_text(path / "project.pbxproj") or ""
+    text = read_manifest_text(path / "project.pbxproj") or ""
     swift = re.search(r"SWIFT_VERSION\s*=\s*\"?(\d+(?:\.\d+)?)", text)
     component.add("Swift", swift.group(1) if swift else None, label)
     ios = re.findall(r'IPHONEOS_DEPLOYMENT_TARGET\s*=\s*"?(\d+(?:\.\d+){0,2})', text)
@@ -633,8 +633,8 @@ def _xcode_project(component: _Component, path: Path, label: str) -> None:
         component.add("iOS", min(ios, key=version_key) if ios else None, label)
 
 
-def _swift_package(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _swift_package(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     tools = re.search(r"swift-tools-version:\s*(\d+(?:\.\d+){0,2})", text)
     component.add("Swift", tools.group(1) if tools else None, label)
     if re.search(r"\.iOS\s*\(", text):
@@ -643,15 +643,15 @@ def _swift_package(component: _Component, path: Path, label: str) -> None:
         component.add("iOS", version, label)
 
 
-def _terraform(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _terraform(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     component.add("Terraform", None, label)
     if re.search(r"""provider\s+"aws"|hashicorp/aws""", text):
         component.add("AWS", None, label)
 
 
-def _container_images(component: _Component, path: Path, label: str) -> None:
-    text = _read_text(path) or ""
+def _container_images(component: DetectedComponent, path: Path, label: str) -> None:
+    text = read_manifest_text(path) or ""
     pattern = r"(?mi)(?:^\s*FROM\s+|image:\s*['\"]?)([a-z0-9./_-]+)(?::([A-Za-z0-9._-]+))?"
     for image, tag in re.findall(pattern, text):
         for prefix in IMAGE_PREFIXES:
@@ -664,8 +664,8 @@ def _container_images(component: _Component, path: Path, label: str) -> None:
             component.add(name, version.group(0) if version else None, label)
 
 
-def _kubernetes(component: _Component, path: Path, label: str) -> None:
-    documents = re.split(r"(?m)^(?:---|\.\.\.)(?:[ \t]+#.*)?[ \t]*$", _read_text(path) or "")
+def _kubernetes(component: DetectedComponent, path: Path, label: str) -> None:
+    documents = re.split(r"(?m)^(?:---|\.\.\.)(?:[ \t]+#.*)?[ \t]*$", read_manifest_text(path) or "")
     for document in documents:
         version, kind = _KUBE_API.search(document), _KUBE_KIND.search(document)
         if not version or not kind:
@@ -678,10 +678,10 @@ def _kubernetes(component: _Component, path: Path, label: str) -> None:
             component.add("Flux", None, label)
 
 
-def _mix(component: _Component, path: Path, label: str) -> None:
+def _mix(component: DetectedComponent, path: Path, label: str) -> None:
     """A mix.exs makes an Elixir project, with the version its `elixir:` requirement gives; a `{:phoenix, ...}`
     dependency makes it a Phoenix application. Phoenix's own libraries (phoenix_html, phoenix_pubsub) alone do not."""
-    text = _read_text(path) or ""
+    text = read_manifest_text(path) or ""
     elixir = _MIX_ELIXIR.search(text)
     component.add("Elixir", declared_version(elixir.group(1)) if elixir else None, label)
     phoenix = _MIX_PHOENIX.search(text)
@@ -689,9 +689,9 @@ def _mix(component: _Component, path: Path, label: str) -> None:
         component.add("Phoenix", declared_version(phoenix.group(1)), label)
 
 
-def _dbt_project(component: _Component, path: Path, label: str) -> None:
+def _dbt_project(component: DetectedComponent, path: Path, label: str) -> None:
     """A dbt project; its version is the range `require-dbt-version` declares, as a string or a list of strings."""
-    found = _DBT_VERSION.search(_read_text(path) or "")
+    found = _DBT_VERSION.search(read_manifest_text(path) or "")
     ranges = re.findall(r"""["']([^"']*)["']""", found.group(1)) if found else []
     component.add("dbt", declared_version(",".join(ranges)) if ranges else None, label)
 
@@ -702,16 +702,16 @@ def _airflow_dags(folder: Path) -> bool:
         files = sorted(entry for entry in folder.iterdir() if entry.suffix == ".py" and entry.is_file())
     except OSError:
         return False
-    return any(_AIRFLOW_IMPORT.search(_read_text(entry) or "") for entry in files[:MAX_WORKSPACE_MEMBERS])
+    return any(_AIRFLOW_IMPORT.search(read_manifest_text(entry) or "") for entry in files[:MAX_WORKSPACE_MEMBERS])
 
 
-def _pubspec(component: _Component, path: Path, label: str) -> None:
+def _pubspec(component: DetectedComponent, path: Path, label: str) -> None:
     """A pubspec.yaml makes a Dart package; a dependency on the Flutter SDK (`sdk: flutter`) makes it a Flutter one.
 
     The environment section gives the Dart SDK constraint and, for Flutter, the Flutter constraint. Only these
     lines are read, without a YAML parser: a comment that names Flutter is not a dependency on its SDK.
     """
-    text = _read_text(path) or ""
+    text = read_manifest_text(path) or ""
     environment = re.search(r"(?m)^environment:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n?|[ \t]*\n)*)", text)
     block = environment.group(1) if environment else ""
 
@@ -724,7 +724,7 @@ def _pubspec(component: _Component, path: Path, label: str) -> None:
         component.add("Flutter", constraint("flutter"), label)
 
 
-def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
+def _parse(component: DetectedComponent, path: Path, label: str, root: Path) -> None:
     name = path.name
     if name == "package.json":
         _package_json(component, path, label)
@@ -737,7 +737,7 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
     elif name == "pom.xml":
         _maven(component, path, label)
     elif name in ("build.gradle", "build.gradle.kts"):
-        _gradle(component, path, label, root)
+        gradle_components(component, path, label, root)
     elif name.endswith(".csproj"):
         _csproj(component, path, label)
     elif name in ("Dockerfile", "Containerfile") or re.fullmatch(r"Dockerfile\.[\w.-]+|[\w.-]+\.Dockerfile", name):
@@ -757,7 +757,7 @@ def _parse(component: _Component, path: Path, label: str, root: Path) -> None:
         _pubspec(component, path, label)
     elif name == "Package.swift":
         _swift_package(component, path, label)
-    elif name == "manage.py" and "django" in (_read_text(path) or ""):
+    elif name == "manage.py" and "django" in (read_manifest_text(path) or ""):
         component.add("Python", None, label)
         component.add("Django", None, label)
     elif name == ".gitlab-ci.yml":
@@ -806,7 +806,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
     propose_checks can use them instead of walking the tree again.
     """
     root = root.resolve()
-    components: dict[str, _Component] = {}
+    components: dict[str, DetectedComponent] = {}
     module_roots: dict[Path, str] = {}
     # Each file and marker folder, keyed by its path parts below root: read in that order, a folder's entries come
     # in name order with each subfolder's content in its place, so the first evidence of a technology stays the same.
@@ -817,7 +817,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             listings[relative] = set(files)
         names = files + folders
         if any(name in ("settings.gradle", "settings.gradle.kts") for name in names):
-            for module in _gradle_modules(directory):
+            for module in gradle_modules(directory):
                 module_roots[module] = relative
         if "Cargo.toml" in files:
             for member in _cargo_members(directory):
@@ -835,7 +835,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
         if "dags" in folders and len(parts) < MAX_DEPTH and _airflow_dags(directory / "dags"):
             found.append(((*parts, "dags"), "airflow", directory / "dags", relative))
     for key, kind, entry, relative in sorted(found, key=lambda item: item[0]):
-        component = components.setdefault(relative, _Component(relative))
+        component = components.setdefault(relative, DetectedComponent(relative))
         label = "/".join(key)
         if kind == "file":
             _parse(component, entry, label, root)
@@ -847,7 +847,7 @@ def detect_stack(root: Path, listings: dict[str, set[str]] | None = None) -> dic
             component.add("WordPress", None, label)
     workflows = root / ".github" / "workflows"
     if workflows.is_dir() and any(path.suffix in (".yml", ".yaml") for path in workflows.iterdir()):
-        components.setdefault(".", _Component(".")).add("GitHub Actions", None, ".github/workflows")
+        components.setdefault(".", DetectedComponent(".")).add("GitHub Actions", None, ".github/workflows")
 
     taken: set[str] = set()
     result = []
