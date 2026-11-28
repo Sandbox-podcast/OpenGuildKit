@@ -4,12 +4,11 @@ decision, and the line the task list shows for it, kept while nothing it was bui
 import hashlib
 import os
 import time
-from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 
-from . import clock, short_lane, task_index
-from .approval_check import DONE_STATUSES, STALE_DAYS
+from . import short_lane, task_index
+from .approval_check import DONE_STATUSES, STALE_DAYS, days_since
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
 from .project_rules import Fingerprints
 from .storage import file_signature
@@ -112,19 +111,6 @@ def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
         return f"{refused} {decided}"
     words = _STATUS_WORDS.get(task["status"], task["status"])
     return f"{refused} Task {task['id']} is {words}: next, {next_command(task)}."
-
-
-def days_since(moment: str | None) -> int | None:
-    """Whole days since a recorded time; None when the time cannot be read."""
-    if moment is None:
-        return None
-    try:
-        then = datetime.fromisoformat(moment)
-    except (TypeError, ValueError):
-        return None
-    if then.tzinfo is None:
-        then = then.replace(tzinfo=UTC)
-    return (clock.real_now() - then).days
 
 
 def _conditions_step(task: dict, profile: dict | None) -> str:

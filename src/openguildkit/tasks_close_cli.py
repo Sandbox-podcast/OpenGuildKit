@@ -33,7 +33,8 @@ from .results import (
 )
 from .sensitive import redact_data
 from .storage import print_json, project_lock, read_json, write_json
-from .tasks import read_task, task_path, waiting_for, waits_line, write_task
+from .task_files import read_task, task_path
+from .tasks import waiting_for, waits_line, write_task
 from .tasks_blockers import verification_blocker_problems
 from .tasks_closing import SENSITIVE_GROUP, complete_task, defer_evidence, points_left_open, record_result
 from .tasks_command import TaskCommand

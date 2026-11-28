@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
-from . import cli, profile_changes, tasks
+from . import cli, profile_changes, task_files
 from .lock import package_version
 from .storage import write_text
 from .web_requests import (
@@ -106,7 +106,7 @@ class CliRunner:
     def __init__(self, root: Path):
         self.root = root
         self.lock = threading.Lock()
-        self.records = tasks.KeptRecords()
+        self.records = task_files.KeptRecords()
 
     def parse(self, argv: list[str]):
         err = io.StringIO()
@@ -143,7 +143,7 @@ class CliRunner:
             try:
                 # The server outlives its commands: the task records stay in memory while their files do not change.
                 with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
-                        tasks.keeping_records(self.records):
+                        task_files.keeping_records(self.records):
                     try:
                         code = cli.main(["--project", str(self.root), *argv])
                     except SystemExit as exit_:

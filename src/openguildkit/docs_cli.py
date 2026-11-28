@@ -22,7 +22,7 @@ from .publishing import (
     space_neighbours,
 )
 from .storage import print_json, project_lock, write_json
-from .tasks import read_task, task_path
+from .task_files import read_task, task_path
 from .wording import plural
 
 

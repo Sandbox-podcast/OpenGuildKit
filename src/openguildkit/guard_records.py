@@ -204,7 +204,7 @@ def _completion_problem(record: dict) -> str | None:
 
 
 def _has_local_task(state: Path, task_id: str) -> bool:
-    from .tasks import task_path
+    from .task_files import task_path
 
     try:
         return task_path(state, task_id).is_file()

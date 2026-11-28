@@ -12,7 +12,8 @@ from .project import load_profile
 from .project_rules import Fingerprints, rule_plan
 from .result_form import RESULT_STATUSES
 from .sensitive import redact_credentials
-from .tasks import list_tasks, read_task, task_path
+from .task_files import read_task, task_path
+from .tasks import list_tasks
 from .tasks_approval import stale_review_message
 from .tasks_blockers import expired_on
 from .tasks_record import STATUSES

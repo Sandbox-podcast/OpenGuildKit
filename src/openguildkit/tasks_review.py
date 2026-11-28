@@ -15,8 +15,8 @@ from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_pr
 from .questionnaire import validate_answers
 from .sensitive import redact_data
 from .tasks_approval import decided_message, stale_review_message
-from .tasks_record import timestamp, validate_brief
-from .workflow import RESOLUTION_FIELDS, TaskStateError, blocker_resolutions, decision_summary, is_decision_task
+from .tasks_record import RESOLUTION_FIELDS, timestamp, validate_brief
+from .workflow import TaskStateError, blocker_resolutions, decision_summary, is_decision_task
 
 
 def cited_evidence(task: dict) -> list[str]:

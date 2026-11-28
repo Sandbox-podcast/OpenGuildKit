@@ -28,7 +28,8 @@ from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
 from .storage import json_text, project_lock, read_json, write_json
-from .tasks import create_task, read_task, task_path
+from .task_files import read_task, task_path
+from .tasks import create_task
 from .terminal import typed
 from .wording import plural
 

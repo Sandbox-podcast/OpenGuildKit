@@ -4,9 +4,14 @@ brief, and the time stamp records carry."""
 from collections.abc import Iterator
 from typing import cast
 
-from . import clock, delivered_review, short_lane
-from .sensitive import redact_credentials
-from .workflow import RESOLUTION_FIELDS
+from . import clock, short_lane
+
+# The severities and actions of a finding of task diff-review (delivered_review.py).
+SEVERITIES = ("blocking", "important", "minor")
+ACTIONS = ("fix", "defer", "decision")
+# Clearances and waivers are stored apart by phase, because the approval's seal covers only those given before it.
+# blocker_resolutions(task) reads both: every reader goes through it.
+RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
 
 
 def timestamp() -> str:
@@ -108,8 +113,8 @@ _RECORD = {
     "dependency_alerts?": {"alerts?": [dict]},
     "delivered_review?": {"boards": {"*": {
         "base": str, "revision": str, "at": str,
-        "findings": [{"file": str, "line": int, "severity": frozenset(delivered_review.SEVERITIES),
-                      "action": frozenset(delivered_review.ACTIONS), "finding": str}]}}},
+        "findings": [{"file": str, "line": int, "severity": frozenset(SEVERITIES),
+                      "action": frozenset(ACTIONS), "finding": str}]}}},
 }
 _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", "scope", "until")}
 
@@ -199,4 +204,6 @@ def validate_brief(brief: str) -> str:
     brief = brief.strip()
     if not brief:
         raise ValueError("Supply a task brief.")
+    from .sensitive import redact_credentials  # Only a new brief needs it: the edit hook reads records (#539).
+
     return redact_credentials(brief)

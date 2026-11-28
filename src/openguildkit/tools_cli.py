@@ -12,7 +12,7 @@ from .project import load_profile
 from .sensitive import looks_like_credential
 from .shell import shell_command
 from .storage import json_text, project_lock, write_text
-from .tasks import read_task
+from .task_files import read_task
 from .terminal import interactive
 from .tool_connections import (
     HOSTS,

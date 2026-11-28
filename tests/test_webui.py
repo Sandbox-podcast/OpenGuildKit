@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import storage, tasks, web_requests, webui
+from openguildkit import storage, task_files, tasks, web_requests, webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
@@ -830,7 +830,7 @@ class WebInterfaceTests(unittest.TestCase):
         old = 1_700_000_000_000_000_000
         for path in (self.root / ".openguildkit" / "tasks").glob("*.json"):
             os.utime(path, ns=(old, old))
-        hashed, original = [], tasks.file_signature
+        hashed, original = [], task_files.file_signature
 
         def counting(path, info=None, *, content=False):
             if content:
@@ -839,7 +839,7 @@ class WebInterfaceTests(unittest.TestCase):
 
         opening = {"tasks": ["task", "list", "--json"], "check": ["check"], "alpha": ["task", "show", "alpha"]}
         self.parsed_task_records(opening)
-        with patch("openguildkit.tasks.file_signature", counting):
+        with patch("openguildkit.task_files.file_signature", counting):
             second, parsed = self.parsed_task_records(opening)
         self.assertEqual((hashed, parsed), ([], []))
         self.assertEqual(second["alpha"]["json"]["brief"], "Show the alpha requests")
@@ -848,18 +848,18 @@ class WebInterfaceTests(unittest.TestCase):
         """Issue #537: a command changes the record it reads; the next one must not see the change."""
         self.run_in_page("task", "new", "Show the alpha requests", "--id", "alpha")
         state = self.root / ".openguildkit"
-        kept = tasks.KeptRecords()
-        with tasks.keeping_records(kept):
-            first = tasks.read_task(state, "alpha")
+        kept = task_files.KeptRecords()
+        with task_files.keeping_records(kept):
+            first = task_files.read_task(state, "alpha")
             first["brief"] = "changed by a command"
             first["answers"] = {"changed": True}
-            second = tasks.read_task(state, "alpha")
+            second = task_files.read_task(state, "alpha")
             self.assertEqual(len(kept.entries), 1)
         self.assertEqual(second, json.loads((state / "tasks" / "alpha.json").read_text(encoding="utf-8")))
-        self.assertIsNone(tasks._KEPT)
-        small = tasks.KeptRecords(limit=1)
-        with tasks.keeping_records(small):
-            self.assertEqual(tasks.read_task(state, "alpha"), second)
+        self.assertIsNone(task_files._KEPT)
+        small = task_files.KeptRecords(limit=1)
+        with task_files.keeping_records(small):
+            self.assertEqual(task_files.read_task(state, "alpha"), second)
         self.assertEqual((small.entries, small.size), ({}, 0))
 
     def test_a_failed_verification_keeps_its_recorded_checks_for_the_page(self):

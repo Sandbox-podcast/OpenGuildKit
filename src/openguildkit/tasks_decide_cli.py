@@ -25,7 +25,8 @@ from .lock import project_catalog, require_instructions
 from .project import load_profile
 from .results import evidence_state
 from .storage import print_json, project_lock
-from .tasks import last_approval, read_task, task_path, write_task
+from .task_files import read_task, task_path
+from .tasks import last_approval, write_task
 from .tasks_approval import decided_message, require_approval, require_current_scope
 from .tasks_blockers import expired_on, require_blocker_status, resolve_blocker
 from .tasks_closing import record_authorization, record_decision, revoke_approval

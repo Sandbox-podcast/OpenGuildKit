@@ -30,7 +30,7 @@ from .project_instructions import rule_text
 from .project_rules import pack_scopes, rule_plan
 from .sensitive import WHERE, personal_data_kinds, redact_data, refuse_link_credentials
 from .storage import project_lock, read_json, write_json, write_text
-from .tasks import read_task
+from .task_files import read_task
 from .wording import plural
 from .workflow import objections
 

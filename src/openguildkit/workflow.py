@@ -11,6 +11,7 @@ from .board_entries import evidence_positions, received_value, validate_review
 from .consultation import json_section
 from .questionnaire import ASSUMPTIONS
 from .routing import normalize_text, trigger_matches
+from .tasks_record import RESOLUTION_FIELDS
 from .wording import plural
 
 
@@ -484,11 +485,6 @@ def challenge_report(task: dict, lines: list[str] | None = None, root: Path | No
 def is_decision_task(task: dict) -> bool:
     """A decision task asks for a recommendation, not for a change to the project."""
     return task.get("answers", {}).get("kind") == "decision"
-
-
-# Clearances and waivers are stored apart by phase, because the approval's seal covers only those given before it.
-# blocker_resolutions(task) reads both: every reader goes through it.
-RESOLUTION_FIELDS = ("blocker_resolutions", "verification_blocker_resolutions")
 
 
 def resolution_field(phase: str | None) -> str:

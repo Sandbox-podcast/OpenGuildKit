@@ -22,7 +22,8 @@ from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json
-from .tasks import last_approval, read_task, task_path, write_task
+from .task_files import read_task, task_path
+from .tasks import last_approval, write_task
 from .tasks_closing import record_deliberation
 from .tasks_command import TaskCommand
 from .tasks_record import board_brief_problem

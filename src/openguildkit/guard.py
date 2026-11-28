@@ -43,14 +43,14 @@ def guard_mode(profile: dict) -> str:
 
 
 def _age_days(moment: str) -> int | None:
-    from .tasks_status import days_since
+    from .approval_check import days_since
 
     return days_since(moment)
 
 
 def read_task_lazily(state: Path, task_id: str) -> dict:
-    """tasks.read_task, imported on the first call: the hook loads tasks only when a record may be approved."""
-    from .tasks import read_task as read
+    """task_files.read_task, imported on the first call: the hook reads records only when one may be approved."""
+    from .task_files import read_task as read
 
     return read(state, task_id)
 

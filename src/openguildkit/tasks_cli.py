@@ -21,7 +21,8 @@ from .project import WORK_DIR
 from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
 from .storage import project_lock
-from .tasks import create_task, read_task, task_path, waiting_for, waits_line
+from .task_files import read_task, task_path
+from .tasks import create_task, waiting_for, waits_line
 from .tasks_close_cli import (
     add_diff_review_parser,
     run_checks,

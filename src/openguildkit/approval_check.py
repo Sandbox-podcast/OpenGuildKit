@@ -1,9 +1,10 @@
 """Whether an approval still holds, with only the modules the edit hook already loads: its seal, its rules, its age, its
 signature and its history."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
-from . import incident
+from . import clock, incident
 from .decisions import (
     EARLIER_SIGNERS,
     check_decision_seal,
@@ -58,3 +59,16 @@ def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None
     if not found:
         return None
     return {"kind": found[0], "severity": "note" if found[0] == EARLIER_SIGNERS else "error", "message": found[1]}
+
+
+def days_since(moment: str | None) -> int | None:
+    """Whole days since a recorded time; None when the time cannot be read."""
+    if moment is None:
+        return None
+    try:
+        then = datetime.fromisoformat(moment)
+    except (TypeError, ValueError):
+        return None
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=UTC)
+    return (clock.real_now() - then).days

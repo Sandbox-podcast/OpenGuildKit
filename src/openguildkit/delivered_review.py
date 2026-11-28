@@ -13,11 +13,10 @@ from pathlib import Path
 from . import clock, git, lazy_re
 from .sensitive import redact_credentials
 from .storage import print_json
+from .tasks_record import ACTIONS, SEVERITIES
 from .wording import plural
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
-SEVERITIES = ("blocking", "important", "minor")
-ACTIONS = ("fix", "defer", "decision")
 # The diff printed in one brief. The rest is one git command away, which the brief prints.
 DIFF_LIMIT = 6000
 # A diff names its files as they are on disk, accents included.
