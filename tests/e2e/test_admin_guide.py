@@ -36,7 +36,8 @@ def guide_commands() -> list[str]:
 
 
 def filled(command: str, code: Path) -> list[str]:
-    words = shlex.split(command.replace("~/code", str(code)))[1:]
+    # Split before filling the path: shlex reads the backslashes of a Windows path as escapes.
+    words = [word.replace("~/code", str(code)) for word in shlex.split(command)[1:]]
     return [FILLED.get(word, word) for word in words]
 
 
