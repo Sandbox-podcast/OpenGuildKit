@@ -44,10 +44,10 @@ def require_reviewable(task: Task) -> None:
         raise TaskStateError("OGK-RESULT-032", "The boards review the delivered diff of an approved task, after task result and before "
                              "task complete.")
     if is_decision_task(task):
-        raise ValueError("A task of kind decision delivers no change to the project: there is no diff to review.")
+        raise OgkError("OGK-RESULT-045", "A task of kind decision delivers no change to the project: there is no diff to review.")
     base = (task["decision"].get("base_revision") or {}).get("commit")
     if not base:
-        raise ValueError("The approval names no Git revision (the project was not in Git when it was approved): there "
+        raise OgkError("OGK-RESULT-046", "The approval names no Git revision (the project was not in Git when it was approved): there "
                          "is no delivered diff to compare with it.")
     if not (task.get("result") or {}).get("revision"):
         raise OgkError("OGK-RESULT-009", f"Record the delivered revision first: openguildkit task verify {task['id']} reads it from "
@@ -67,7 +67,7 @@ def delivered_change(root: Path, task: Task) -> dict:
     spec = [base, revision] if committed else [base]
     names = git.names(root, "diff", "--name-only", "--no-renames", *spec, "--")
     if names is None:
-        raise ValueError(f"Git could not compare the approved revision {_short(base)} with the delivered one: check "
+        raise OgkError("OGK-RESULT-047", f"Git could not compare the approved revision {_short(base)} with the delivered one: check "
                          "that both are in this repository (git fetch), then run the command again.")
     files = [name for name in names if not name.startswith(".openguildkit/")]
     untracked = [] if committed else [

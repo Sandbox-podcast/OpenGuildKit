@@ -299,13 +299,13 @@ def new_draft(deliverable: dict, task: Task, tool: str | None, approved_tools: l
     if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise OgkError("OGK-RESULT-007", "Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
-        raise ValueError("This template needs --tool, one of the project's approved tools.")
+        raise OgkError("OGK-RESULT-043", "This template needs --tool, one of the project's approved tools.")
     if tool is not None and approved_tools and tool not in approved_tools:
         raise OgkError("OGK-RESULT-008", f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if deliverable.get("decision") and not is_decision_task(task):
         raise _decision_refusal(deliverable, task)
     if output.exists():
-        raise ValueError(f"{output.as_posix()} already exists.")
+        raise OgkError("OGK-RESULT-044", f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
     filled = decision_sections(task) if deliverable.get("decision") else {}
     inputs = filled.get("_inputs")

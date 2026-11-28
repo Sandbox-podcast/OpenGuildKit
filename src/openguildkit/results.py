@@ -236,7 +236,7 @@ def decision_changes(root: Path, task: Task) -> list[str]:
         return []
     commit = base["commit"]
     if not re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", commit):
-        raise ValueError("The decision has no valid approved Git revision to compare.")
+        raise OgkError("OGK-RESULT-055", "The decision has no valid approved Git revision to compare.")
     return [path for path in changed_paths_since(root, commit)
             if not (path.startswith(f"{STATE_DIR}/decisions/") and path.endswith(".json"))]
 
@@ -601,7 +601,7 @@ def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = 
     worst = {}
     for item in results:
         if not isinstance(item, dict) or item.get("status") not in CHAOSFOLK_STATUSES or not isinstance(item.get("name"), str):
-            raise ValueError(f"{summary_path} has a result without a name or a known status.")
+            raise OgkError("OGK-RESULT-056", f"{summary_path} has a result without a name or a known status.")
         # A scenario listed several times keeps its worst outcome: a failure is never hidden by a later pass.
         previous = worst.get(item["name"])
         if previous is None or CHAOSFOLK_SEVERITY[item["status"]] > CHAOSFOLK_SEVERITY[previous["status"]]:

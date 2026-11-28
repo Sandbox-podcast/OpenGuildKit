@@ -23,6 +23,7 @@ from .consultation import (
     pack_command,
     research_line,
 )
+from .errors import OgkError
 from .project_instructions import rule_text
 from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS
 from .rule_checks import describe_check
@@ -178,7 +179,7 @@ def pack_rules(consultation: dict, pack_id: str) -> str:
     runs and the evidence the result asks, then the sources. AGENTS.md names the rules and leaves this text here."""
     packs = {pack["id"]: pack for pack in consultation["scope"].get("packs", [])}
     if pack_id not in packs:
-        raise ValueError(f"Pack {pack_id!r} is not in force for this task. In force: {', '.join(packs) or 'none'}.")
+        raise OgkError("OGK-BOARD-017", f"Pack {pack_id!r} is not in force for this task. In force: {', '.join(packs) or 'none'}.")
     pack = packs[pack_id]
     lines = [f"# {pack.get('title', pack_id)} ({pack_id}@{pack.get('version', '')})", ""]
     if pack.get("description"):
@@ -215,7 +216,7 @@ def board_brief(consultation: dict, board_id: str, shared_from: str | None = Non
     shared_from names the board whose pass, earlier in a sequence, printed how to fill an entry and the shapes of an
     evidence item and a blocker: this pass names it instead of printing them again, and prints the same rules."""
     if board_id not in consultation["boards"]:
-        raise ValueError(f"Board {board_id!r} is not part of this consultation: {', '.join(consultation['boards'])}.")
+        raise OgkError("OGK-BOARD-018", f"Board {board_id!r} is not part of this consultation: {', '.join(consultation['boards'])}.")
     scope = consultation["scope"]
     task_id = scope.get("task_id", "ID")
     template = next(entry for entry in consultation["review_template"]["boards"] if entry["id"] == board_id)

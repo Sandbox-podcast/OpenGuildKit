@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from .approval_check import DONE_STATUSES
 from .board_entries import required_text
 from .catalog_queries import recorded_value
-from .errors import OgkError
+from .errors import InternalError, OgkError
 from .records import Profile, Task
 from .relevance import sensitive_area
 from .results import asked_checks, decision_revision_message, evidence_fingerprint, expected_checks, not_concerned
@@ -26,7 +26,7 @@ def _evidence_reference(value: str, check_id: str) -> str:
     """A named evidence is an https link or a path inside the project."""
     if value.startswith("https://"):
         if not urlsplit(value).hostname or any(character.isspace() for character in value):
-            raise ValueError(f"{check_id} evidence must be a valid https link.")
+            raise OgkError("OGK-RESULT-052", f"{check_id} evidence must be a valid https link.")
         return value
     try:
         validate_path(value, f"{check_id} evidence", pattern=False)
@@ -156,8 +156,8 @@ def validate_result(task: Task, profile: Profile, payload: dict, source: str = "
     missing file, or not-applicable where it must be supplied) is held back with the reason, under
     "_held" (each with its check and message), and the rest is recorded: the task waits for that evidence.
     """
-    if task.get("status") not in ("approved", *DONE_STATUSES):
-        raise ValueError("Record results for an approved task.")
+    if task.get("status") not in ("approved", *DONE_STATUSES):  # record_result, the caller, refuses it first (OGK-TASK-105).
+        raise InternalError("Record results for an approved task.")
     if source == "report":
         payload = redact_data(payload)
     fields = {"revision", "pull_request", "criteria", "checks", "packs"} | TEMPLATE_NOTES
@@ -260,7 +260,7 @@ def _check_source(check_id: object, known: dict, source: str) -> None:
             raise OgkError("OGK-RESULT-025", f"{check_id} comes from a replay: run task verify --chaosfolk SUMMARY.")
         return
     if check_id not in known:
-        raise ValueError(f"Unknown check {check_id}. Run task checks for the expected IDs.")
+        raise OgkError("OGK-RESULT-054", f"Unknown check {check_id}. Run task checks for the expected IDs.")
     if known[check_id]["kind"] == "command" and source != "verify":
         raise OgkError("OGK-RESULT-026", f"{check_id} is recorded by task verify, which runs the command. Run task verify.")
     if known[check_id]["kind"] == "machine" and source != "verify":

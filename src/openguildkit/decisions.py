@@ -48,7 +48,7 @@ def changed_paths_since(root: Path, commit: str) -> list[str]:
 
     change = git.names(root, "diff", "--name-only", "--no-renames", commit, "--")
     if change is None:
-        raise ValueError("Could not compare the project files with the approved Git revision.")
+        raise OgkError("OGK-DECISION-012", "Could not compare the project files with the approved Git revision.")
     return change
 
 
@@ -214,7 +214,7 @@ def committed_signers(root: Path, relative: str) -> str:
     retry = "Have the person review and commit it, then sign again."
     inside = git.text(root, "rev-parse", "--is-inside-work-tree")
     if inside is None or inside.strip() != "true":
-        raise ValueError(f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
+        raise OgkError("OGK-DECISION-013", f"{shown} is verified as Git holds it at HEAD, and the project is not in a Git repository. "
                          "Signed approvals need the project and this file in Git.")
     tracked = git.text(root, "ls-files", "--error-unmatch", "--", relative)
     committed = git.text(root, "show", f"HEAD:./{relative}")
@@ -243,7 +243,7 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
                                f"Approvers: {', '.join(policy['approvers'])}.")
     allowed = (root / policy["allowed_signers"]).resolve()
     if not allowed.is_file() or root.resolve() not in allowed.parents:
-        raise ValueError(f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
+        raise OgkError("OGK-DECISION-014", f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
     signers = committed_signers(root, Path(policy["allowed_signers"]).as_posix()) if committed else None
     _ssh_verify(allowed.read_text(encoding="utf-8") if signers is None else signers, payload, signature, signer,
                 verify_time(payload) if at_signing else None)
@@ -253,7 +253,7 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: st
     """Verify the signature of the payload for signer, against the text of an allowed signers file, at the time `at`
     (ssh-keygen's YYYYMMDDHHMMSSZ) instead of now when it is given."""
     if shutil.which("ssh-keygen") is None:
-        raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
+        raise OgkError("OGK-DECISION-015", "Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
     import tempfile  # Only a signature check needs it: the edit hook starts without it (#539).
 
     with tempfile.TemporaryDirectory() as directory:
@@ -511,4 +511,4 @@ def check_decision(task: Task, root: Path, profile: Profile) -> None:
     """Refuse an approval that no longer matches the record, its signature or the project history."""
     problem = decision_problem(task, root, profile)
     if problem and problem[0] != EARLIER_SIGNERS:
-        raise ValueError(problem[1])
+        raise OgkError("OGK-DECISION-016", problem[1])

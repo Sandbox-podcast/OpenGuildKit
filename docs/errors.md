@@ -33,19 +33,25 @@ The register holds the message of each code as the code writes it and the tests 
 - `_bad`: OGK-AUDIT-005
 - `log_path`: OGK-AUDIT-002
 
+### board_brief.py
+
+- `board_brief`: OGK-BOARD-018
+- `pack_rules`: OGK-BOARD-017
+
 ### board_entries.py
 
-- `_check_reference`: OGK-BOARD-006, OGK-BOARD-007, OGK-BOARD-008
+- `_check_reference`: OGK-BOARD-006, OGK-BOARD-007, OGK-BOARD-008, OGK-BOARD-020
 - `_evidence_day`: OGK-BOARD-003, OGK-BOARD-004, OGK-BOARD-005
+- `_evidence_outcome`: OGK-BOARD-019
 - `_project_path`: OGK-BOARD-015
 - `_text_list`: OGK-BOARD-002
 - `required_text`: OGK-BOARD-001
-- `validate_board_entry`: OGK-BOARD-009, OGK-BOARD-010, OGK-BOARD-016
-- `validate_review`: OGK-BOARD-011, OGK-BOARD-012, OGK-BOARD-013
+- `validate_board_entry`: OGK-BOARD-009, OGK-BOARD-010, OGK-BOARD-016, OGK-BOARD-021
+- `validate_review`: OGK-BOARD-011, OGK-BOARD-012, OGK-BOARD-013, OGK-BOARD-022, OGK-BOARD-023, OGK-BOARD-024
 
 ### brains.py
 
-- `write_brain_skeleton`: OGK-BOARD-014
+- `write_brain_skeleton`: OGK-BOARD-014, OGK-BOARD-025, OGK-BOARD-026, OGK-BOARD-027
 
 ### catalog.py
 
@@ -124,12 +130,14 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### decisions.py
 
-- `_ssh_verify`: OGK-DECISION-010
+- `_ssh_verify`: OGK-DECISION-010, OGK-DECISION-015
+- `changed_paths_since`: OGK-DECISION-012
+- `check_decision`: OGK-DECISION-016
 - `check_decision_seal`: OGK-DECISION-006, OGK-DECISION-007, OGK-DECISION-008
-- `committed_signers`: OGK-DECISION-004, OGK-DECISION-005
+- `committed_signers`: OGK-DECISION-004, OGK-DECISION-005, OGK-DECISION-013
 - `signing_time`: OGK-DECISION-001, OGK-DECISION-002
 - `verify_recorded_signature`: OGK-DECISION-011
-- `verify_signature`: OGK-DECISION-009
+- `verify_signature`: OGK-DECISION-009, OGK-DECISION-014
 - `verify_time`: OGK-DECISION-003
 
 ### deliverables.py
@@ -137,15 +145,16 @@ The register holds the message of each code as the code writes it and the tests 
 - `_decision_refusal`: OGK-RESULT-035
 - `_validate`: OGK-RESULT-036, OGK-RESULT-037, OGK-RESULT-038, OGK-RESULT-039, OGK-RESULT-040
 - `load_deliverables`: OGK-RESULT-041, OGK-RESULT-042
-- `new_draft`: OGK-RESULT-007, OGK-RESULT-008
+- `new_draft`: OGK-RESULT-007, OGK-RESULT-008, OGK-RESULT-043, OGK-RESULT-044
 - `project_path`: OGK-RESULT-001, OGK-RESULT-002
 - `utm_link`: OGK-RESULT-003, OGK-RESULT-004, OGK-RESULT-005, OGK-RESULT-006
 
 ### delivered_review.py
 
 - `board_brief`: OGK-RESULT-010
+- `delivered_change`: OGK-RESULT-047
 - `record_findings`: OGK-RESULT-011
-- `require_reviewable`: OGK-RESULT-009, OGK-RESULT-032
+- `require_reviewable`: OGK-RESULT-009, OGK-RESULT-032, OGK-RESULT-045, OGK-RESULT-046
 
 ### detect.py
 
@@ -377,6 +386,11 @@ The register holds the message of each code as the code writes it and the tests 
 - `read_policy`: OGK-PROJECT-042, OGK-PROJECT-043, OGK-PROJECT-044
 - `run`: OGK-PROJECT-040, OGK-PROJECT-041
 
+### prompts.py
+
+- `prompt_choices`: OGK-BOARD-028
+- `prompt_questions`: OGK-BOARD-029
+
 ### publishing.py
 
 - `_check_dedication`: OGK-PUBLISH-011, OGK-PUBLISH-012
@@ -392,7 +406,8 @@ The register holds the message of each code as the code writes it and the tests 
 - `_assumptions`: OGK-RESULT-015
 - `_optional_answers`: OGK-RESULT-012, OGK-RESULT-013
 - `require_concerns`: OGK-RESULT-014
-- `validate_answers`: OGK-RESULT-016, OGK-RESULT-017, OGK-RESULT-018, OGK-RESULT-019, OGK-RESULT-020
+- `task_questions`: OGK-RESULT-048
+- `validate_answers`: OGK-RESULT-016, OGK-RESULT-017, OGK-RESULT-018, OGK-RESULT-019, OGK-RESULT-020, OGK-RESULT-049, OGK-RESULT-050, OGK-RESULT-051
 
 ### references.py
 
@@ -412,14 +427,15 @@ The register holds the message of each code as the code writes it and the tests 
 ### result_form.py
 
 - `_check_entry`: OGK-RESULT-023
-- `_check_source`: OGK-RESULT-024, OGK-RESULT-025, OGK-RESULT-026, OGK-RESULT-027
-- `_evidence_reference`: OGK-RESULT-021
+- `_check_source`: OGK-RESULT-024, OGK-RESULT-025, OGK-RESULT-026, OGK-RESULT-027, OGK-RESULT-054
+- `_evidence_reference`: OGK-RESULT-021, OGK-RESULT-052
 - `_refusal`: OGK-RESULT-033
 - `raise_any`: OGK-RESULT-022
 
 ### results.py
 
-- `chaosfolk_checks`: OGK-RESULT-028
+- `chaosfolk_checks`: OGK-RESULT-028, OGK-RESULT-056
+- `decision_changes`: OGK-RESULT-055
 
 ### retro.py
 
@@ -429,7 +445,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### routing.py
 
-- `select_boards`: OGK-ROUTE-001, OGK-ROUTE-002, OGK-ROUTE-003, OGK-ROUTE-004, OGK-ROUTE-005
+- `select_boards`: OGK-ROUTE-001, OGK-ROUTE-002, OGK-ROUTE-003, OGK-ROUTE-004, OGK-ROUTE-005, OGK-ROUTE-006, OGK-ROUTE-007
 
 ### rule_checks.py
 

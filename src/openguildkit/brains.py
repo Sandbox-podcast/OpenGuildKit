@@ -271,7 +271,7 @@ def brain_skeleton(board_id: str) -> dict[str, dict]:
 def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: Catalog) -> list[Path]:
     """Write the skeleton of a new project brain; refuse an existing ID or file instead of overwriting."""
     if not isinstance(board_id, str) or not ID_PATTERN.fullmatch(board_id):
-        raise ValueError("Name the brain with lowercase letters, digits and hyphens, such as risk-office.")
+        raise OgkError("OGK-BOARD-025", "Name the brain with lowercase letters, digits and hyphens, such as risk-office.")
     if board_id in catalog["boards"]:
         raise OgkError("OGK-BOARD-014",
             f"Brain {board_id} already exists. To complete it, write .openguildkit/catalog/boards/{board_id}.json "
@@ -281,11 +281,11 @@ def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: Catalog) -> 
     for relative, record in skeleton.items():
         collection = relative.split("/")[0]
         if collection in ("patterns", "packs") and record["id"] in catalog[collection]:
-            raise ValueError(f"The {collection[:-1]} {record['id']} already exists. Choose another brain ID.")
+            raise OgkError("OGK-BOARD-026", f"The {collection[:-1]} {record['id']} already exists. Choose another brain ID.")
     files = {catalog_dir / relative: record for relative, record in skeleton.items()}
     existing = [path.as_posix() for path in files if path.exists()]
     if existing:
-        raise ValueError(f"{existing[0]} already exists. Remove it or choose another brain ID.")
+        raise OgkError("OGK-BOARD-027", f"{existing[0]} already exists. Remove it or choose another brain ID.")
     for path, record in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

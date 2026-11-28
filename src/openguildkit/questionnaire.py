@@ -136,7 +136,7 @@ def _follow_up_questions(answers: dict) -> list[dict]:
 def task_questions(brief: str, answers: dict | None = None) -> list[dict]:
     """Return the questionnaire. With partial answers, add the follow-up questions they call for."""
     if not brief.strip():
-        raise ValueError("A task brief is required.")
+        raise OgkError("OGK-RESULT-048", "A task brief is required.")
     questions = [
         _choice_question(question_id, prompt, choices)
         for question_id, prompt, choices in (*_QUESTIONS, *_OPTIONAL_QUESTIONS)
@@ -232,7 +232,7 @@ def _assumptions(value: object) -> list[str]:
 def validate_answers(answers: dict) -> dict:
     """Normalize the scope answers from interactive or JSON input."""
     if not isinstance(answers, dict):
-        raise ValueError("Task answers must be a JSON object.")
+        raise OgkError("OGK-RESULT-049", "Task answers must be a JSON object.")
 
     validated = {}
     for question_id, _, choices in _QUESTIONS:
@@ -253,7 +253,7 @@ def validate_answers(answers: dict) -> dict:
     if "components" in answers:
         selected = answers["components"]
         if not isinstance(selected, list) or not all(isinstance(item, str) and item.strip() for item in selected):
-            raise ValueError("Task components must be a list of project component IDs.")
+            raise OgkError("OGK-RESULT-050", "Task components must be a list of project component IDs.")
         validated["components"] = list(dict.fromkeys(item.strip() for item in selected))
 
     assumptions = _assumptions(answers.get(ASSUMPTIONS, []))
@@ -265,7 +265,7 @@ def validate_answers(answers: dict) -> dict:
     for field in ("context", *FOLLOW_UPS):
         value = answers.get(field, "")
         if not isinstance(value, str):
-            raise ValueError(f"Task {field} must be text.")
+            raise OgkError("OGK-RESULT-051", f"Task {field} must be text.")
         if value.strip():
             validated[field] = value.strip()
     chosen = [validated[key] for key in ("kind", "data", "research")] + validated["surface"]
