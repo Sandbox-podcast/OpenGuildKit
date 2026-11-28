@@ -270,6 +270,14 @@ class ProjectsTests(unittest.TestCase):
             self.projects(self.code, *arguments, code=1 if "--strict" in arguments else 0)
         self.assertEqual(snapshot(self.code), before)
 
+    def test_the_root_parser_takes_no_abbreviation_so_policy_is_not_read_as_policy_repo(self):
+        """Issue #479: Python 3.11 refused `projects --policy FILE` as an ambiguous prefix of --policy-repo."""
+        from openguildkit.cli import command_parser
+
+        self.assertFalse(command_parser().allow_abbrev)
+        args = command_parser().parse_args(["projects", "--policy", "policy.json"])
+        self.assertEqual(args.policy, Path("policy.json"))
+
     def test_the_web_interface_refuses_a_folder_outside_its_project(self):
         from openguildkit.cli import command_parser
         from openguildkit.webui import Refused, check_paths

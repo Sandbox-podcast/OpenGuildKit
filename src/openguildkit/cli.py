@@ -126,7 +126,10 @@ UI_PORT = 7311
 def command_parser() -> argparse.ArgumentParser:
     """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
     web server parses one command after another."""
-    parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
+    # No abbreviations: Python 3.11 read `projects --policy` as an ambiguous prefix of --policy-repo (#479).
+    parser = argparse.ArgumentParser(
+        prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.", allow_abbrev=False
+    )
     parser.add_argument("--version", action=VersionAction)
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor). "
                                                      "It may also follow the command.")

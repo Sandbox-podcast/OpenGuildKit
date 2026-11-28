@@ -333,5 +333,19 @@ class ToolVersionFilesTest(unittest.TestCase):
 
 
 
+class ConventionsJobTest(unittest.TestCase):
+    """Issue #522: the event carries the body as it was when the run started, so a re-run kept failing on an old body."""
+
+    def test_the_checks_read_the_title_and_body_from_the_api_before_they_run(self):
+        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["conventions"]
+        names = [step.get("name", "") for step in job["steps"]]
+        read = names.index("Read the title and body as they are now")
+        self.assertLess(read, names.index("Pull request text"))
+        script = job["steps"][read]["run"]
+        self.assertIn("PR_BODY<<", script)
+        self.assertIn("GITHUB_ENV", script)
+        self.assertEqual(job["permissions"]["pull-requests"], "read")
+
+
 if __name__ == "__main__":
     unittest.main()

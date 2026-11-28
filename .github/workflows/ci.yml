@@ -352,10 +352,12 @@ jobs:
     name: Conventions for agents
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # issues: read lets check_fix_trace.py read the labels of the issues a pull request closes.
+    # issues: read lets check_fix_trace.py read the labels of the issues a pull request closes; pull-requests: read
+    # lets the job read the title and body as they are now, so that a re-run after an edit checks the edited text.
     permissions:
       contents: read
       issues: read
+      pull-requests: read
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
       PR_BODY: ${{ github.event.pull_request.body }}
@@ -370,6 +372,16 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version-file: .python-version
+      - name: Read the title and body as they are now
+        if: github.event_name == 'pull_request'
+        env:
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          delimiter="PR_TEXT_$(openssl rand -hex 16)"
+          {
+            echo "PR_TITLE<<$delimiter"; gh api "repos/$GH_REPO/pulls/$NUMBER" --jq .title; echo "$delimiter"
+            echo "PR_BODY<<$delimiter"; gh api "repos/$GH_REPO/pulls/$NUMBER" --jq '.body // ""'; echo "$delimiter"
+          } >> "$GITHUB_ENV"
       - name: Pull request text
         if: github.event_name == 'pull_request'
         run: python scripts/check_pr_text.py --base "$BASE"
