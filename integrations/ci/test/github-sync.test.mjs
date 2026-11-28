@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { test } from 'node:test';
 import { reconcileGithub } from '../lib/github.mjs';
-import { publishWatchReport } from '../lib/github-report.mjs';
+import { publishWatchReport, renderWatchReport, watchReportStatus } from '../lib/github-report.mjs';
+import { sha256 } from '../lib/check.mjs';
 import { mergeGithub } from '../lib/merge.mjs';
 import { reconcile } from '../lib/reconcile.mjs';
 
@@ -208,32 +209,136 @@ test('the GitHub synchronization refuses an invalid configuration with an Englis
   }
 });
 
+// What `gh api graphql` answers for the open PRs: the head, the body and the statuses recorded for that head.
+function graphqlPulls(pulls, statuses = new Map(), bodies = {}) {
+  const nodes = pulls.map(pr => ({
+    number: pr.number, state: 'OPEN', headRefOid: pr.head.sha, body: bodies[pr.number] ?? '',
+    commits: { nodes: [{ commit: { oid: pr.head.sha, status: { contexts: statuses.get(pr.head.sha) ?? [] } } }] },
+  }));
+  return JSON.stringify([{ data: { repository: { pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes } } } }]);
+}
+
+// A GitHub that keeps the statuses it is given, counts the requests, and lets a test move the head of a PR.
+function recordingApi({ request, pulls }, { moved = {} } = {}) {
+  const calls = [];
+  const statuses = new Map();
+  const writes = [];
+  const api = (...args) => {
+    calls.push(args);
+    if (args[1] === 'graphql') return graphqlPulls(pulls, statuses);
+    const write = /^repos\/team\/repo\/statuses\/([0-9a-f]{40})$/.exec(args[1]);
+    if (write) {
+      const field = name => args.find(arg => arg.startsWith(`${name}=`))?.slice(name.length + 1);
+      const context = { context: field('context'), state: field('state').toUpperCase(), description: field('description'), targetUrl: field('target_url') ?? null };
+      statuses.set(write[1], [...(statuses.get(write[1]) ?? []).filter(item => item.context !== context.context), context]);
+      writes.push(args);
+      return '{}';
+    }
+    const pull = /^repos\/team\/repo\/pulls\/(\d+)$/.exec(args.at(-1));
+    if (pull && pull[1] !== '3') {
+      const sha = moved[pull[1]] ?? pulls.find(item => item.number === Number(pull[1]))?.head.sha;
+      return JSON.stringify({ state: 'open', head: { sha } });
+    }
+    return request(...args);
+  };
+  return { api, calls, writes, statuses };
+}
+
 test('only the PRs into the profile branch are evaluated, and their statuses are in English', t => {
-  const { root, addPull, pulls, configure, request, fetchRefs, configPath } = githubFixture(t);
+  const fixture = githubFixture(t);
+  const { root, addPull, pulls, configure, fetchRefs, configPath } = fixture;
   const head = addPull(7, 45);
   addPull(8, 20);
   pulls[1] = { ...pulls[1], base: { ...pulls[1].base, ref: 'release/1' } };
   configure({ profileMaintainer: 'lead' });
-  const endpoints = [];
-  const posted = [];
-  const spy = (...args) => {
-    endpoints.push(args.at(-1));
-    if (args[1] === `repos/team/repo/statuses/${head}`) {
-      posted.push(args.find(arg => arg.startsWith('description=')));
-      return '{}';
-    }
-    if (args.at(-1) === 'repos/team/repo/pulls/7') return JSON.stringify({ state: 'open', head: { sha: head } });
-    if (args.at(-1) === `repos/team/repo/commits/${head}/status?per_page=100`) return JSON.stringify([{ statuses: [] }]);
-    return request(...args);
-  };
+  const { api, calls, writes } = recordingApi(fixture);
   const result = reconcileGithub({ configPath, stateDir: join(root, 'state'), kitVersion: '0.16.1', run: true, publish: true },
-    { request: spy, fetchRefs });
+    { request: api, fetchRefs });
 
-  assert.ok(endpoints.includes('repos/team/repo/pulls?state=open&base=main&per_page=100'));
+  assert.ok(calls.some(args => args.at(-1) === 'repos/team/repo/pulls?state=open&base=main&per_page=100'));
   assert.deepEqual(result.current.map(row => [row.pullRequest, row.status]), [[7, 'failure']]);
   assert.deepEqual(result.errors, []);
-  assert.equal(posted.length, 1);
-  assert.match(posted[0], /^description=Deviation \(obs\.\) \| rule [a-f0-9]{12} \| profile [a-f0-9]{12} \| [a-f0-9]{12}$/);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0][1], `repos/team/repo/statuses/${head}`);
+  assert.match(writes[0].find(arg => arg.startsWith('description=')),
+    /^description=Deviation \(obs\.\) \| rule [a-f0-9]{12} \| profile [a-f0-9]{12} \| [a-f0-9]{12}$/);
+});
+
+test('Issue #531: a cycle with nothing to publish makes the same GitHub requests whatever the number of PRs', t => {
+  const cycle = count => {
+    const fixture = githubFixture(t);
+    for (let index = 0; index < count; index += 1) fixture.addPull(10 + index, 45);
+    fixture.configure({ profileMaintainer: 'lead' });
+    const { api, calls, writes } = recordingApi(fixture);
+    const run = () => reconcileGithub({ configPath: fixture.configPath, stateDir: join(fixture.root, 'state'), kitVersion: '0.16.1',
+      run: true, publish: true }, { request: api, fetchRefs: fixture.fetchRefs });
+    const first = run();
+    assert.equal(first.publications.filter(item => item.posted).length, count);
+    assert.equal(writes.length, count);
+    const before = calls.length;
+    const second = run();
+    assert.deepEqual(second.errors, []);
+    assert.deepEqual(second.publications.map(item => item.posted), Array(count).fill(false));
+    assert.equal(writes.length, count, 'nothing is written again');
+    return calls.slice(before);
+  };
+  const one = cycle(1);
+  const five = cycle(5);
+  assert.equal(five.length, one.length);
+  assert.equal(five.filter(args => args[1] === 'graphql').length, 1);
+  assert.ok(five.every(args => !/\/pulls\/\d+$|\/commits\//.test(args.at(-1)) || args.at(-1).endsWith('/pulls/3')),
+    'no PR and no status is read one by one');
+});
+
+test('Issue #531: the open PRs and their statuses come in one paginated GraphQL query per repository', t => {
+  const fixture = githubFixture(t);
+  fixture.addPull(7, 45);
+  fixture.configure({ profileMaintainer: 'lead' });
+  const { api, calls } = recordingApi(fixture);
+  reconcileGithub({ configPath: fixture.configPath, stateDir: join(fixture.root, 'state'), kitVersion: '0.16.1', run: true,
+    publish: true }, { request: api, fetchRefs: fixture.fetchRefs });
+  const graphql = calls.filter(args => args[1] === 'graphql');
+  assert.equal(graphql.length, 1);
+  const [args] = graphql;
+  assert.ok(args.includes('--paginate') && args.includes('--slurp'));
+  assert.ok(args.includes('owner=team') && args.includes('name=repo'), 'raw string fields: a name made of digits stays a string');
+  const query = args.find(arg => arg.startsWith('query=')).slice('query='.length);
+  for (const word of ['$endCursor', 'pageInfo', 'hasNextPage', 'headRefOid', 'states: OPEN', 'contexts', 'targetUrl']) {
+    assert.ok(query.includes(word), word);
+  }
+});
+
+test('Issue #531: a status is never written on a head that moved since the read', t => {
+  const fixture = githubFixture(t);
+  fixture.addPull(7, 45);
+  fixture.configure({ profileMaintainer: 'lead' });
+  const { api, writes } = recordingApi(fixture, { moved: { 7: 'f'.repeat(40) } });
+  const result = reconcileGithub({ configPath: fixture.configPath, stateDir: join(fixture.root, 'state'), kitVersion: '0.16.1',
+    run: true, publish: true }, { request: api, fetchRefs: fixture.fetchRefs });
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.publications.map(item => item.posted), [false]);
+  assert.deepEqual(writes, []);
+});
+
+test('Issue #531: when the open PRs cannot be read, each result says so and nothing is written', t => {
+  const fixture = githubFixture(t);
+  fixture.addPull(7, 45);
+  fixture.addPull(8, 45);
+  fixture.configure({ profileMaintainer: 'lead' });
+  const { api, calls, writes } = recordingApi(fixture);
+  const failing = (...args) => {
+    if (args[1] === 'graphql') {
+      calls.push(args);
+      throw new Error('GraphQL rate limit exceeded');
+    }
+    return api(...args);
+  };
+  const result = reconcileGithub({ configPath: fixture.configPath, stateDir: join(fixture.root, 'state'), kitVersion: '0.16.1',
+    run: true, publish: true }, { request: failing, fetchRefs: fixture.fetchRefs });
+  assert.equal(result.errors.length, 2);
+  assert.ok(result.errors.every(error => /rate limit/.test(error.message)));
+  assert.deepEqual(writes, []);
+  assert.equal(calls.filter(args => args[1] === 'graphql').length, 1, 'the failed query is not repeated for each PR');
 });
 
 test('the merge rechecks that the merge application is the only bypass actor', () => {
@@ -286,6 +391,68 @@ test('the enforcement templates guard organization repositories and verifiable s
   }
 });
 
+// A PR whose Jenkins and GitHub Actions results are both verified, as the watcher hands it to the report.
+const reportEntry = (commit, actions = {}) => ({
+  project: 'team/repo', pullRequest: 7, commit, profileCommit: 'b'.repeat(40), policyCommit: 'd'.repeat(40),
+  rule: 'export-link-expiry', mode: 'required', work: 'c'.repeat(64),
+  actions: { state: 'verified', url: 'https://github.com/team/repo/actions/runs/1', verifiedAt: '2026-11-21T00:00:00Z',
+    proof: { proof: { actualMinutes: 20, maxMinutes: 30, owner: '@lead', guidance: 'Keep links short.', state: 'success' } },
+    ...actions },
+  decision: { effectiveStatus: 'success' },
+});
+
+// A stand-in `gh` on the PATH that logs each call. `answers` maps the start of the arguments to a reply.
+function fakeGh(t, answers = '') {
+  const root = mkdtempSync(join(tmpdir(), 'openguildkit-fake-gh-'));
+  const bin = join(root, 'bin');
+  mkdirSync(bin);
+  const log = join(root, 'calls.log');
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\necho "$*" >> "${log}"\n${answers}\necho "Unexpected gh call: $*" >&2\nexit 1\n`);
+  chmodSync(join(bin, 'gh'), 0o755);
+  const { PATH } = process.env;
+  process.env.PATH = `${bin}${delimiter}${PATH}`;
+  t.after(() => {
+    process.env.PATH = PATH;
+    rmSync(root, { recursive: true, force: true });
+  });
+  return () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []);
+}
+
+test('Issue #531: a report already published for the same content costs no GitHub request',
+  { skip: process.platform === 'win32' && 'needs a POSIX stand-in for the GitHub CLI' }, t => {
+    const calls = fakeGh(t);
+    const commit = 'a'.repeat(40);
+    const entry = reportEntry(commit);
+    const path = `openguildkit/pr-7/${entry.work}/${sha256(renderWatchReport(entry, null))}.md`;
+    const url = `https://github.com/team/repo/blob/${'e'.repeat(40)}/${path}`;
+    const status = { context: 'openguildkit/report-pr-7', state: 'success', description: watchReportStatus(entry).description, target_url: url };
+    const pulls = () => new Map([[7, { state: 'open', head: commit, body: '', statuses: [status] }]]);
+    assert.deepEqual(publishWatchReport(entry, 'reports', pulls), { work: entry.work, posted: false, url });
+    assert.deepEqual(calls(), []);
+    // The same status on another path is another report: it goes to the archive, which this fake refuses.
+    const other = () => new Map([[7, { state: 'open', head: commit, body: '', statuses: [{ ...status, target_url: url.replace('.md', 'x.md') }] }]]);
+    assert.throws(() => publishWatchReport(entry, 'reports', other), /Unexpected gh call/);
+  });
+
+test('Issue #531: the report status is written after the head is read again, and not on a head that moved',
+  { skip: process.platform === 'win32' && 'needs a POSIX stand-in for the GitHub CLI' }, t => {
+    const commit = 'a'.repeat(40);
+    const calls = fakeGh(t, [
+      'case "$*" in',
+      '  "api repos/team/repo/pulls/7") printf \'{"state":"open","head":{"sha":"%s"}}\' "$FAKE_LIVE_HEAD"; exit 0;;',
+      '  "api repos/team/repo/statuses/"*) exit 0;;',
+      'esac'].join('\n'));
+    t.after(() => delete process.env.FAKE_LIVE_HEAD);
+    const entry = reportEntry(commit, { state: 'dispatched', proof: undefined });
+    const pulls = () => new Map([[7, { state: 'open', head: commit, body: '', statuses: [] }]]);
+    process.env.FAKE_LIVE_HEAD = 'f'.repeat(40);
+    assert.equal(publishWatchReport(entry, 'reports', pulls).posted, false);
+    assert.deepEqual(calls(), ['api repos/team/repo/pulls/7']);
+    process.env.FAKE_LIVE_HEAD = commit;
+    assert.equal(publishWatchReport(entry, 'reports', pulls).posted, true);
+    assert.match(calls().at(-1), new RegExp(`^api repos/team/repo/statuses/${commit} -f context=openguildkit/report-pr-7 -f state=pending `));
+  });
+
 test('the PR report archive refuses a different or an unconfirmed report with an English message',
   { skip: process.platform === 'win32' && 'needs a POSIX stand-in for the GitHub CLI' }, t => {
     const root = mkdtempSync(join(tmpdir(), 'openguildkit-report-'));
@@ -311,18 +478,13 @@ test('the PR report archive refuses a different or an unconfirmed report with an
     const commit = 'a'.repeat(40);
     process.env.PATH = `${bin}${delimiter}${PATH}`;
     process.env.FAKE_HEAD = commit;
-    const entry = {
-      project: 'team/repo', pullRequest: 7, commit, profileCommit: 'b'.repeat(40), policyCommit: 'd'.repeat(40),
-      rule: 'export-link-expiry', mode: 'required', work: 'c'.repeat(64),
-      actions: { state: 'verified', url: 'https://github.com/team/repo/actions/runs/1', verifiedAt: '2026-11-21T00:00:00Z',
-        proof: { proof: { actualMinutes: 20, maxMinutes: 30, owner: '@lead', guidance: 'Keep links short.', state: 'success' } } },
-      decision: { effectiveStatus: 'success' },
-    };
+    const entry = reportEntry(commit);
 
+    const pulls = () => new Map([[7, { state: 'open', head: commit, body: '', statuses: [] }]]);
     process.env.FAKE_SAVED = Buffer.from('Another report').toString('base64');
-    assert.throws(() => publishWatchReport(entry, 'reports'), error => error.message === 'The existing report differs from the expected report.');
+    assert.throws(() => publishWatchReport(entry, 'reports', pulls), error => error.message === 'The existing report differs from the expected report.');
     delete process.env.FAKE_SAVED;
-    assert.throws(() => publishWatchReport(entry, 'reports'), error => error.message === 'GitHub did not confirm the commit of the report.');
+    assert.throws(() => publishWatchReport(entry, 'reports', pulls), error => error.message === 'GitHub did not confirm the commit of the report.');
   });
 
 test('the error messages of the GitHub modules are in English', () => {

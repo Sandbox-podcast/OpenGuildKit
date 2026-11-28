@@ -1,0 +1,9 @@
+# The versions of the tools that build the wheel of a release (.github/workflows/release.yml sets PIP_CONSTRAINT to
+# this file, so `pip install build` and the isolated environment of `python -m build` both obey it).
+# With SOURCE_DATE_EPOCH, a third party who builds the tag with the same versions gets the same wheel.
+# Change a version in a pull request of its own, and read the new Generator line of the wheel.
+# build 1.6.1 and setuptools 84.2.1 need Python 3.10; packaging 26.2 and pyproject_hooks 1.2.0 are the versions pip 26.2 vendors.
+build==1.6.1
+setuptools==84.2.1
+packaging==26.2
+pyproject_hooks==1.2.0

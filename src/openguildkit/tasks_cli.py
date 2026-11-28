@@ -1504,7 +1504,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         else:
             _print_decision_rows(rows)
         return
-    read = {}
+    read: dict = {}
     rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
                       root=root, read=read, skip=DONE_STATUSES if args.ready else (), indexed=True)
     if args.ready:

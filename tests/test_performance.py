@@ -29,7 +29,6 @@ from openguildkit import catalog, lock, tasks, webui
 from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]

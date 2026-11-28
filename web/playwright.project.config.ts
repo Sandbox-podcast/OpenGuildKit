@@ -15,6 +15,8 @@ process.env.OPENGUILDKIT_UI_KEY ??= randomBytes(32).toString('hex');
 const key = process.env.OPENGUILDKIT_UI_KEY;
 const host = `ogk-${createHash('sha256').update(key).digest('hex').slice(0, 24)}.localhost`;
 process.env.PW_PROJECT_HOST = host;
+// By default Playwright ends a web server with SIGKILL; serve-sample.mjs needs SIGTERM to remove its project folder.
+const graceful = { signal: 'SIGTERM' as const, timeout: 5_000 };
 const opened = (serverPort: number) => ({ name: `ogk-${serverPort}`, value: key, domain: host, path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Strict' as const });
 
 export default defineConfig({
@@ -37,6 +39,7 @@ export default defineConfig({
       command: 'node scripts/serve-sample.mjs',
       url: `http://127.0.0.1:${port}/api/session`,
       reuseExistingServer: false,
+      gracefulShutdown: graceful,
       timeout: 120_000,
       env: { PW_PROJECT_PORT: String(port) },
     },
@@ -45,6 +48,7 @@ export default defineConfig({
       command: 'node scripts/serve-sample.mjs --empty',
       url: `http://127.0.0.1:${port + 1}/api/session`,
       reuseExistingServer: false,
+      gracefulShutdown: graceful,
       timeout: 60_000,
       env: { PW_PROJECT_PORT: String(port + 1) },
     },
@@ -53,6 +57,7 @@ export default defineConfig({
       command: 'node scripts/serve-sample.mjs --empty --stripe',
       url: `http://127.0.0.1:${port + 2}/api/session`,
       reuseExistingServer: false,
+      gracefulShutdown: graceful,
       timeout: 60_000,
       env: { PW_PROJECT_PORT: String(port + 2) },
     },
@@ -61,6 +66,7 @@ export default defineConfig({
       command: 'node scripts/serve-sample.mjs --gdpr',
       url: `http://127.0.0.1:${port + 3}/api/session`,
       reuseExistingServer: false,
+      gracefulShutdown: graceful,
       timeout: 120_000,
       env: { PW_PROJECT_PORT: String(port + 3) },
     },

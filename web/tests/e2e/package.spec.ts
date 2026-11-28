@@ -5,7 +5,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -13,11 +13,12 @@ import { fileURLToPath } from 'node:url';
 
 const web = fileURLToPath(new URL('../..', import.meta.url));
 let server: ChildProcess | undefined;
+let project = '';
 let printed = '';
 
 test.beforeAll(async () => {
   test.skip(!existsSync(join(web, 'dist', 'index.html')), 'run npm run build first');
-  const project = mkdtempSync(join(tmpdir(), 'ogk-package-'));
+  project = mkdtempSync(join(tmpdir(), 'ogk-package-'));
   const env = { ...process.env, PYTHONPATH: [join(web, '..', 'src'), process.env.PYTHONPATH].filter(Boolean).join(delimiter), PYTHONIOENCODING: 'utf-8' };
   server = spawn(process.env.OGK_PYTHON ?? 'python', ['-m', 'openguildkit', '--project', project, 'ui', '--no-browser', '--port', '0', '--static', join(web, 'dist')], { env });
   printed = await new Promise<string>((resolve, reject) => {
@@ -26,7 +27,10 @@ test.beforeAll(async () => {
     server!.on('exit', (code) => reject(new Error(`openguildkit ui exited with ${code}`)));
   });
 });
-test.afterAll(() => { server?.kill(); });
+test.afterAll(() => {
+  server?.kill();
+  if (project) rmSync(project, { recursive: true, force: true, maxRetries: 3 });
+});
 
 test('la page servie par openguildkit ui ne contient pas la démo et dit comment la lancer', async ({ page }) => {
   const requested: string[] = [];

@@ -24,7 +24,7 @@ from unittest.mock import patch
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "src"))
 
-from openguildkit.cli import main  # noqa: E402
+from openguildkit.cli import main  # noqa: E402 - INTENTIONAL(#522): after sys.path is set above
 
 EXAMPLE = REPO / "examples" / "request-status"
 REVIEW = json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))

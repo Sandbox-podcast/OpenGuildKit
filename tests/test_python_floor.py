@@ -4,8 +4,12 @@ Python 3.12 accepts f-strings that 3.11 refuses: a backslash, a comment or the e
 quote inside a replacement field. A contributor on a recent Python would not see the error.
 """
 
+import os
+import re
+import subprocess
 import sys
 import tokenize
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -64,6 +68,56 @@ class PythonFloorTests(unittest.TestCase):
                     self.assertTrue(found and expected in found[0], (source, found))
                 else:
                     self.assertEqual(found, [], source)
+
+
+class FloorMessageTests(unittest.TestCase):
+    """A Python older than the floor is told so in one line, not with a TypeError from an annotation."""
+
+    FLOOR = tuple(int(part) for part in
+                  tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["requires-python"]
+                  .removeprefix(">=").split("."))
+
+    def run_cli(self, python: str, *code: str) -> subprocess.CompletedProcess:
+        environment = {**os.environ, "PYTHONPATH": str(ROOT / "src"), "PYTHONDONTWRITEBYTECODE": "1"}
+        return subprocess.run([python, *code], capture_output=True, text=True, env=environment, timeout=60, check=False)
+
+    def assert_one_line_naming_the_floor(self, result: subprocess.CompletedProcess, found: str):
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+        self.assertIn("Python " + ".".join(map(str, self.FLOOR)), result.stderr)
+        self.assertIn(found, result.stderr)
+
+    def test_a_python_below_the_floor_gets_one_line_that_names_the_floor(self):
+        """Issue #520: with the python3 of macOS (3.9) the CLI ends on a TypeError at the first annotation."""
+        code = ("import runpy, sys; sys.version_info = (3, 9, 6, 'final', 0); "
+                "runpy.run_module('openguildkit', run_name='__main__')")
+        self.assert_one_line_naming_the_floor(self.run_cli(sys.executable, "-c", code), "Python 3.9")
+
+    def test_the_python_of_this_machine_when_it_is_below_the_floor(self):
+        """Issue #520: `python3 -m openguildkit --version` with the system Python of macOS prints a trace."""
+        for candidate in ("/usr/bin/python3", "/usr/bin/python"):
+            probe = subprocess.run([candidate, "-c", "import sys; print(*sys.version_info[:2])"],
+                                   capture_output=True, text=True, check=False) if Path(candidate).exists() else None
+            if probe and probe.returncode == 0 and tuple(map(int, probe.stdout.split())) < self.FLOOR:
+                version = ".".join(probe.stdout.split())
+                with self.subTest(python=candidate):
+                    self.assert_one_line_naming_the_floor(
+                        self.run_cli(candidate, "-m", "openguildkit", "--version"), "Python " + version)
+                return
+        self.skipTest("no Python below the floor on this machine")
+
+    def test_the_floor_in_the_check_is_the_one_of_requires_python(self):
+        text = (ROOT / "src" / "openguildkit" / "__main__.py").read_text(encoding="utf-8")
+        checked = re.search(r"if sys\.version_info < \((\d+), (\d+)\):", text)
+        self.assertIsNotNone(checked, "__main__.py checks sys.version_info before its first annotation")
+        self.assertEqual(tuple(map(int, checked.groups())), self.FLOOR)
+        self.assertLess(checked.start(), text.index("def "), "the check comes before any annotation is evaluated")
+
+    def test_the_python_with_the_check_still_starts_the_cli(self):
+        result = self.run_cli(sys.executable, "-m", "openguildkit", "--version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertRegex(result.stdout, r"\d+\.\d+")
 
 
 if __name__ == "__main__":

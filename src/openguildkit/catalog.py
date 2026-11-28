@@ -618,7 +618,7 @@ def _read_records(collection: str, directory, entries: dict, bundled: bool, over
 def bundle_sources(builtin: Path) -> dict[str, int]:
     """The size of each record file of the four collections, by collection/name: the files BUNDLE_FILE is built from,
     which must still match for it to be read."""
-    sources = {}
+    sources: dict[str, int] = {}
     for collection in COLLECTION_FIELDS:
         with os.scandir(builtin / collection) as entries:
             sources.update((f"{collection}/{entry.name}", entry.stat().st_size) for entry in entries

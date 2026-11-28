@@ -1,0 +1,45 @@
+name: Code coverage
+
+# Measures which lines and branches of src/openguildkit the whole test suite runs, in the processes the tests start as
+# well, and fails when guard.py or hosts.py falls under its floor (#472). It runs on request (Actions, Run workflow):
+# a floor that blocks merges is the maintainers' choice. To make it a check of every pull request, add the job to
+# ci.yml and to the contribution-checks gate. Its floors are below the first measures of the audit and have not been
+# read on Ubuntu with the whole suite: raise them to the value of a run. docs/testing.md#code-coverage says more.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version-file: .python-version
+
+      # coverage is a tool of this job, not a dependency of the package; 7.10 is the first with patch = subprocess.
+      - name: Install
+        run: python -m pip install -e . "coverage>=7.10"
+
+      - name: Run the tests under coverage
+        run: python -m coverage run -m unittest discover -s tests
+
+      - name: Combine the measures of the tests and of the processes they start
+        run: python -m coverage combine
+
+      - name: Report the coverage of each module
+        run: python -m coverage report --format=markdown | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Hold the security modules to their floor
+        run: |
+          python -m coverage report --include='*/openguildkit/guard.py' --fail-under=85
+          python -m coverage report --include='*/openguildkit/hosts.py' --fail-under=94

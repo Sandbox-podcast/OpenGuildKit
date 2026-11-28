@@ -214,6 +214,62 @@ class StackCheckTests(unittest.TestCase):
                 self.assertEqual(evaluate_check(Path(directory), checks[rule])["status"], "failed")
 
 
+class AgentNativePackTests(unittest.TestCase):
+    """Issue #521: the agent-native-engineering pack had a machine check on 1 rule of 8, and the `size` kind served no rule."""
+
+    CHECKED = ["budget-agent-instructions", "offer-a-targeted-check", "keep-a-repository-map",
+               "keep-oversight-out-of-agent-reach", "keep-a-fix-ledger"]
+    CONFORMING = {
+        "AGENTS.md": "# Working here\n\nRun `python scripts/check_fast.py`.\n",
+        "CLAUDE.md": "@AGENTS.md\n",
+        "scripts/check_fast.py": "print('ok')\n",
+        "docs/agents/map.json": '{"modules": []}',
+        ".github/CODEOWNERS": "* @owner\n/.github/workflows/ @owner\n",
+        "docs/agents/fixes.jsonl": "",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pack = load_catalog()["packs"]["agent-native-engineering"]
+        cls.checks = {rule["id"]: rule["check"] for rule in cls.pack["rules"] if "check" in rule}
+
+    def outcomes(self, root):
+        return {rule_id: evaluate_check(root, check)["status"] for rule_id, check in self.checks.items()}
+
+    def test_five_rules_carry_a_check_and_each_other_rule_says_why_a_person_verifies_it(self):
+        self.assertEqual(sorted(self.checks), sorted(self.CHECKED))
+        for rule in self.pack["rules"]:
+            with self.subTest(rule=rule["id"]):
+                self.assertNotEqual("check" in rule, "manual" in rule)
+        self.assertEqual(self.pack["version"], "1.1.0")
+        self.assertIn("size", {check["kind"] for check in self.checks.values()})
+
+    def test_a_conforming_project_passes_and_an_agents_file_over_8000_bytes_fails_its_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, content in self.CONFORMING.items():
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_text(content, encoding="utf-8")
+            self.assertEqual(set(self.outcomes(root).values()), {"passed"}, self.outcomes(root))
+            (root / "AGENTS.md").write_text("x" * 8001, encoding="utf-8")
+            outcomes = self.outcomes(root)
+            self.assertEqual(outcomes.pop("budget-agent-instructions"), "failed")
+            self.assertEqual(set(outcomes.values()), {"passed"})
+            self.assertIn("AGENTS.md is 8001 bytes, above 8000",
+                          evaluate_check(root, self.checks["budget-agent-instructions"])["evidence"])
+            (root / "AGENTS.md").write_text("x" * 8000, encoding="utf-8")
+            self.assertEqual(self.outcomes(root)["budget-agent-instructions"], "passed")
+
+    def test_a_bare_project_fails_what_a_file_can_settle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            outcomes = self.outcomes(Path(directory))
+        self.assertEqual({rule for rule, status in outcomes.items() if status == "passed"},
+                         {"budget-agent-instructions"})
+
+    def test_this_repository_meets_the_checks_of_the_pack(self):
+        self.assertEqual(set(self.outcomes(Path(__file__).resolve().parents[1]).values()), {"passed"})
+
+
 class RustCheckTests(unittest.TestCase):
     """Each machine check of the two Rust packs passes on a repository that meets its rule and fails on one that
     does not, and a rule that needs a person to judge it carries no check."""

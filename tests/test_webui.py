@@ -155,13 +155,13 @@ class WebInterfaceTests(unittest.TestCase):
         received = []
 
         class Recorder(BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802 - http.server naming
+            def do_GET(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
                 received.append(str(self.headers))
                 self.send_response(200)
                 self.send_header("Content-Length", "0")
                 self.end_headers()
 
-            def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+            def log_message(self, format, *args):  # noqa: A002 - INTENTIONAL(#522): signature of the base class
                 pass
 
         other = ThreadingHTTPServer(("127.0.0.1", 0), Recorder)

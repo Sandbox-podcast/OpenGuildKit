@@ -505,7 +505,7 @@ class Handler(BaseHTTPRequestHandler):
     sys_version = ""
     app: "WebApp"
 
-    def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+    def log_message(self, format, *args):  # noqa: A002 - INTENTIONAL(#522): signature of the base class
         if self.app.verbose:
             sys.stderr.write("ui: " + (format % args) + "\n")
 
@@ -543,10 +543,10 @@ class Handler(BaseHTTPRequestHandler):
     def _host_allowed(self) -> bool:
         return (self.headers.get("Host") or "").lower() in self.app.hosts
 
-    def do_HEAD(self):  # noqa: N802 - http.server naming
+    def do_HEAD(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         self.do_GET()
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         address = urlsplit(self.path)
         if (self.headers.get("Host") or "").lower() in self.app.loopback:
             # 127.0.0.1 and localhost are shared by every local server: the session never opens there.
@@ -612,13 +612,13 @@ class Handler(BaseHTTPRequestHandler):
             body = self._compressed(body, extra)
         self._send(HTTPStatus.OK, body, kind, extra)
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         try:
             body = self._body()
             self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
         except Refused as refusal:
             self._refuse(refusal)
-        except Exception as error:  # noqa: BLE001 - report to the page instead of dropping the connection
+        except Exception as error:  # noqa: BLE001 - INTENTIONAL(#522): report to the page instead of dropping the connection
             self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                  reason="server-error"))
