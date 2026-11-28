@@ -26,7 +26,7 @@ from . import (
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
-from .cli_errors import error_message, print_trace
+from .cli_errors import error_message, print_trace, reader_closed
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
@@ -1448,20 +1448,6 @@ def _project_command(args, root: Path, state: Path, catalog: dict) -> int | None
     return None
 
 
-def _reader_closed() -> int:
-    """The reader of the output stopped early, as `| head` does: end quietly, like a command that finished.
-
-    Standard output then points at the null device, so the interpreter's last flush cannot fail again.
-    """
-    try:
-        null = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(null, sys.stdout.fileno())
-        os.close(null)
-    except (OSError, ValueError, AttributeError):
-        pass  # Not a real file descriptor, as when a test captures the output: nothing is flushed at exit.
-    return 0
-
-
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         # Redirected output is consumed by agents and scripts on every platform.
@@ -1490,7 +1476,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.flush()
         return code
     except BrokenPipeError:
-        return _reader_closed()
+        return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
         print(f"OpenGuildKit: {error_message(error, parser, args)}", file=sys.stderr)
