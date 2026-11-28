@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `task retro --all`, `task challenge` and `task decide`: the objections between boards scan each text once for every board's domain instead of once per pair of boards, and an ASCII text is folded at once: `task retro --all` at 1,000 tasks from 13.4 s to 6.6 s, same output (#540)
 - `task consult` works out the reading list of the boards routing convenes only, not of every board of the catalog, and folds the task's words and each reference's words once: about 26 ms less per consultation; the consultation written is the same (#541)
 - `task decide` and `task challenge` find the project's last approval through the status index, which now keeps each record's latest approval date, and read that one record instead of every task: `task challenge` at 1,000 tasks from 2.0 s to 0.27 s; a missing, stale or garbled index still reads them all (#535)
 - Catalog loading: an installed package reads its packs, boards, sectors and patterns from one file, `registry/catalog.bundle.json`, validated when the wheel is built, instead of reading and validating 289 files in every process; `task list` loads the catalog and reads the lock once, and commands copy the catalog less. A checkout without the bundle reads the record files as before (#533)

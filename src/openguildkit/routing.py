@@ -159,13 +159,20 @@ def normalize_text(value: str) -> str:
     return " ".join(_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", folded)).split())
 
 
+# What normalize_text does to an ASCII character: the one apostrophe and the separators it folds.
+_ASCII_FOLD = str.maketrans({"`": "'", "/": " ", "_": " ", "|": " "})
+
+
 def normalize_with_offsets(value: str) -> tuple[str, list[int]]:
     """normalize_text, with the index in value of each character it returns, to quote the words as written."""
-    pieces = []
-    for index, character in enumerate(value):
-        for piece in unicodedata.normalize("NFKD", character).casefold():
-            if not unicodedata.combining(piece):
-                pieces.append((_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", piece)), index))
+    pieces: list[tuple[str, int]] = []
+    if value.isascii():  # No accent to drop and one character for one: fold the whole text at once.
+        pieces = list(zip(value.lower().translate(_ASCII_FOLD), range(len(value)), strict=True))
+    else:
+        for index, character in enumerate(value):
+            for piece in unicodedata.normalize("NFKD", character).casefold():
+                if not unicodedata.combining(piece):
+                    pieces.append((_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", piece)), index))
     characters, offsets = [], []
     for piece, index in pieces:
         if piece.isspace():

@@ -565,13 +565,22 @@ UNCONFRONTED = {
 }
 
 
-def _domain_words(domains: dict | None, board_id: str, text: str) -> list[str]:
-    """The words of a board's domain (its title and routing triggers) that a text uses. Every board's words
-    compete for the text, so that "contract test" belongs to QA and does not reach Legal through "contract"."""
+def _domain_words(domains: dict | None):
+    """The words of a board's domain (its title and routing triggers) that a text uses, as a function of the board
+    and the text. Every board's words compete for the text, so that "contract test" belongs to QA and does not reach
+    Legal through "contract". Each text is scanned once for every board: a review asks for the same texts again."""
     domains = {key: value for key, value in (domains or {}).items() if value}
-    domains.setdefault(board_id, [board_id])
-    found = trigger_matches({key: {"triggers": value} for key, value in domains.items()}, text)
-    return found.get(board_id, [])
+    scanned: dict[tuple[str | None, str], dict[str, list[str]]] = {}
+
+    def words(board_id: str, text: str) -> list[str]:
+        added = None if board_id in domains else board_id  # A board without a domain competes with its ID.
+        if (added, text) not in scanned:
+            competing = {**domains, **({added: [added]} if added else {})}
+            scanned[added, text] = trigger_matches({key: {"triggers": value} for key, value in competing.items()},
+                                                   text)
+        return scanned[added, text].get(board_id, [])
+
+    return words
 
 
 def _meets(words: list[str], domains: dict | None) -> bool:
@@ -595,6 +604,7 @@ def objections(review: dict, domains: dict | None = None) -> list[dict]:
     the point meets. The domains meet when the point uses the other board's words, or the other board's
     recommendation uses the objector's. A point that meets no board stands as its board's own advice."""
     entries = [entry for entry in review["boards"] if "challenge" in entry]
+    domain_words = _domain_words(domains)
     result = []
     for objector in entries:
         challenge = objector["challenge"]
@@ -606,9 +616,7 @@ def objections(review: dict, domains: dict | None = None) -> list[dict]:
             verdict = responder["challenge"]["verdict"]
             if verdict not in CHALLENGED[challenge["verdict"]]:
                 continue
-            meets = _domain_words(domains, responder["id"], point) + [
-                word for word in _domain_words(domains, objector["id"], _position_text(responder))
-            ]
+            meets = domain_words(responder["id"], point) + domain_words(objector["id"], _position_text(responder))
             if not _meets(meets, domains):
                 continue
             result.append({

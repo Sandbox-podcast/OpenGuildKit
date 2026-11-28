@@ -303,3 +303,22 @@ class DeliberationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ObjectionScanTests(unittest.TestCase):
+    """objections scans each text once for every board's domain, not once per pair of boards."""
+
+    setUp = DeliberationTests.setUp
+    reviewed = DeliberationTests.reviewed
+
+    def test_objections_scan_each_distinct_text_once(self):
+        """Issue #540: objections ran 24 trigger scans for 7 distinct texts, 12.3 s for task retro --all at 1,000."""
+        from openguildkit import routing, workflow
+
+        task = self.reviewed({"security": "block", "qa": "block"})
+        with unittest.mock.patch("openguildkit.routing.scan_triggers", wraps=routing.scan_triggers) as scan:
+            found = workflow.objections(task["review"], task["consultation"]["domains"])
+        texts = [call.args[1] for call in scan.call_args_list]
+        self.assertTrue(found)
+        self.assertGreater(len(texts), 1)
+        self.assertEqual(len(texts), len(set(texts)))
