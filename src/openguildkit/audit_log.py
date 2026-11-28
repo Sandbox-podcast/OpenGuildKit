@@ -160,7 +160,9 @@ def problem_with_event(event: object) -> str | None:
 
 def verify(path: Path) -> tuple[int, str | None]:
     """How many events the file holds before its first broken line, and what is wrong with that line, or None."""
-    lines = path.read_bytes().split(b"\n")
+    # An export redirected on Windows, or a log checked out with autocrlf, ends its lines with \r\n: the \r is not
+    # part of the hashed event.
+    lines = [line.removesuffix(b"\r") for line in path.read_bytes().split(b"\n")]
     cut = lines.pop()  # what follows the last newline: nothing in a complete file
     prev, count = GENESIS, 0
     for number, raw in enumerate(lines, start=1):
