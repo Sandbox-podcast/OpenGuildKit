@@ -44,6 +44,7 @@ class FirstContributionTests(unittest.TestCase):
         with contextlib.ExitStack() as stack:
             if registry is not None:
                 stack.enter_context(patch("openguildkit.catalog.registry_folder", return_value=registry))
+                stack.enter_context(patch("openguildkit.catalog_queries.registry_folder", return_value=registry))
                 stack.enter_context(patch.dict(catalog._BUNDLED, clear=True))
             stack.enter_context(contextlib.redirect_stdout(out))
             stack.enter_context(contextlib.redirect_stderr(err))

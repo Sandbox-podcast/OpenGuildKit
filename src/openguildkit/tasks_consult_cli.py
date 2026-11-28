@@ -9,7 +9,7 @@ from . import short_lane
 from .alerts import load_register
 from .board_brief import board_brief, pack_rules
 from .brains import BriefKnowledge, consultation_context
-from .catalog import board_replacements
+from .catalog_queries import board_replacements
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier

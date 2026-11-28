@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from . import host_coverage, managed, org_policy_cli
-from .catalog import replaced_boards, undated_sources
+from .catalog_queries import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
 from .guard import NO_TASK, approval_text, covering_approvals, guard_mode, hook_command, scope_note

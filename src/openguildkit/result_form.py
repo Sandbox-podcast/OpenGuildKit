@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .board_entries import required_text
-from .catalog import recorded_value
+from .catalog_queries import recorded_value
 from .relevance import sensitive_area
 from .results import (
     DONE_STATUSES,

@@ -45,6 +45,7 @@ class CatalogBundleTests(unittest.TestCase):
         """The copy as the bundled catalog, read as a new process reads it; yields the mock that counts the record
         folders read one file at a time."""
         with patch("openguildkit.catalog.registry_folder", return_value=self.registry), \
+                patch("openguildkit.catalog_queries.registry_folder", return_value=self.registry), \
                 patch.dict(catalog._BUNDLED, clear=True), patch.dict(catalog._MERGED, clear=True), \
                 patch("openguildkit.catalog._read_records", wraps=catalog._read_records) as folders:
             yield folders
