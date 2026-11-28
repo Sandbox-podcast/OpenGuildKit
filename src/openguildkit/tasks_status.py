@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import clock, light_lane, task_index
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
-from .project import Fingerprints
+from .project_rules import Fingerprints
 from .results import DONE_STATUSES
 from .storage import file_signature
 from .tasks_approval import decided_message, revoke_command, stale_review_message

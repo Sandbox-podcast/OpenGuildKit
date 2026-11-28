@@ -8,7 +8,8 @@ from .clock import today
 from .decisions import DECISIONS_DIR, exported_records, ignored_by_git, record_digest
 from .doc_links import doc_link
 from .guard import exported_decisions, record_of_another_task
-from .project import STATE_DIR, Fingerprints
+from .project import STATE_DIR
+from .project_rules import Fingerprints
 from .results import DONE_STATUSES
 from .retro import (
     DEFAULT_MINIMUM,

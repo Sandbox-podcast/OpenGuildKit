@@ -14,7 +14,8 @@ from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
 from .market import scope_entry as market_scope_entry
-from .project import load_profile, task_scope_profile
+from .project import load_profile
+from .project_rules import task_scope_profile
 from .prompts import prompt_questions
 from .questionnaire import concerns_question, open_points, require_concerns, task_questions, validate_answers
 from .routing import select_boards, trigger_matches

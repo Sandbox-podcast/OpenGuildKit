@@ -25,7 +25,7 @@ from .wording import plural
 
 def profile_settings(profile: dict) -> dict:
     """The project settings besides the packs and checks that decide which boards review a task and which rules it is
-    asked. A change of one voids the approvals (project.profile_fingerprint), and the message names it."""
+    asked. A change of one voids the approvals (project_rules.profile_fingerprint), and the message names it."""
     return {
         "boards": sorted(profile.get("boards", [])), "required boards": sorted(profile.get("required_boards", [])),
         "required rules": sorted(profile.get("required_rules", [])), "roles": sorted(profile.get("roles", [])),

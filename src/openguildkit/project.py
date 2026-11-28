@@ -626,19 +626,3 @@ def selected_packs(profile: dict, catalog: dict) -> list[str]:
     for pack_id in [*profile["packs"], *pattern_packs]:
         add_pack(pack_id)
     return list(ordered)
-
-
-
-
-MOVED_TO_RULES = ("Fingerprints", "fingerprint_holds", "profile_fingerprint", "task_scope_profile")
-
-
-def __getattr__(name: str):
-    """The names #512 moved to project_rules that tasks.py and tasks_cli.py still import from here, until they import
-    them from there; loaded on first use, so a caller of load_profile does not load the rule plan."""
-    if name not in MOVED_TO_RULES:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    from .project_rules import Fingerprints, fingerprint_holds, profile_fingerprint, task_scope_profile
-
-    return {"Fingerprints": Fingerprints, "fingerprint_holds": fingerprint_holds,
-            "profile_fingerprint": profile_fingerprint, "task_scope_profile": task_scope_profile}[name]

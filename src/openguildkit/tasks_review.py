@@ -2,13 +2,13 @@
 the sequential passes, and the text a person reads before deciding."""
 
 from collections.abc import Mapping
-from typing import cast
 from pathlib import Path
+from typing import cast
 
 from . import light_lane, requester
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_lookup, consult
-from .project import fingerprint_holds, profile_fingerprint, task_scope_profile
+from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
 from .sensitive import redact_data
 from .tasks_approval import approval_problem, decided_message, stale_review_message

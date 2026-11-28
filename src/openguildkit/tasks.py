@@ -18,7 +18,7 @@ from pathlib import Path
 
 from . import task_index
 from .decisions import base_commit, check_decision_seal, revisions_outside_history
-from .project import Fingerprints
+from .project_rules import Fingerprints
 from .results import DONE_STATUSES
 from .storage import file_signature, read_json, write_text
 from .tasks_approval import approval_problem

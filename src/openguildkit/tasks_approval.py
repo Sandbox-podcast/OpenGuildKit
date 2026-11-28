@@ -13,7 +13,8 @@ from .decisions import (
     signature_or_history_problem,
     stale_approval_message,
 )
-from .project import Fingerprints, fingerprint_holds, rules_in_force, task_scope_profile
+from .project import rules_in_force
+from .project_rules import Fingerprints, fingerprint_holds, task_scope_profile
 from .results import DONE_STATUSES
 
 
