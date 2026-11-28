@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import alerts_cli, audit_log, delivered_review, light_lane, requester, roles
 from .alerts import blocking_alerts, load_register
-from .brains import brief_knowledge, consultation_context
+from .brains import BriefKnowledge, consultation_context
 from .catalog import board_replacements
 from .cli_surface import add_by
 from .clock import today
@@ -1371,13 +1371,9 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
         active = set(scoped_profile["packs"])
         context = consultation_context(current_task, answers, scoped_profile, catalog)
-        knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
-                     for board_id in catalog["boards"]}
         registry = load_tools(state / "catalog" / "tools")
-        for board_id in catalog["boards"]:
-            usable = connected_tools(state, registry, board_id)
-            if usable:
-                knowledge[board_id]["tools"] = usable
+        knowledge = BriefKnowledge(catalog, families, active, context,
+                                   lambda board_id: connected_tools(state, registry, board_id))
         result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
                                      _selection(args), controls, market, storybook_scope_entry(state), knowledge,
                                      connected_tools(state, registry), root,

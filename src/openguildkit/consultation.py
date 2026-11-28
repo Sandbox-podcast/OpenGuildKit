@@ -3,6 +3,7 @@ board's brief with the rules that concern the task."""
 
 import json
 import re
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
@@ -254,7 +255,7 @@ def _entry_guide() -> list[str]:
 
 
 def _consultation_markdown(
-    scope: dict, boards: dict, routing: dict, delegations: dict | None = None, knowledge: dict | None = None,
+    scope: dict, boards: dict, routing: dict, delegations: dict | None = None, knowledge: Mapping[str, dict] | None = None,
     excluded: dict | None = None,
 ) -> str:
     """The shared part of a consultation: the scope once, then one line per board with the command for its pass."""
@@ -555,7 +556,7 @@ def code_not_found(text: str, root: Path) -> list[str]:
 
 def consult(
     profile: dict, catalog: dict, task: dict, selection: dict | None = None, host_controls: list[dict] | None = None,
-    market: dict | None = None, storybook: dict | None = None, knowledge: dict | None = None,
+    market: dict | None = None, storybook: dict | None = None, knowledge: Mapping[str, dict] | None = None,
     tools: list[dict] | None = None, code_not_found: list[str] | None = None,
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""

@@ -9,7 +9,7 @@ import os
 import re
 import time
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
 from functools import cache
 from pathlib import Path
@@ -951,7 +951,7 @@ def cited_evidence(task: dict) -> list[str]:
 def record_consultation(
     task: dict, answers: dict, profile: dict, catalog: dict, selection: dict | None = None,
     host_controls: list[dict] | None = None, market: dict | None = None, storybook: dict | None = None,
-    knowledge: dict | None = None, tools: list[dict] | None = None, root: Path | None = None,
+    knowledge: Mapping[str, dict] | None = None, tools: list[dict] | None = None, root: Path | None = None,
     brief: str | None = None,
 ) -> dict:
     """Record a consultation. With the project root, a bug brief's files and functions are looked for in it.

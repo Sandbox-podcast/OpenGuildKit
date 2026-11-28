@@ -8,6 +8,8 @@ tagged with the brain. The consultation carries this knowledge to each selected 
 import json
 import re
 import unicodedata
+from collections.abc import Callable, Mapping
+from functools import lru_cache
 from pathlib import Path
 
 from .catalog import ID_PATTERN
@@ -112,15 +114,17 @@ def knowledge_gaps(catalog: dict, families: dict) -> list[str]:
     return gaps
 
 
-def _words(text: str) -> set[str]:
-    """Folded words without accents or a regular plural, so "Customers" and "customer" compare equal."""
+@lru_cache(maxsize=4096)
+def _words(text: str) -> frozenset[str]:
+    """Folded words without accents or a regular plural, so "Customers" and "customer" compare equal. Kept per text:
+    a consultation ranks the same references for several boards."""
     folded = unicodedata.normalize("NFKD", text.casefold())
     plain = "".join(character for character in folded if not unicodedata.combining(character))
     words = set()
     for word in re.findall(r"[^\W\d_]+", plain):
         if len(word) > 1:
             words.add(word[:-1] if len(word) > 3 and word.endswith("s") else word)
-    return words - _STOPWORDS
+    return frozenset(words - _STOPWORDS)
 
 
 def consultation_context(task: dict, answers: dict, profile: dict, catalog: dict) -> str:
@@ -138,7 +142,7 @@ def consultation_context(task: dict, answers: dict, profile: dict, catalog: dict
 
 
 def _task_words(context: str) -> set[str]:
-    words = _words(context)
+    words = set(_words(context))
     for word in list(words):
         words.update(_words(" ".join(_RELATED_WORDS.get(word, ()))))
     return words
@@ -154,12 +158,14 @@ def _rank(reference: dict, words: set[str], active_packs: set[str]) -> tuple:
     return (not set(reference.get("packs", [])) & active_packs, -overlap, not applied, reference["id"])
 
 
-def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str], context: str = "") -> dict:
+def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: set[str], context: str = "",
+                    words: set[str] | None = None) -> dict:
     """The part of the knowledge a consultation carries: active packs first, and a reading list
-    of the brain's references that best fit the task, bounded so the brief stays readable."""
+    of the brain's references that best fit the task, bounded so the brief stays readable. words are the task's
+    words of the context (_task_words), when the caller has them already."""
     knowledge = brain_knowledge(board_id, catalog, families, active_packs)
     knowledge["packs"].sort(key=lambda pack: not pack["active"])
-    words = _task_words(context)
+    words = _task_words(context) if words is None else words
     records = {
         reference["id"]: reference
         for family in families.values()
@@ -169,6 +175,35 @@ def brief_knowledge(board_id: str, catalog: dict, families: dict, active_packs: 
     ranked = sorted(knowledge["references"], key=lambda item: _rank(records[item["id"]], words, active_packs))
     knowledge["references"] = ranked[:MAX_REFERENCES_IN_BRIEF]
     return knowledge
+
+
+class BriefKnowledge(Mapping):
+    """Each board's brief_knowledge, worked out the first time the consultation asks for that board: it reads only the
+    boards routing selects, not every board of the catalog. tools are the connected tools by board, added to its
+    knowledge."""
+
+    def __init__(self, catalog: dict, families: dict, active_packs: set[str], context: str,
+                 tools: Callable[[str], list[dict]]):
+        self._catalog, self._families, self._active, self._tools = catalog, families, active_packs, tools
+        self._words = _task_words(context)
+        self._known: dict[str, dict] = {}
+
+    def __getitem__(self, board_id: str) -> dict:
+        if board_id not in self._catalog["boards"]:
+            raise KeyError(board_id)
+        if board_id not in self._known:
+            knowledge = brief_knowledge(board_id, self._catalog, self._families, self._active, words=self._words)
+            usable = self._tools(board_id)
+            if usable:
+                knowledge["tools"] = usable
+            self._known[board_id] = knowledge
+        return self._known[board_id]
+
+    def __iter__(self):
+        return iter(self._catalog["boards"])
+
+    def __len__(self) -> int:
+        return len(self._catalog["boards"])
 
 
 def _todo(text: str) -> str:
