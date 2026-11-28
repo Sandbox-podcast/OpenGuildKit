@@ -72,6 +72,17 @@ class ServeSampleTest(unittest.TestCase):
         self.assertEqual(text.count("gracefulShutdown"), text.count("node scripts/serve-sample.mjs"))
         self.assertIn("SIGTERM", text)
 
+    def test_issue_518_each_copy_of_the_repository_draws_its_own_default_ports(self):
+        """Issue #518: the default ports 5201 and 7322 were fixed, so two copies could not run the journeys at once."""
+        draw = "createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8), 16) % 1000"
+        for name, variable in (("playwright.config.ts", "PW_PORT"), ("playwright.project.config.ts", "PW_PROJECT_PORT")):
+            with self.subTest(config=name):
+                text = (ROOT / "web" / name).read_text(encoding="utf-8")
+                self.assertIn(draw, text)
+                self.assertNotRegex(text, rf"process\.env\.{variable} \?\? \d")
+        project = (ROOT / "web" / "playwright.project.config.ts").read_text(encoding="utf-8")
+        self.assertIn("process.env.PW_PROJECT_PORT ??= String(ownPort)", project, "the workers read the same port")
+
 
 class PythonMatrixTest(unittest.TestCase):
     """Issue #474: on a pull request, two of the six cells had never found a failure that no other cell found."""
@@ -208,6 +219,14 @@ class CoverageWorkflowTest(unittest.TestCase):
         for module, floor in floors.items():
             self.assertTrue(0 < int(floor) < 100, module)
 
+    def test_issue_472_the_package_has_a_floor_under_its_measured_coverage(self):
+        """Issue #472: the floors waited for a first measure of the whole suite."""
+        script = run_text(self.job)
+        total = re.search(r"coverage report --fail-under=(\d+)\n", script)
+        self.assertIsNotNone(total, "a floor for the whole package")
+        guide = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+        self.assertIn(f"falls under {total.group(1)} %", guide)
+
     def test_the_testing_guide_tells_the_coverage_of_the_code_from_that_of_the_catalog(self):
         guide = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
         section = guide.split("## Code coverage", 1)[1].split("\n## ", 1)[0]
@@ -281,18 +300,25 @@ class CiLogTest(unittest.TestCase):
         self.assertEqual((failed.returncode, failed.stdout), (3, ""))
         self.assertIn("catalog problem", failed.stderr, "the reason of a failure stays in the log")
 
-    def test_the_log_of_the_tests_ends_with_the_slowest_ones_where_unittest_can_list_them(self):
-        """unittest has --durations from Python 3.12; the floor of requires-python does not."""
+    def test_issue_451_the_tests_run_one_process_per_file_with_fewer_on_macos(self):
+        """Issue #451: the suite ran in one process; each test file now gets its own, four at once, three on macOS."""
         run = self.step("Unit and end-to-end tests")["run"]
-        match = re.fullmatch(r"python -m unittest discover -s tests -v \$\{\{ matrix\.python != '([\d.]+)' && '(--durations 25)' \|\| '' \}\}", run)
-        self.assertIsNotNone(match, run)
-        floor = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["requires-python"]
-        floor = floor.removeprefix(">=")
-        self.assertEqual(match.group(1), floor, "the one Python that has no --durations")
-        self.assertLess(tuple(map(int, floor.split("."))), (3, 12), "from Python 3.12 on, drop the condition")
-        for version in self.job["strategy"]["matrix"]["python"]:
-            if version != floor:
-                self.assertGreaterEqual(tuple(map(int, version.split("."))), (3, 12), version)
+        self.assertEqual(run, "python scripts/run_tests.py --jobs ${{ matrix.os == 'macos-latest' && 3 || 4 }}")
+        self.assertTrue((ROOT / "scripts" / "run_tests.py").is_file())
+
+
+class CoordinatorTypeCheckTest(unittest.TestCase):
+    def test_issue_531_the_coordinator_job_type_checks_its_javascript_under_a_ceiling(self):
+        """Issue #531: the Node coordinator had no static check."""
+        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["ci-coordinator"]
+        step = next(item for item in job["steps"] if "tsc" in item.get("run", ""))
+        self.assertIn("npx --no-install tsc -p jsconfig.json", step["run"])
+        ceiling = re.search(r'test "\$count" -le (\d+)', step["run"])
+        self.assertIsNotNone(ceiling)
+        self.assertIn(f"ceiling {ceiling.group(1)}", step["run"])
+        config = json.loads((ROOT / "integrations" / "ci" / "jsconfig.json").read_text(encoding="utf-8"))
+        self.assertTrue(config["compilerOptions"]["checkJs"])
+        self.assertEqual(config["include"], ["bin/*.mjs", "lib/*.mjs", "pilot/*.mjs"])
 
 
 class ToolVersionFilesTest(unittest.TestCase):

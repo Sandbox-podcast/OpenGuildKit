@@ -6,7 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
  * (scripts/serve-sample.mjs). Run `npm run build` first; the server serves web/dist.
  */
 const channel = process.env.PW_CHANNEL ?? 'chrome';
-const port = Number(process.env.PW_PROJECT_PORT ?? 7322);
+// Four ports of each copy of the repository, drawn from its path: two copies run their journeys at once (#518). The
+// workers read this file again from the same folder and get the same ports.
+const ownPort = 7322 + (parseInt(createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8), 16) % 1000) * 4;
+process.env.PW_PROJECT_PORT ??= String(ownPort); // tests/e2e/project.spec.ts reads it in the workers.
+const port = Number(process.env.PW_PROJECT_PORT);
 // The server opens its session only to a browser that holds the key of its printed address, on the host name of the
 // run under .localhost (drawn from the key, as webui.session_name does). The run picks the key, the servers inherit
 // it, and each browser starts with the cookie the printed address would set. The workers read this file again: the

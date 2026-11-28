@@ -1,86 +1,55 @@
-"""Run the tests the module map attaches to files changed since a base revision.
+"""Run the tests the module map attaches to files changed since a base revision, within a time budget.
 
-    python scripts/check_fast.py [--base REF]
+    python scripts/check_fast.py [--base REF] [--budget SECONDS | --all] [--jobs N]
+    python scripts/check_fast.py --plan [PATH | "COMMAND" ...]
 
-REF defaults to origin/main. Changed files are the tracked diff against that
-revision, working tree included, plus untracked files. Tests come from
-docs/agents/map.json, then from the files and folders the repository checks
-outside the module map (README, CHANGELOG, pyproject.toml, docs/, .github/,
-examples/ and the scripts). A changed test file runs itself. A change under
-src/openguildkit/registry/ validates the catalog. A change under web/ runs
-npm run typecheck. A change under integrations/ci/ runs npm test there. A
-changed file with no attached test is named, and the command exits non-zero.
-Success is one line.
+REF defaults to origin/main. Changed files are the tracked diff against that revision, working tree included, plus
+untracked files. Everything comes from docs/agents/map.json: a module of the package takes its tests; another file
+or folder (scripts, documentation, workflows, fixtures, web/, integrations/ci/, the catalog under
+src/openguildkit/registry/) takes the tests and commands of its `paths` entry, the longest folder first. A changed
+test file runs itself. A changed file with no attached test is named, and the command exits 1.
+
+Each test file runs in its own process, several at once (scripts/run_tests.py): the test named after a changed
+module first, then the tests that name it, the shortest files first. The first failure stops the run and is printed
+first. Past the budget (30 s), nothing more starts and the files left are named on standard error; --all runs them
+all. Success is one line. --plan prints what would run, with the role and entry points of a module or the function of
+a command, and runs nothing.
 """
+
+import sys
+
+if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
 
 import argparse
 import json
 import os
 import shutil
 import subprocess
-import sys
+import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import run_tests  # The runner next to this script, once its folder is on the path (#456).
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs" / "agents" / "map.json"
-# Files this repository checks outside the module map.
-EXTRA = {
-    "scripts/check_fast.py": ["tests/test_agent_native.py"],
-    "scripts/agent_cost.py": ["tests/test_agent_native.py"],
-    "scripts/check_fix_trace.py": ["tests/test_agent_native.py"],
-    "scripts/check_oracle.py": ["tests/test_agent_native.py"],
-    "docs/agents/fixes.jsonl": ["tests/test_agent_native.py"],
-    "docs/agents/changelog-shape-base.json": ["tests/test_release.py"],
-    "scripts/check_pr_text.py": ["tests/test_agent_native.py"],
-    "AGENTS.md": ["tests/test_agent_native.py"],
-    "CLAUDE.md": ["tests/test_agent_native.py"],
-    "docs/agents/conventions.md": ["tests/test_agent_native.py"],
-    "scripts/bench.py": ["tests/test_performance.py"],
-    "scripts/build_catalog_bundle.py": ["tests/test_catalog_bundle.py"],
-    ".gitignore": ["tests/test_catalog_bundle.py"],
-    "scripts/build_compliance.py": ["tests/test_controls.py"],
-    "scripts/check_links.py": ["tests/test_check_links.py"],
-    "scripts/lint_ratchet.py": ["tests/test_lint_ratchet.py"],
-    "scripts/lint-baseline.json": ["tests/test_lint_ratchet.py"],
-    "scripts/coverage.py": ["tests/test_coverage.py"],
-    "scripts/cli_reference.py": ["tests/test_completion_cli.py"],
-    "scripts/install.sh": ["tests/test_install_script.py"],
-    "scripts/install.ps1": ["tests/test_install_script.py"],
-    "scripts/make_sbom.py": ["tests/test_release.py"],
-    ".gitattributes": ["tests/test_install_script.py"],
-    ".python-version": ["tests/test_ci_jobs.py"],
-    ".nvmrc": ["tests/test_ci_jobs.py"],
-    "tests/__init__.py": ["tests/test_agent_native.py"],
-    "scripts/edition-watch.json": ["tests/test_edition_watch.py"],
-    "scripts/watch_editions.py": ["tests/test_edition_watch.py"],
-    "docs/agents/map.json": ["tests/test_agent_native.py"],
-    "docs/testing.md": ["tests/test_product_docs.py"],
-    "CONTRIBUTING.md": ["tests/test_workflows.py"],
-    "integrations/README.md": ["tests/test_hook_examples.py", "tests/test_gemini_host.py"],
-    "README.md": ["tests/test_entry_pages.py", "tests/test_release.py"],
-    "README.fr.md": ["tests/test_entry_pages.py"],
-    "CHANGELOG.md": ["tests/test_release.py"],
-    "SECURITY.md": ["tests/test_doc_pages.py", "tests/test_release.py"],
-    "GOVERNANCE.md": ["tests/test_release.py", "tests/test_workflows.py"],
-    "pyproject.toml": ["tests/test_release.py", "tests/test_workflows.py"],
-    ".github/workflows/check-links.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
-    ".github/workflows/watch-editions.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
+BUDGET = 30.0
+# The commands a paths entry may name, as (folder, command, what it checks).
+COMMANDS = {
+    "catalog": (".", None, "validate the catalog"),
+    "web-typecheck": ("web", ["run", "typecheck"], "typecheck web/"),
+    "web-test": ("web", ["test"], "test web/"),
+    "node-tests": ("integrations/ci", ["test"], "test integrations/ci/"),
 }
-# Folders this repository checks outside the module map: a path takes the tests of the first folder it is under.
-EXTRA_FOLDERS = (
-    (".github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_ci_jobs.py"]),
-    ("integrations/github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_install_script.py"]),
-    ("docs/", ["tests/test_doc_examples.py", "tests/test_product_docs.py"]),
-    ("examples/field-tests/", ["tests/e2e/test_field_kit.py"]),
-    ("examples/", ["tests/test_doc_examples.py", "tests/test_doc_promises.py"]),
-)
-# The Node coordinator has its own suite, which `cd integrations/ci && npm test` runs.
-NODE_FOLDER = "integrations/ci/"
 
 
 def plan(changed: list[str], module_map: dict) -> dict:
     """The tests and commands a set of changed paths needs, and the paths no test covers."""
-    by_path = {item["module"]: item for item in module_map["modules"]}
+    by_module = {item["module"]: item for item in module_map["modules"]}
+    by_path = {item["path"]: item for item in module_map.get("paths", [])}
+    folders = sorted((path for path in by_path if path.endswith("/")), key=len, reverse=True)
     tests, commands, unattached = [], [], []
 
     def add_tests(paths: list[str]) -> bool:
@@ -96,7 +65,7 @@ def plan(changed: list[str], module_map: dict) -> dict:
             if (ROOT / path).is_file():
                 add_tests([path])
             continue
-        item = by_path.get(path)
+        item = by_module.get(path)
         if item:
             if not add_tests(item["tests"]):
                 unattached.append(path)
@@ -107,23 +76,29 @@ def plan(changed: list[str], module_map: dict) -> dict:
                 covered = add_tests(entry["tests"]) or covered
         if covered:
             continue
-        if path.startswith("src/openguildkit/registry/"):
-            if "catalog" not in commands:
-                commands.append("catalog")
-            continue
-        if path.startswith("web/"):
-            if "web-typecheck" not in commands:
-                commands.append("web-typecheck")
-            continue
-        if path.startswith(NODE_FOLDER):
-            if "node-tests" not in commands:
-                commands.append("node-tests")
-            continue
-        extra = EXTRA.get(path) or next((found for prefix, found in EXTRA_FOLDERS if path.startswith(prefix)), None)
-        if extra and add_tests(extra):
-            continue
-        unattached.append(path)
+        entry = by_path.get(path) or next((by_path[folder] for folder in folders if path.startswith(folder)), None)
+        found = add_tests(entry.get("tests", [])) if entry else False
+        for command in entry.get("commands", []) if entry else []:
+            if command not in commands:
+                commands.append(command)
+            found = True
+        if not found:
+            unattached.append(path)
     return {"tests": tests, "commands": commands, "unattached": unattached}
+
+
+def ordered(tests: list[str], changed: list[str], root: Path = ROOT) -> list[str]:
+    """The test named after a changed module first, then the tests that name a changed module, the shortest first."""
+    stems = [Path(path).stem for path in changed if path.startswith("src/openguildkit/") and path.endswith(".py")]
+
+    def rank(test: str) -> tuple[int, int]:
+        if any(Path(test).name == f"test_{stem}.py" for stem in stems):
+            return 0, 0
+        text = (root / test).read_text(encoding="utf-8")
+        named = any(f"openguildkit.{stem}" in text or f"import {stem}" in text for stem in stems)
+        return (1 if named else 2), (root / test).stat().st_size
+
+    return sorted(tests, key=rank)
 
 
 def _git_lines(root: Path, *args: str) -> list[str]:
@@ -135,6 +110,10 @@ def _git_lines(root: Path, *args: str) -> list[str]:
 
 def changed_files(root: Path, base: str) -> list[str]:
     """Tracked changes since base, including the working tree, and untracked files."""
+    known = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"],
+                           capture_output=True, text=True, check=False)
+    if known.returncode:
+        raise SystemExit(f"check_fast: unknown base revision {base}: run git fetch origin main, or pass --base HEAD.")
     tracked = _git_lines(root, "diff", "--name-only", "--no-renames", base)
     untracked = _git_lines(root, "ls-files", "--others", "--exclude-standard")
     found = []
@@ -144,61 +123,97 @@ def changed_files(root: Path, base: str) -> list[str]:
     return found
 
 
-def _module_name(path: str) -> str:
-    return path[:-3].replace("/", ".")
+def describe(arguments: list[str], module_map: dict, selected: dict) -> str:
+    """What --plan prints: each named module or command, then the tests and commands that would run."""
+    lines = []
+    modules = {item["module"]: item for item in module_map["modules"]}
+    commands = {item["command"]: item for item in module_map.get("commands", [])}
+    for argument in arguments:
+        if argument in modules:
+            item = modules[argument]
+            lines += [f"{argument}: {item['role']}", f"  entry: {', '.join(item['entry'])}", f"  doc: {item['doc']}"]
+        elif argument in commands:
+            item = commands[argument]
+            lines.append(f"{argument}: {item['module']}:{item['line']} {item['function']}")
+    short = [Path(test).stem for test in selected["tests"]]
+    lines.append(f"tests ({len(short)}): {' '.join(short) or 'none'}")
+    if selected["commands"]:
+        lines.append(f"commands: {' '.join(selected['commands'])}")
+    if selected["unattached"]:
+        lines.append(f"no test attached: {' '.join(selected['unattached'])}")
+    return "\n".join(lines)
 
 
-def _run(command: list[str], cwd: Path) -> int:
+def _command(name: str) -> tuple[bool, str]:
+    """Run one command of COMMANDS; (passed, output to show when it failed)."""
+    folder, npm_arguments, what = COMMANDS[name]
+    if npm_arguments is None:
+        command = [sys.executable, "-m", "openguildkit", "catalog", "--json"]
+    else:
+        npm = shutil.which("npm")
+        if npm is None:
+            return False, f"npm is not on PATH, so check_fast cannot {what}."
+        command = [npm, *npm_arguments]
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src") + os.pathsep + os.environ.get("PYTHONPATH", "")}
-    return subprocess.run(command, cwd=cwd, env=env, check=False).returncode
+    result = subprocess.run(command, cwd=ROOT / folder, env=env, capture_output=True, text=True, check=False)
+    if result.returncode == 0:
+        return True, ""
+    output = (result.stderr or result.stdout[-4000:]) if npm_arguments is None else result.stdout + result.stderr
+    shown = f"npm {' '.join(npm_arguments)}" if npm_arguments else "openguildkit catalog"
+    return False, f"===== {shown} failed ({what})\n{output.rstrip()}"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the tests attached to files changed since a base revision.")
     parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--plan", nargs="*", metavar="PATH", help="print what would run, for these paths or commands "
+                                                                   "(default: the changed files), and run nothing")
+    parser.add_argument("--budget", type=float, default=BUDGET, help="start nothing after so many seconds (default 30)")
+    parser.add_argument("--all", action="store_true", help="run every selected test, whatever the budget")
+    parser.add_argument("--jobs", type=int, default=run_tests.default_jobs(), help="test files at once")
     args = parser.parse_args(argv)
     module_map = json.loads(MAP.read_text(encoding="utf-8"))
+    if args.plan:
+        commands = {item["command"] for item in module_map.get("commands", [])}
+        named = [item["module"] for item in module_map.get("commands", []) if item["command"] in args.plan]
+        paths = [argument for argument in args.plan if argument not in commands] + named
+        print(describe(args.plan, module_map, plan(paths, module_map)))
+        return 0
     changed = changed_files(ROOT, args.base)
+    if args.plan is not None:
+        print(describe([], module_map, plan(changed, module_map)))
+        return 0
     if not changed:
         print(f"check_fast: no changes since {args.base}.")
         return 0
     selected = plan(changed, module_map)
-    failed = False
-    if selected["tests"]:
-        modules = [_module_name(path) for path in selected["tests"]]
-        failed = _run([sys.executable, "-m", "unittest", *modules], ROOT) != 0
-    for command in selected["commands"]:
-        if command == "catalog":
-            failed = _run([sys.executable, "-m", "openguildkit", "catalog"], ROOT) != 0 or failed
-        elif command == "web-typecheck":
-            npm = shutil.which("npm")
-            if npm is None:
-                print("check_fast: npm is not on PATH, so web/ cannot be typechecked.")
-                failed = True
-            else:
-                failed = _run([npm, "run", "typecheck"], ROOT / "web") != 0 or failed
-        elif command == "node-tests":
-            npm = shutil.which("npm")
-            if npm is None:
-                print("check_fast: npm is not on PATH, so integrations/ci/ cannot be tested.")
-                failed = True
-            else:
-                failed = _run([npm, "test"], ROOT / "integrations" / "ci") != 0 or failed
-        else:
-            raise SystemExit(f"check_fast: unknown command {command}.")
-    if selected["unattached"]:
-        print("check_fast: no test is attached to:")
-        for path in selected["unattached"]:
-            print(f"- {path}")
-        failed = True
-    if not failed:
-        parts = []
-        if selected["tests"]:
-            parts.append(f"{len(selected['tests'])} test module(s)")
-        if selected["commands"]:
-            parts.append(f"{len(selected['commands'])} command(s)")
-        print("check_fast: " + ", ".join(parts) + ".")
-    return 1 if failed else 0
+    tests = ordered(selected["tests"], changed)
+    started = time.monotonic()
+    print(f"check_fast: {len(tests)} test file(s) and {len(selected['commands'])} command(s), "
+          f"{args.jobs} at once: ", end="", flush=True)
+    failures = []
+    for name in selected["commands"]:
+        passed, output = _command(name)
+        if not passed:
+            failures.append(output)
+    result = run_tests.run(tests, args.jobs, stop_on_failure=True,
+                           deadline=None if args.all else started + args.budget) if tests else None
+    if result:
+        failures = [f"===== {path} failed\n{output.rstrip()}" for path, output in result["failed"]] + failures
+    seconds = time.monotonic() - started
+    if failures or selected["unattached"]:
+        print(f"failed in {seconds:.1f} s.")
+        for output in failures:
+            print(output + "\n")
+        if selected["unattached"]:
+            print("check_fast: no test is attached to:\n" + "\n".join(f"- {path}" for path in selected["unattached"]))
+        return 1
+    left = (result["stopped"] + result["not_run"]) if result else []
+    print(f"{result['tests'] if result else 0} tests passed in {seconds:.1f} s.", flush=True)
+    if left:
+        print(f"Warning: check_fast: {len(left)} test file(s) not run within the {args.budget:g} s budget "
+              f"(--all runs them): {' '.join(Path(path).stem for path in left)}", file=sys.stderr)
+    return 0
 
 
 if __name__ == "__main__":

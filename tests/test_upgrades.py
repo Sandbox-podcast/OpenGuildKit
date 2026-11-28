@@ -1,5 +1,7 @@
 """A release that stops shipping a pack or a pattern must not leave the project unusable."""
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -8,6 +10,7 @@ from unittest.mock import patch
 
 from openguildkit import lock
 from openguildkit.catalog import bundled_ids, load_catalog
+from openguildkit.cli import _print_update
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
 from openguildkit.project import validate_profile
 from openguildkit.storage import write_json
@@ -127,6 +130,29 @@ class LockRuleTests(unittest.TestCase):
         removed = {(item["collection"], item["id"]) for item in changes if item["status"] == "removed from the catalog"}
         self.assertEqual(removed, set(DROPPED.items()))
         self.assertFalse([item for item in changes if item["status"] == "added"])
+
+
+class UpdatePreviewTests(unittest.TestCase):
+    def test_a_preview_shows_the_old_and_the_new_rule_and_the_tasks_it_would_touch(self):
+        result = {
+            "changes": [{"collection": "packs", "id": "secure-sdlc", "status": "changed", "fields": ["rules"],
+                         "version": ["1.0.0", "1.1.0"],
+                         "rules": {"added": [], "removed": [], "changed": [
+                             {"id": "protect-secrets", "before": "Keep secrets out of code.",
+                              "after": "Keep secrets out of code and logs."}]},
+                         "sources": {"added": [], "removed": [], "redated": []}}],
+            "conflicts": [], "applied": False, "catalog_date": "2026-11-21",
+            "stale_tasks": [{"id": "request-status", "status": "approved",
+                             "step": "consult it again (openguildkit task consult request-status) or open a linked task"}],
+        }
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            _print_update(result, False)
+        text = out.getvalue()
+        self.assertIn("before: Keep secrets out of code.", text)
+        self.assertIn("after:  Keep secrets out of code and logs.", text)
+        self.assertIn("request-status (approved): consult it again", text)
+        self.assertLess(text.index("request-status (approved)"), text.index("Nothing changed"))
 
 
 if __name__ == "__main__":

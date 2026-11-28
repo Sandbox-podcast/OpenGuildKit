@@ -218,7 +218,7 @@ class AgentNativePackTests(unittest.TestCase):
     """Issue #521: the agent-native-engineering pack had a machine check on 1 rule of 8, and the `size` kind served no rule."""
 
     CHECKED = ["budget-agent-instructions", "offer-a-targeted-check", "keep-a-repository-map",
-               "keep-oversight-out-of-agent-reach", "keep-a-fix-ledger"]
+               "keep-oversight-out-of-agent-reach", "keep-a-fix-ledger", "brief-subagents-with-a-contract"]
     CONFORMING = {
         "AGENTS.md": "# Working here\n\nRun `python scripts/check_fast.py`.\n",
         "CLAUDE.md": "@AGENTS.md\n",
@@ -226,6 +226,7 @@ class AgentNativePackTests(unittest.TestCase):
         "docs/agents/map.json": '{"modules": []}',
         ".github/CODEOWNERS": "* @owner\n/.github/workflows/ @owner\n",
         "docs/agents/fixes.jsonl": "",
+        ".claude/agents/reviewer.md": "Read the diff named in the brief, then stop and return the verdict.\n",
     }
 
     @classmethod
@@ -236,12 +237,12 @@ class AgentNativePackTests(unittest.TestCase):
     def outcomes(self, root):
         return {rule_id: evaluate_check(root, check)["status"] for rule_id, check in self.checks.items()}
 
-    def test_five_rules_carry_a_check_and_each_other_rule_says_why_a_person_verifies_it(self):
+    def test_six_rules_carry_a_check_and_each_other_rule_says_why_a_person_verifies_it(self):
         self.assertEqual(sorted(self.checks), sorted(self.CHECKED))
         for rule in self.pack["rules"]:
             with self.subTest(rule=rule["id"]):
                 self.assertNotEqual("check" in rule, "manual" in rule)
-        self.assertEqual(self.pack["version"], "1.1.0")
+        self.assertEqual(self.pack["version"], "1.2.0")
         self.assertIn("size", {check["kind"] for check in self.checks.values()})
 
     def test_a_conforming_project_passes_and_an_agents_file_over_8000_bytes_fails_its_budget(self):
@@ -265,6 +266,19 @@ class AgentNativePackTests(unittest.TestCase):
             outcomes = self.outcomes(Path(directory))
         self.assertEqual({rule for rule, status in outcomes.items() if status == "passed"},
                          {"budget-agent-instructions"})
+
+    def test_issue_521_an_agent_file_without_a_stop_condition_fails_the_brief_contract(self):
+        """Issue #521: brief-subagents-with-a-contract had no machine check."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".claude" / "agents").mkdir(parents=True)
+            (root / ".claude" / "agents" / "reviewer.md").write_text("Stop after the diff.\n", encoding="utf-8")
+            check = self.checks["brief-subagents-with-a-contract"]
+            self.assertEqual(evaluate_check(root, check)["status"], "passed")
+            (root / ".claude" / "agents" / "writer.md").write_text("Write the page.\n", encoding="utf-8")
+            failed = evaluate_check(root, check)
+            self.assertEqual(failed["status"], "failed")
+            self.assertIn(".claude/agents/writer.md", failed["evidence"])
 
     def test_this_repository_meets_the_checks_of_the_pack(self):
         self.assertEqual(set(self.outcomes(Path(__file__).resolve().parents[1]).values()), {"passed"})

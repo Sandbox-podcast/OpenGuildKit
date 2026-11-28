@@ -1,7 +1,7 @@
 {
   "id": "agent-native-engineering",
   "title": "Agent-native engineering",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "For a repository where coding agents do most of the work: bounded command output and instruction files, a machine-readable map, a targeted check, evidence written by tools, oversight files out of the agent's reach, a contract for each subagent and a measured cost per task.",
   "sources": [
     {
@@ -82,8 +82,24 @@
     {
       "id": "brief-subagents-with-a-contract",
       "instruction": "Give each subagent a brief with its goal, its inputs as paths, the tools it may use, the schema of its result, a budget of turns or reads and a stop condition, and take back only a result that matches the schema.",
-      "verification": "Read the repository's brief templates and agent files and check that each one states these six items.",
-      "manual": "Agent files and brief templates sit where each host puts them, and the six items of a brief are prose a person reads."
+      "verification": "Read the repository's brief templates and agent files and check that each one states these six items; the machine check only finds the stop condition, the word stop, in each agent file.",
+      "check": {
+        "kind": "text",
+        "paths": [
+          ".claude/agents/*.md",
+          ".codex/agents/*.toml",
+          ".gemini/agents/*.md",
+          ".github/agents/*.md",
+          "agents/*.md",
+          "integrations/*/agents/*.md"
+        ],
+        "contains": [
+          "stop"
+        ],
+        "expect": "present",
+        "ignore_case": true,
+        "each": true
+      }
     },
     {
       "id": "measure-agent-cost-per-task",
