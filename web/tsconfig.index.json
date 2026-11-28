@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noUncheckedIndexedAccess": true, "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo-index" },
+  "include": ["src/project", "src/shared", "src/env.d.ts"]
+}

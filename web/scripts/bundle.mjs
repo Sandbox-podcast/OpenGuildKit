@@ -6,11 +6,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
- * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,180 KB measured on 22 November 2026
- * once the demo was left out, plus 10 %. The build weighed 1,248 KB on 25 November 2026, 50 KB (4 %) under the
- * budget, which was kept. Raise it only with the measure that justifies it.
+ * Budget of the copy, in KB as `du -sk` counts them on 4 KB blocks: 1,148 KB measured on 27 November 2026 once the
+ * demo was left out, the logo of the header shrunk and the header scenes re-exported in quality 82 (1,252 KB before),
+ * plus 10 %. The build weighed 1,148 KB that day, 115 KB (9 %) under the budget. Raise it only with the measure that
+ * justifies it.
  */
-export const BUDGET_KB = 1298;
+export const BUDGET_KB = 1263;
 
 /** What only the demo uses: the product build must not contain them (vite.config.ts leaves them out). */
 export const DEMO_ONLY = ['assets/world', 'assets/characters'];
@@ -28,8 +29,9 @@ export function sizeKb(folder) {
 /** The problems that keep a build out of the package: no page, the demo, or more than the budget. */
 export function bundleProblems(folder, budget = BUDGET_KB) {
   if (!existsSync(join(folder, 'index.html'))) return [`${folder}/index.html is missing: run npm run build first.`];
-  const problems = DEMO_ONLY.filter((path) => existsSync(join(folder, path)))
-    .map((path) => `${path} belongs to the demo: build with npm run build, not npm run build:demo.`);
+  const problems = DEMO_ONLY.filter((path) => existsSync(join(folder, path))).map(
+    (path) => `${path} belongs to the demo: build with npm run build, not npm run build:demo.`,
+  );
   const size = sizeKb(folder);
   if (size > budget) problems.push(`The build takes ${size} KB, over its budget of ${budget} KB (BUDGET_KB in web/scripts/bundle.mjs).`);
   return problems;

@@ -21,26 +21,32 @@ Les créations, modifications, transitions, versions, imports, exports et relati
 
 ## Lancer
 
-Utilise Node 22.12 ou Node 24, la version de la CI.
+Utilise Node 22.12 ou Node 24, la version de la CI (`engines` dans `package.json`, `.nvmrc` : 24) : `npm ci` avertit (`EBADENGINE`) sur une autre version. Node 26 fait passer `typecheck`, `test` et `build` ; il ajoute deux avertissements `ExperimentalWarning: localStorage is not available` aux tests. `@types/node` est en 24, comme la CI.
 
 ```bash
 cd web
 npm ci --ignore-scripts
 npm run dev          # http://localhost:5199 : la démonstration, ou le projet avec OGK_API
-npm run build        # typecheck + build de l'interface d'un projet dans dist/, sans la démo
+npm run build        # build de l'interface d'un projet dans dist/, sans la démo (sans vérifier les types : npm run typecheck)
 npm run bundle       # copie dist/ dans le paquet Python (src/openguildkit/web_dist) et vérifie son budget
 npm run build:demo   # build de la démonstration seule dans dist-demo/, servie par npm run preview:demo
 ```
 
-`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 298 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 180 Ko mesurés le 22 novembre 2026, plus 10 %). Le 25 novembre 2026 la construction pèse 1 248 Ko : le budget est conservé, avec 50 Ko (4 %) de marge. Relève ce budget seulement avec la mesure qui le justifie.
+`npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Ce jour-là la construction pèse 1 148 Ko, avec 115 Ko (9 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
+
+Les préférences de la page (style, mouvement, raccourcis, nom du décideur) sont gardées par le navigateur pour une origine, et le nom d'hôte change à chaque lancement de `openguildkit ui` : sans réglage, chaque lancement les remet à zéro. `openguildkit ui --stable-address` fixe le nom d'après le chemin du projet pour les garder ; l'origine ne reste la même qu'au même port, et un processus local qui connaît le chemin peut calculer le nom ([détails](docs/interface-projet.md#lancer)).
 
 Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://ogk-….localhost:7311 npm run dev` avec l'origine de l'adresse imprimée, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de cette adresse avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 
 ## Vérifier
 
 ```bash
-npm run typecheck    # TypeScript strict
-npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage
+npm run typecheck    # TypeScript strict, incrémental : le second passage sans changement dure moins d'une seconde (cache dans node_modules/.cache)
+npm test             # tests Vitest : domaine de la démo (règles sensibles, parcours principal, commandes du terminal), mode réel, script d'empaquetage, et neuf composants du mode réel montés dans happy-dom (tests/project/views : faux fetch, ni Chrome ni serveur ; `// @vitest-environment happy-dom` en tête de chaque fichier)
+npm run check:ratchet  # par fichier, les lignes de plus de 140 caractères et les erreurs de noUncheckedIndexedAccess (tsconfig.index.json) : échoue si un fichier empire, ou s'il s'améliore sans que style-baseline.json baisse (`node scripts/check-ratchet.mjs longLines indexedAccess --update`, qui refuse d'écrire un fichier plus mauvais)
+npm run lint         # ESLint (eslint.config.mjs : typescript-eslint, react-hooks, frontière produit / démo), même cliquet par fichier ; `npx eslint .` donne le détail
+npm run format:check # Prettier (.prettierrc.json : largeur 140, apostrophes simples), même cliquet : un fichier formaté reste formaté, un autre n'est pas reformaté d'office
+npm run format -- src/project/query.ts   # formate les fichiers nommés, puis `node scripts/check-ratchet.mjs unformatted --update`
 npm run e2e          # parcours de la démonstration (Playwright, Chrome installé localement)
 npm run e2e:project  # parcours et balayages du mode réel sur des projets d'exemple neufs servis par openguildkit ui (après npm run build)
 npm run measure:project -- 'http://ogk-….localhost:7311/?key=…'   # l'adresse imprimée par openguildkit ui ; temps d'affichage, requêtes et volumes de chaque lieu du mode réel

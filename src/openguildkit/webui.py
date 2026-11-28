@@ -14,7 +14,6 @@ import gzip
 import hashlib
 import io
 import json
-import mimetypes
 import os
 import re
 import secrets
@@ -29,9 +28,10 @@ from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
-from . import cli, profile_cli
+from . import cli, profile_cli, tasks
 from .lock import installed_catalog, package_version
 from .sensitive import credential_kind
 from .shell import shell_command
@@ -124,7 +124,12 @@ GATE = ("<!doctype html><html lang=\"fr\"><meta charset=utf-8><title>OpenGuildKi
         "<code>openguildkit ui</code> a imprimée dans ton terminal : elle porte la clé de cette session, qui change "
         "à chaque lancement.</p><p lang=\"en\">Open the address <code>openguildkit ui</code> printed in your "
         "terminal: it carries the key of this run, which changes at each start.</p></html>")
-CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+# The types of the files the page is made of, kept here: mimetypes reads the registry of the workstation, where a
+# program can declare .js as text/plain, and nosniff then leaves the page blank.
+CONTENT_TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
+                 ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2"}
+TEXT_TYPES = ("text/", "application/json", "image/svg+xml")
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; "
        "object-src 'none'")
 
@@ -282,6 +287,21 @@ def _without(data, keys: set[str]):
     return data
 
 
+# What a consultation holds that no screen of the page reads, and that makes up most of a task record: the brief of each
+# board and the domains they cover. The page never receives them; the CLI prints them, and `raw` keeps that text.
+UNREAD_CONSULTATION = {"board_briefs", "domains"}
+
+
+def _without_unread(data, inside: bool = False):
+    """The JSON of a command without the keys of a consultation that the page does not read, at any depth."""
+    if isinstance(data, dict):
+        return {key: _without_unread(value, key == "consultation") for key, value in data.items()
+                if not (inside and key in UNREAD_CONSULTATION)}
+    if isinstance(data, list):
+        return [_without_unread(value) for value in data]
+    return data
+
+
 def _options(body: dict) -> dict:
     omit = body.get("omit")
     if omit is not None and (not isinstance(omit, list) or len(omit) > 20 or not all(isinstance(k, str) for k in omit)):
@@ -296,6 +316,7 @@ class CliRunner:
     def __init__(self, root: Path):
         self.root = root
         self.lock = threading.Lock()
+        self.records = tasks.KeptRecords()
 
     def parse(self, argv: list[str]):
         err = io.StringIO()
@@ -330,7 +351,9 @@ class CliRunner:
             saved = sys.stdin
             sys.stdin = io.StringIO("")
             try:
-                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                # The server outlives its commands: the task records stay in memory while their files do not change.
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                        tasks.keeping_records(self.records):
                     try:
                         code = cli.main(["--project", str(self.root), *argv])
                     except SystemExit as exit_:
@@ -345,6 +368,8 @@ class CliRunner:
         if data is not None:
             if omit:
                 data = _without(data, set(omit))
+            if '"consultation"' in stdout:
+                data = _without_unread(data)
             if not keep_text:
                 stdout = ""
         stderr = err.getvalue()
@@ -500,6 +525,21 @@ def find_front_end(explicit: Path | None) -> Path | None:
     return max(found, key=lambda folder: (folder / "index.html").stat().st_mtime).resolve() if found else None
 
 
+class Asset(NamedTuple):
+    """A file of the front end as the page gets it: its type, its ETag, its body, and its gzip form when it has one."""
+
+    kind: str
+    etag: str
+    body: bytes
+    packed: bytes | None
+
+
+def _matches(header: str | None, etag: str) -> bool:
+    """Whether an If-None-Match header names this ETag, weak or strong, or any."""
+    tags = [part.strip().removeprefix("W/") for part in (header or "").split(",")]
+    return "*" in tags or etag in tags
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "OpenGuildKit"
     sys_version = ""
@@ -602,19 +642,21 @@ class Handler(BaseHTTPRequestHandler):
         if not target.is_file():
             self._refuse(Refused("Not found.", status=HTTPStatus.NOT_FOUND, reason="not-found"))
             return
-        body = target.read_bytes()
-        if target.name == "index.html":
-            # Tells the page it is served by the CLI, so it loads the project code and its session together.
-            body = body.replace(b"<head>", b'<head><meta name="openguildkit-ui" content="1">', 1)
-        kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-        if kind.startswith("text/") or kind in ("application/javascript", "application/json", "image/svg+xml"):
-            kind += "; charset=utf-8"
+        asset = self.app.asset(target)
         cache = "no-cache" if target.name == "index.html" else "public, max-age=31536000, immutable" \
             if "/assets/" in f"/{relative}" and re.search(r"-[A-Za-z0-9_-]{8,}\.", target.name) else "no-cache"
-        extra = {"Content-Security-Policy": CSP, "Cache-Control": cache}
-        if kind.startswith(("text/", "application/javascript", "application/json", "image/svg+xml")):
-            body = self._compressed(body, extra)
-        self._send(HTTPStatus.OK, body, kind, extra)
+        packed = asset.packed if "gzip" in (self.headers.get("Accept-Encoding") or "") else None
+        # The gzip form is another representation: it has its own ETag.
+        etag = asset.etag[:-1] + '-gzip"' if packed is not None else asset.etag
+        extra = {"Content-Security-Policy": CSP, "Cache-Control": cache, "ETag": etag}
+        if asset.packed is not None:
+            extra["Vary"] = "Accept-Encoding"
+        if _matches(self.headers.get("If-None-Match"), etag):
+            self._send(HTTPStatus.NOT_MODIFIED, b"", asset.kind, extra)
+            return
+        if packed is not None:
+            extra["Content-Encoding"] = "gzip"
+        self._send(HTTPStatus.OK, asset.body if packed is None else packed, asset.kind, extra)
 
     def do_POST(self):  # noqa: N802 - INTENTIONAL(#522): http.server naming
         try:
@@ -622,6 +664,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, self.app.handle(urlsplit(self.path).path, body))
         except Refused as refusal:
             self._refuse(refusal)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return  # The browser closed the connection, a tab closed or reloaded: no one is left to answer.
         except Exception as error:  # noqa: BLE001 - INTENTIONAL(#522): report to the page instead of dropping the connection
             self._report(error)
             self._refuse(Refused(f"{type(error).__name__}: {error}", status=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -674,6 +718,14 @@ def session_name(key: str) -> str:
     return f"ogk-{hashlib.sha256(key.encode('utf-8')).hexdigest()[:24]}.localhost"
 
 
+def stable_name(root: Path) -> str:
+    """The host name of a project for a person who asks to find the same address at each launch, so that the browser
+    keeps the preferences of the page, which it keeps per origin. It comes from the path of the project, not from the
+    key of the run: whoever knows the path can compute it, which session_name's does not allow."""
+    path = os.fsencode(os.path.normcase(str(root.resolve())))
+    return f"ogk-{hashlib.sha256(path).hexdigest()[:24]}.localhost"
+
+
 def launch_key() -> str:
     """The key of this run, which only the printed address carries. A script that starts the server for its own
     browser sets it with OPENGUILDKIT_UI_KEY; it is then as secret as that script keeps it."""
@@ -689,8 +741,9 @@ class WebApp:
     """The project behind the page. A browser opens the session with the key of the printed address, kept in a
     cookie of the host name of the run; the session gives the page the token that every API call carries."""
 
-    def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False):
+    def __init__(self, root: Path, front: Path | None, port: int, verbose: bool = False, stable_address: bool = False):
         self.root = root
+        self.stable_address = stable_address
         self.front = front
         self.key = launch_key()
         self.token = secrets.token_urlsafe(32)
@@ -698,12 +751,13 @@ class WebApp:
         self.files = ProjectFiles(root)
         self.version = package_version()
         self.verbose = verbose
+        self.assets: dict[Path, tuple[tuple[int, int], Asset]] = {}
         self.set_port(port)
 
     def set_port(self, port: int) -> None:
         self.port = port
         # The page lives on the host name of the run only. The loopback names answer with the gate page.
-        self.host = f"{session_name(self.key)}:{port}"
+        self.host = f"{stable_name(self.root) if self.stable_address else session_name(self.key)}:{port}"
         self.hosts = {self.host}
         self.loopback = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
         self.origin = f"http://{self.host}"
@@ -726,6 +780,26 @@ class WebApp:
             return False
         morsel = cookies.get(self.cookie)
         return morsel is not None and _same(morsel.value, self.key)
+
+    def asset(self, target: Path) -> Asset:
+        """The file as it is served, kept until its size or modification time changes: a text file past 2 KB is
+        compressed once, at a level that costs more than a request can spare but pays back through a tunnel."""
+        with open(target, "rb") as handle:
+            info = os.fstat(handle.fileno())
+            stamp = (info.st_size, info.st_mtime_ns)
+            kept = self.assets.get(target)
+            if kept is not None and kept[0] == stamp:
+                return kept[1]
+            body = handle.read()
+        if target.name == "index.html":
+            # Tells the page it is served by the CLI, so it loads the project code and its session together.
+            body = body.replace(b"<head>", b'<head><meta name="openguildkit-ui" content="1">', 1)
+        kind = CONTENT_TYPES.get(target.suffix.lower(), "application/octet-stream")
+        text = kind.startswith(TEXT_TYPES)
+        packed = gzip.compress(body, compresslevel=6, mtime=0) if text and len(body) > 2048 else None
+        asset = Asset(kind + "; charset=utf-8" if text else kind, f'"{stamp[0]:x}-{stamp[1]:x}"', body, packed)
+        self.assets[target] = (stamp, asset)
+        return asset
 
     def session(self) -> dict:
         return {
@@ -835,9 +909,10 @@ class LocalServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None, verbose: bool = False):
+def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None, verbose: bool = False,
+                stable_address: bool = False):
     """Bind the server on 127.0.0.1. Port 0 picks a free port."""
-    app = WebApp(root, front, port, verbose)
+    app = WebApp(root, front, port, verbose, stable_address)
 
     class BoundHandler(Handler):
         pass
@@ -850,15 +925,15 @@ def make_server(root: Path, port: int = DEFAULT_PORT, front: Path | None = None,
 
 
 def serve(root: Path, port: int = DEFAULT_PORT, static: Path | None = None, open_browser: bool = True,
-          verbose: bool = False) -> int:
+          verbose: bool = False, stable_address: bool = False) -> int:
     front = find_front_end(static)
     os.chdir(root)  # relative paths given in the page resolve inside the project, as in a terminal opened there
     try:
-        server, app = make_server(root, port, front, verbose)
+        server, app = make_server(root, port, front, verbose, stable_address)
     except OSError:
         if port == 0:
             raise
-        server, app = make_server(root, 0, front, verbose)
+        server, app = make_server(root, 0, front, verbose, stable_address)
         print(f"Port {port} is busy; using {app.port}.", file=sys.stderr)
     url = app.url
     print(f"OpenGuildKit interface for {root}\n{url}\nOpen this address: it carries the key of this run. "

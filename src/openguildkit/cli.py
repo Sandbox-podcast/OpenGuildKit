@@ -235,6 +235,7 @@ def command_parser() -> argparse.ArgumentParser:
     ui.add_argument("--port", type=int, default=UI_PORT, help=f"Port (default {UI_PORT}; 0 picks a free one).")
     ui.add_argument("--no-browser", action="store_true", help="Print the address without opening a browser.")
     ui.add_argument("--static", type=Path, help="Folder of a built front end (default: the one installed with the package).")
+    ui.add_argument("--stable-address", action="store_true", help="Keep the host name from one launch to the next, so the browser keeps the page's preferences. It comes from the project's path, which another local program can compute.")
     ci = commands.add_parser("ci-check", help="Evaluate the central export rule on an exact Git commit.")
     ci.add_argument("--target-repo", type=Path, required=True, help="Local Git repository with the target commit.")
     ci.add_argument("--commit", required=True, help="Full Git SHA of the target commit.")
@@ -1360,7 +1361,7 @@ def _run(args) -> int | None:
     if args.command == "ui":
         from . import webui  # Only this command serves pages; every other one starts without the web server.
 
-        return webui.serve(root, args.port, args.static, not args.no_browser)
+        return webui.serve(root, args.port, args.static, not args.no_browser, stable_address=args.stable_address)
     if args.command == "host" and args.mode in ("scan", "managed"):  # managed needs no project: an administrator's machine
         return managed.run(args) if args.mode == "managed" else _host_scan(args, root, state)
     catalog = project_catalog(args, state)

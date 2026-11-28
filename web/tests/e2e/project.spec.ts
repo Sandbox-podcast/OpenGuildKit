@@ -21,27 +21,49 @@ const errors: string[] = [];
 /** How a to-do item names the person who acts, as opposed to the agent. */
 const PERSON = 'Toi';
 
-function watch(page: Page) {
+const watched = new WeakSet<Page>();
+async function watch(page: Page) {
+  if (watched.has(page)) return;
+  watched.add(page);
+  // Dialogs, notices and the setup open here, which the sweep does not: a style the policy refuses fails the run.
+  await page.exposeFunction('reportPolicyViolation', (violation: string) => errors.push(`security policy: ${violation}`));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => {
+      (window as unknown as { reportPolicyViolation: (v: string) => void }).reportPolicyViolation(
+        `${e.effectiveDirective} ${e.blockedURI || 'inline'} (${e.sourceFile}:${e.lineNumber})`,
+      );
+    });
+  });
   page.on('pageerror', (e) => errors.push(e.message));
   // Refusals answer 403 on purpose; the browser logs them as failed resources.
-  page.on('console', (m) => { if (m.type() === 'error' && !/status of 403/.test(m.text())) errors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !/status of 403/.test(m.text())) errors.push(m.text());
+  });
 }
 
 async function open(page: Page, hash: string) {
-  watch(page);
+  await watch(page);
   await page.goto(`/#${hash}`);
   await expect(page.locator('.project-chip')).toContainText('Portail support');
 }
 
 /** Calls the local API the way the page does. */
 function api<T>(page: Page, path: string, body: unknown): Promise<{ status: number; body: T }> {
-  return page.evaluate(async ([p, b]) => {
-    const session = await fetch('./api/session').then((r) => r.json());
-    const response = await fetch(p as string, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-OGK-Token': session.token }, body: JSON.stringify(b) });
-    return { status: response.status, body: await response.json() };
-  }, [path, body] as const);
+  return page.evaluate(
+    async ([p, b]) => {
+      const session = await fetch('./api/session').then((r) => r.json());
+      const response = await fetch(p as string, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-OGK-Token': session.token },
+        body: JSON.stringify(b),
+      });
+      return { status: response.status, body: await response.json() };
+    },
+    [path, body] as const,
+  );
 }
-const cli = async <T,>(page: Page, argv: string[]) => (await api<{ code: number; json: T; stdout: string }>(page, './api/run', { argv })).body;
+const cli = async <T>(page: Page, argv: string[]) =>
+  (await api<{ code: number; json: T; stdout: string }>(page, './api/run', { argv })).body;
 const projectRoot = (page: Page) => page.evaluate(async () => (await fetch('./api/session').then((r) => r.json())).project.root as string);
 
 test.afterAll(() => {
@@ -77,7 +99,9 @@ test('lists every task by state and opens a new one', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Nouvelle quête' }).click();
   const dialog = page.getByRole('dialog', { name: 'Ouvrir une quête' });
-  await dialog.getByLabel('Ce que l’équipe doit faire').fill('Let customers download a PDF summary of a request.\nKeep the layout of the portal.');
+  await dialog
+    .getByLabel('Ce que l’équipe doit faire')
+    .fill('Let customers download a PDF summary of a request.\nKeep the layout of the portal.');
   await dialog.getByLabel('Identifiant (facultatif)').fill('request-pdf');
   await dialog.getByLabel('Fait suite à (facultatif)').selectOption('request-status');
   await dialog.getByRole('button', { name: 'Ouvrir la quête' }).click();
@@ -95,7 +119,9 @@ test('never approves: the decision is a command for the person’s terminal', as
   await expect(page.getByRole('heading', { name: 'Avis des cerveaux' })).toBeVisible();
   await expect(page.getByLabel('Commande d’approbation')).toContainText('task decide request-export --approve');
   await expect(page.getByRole('button', { name: /^(Valider|Approuver)/ })).toHaveCount(0);
-  const refused = await api<{ command: string }>(page, './api/run', { argv: ['task', 'decide', 'request-export', '--approve', '--by', 'Agent', '--reason', 'Self-approval'] });
+  const refused = await api<{ command: string }>(page, './api/run', {
+    argv: ['task', 'decide', 'request-export', '--approve', '--by', 'Agent', '--reason', 'Self-approval'],
+  });
   expect(refused.status).toBe(403);
   expect(refused.body.command).toContain('task decide request-export --approve');
 });
@@ -129,7 +155,9 @@ test('hands the clearing of a blocker, with its evidence, to the person’s term
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   const blockers = await cli<{ id: string; resolution: unknown }[]>(page, ['task', 'blockers', 'request-export', '--json']);
   expect(blockers.json.find((blocker) => blocker.id === 'security:1')?.resolution).toBeNull();
-  const refused = await api<{ command: string }>(page, './api/run', { argv: ['task', 'clear', 'request-export', 'security:1', '--evidence', evidence, '--supports', 'Own requests only', '--by', 'Agent'] });
+  const refused = await api<{ command: string }>(page, './api/run', {
+    argv: ['task', 'clear', 'request-export', 'security:1', '--evidence', evidence, '--supports', 'Own requests only', '--by', 'Agent'],
+  });
   expect(refused.status).toBe(403);
   expect(refused.body.command).toContain('task clear request-export security:1');
   await page.goto('/#/royaume');
@@ -222,7 +250,9 @@ test('refuses an external action here and hands an allowance to the terminal', a
 
   await section.getByLabel('Décision').selectOption('allow');
   await section.getByRole('button', { name: 'Préparer' }).click();
-  await expect(page.getByRole('dialog', { name: /Autorisation : à faire dans ton terminal/ }).getByLabel('Commande')).toContainText('task authorize request-history --action send-message --target Brevo --allow');
+  await expect(page.getByRole('dialog', { name: /Autorisation : à faire dans ton terminal/ }).getByLabel('Commande')).toContainText(
+    'task authorize request-history --action send-message --target Brevo --allow',
+  );
   await page.getByRole('button', { name: 'J’ai compris' }).click();
 });
 
@@ -309,7 +339,10 @@ test('shows a task record left in conflict, with the error, on the kingdom and t
 test('runs the checks, records the results and completes a task in the forge', async ({ page }) => {
   await open(page, '/forge/request-history');
   // A result that records only a Git revision opens on it, and stays a revision when it is saved again.
-  await api(page, './api/run', { argv: ['task', 'result', 'request-history', '--file', '@upload:result.json'], uploads: { 'result.json': JSON.stringify({ revision: 'abc1234', criteria: [], checks: [] }) } });
+  await api(page, './api/run', {
+    argv: ['task', 'result', 'request-history', '--file', '@upload:result.json'],
+    uploads: { 'result.json': JSON.stringify({ revision: 'abc1234', criteria: [], checks: [] }) },
+  });
   await page.reload();
   await expect(page.getByLabel('Livraison')).toHaveValue('revision');
   await expect(page.getByLabel('Révision', { exact: true })).toHaveValue('abc1234');
@@ -320,7 +353,12 @@ test('runs the checks, records the results and completes a task in the forge', a
   expect(saved.json.result.pull_request).toBeUndefined();
   await page.getByLabel('Livraison').selectOption('pull_request');
   await page.getByRole('button', { name: 'Brief d’implémentation' }).click();
-  await expect(page.getByRole('dialog', { name: 'Brief d’implémentation' }).getByText(/Approved implementation handoff|request-history/).first()).toBeVisible();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Brief d’implémentation' })
+      .getByText(/Approved implementation handoff|request-history/)
+      .first(),
+  ).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByRole('button', { name: 'Lancer les commandes du projet' }).click();
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
@@ -345,7 +383,7 @@ test('runs the checks, records the results and completes a task in the forge', a
 });
 
 test('records the GDPR named evidence with who provided it and completes a task on personal data', async ({ page }) => {
-  watch(page);
+  await watch(page);
   await page.goto(`${GDPR}/#/forge/data-export`);
   await expect(page.locator('.project-chip')).toContainText('Portail RGPD');
   const expected = page.getByRole('region', { name: 'Tableau des vérifications' });
@@ -364,7 +402,10 @@ test('records the GDPR named evidence with who provided it and completes a task 
   await page.getByRole('button', { name: /Marquer « non applicables » les règles non rapportées/ }).click();
   await expect(page.getByLabel('Issue de rule:python/follow-python-style')).toHaveValue('not-applicable');
   await expect(page.getByLabel('Issue de rule:gdpr/confirm-lawful-basis')).toHaveValue('');
-  const selected = await rules.locator('tr', { hasText: 'Demandée par les réponses de la tâche' }).locator('td:first-child .mono').allTextContents();
+  const selected = await rules
+    .locator('tr', { hasText: 'Demandée par les réponses de la tâche' })
+    .locator('td:first-child .mono')
+    .allTextContents();
   expect(selected).toContain('rule:gdpr/confirm-lawful-basis');
   for (const id of selected) {
     await page.getByLabel(`Issue de ${id}`).selectOption('passed');
@@ -388,13 +429,19 @@ test('records the GDPR named evidence with who provided it and completes a task 
   await page.getByLabel(`Fournie par, pour ${record}`).fill('Dana (DPO)');
   await page.getByRole('button', { name: 'Enregistrer les résultats' }).click();
   await expect(page.getByText('Non enregistré :')).toHaveCount(0);
-  const saved = await cli<{ result: { checks: { check: string; status: string; owner?: string }[] } }>(page, ['task', 'show', 'data-export']);
+  const saved = await cli<{ result: { checks: { check: string; status: string; owner?: string }[] } }>(page, [
+    'task',
+    'show',
+    'data-export',
+  ]);
   const evidence = saved.json.result.checks.filter((c) => c.check.startsWith('evidence:'));
   expect(evidence).toHaveLength(2);
-  expect(evidence).toEqual(expect.arrayContaining([
-    expect.objectContaining({ check: record, status: 'passed', owner: 'Dana (DPO)' }),
-    expect.objectContaining({ check: dpia, status: 'passed', owner: 'Dana (DPO)' }),
-  ]));
+  expect(evidence).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ check: record, status: 'passed', owner: 'Dana (DPO)' }),
+      expect.objectContaining({ check: dpia, status: 'passed', owner: 'Dana (DPO)' }),
+    ]),
+  );
   await page.getByRole('button', { name: 'Terminer la tâche' }).click();
   await expect(page.getByText('Tâche terminée', { exact: true })).toBeVisible();
   const done = await cli<{ status: string }>(page, ['task', 'show', 'data-export']);
@@ -444,14 +491,27 @@ test('connects a tool with its mock and calls it', async ({ page }) => {
   expect(status.json).toEqual([expect.objectContaining({ key: 'jira', mode: 'mock' })]);
 
   await page.getByLabel('Rechercher un outil').fill('zendesk');
-  await page.locator('tr').filter({ has: page.getByLabel('Choisir Zendesk', { exact: true }) }).getByRole('button', { name: 'Essayer' }).click();
+  await page
+    .locator('tr')
+    .filter({ has: page.getByLabel('Choisir Zendesk', { exact: true }) })
+    .getByRole('button', { name: 'Essayer' })
+    .click();
   const zendesk = page.getByRole('dialog', { name: 'Simulation zendesk' });
-  await expect(zendesk.getByLabel('Outil de la simulation').locator('option')).toHaveText(['Choisir…', 'search_tickets', 'get_ticket', 'add_internal_note']);
+  await expect(zendesk.getByLabel('Outil de la simulation').locator('option')).toHaveText([
+    'Choisir…',
+    'search_tickets',
+    'get_ticket',
+    'add_internal_note',
+  ]);
   await zendesk.getByLabel('Outil de la simulation').selectOption('get_ticket');
   await expect(zendesk.getByLabel('Arguments (JSON)')).toHaveValue('{"ticket_id":4101}');
   await zendesk.getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByLabel('Rechercher un outil').fill('jira');
-  await page.locator('tr').filter({ has: page.getByLabel('Choisir Jira', { exact: true }) }).getByRole('button', { name: 'Essayer' }).click();
+  await page
+    .locator('tr')
+    .filter({ has: page.getByLabel('Choisir Jira', { exact: true }) })
+    .getByRole('button', { name: 'Essayer' })
+    .click();
   const mock = page.getByRole('dialog', { name: 'Simulation jira' });
   await mock.getByLabel('Outil de la simulation').selectOption('search_issues');
   await mock.getByLabel('Arguments (JSON)').fill('{"query": "export"}');
@@ -503,7 +563,9 @@ test('reviews an alert, and hands the dismissal of a critical one to the termina
   await dialog.getByLabel('Statut').selectOption('dismissed');
   await dialog.getByLabel('Motif').fill('Only used at build time');
   await dialog.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(page.getByRole('dialog', { name: 'À faire dans ton terminal' }).getByLabel('Commande')).toContainText('alerts set npm:form-parser');
+  await expect(page.getByRole('dialog', { name: 'À faire dans ton terminal' }).getByLabel('Commande')).toContainText(
+    'alerts set npm:form-parser',
+  );
   await page.getByRole('button', { name: 'J’ai compris' }).click();
   await expect(critical.getByText('Confirmée')).toBeVisible();
 });
@@ -528,7 +590,9 @@ test('says a refusal in French by its code, keeps the command copyable, and mark
     return page.getByRole('dialog', { name: 'À faire dans ton terminal' });
   };
   let terminal = await dismiss();
-  await expect(terminal.locator('p').first()).toHaveText('Écarter une alerte critique, ou revenir sur une alerte critique confirmée, se fait par une personne, dans son terminal, avec ses initiales et la raison.');
+  await expect(terminal.locator('p').first()).toHaveText(
+    'Écarter une alerte critique, ou revenir sur une alerte critique confirmée, se fait par une personne, dans son terminal, avec ses initiales et la raison.',
+  );
   await expect(terminal.locator('p').first()).not.toHaveAttribute('lang', 'en');
   await expect(terminal.getByLabel('Commande')).toContainText('alerts set npm:form-parser');
   await expect(terminal.getByRole('button', { name: 'Copier' })).toBeVisible();
@@ -548,9 +612,15 @@ test('says a refusal in French by its code, keeps the command copyable, and mark
 
 test('tells the person to open the new address after the server restarted', async ({ page }) => {
   await open(page, '/royaume');
-  await page.route('**/api/run', (route) => route.fulfill({ status: 403, json: { error: 'Missing or invalid session token. Reload the page.', reason: 'stale-token' } }));
+  await page.route('**/api/run', (route) =>
+    route.fulfill({ status: 403, json: { error: 'Missing or invalid session token. Reload the page.', reason: 'stale-token' } }),
+  );
   await page.getByRole('button', { name: 'Actualiser les données du projet' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'Le serveur local a redémarré : ouvre la nouvelle adresse que « openguildkit ui » a écrite dans ton terminal.' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'Le serveur local a redémarré : ouvre la nouvelle adresse que « openguildkit ui » a écrite dans ton terminal.' }),
+  ).toBeVisible();
   await page.unroute('**/api/run');
 });
 
@@ -647,7 +717,9 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
 
   await page.getByRole('tab', { name: /Partages/ }).click();
-  await expect(page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/)).toBeVisible();
+  await expect(
+    page.getByText(/Indique tes initiales ou l’identifiant de ton équipe pour enregistrer qu’un accès a été retiré/),
+  ).toBeVisible();
   await page.getByLabel('Page ou dossier partagé').fill('docs-site/reference/request-status.md');
   await page.getByLabel('Dernier jour d’accès').fill(day(20));
   await page.getByLabel('Adresse du portail Documentalist').fill('https://docs.example.org/p/support-portal');
@@ -671,7 +743,8 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await page.getByRole('button', { name: 'Enregistrer le partage' }).click();
   await expect(page.getByText('Avertissements de la commande')).toBeVisible();
   await expect(page.getByText(new RegExp(`later last day, ${day(30)}`))).toBeVisible();
-  const row = page.getByRole('row')
+  const row = page
+    .getByRole('row')
     .filter({ has: page.getByRole('cell', { name: 'partner@example.org', exact: true }) })
     .filter({ has: page.getByText('Autres livrables visibles : docs-site', { exact: true }) });
   await expect(row.getByText('Autres livrables visibles : docs-site', { exact: true })).toBeVisible();
@@ -803,12 +876,13 @@ test('keeps the Pro style across places', async ({ page }) => {
 /* ------------------------------------------------------------------ setup */
 
 const settingUp = async (page: Page, origin: string, folder: string) => {
-  watch(page);
+  await watch(page);
   await page.goto(`${origin}/`);
   await expect(page).toHaveURL(/#\/installation/);
   await expect(page.getByRole('heading', { name: new RegExp(`Installer la guilde dans ${folder}`) })).toBeVisible();
 };
-const savedProfile = async (page: Page) => JSON.parse((await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' })).body.text);
+const savedProfile = async (page: Page) =>
+  JSON.parse((await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' })).body.text);
 const patternIds = (profile: { patterns: (string | { id: string })[] }) => profile.patterns.map((p) => (typeof p === 'string' ? p : p.id));
 
 test('sets up a project with personal data once a person accepts the GDPR', async ({ page }) => {
@@ -886,7 +960,9 @@ test('sets up a project with Stripe: PCI DSS accepted, a norm declined with who 
   await expect(page.locator('.project-chip-name')).toHaveText('Nouvelle boutique');
   const profile = await savedProfile(page);
   expect(patternIds(profile)).toContain('pci-dss-cardholder-data');
-  expect(profile.declined).toEqual([expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' })]);
+  expect(profile.declined).toEqual([
+    expect.objectContaining({ id: 'gdpr-personal-data', by: 'Camille Martin', reason: 'The pilot stores company accounts only' }),
+  ]);
 });
 
 /* ------------------------------------------------------------------ arsenal */
@@ -915,17 +991,30 @@ test('turns a feature on and off in the Arsenal, with who and why, and names the
   await expect(page.getByRole('button', { name: 'Activer Jira' })).toBeVisible();
   const profile = await savedProfile(page);
   expect(profile.tools).not.toContain('Jira');
-  expect(profile.changes.at(-1)).toEqual(expect.objectContaining({ change: 'features disable jira', by: 'Camille Martin', reason: 'We moved to Linear' }));
+  expect(profile.changes.at(-1)).toEqual(
+    expect.objectContaining({ change: 'features disable jira', by: 'Camille Martin', reason: 'We moved to Linear' }),
+  );
   // features disable names the connection and the command that removes it; the page says the same.
   await expect(page.getByText(/^Jira\b.* reste connecté à l’agent/)).toBeVisible();
   await expect(page.locator('.notice', { hasText: 'reste connecté' })).toContainText('Le serveur MCP jira (claude-code, simulation)');
-  await expect(page.getByLabel('Commande qui retire la connexion'))
-    .toContainText(profile.host === 'claude-code' ? /tools remove jira$/ : /tools remove jira --host claude-code$/);
+  await expect(page.getByLabel('Commande qui retire la connexion')).toContainText(
+    profile.host === 'claude-code' ? /tools remove jira$/ : /tools remove jira --host claude-code$/,
+  );
 });
 
 test('shows on its card how many tasks a task waits for, and lists them with their status on its sheet', async ({ page }) => {
   await open(page, '/quetes');
-  const created = await cli(page, ['task', 'new', 'Send the PDF summary by email.', '--id', 'pdf-email', '--after', 'request-pdf', '--after', 'request-status']);
+  const created = await cli(page, [
+    'task',
+    'new',
+    'Send the PDF summary by email.',
+    '--id',
+    'pdf-email',
+    '--after',
+    'request-pdf',
+    '--after',
+    'request-status',
+  ]);
   expect(created.code).toBe(0);
   const listed = await cli<{ id: string; waiting_for?: { task: string; status: string }[] }[]>(page, ['task', 'list', '--json']);
   // request-status is done; request-pdf, opened earlier in this run, is not.
