@@ -465,77 +465,91 @@ def approval_warning(profile: dict) -> str | None:
             f"({doc_link('docs/workflow.md', 'signed-approvals')}).")
 
 
-def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
-    """Say, for each project rule, whether the host enforces it, could but does not, or cannot. With other_tools, also
-    one line for each tool of UNHOOKED_TOOLS whose files the project holds (host check; a consultation leaves them)."""
-    host = profile.get("host", "other")
-    local_only = profile.get("research", "local-only") == "local-only"
+_RESEARCH_TITLE = "Public research stays off when the policy is local-only"
+_PUBLIC_TITLE = "Public research stays available when the policy is public-sources"
+_APPROVAL_TITLE = "The agent cannot run the approval command"
+
+
+def _claude_controls(root: Path, profile: dict, local_only: bool) -> list[dict]:
+    """The research and approval controls of Claude Code: the deny rules of its project settings."""
     controls = []
-    research_title = "Public research stays off when the policy is local-only"
-    public_title = "Public research stays available when the policy is public-sources"
-    approval_title = "The agent cannot run the approval command"
-    if host == "claude-code":
-        denied = _claude_denied(root)
-        if local_only:
-            missing = [rule for rule in CLAUDE_RESEARCH_RULES if rule not in denied]
-            controls.append(_control(
-                "research", research_title, "missing" if missing else "enforced",
-                f"Claude Code denies {', '.join(CLAUDE_RESEARCH_RULES)} in {CLAUDE_SETTINGS_FILE.as_posix()}"
-                + (f"; missing: {', '.join(missing)}" if missing else "."),
-            ))
-        else:
-            left = [rule for rule in CLAUDE_RESEARCH_RULES if rule in denied]
-            controls.append(_control(
-                "research", public_title, "missing" if left else "enforced",
-                f"{CLAUDE_SETTINGS_FILE.as_posix()} "
-                + (f"still denies {', '.join(left)}." if left else f"does not deny {' or '.join(CLAUDE_RESEARCH_RULES)}."),
-            ))
-        signers = signers_rule(profile)
-        missing = [rule for rule in (*CLAUDE_APPROVAL_RULES, *([signers] if signers else [])) if rule not in denied]
+    denied = _claude_denied(root)
+    if local_only:
+        missing = [rule for rule in CLAUDE_RESEARCH_RULES if rule not in denied]
         controls.append(_control(
-            "approval", approval_title, "missing" if missing else "partial",
-            "Claude Code denies the approval, waiver and allow commands in every documented form, terminal emulators "
-            "and Python pseudo-terminals" + (", and file edits to the allowed signers file" if signers else "")
-            + (f"; missing: {', '.join(missing)}" if missing else ". Partial: a script file or a shell redirect can "
-               "still get around them."),
-        ))
-    elif host == "codex":
-        config = _codex_config(root)
-        if local_only:
-            sandbox = config.get("sandbox_workspace_write", {})
-            enforced = config.get("web_search") == "disabled" and not (
-                isinstance(sandbox, dict) and sandbox.get("network_access") is True
-            )
-            controls.append(_control(
-                "research", research_title, "enforced" if enforced else "missing",
-                f'{CODEX_CONFIG_FILE.as_posix()} sets web_search = "disabled" and keeps sandbox network access off. '
-                "Codex reads it only once the project is trusted.",
-            ))
-        else:
-            disabled = config.get("web_search") == "disabled"
-            controls.append(_control(
-                "research", public_title, "missing" if disabled else "enforced",
-                f'{CODEX_CONFIG_FILE.as_posix()} '
-                + ('still sets web_search = "disabled".' if disabled else 'does not set web_search = "disabled".'),
-            ))
-        rules_path = root / CODEX_RULES_FILE
-        current = rules_path.read_text(encoding="utf-8") if rules_path.is_file() else ""
-        controls.append(_control(
-            "approval", approval_title, "partial" if current == _codex_rules() else "missing",
-            f"{CODEX_RULES_FILE.as_posix()} forbids the approval, waiver and authorization commands and terminal emulators. "
-            "Codex reads it only once the project is trusted. Partial: a script file or a Python pseudo-terminal can "
-            "still get around it.",
+            "research", _RESEARCH_TITLE, "missing" if missing else "enforced",
+            f"Claude Code denies {', '.join(CLAUDE_RESEARCH_RULES)} in {CLAUDE_SETTINGS_FILE.as_posix()}"
+            + (f"; missing: {', '.join(missing)}" if missing else "."),
         ))
     else:
-        if local_only:
-            controls.append(_control(
-                "research", research_title, "instruction",
-                "This host has no known setting for it: the agent follows the instruction and a person checks.",
-            ))
+        left = [rule for rule in CLAUDE_RESEARCH_RULES if rule in denied]
         controls.append(_control(
-            "approval", approval_title, "instruction",
-            "The approval asks for a typed confirmation at a terminal. A person keeps the command for themself.",
+            "research", _PUBLIC_TITLE, "missing" if left else "enforced",
+            f"{CLAUDE_SETTINGS_FILE.as_posix()} "
+            + (f"still denies {', '.join(left)}." if left else f"does not deny {' or '.join(CLAUDE_RESEARCH_RULES)}."),
         ))
+    signers = signers_rule(profile)
+    missing = [rule for rule in (*CLAUDE_APPROVAL_RULES, *([signers] if signers else [])) if rule not in denied]
+    controls.append(_control(
+        "approval", _APPROVAL_TITLE, "missing" if missing else "partial",
+        "Claude Code denies the approval, waiver and allow commands in every documented form, terminal emulators "
+        "and Python pseudo-terminals" + (", and file edits to the allowed signers file" if signers else "")
+        + (f"; missing: {', '.join(missing)}" if missing else ". Partial: a script file or a shell redirect can "
+           "still get around them."),
+    ))
+    return controls
+
+
+def _codex_controls(root: Path, local_only: bool) -> list[dict]:
+    """The research and approval controls of Codex: its project config and its rules file."""
+    controls = []
+    config = _codex_config(root)
+    if local_only:
+        sandbox = config.get("sandbox_workspace_write", {})
+        enforced = config.get("web_search") == "disabled" and not (
+            isinstance(sandbox, dict) and sandbox.get("network_access") is True
+        )
+        controls.append(_control(
+            "research", _RESEARCH_TITLE, "enforced" if enforced else "missing",
+            f'{CODEX_CONFIG_FILE.as_posix()} sets web_search = "disabled" and keeps sandbox network access off. '
+            "Codex reads it only once the project is trusted.",
+        ))
+    else:
+        disabled = config.get("web_search") == "disabled"
+        controls.append(_control(
+            "research", _PUBLIC_TITLE, "missing" if disabled else "enforced",
+            f'{CODEX_CONFIG_FILE.as_posix()} '
+            + ('still sets web_search = "disabled".' if disabled else 'does not set web_search = "disabled".'),
+        ))
+    rules_path = root / CODEX_RULES_FILE
+    current = rules_path.read_text(encoding="utf-8") if rules_path.is_file() else ""
+    controls.append(_control(
+        "approval", _APPROVAL_TITLE, "partial" if current == _codex_rules() else "missing",
+        f"{CODEX_RULES_FILE.as_posix()} forbids the approval, waiver and authorization commands and terminal emulators. "
+        "Codex reads it only once the project is trusted. Partial: a script file or a Python pseudo-terminal can "
+        "still get around it.",
+    ))
+    return controls
+
+
+def _other_host_controls(local_only: bool) -> list[dict]:
+    """The research and approval controls of a host with no known setting: instructions a person checks."""
+    controls = []
+    if local_only:
+        controls.append(_control(
+            "research", _RESEARCH_TITLE, "instruction",
+            "This host has no known setting for it: the agent follows the instruction and a person checks.",
+        ))
+    controls.append(_control(
+        "approval", _APPROVAL_TITLE, "instruction",
+        "The approval asks for a typed confirmation at a terminal. A person keeps the command for themself.",
+    ))
+    return controls
+
+
+def _restricted_control(root: Path, profile: dict, host: str) -> list[dict]:
+    """Whether the paths the team closes to the agent are denied to its file tools, when the profile names some."""
+    controls = []
     paths = restricted_paths(profile)
     if paths and host == "claude-code":
         missing = [rule for rule in restricted_rules(profile) if rule not in _claude_denied(root)]
@@ -552,6 +566,22 @@ def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[d
             f"Nothing enforces {', '.join(paths)} for the host {host}: no setting of this host that refuses a read was "
             "read (à vérifier), and OpenGuildKit does not write these paths into AGENTS.md yet, so name them in your own "
             "instructions. The CI check (guard --ci) is the only barrier."))
+    return controls
+
+
+def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[dict]:
+    """Say, for each project rule, whether the host enforces it, could but does not, or cannot. With other_tools, also
+    one line for each tool of UNHOOKED_TOOLS whose files the project holds (host check; a consultation leaves them)."""
+    host = profile.get("host", "other")
+    local_only = profile.get("research", "local-only") == "local-only"
+    controls = []
+    if host == "claude-code":
+        controls += _claude_controls(root, profile, local_only)
+    elif host == "codex":
+        controls += _codex_controls(root, local_only)
+    else:
+        controls += _other_host_controls(local_only)
+    controls += _restricted_control(root, profile, host)
     guard = profile.get("guard", "off")
     if guard != "off":
         controls.append(_board_control(root, host, guard))
@@ -568,71 +598,85 @@ def host_controls(root: Path, profile: dict, other_tools: bool = True) -> list[d
     return controls
 
 
+def _apply_claude(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+    """Write the deny rules and the hooks of Claude Code's project settings. Returns the file written."""
+    written = []
+    path = root / CLAUDE_SETTINGS_FILE
+    settings = _claude_settings(root)
+    permissions = settings.setdefault("permissions", {})
+    if not isinstance(permissions, dict):
+        raise ValueError(f"{path.as_posix()}: permissions must be a JSON object.")
+    deny = permissions.setdefault("deny", [])
+    if not isinstance(deny, list):
+        raise ValueError(f"{path.as_posix()}: permissions.deny must be a list.")
+    wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
+    if signers_rule(profile):
+        wanted.append(signers_rule(profile))
+    if profile.get("guard", "off") != "off":
+        wanted += CLAUDE_PROTECTED_RULES
+    wanted += restricted_rules(profile)
+    lifted = [rule for rule in lifted_rules(profile) if rule not in wanted]
+    deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES and rule not in lifted]
+    deny.extend(rule for rule in wanted if rule not in deny)
+    if not local_only:
+        deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]
+    if profile.get("guard", "off") != "off":
+        settings["hooks"] = _merge_hooks(settings.get("hooks"), host, profile.get("guard") == "enforce")
+    if profile.get("guard") == "enforce":
+        # A user setting "disableAllHooks": true turns every hook off unless the project says false.
+        settings["disableAllHooks"] = False
+    write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
+    written.append(CLAUDE_SETTINGS_FILE.as_posix())
+    return written
+
+
+def _apply_codex(root: Path, profile: dict, local_only: bool, host: str) -> list[str]:
+    """Write the rules, the hooks and the web search setting of Codex. Returns the files written."""
+    written = []
+    write_text(root / CODEX_RULES_FILE, _codex_rules())
+    written.append(CODEX_RULES_FILE.as_posix())
+    if profile.get("guard", "off") != "off":
+        hooks_path = root / CODEX_HOOKS_FILE
+        current = _codex_hooks(root)
+        current["hooks"] = _merge_hooks(current.get("hooks"), host)
+        write_text(hooks_path, json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+        written.append(CODEX_HOOKS_FILE.as_posix())
+    path = root / CODEX_CONFIG_FILE
+    config = _codex_config(root)
+    current = path.read_bytes().decode("utf-8-sig") if path.is_file() else ""
+    if local_only:
+        if "web_search" in config and config["web_search"] != "disabled":
+            raise ValueError(f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
+        sandbox = config.get("sandbox_workspace_write", {})
+        if isinstance(sandbox, dict) and sandbox.get("network_access") is True:
+            raise ValueError(f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
+        if "web_search" not in config:
+            write_text(path, _codex_disable_web_search(path, current, config))
+            written.append(CODEX_CONFIG_FILE.as_posix())
+    elif config.get("web_search") == "disabled":
+        updated = _codex_lift_web_search(path, current, config)
+        if updated is None:
+            raise ValueError(
+                f'{path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. '
+                "Remove it yourself, or set research to local-only."
+            )
+        write_text(path, updated)
+        written.append(CODEX_CONFIG_FILE.as_posix())
+    return written
+
+
 def apply_host_settings(root: Path, profile: dict) -> list[str]:
     """Write the host settings that enforce the project's rules. Returns the files written."""
     host = profile.get("host", "other")
     local_only = profile.get("research", "local-only") == "local-only"
     written = []
     if host == "claude-code":
-        path = root / CLAUDE_SETTINGS_FILE
-        settings = _claude_settings(root)
-        permissions = settings.setdefault("permissions", {})
-        if not isinstance(permissions, dict):
-            raise ValueError(f"{path.as_posix()}: permissions must be a JSON object.")
-        deny = permissions.setdefault("deny", [])
-        if not isinstance(deny, list):
-            raise ValueError(f"{path.as_posix()}: permissions.deny must be a list.")
-        wanted = list(CLAUDE_APPROVAL_RULES) + (list(CLAUDE_RESEARCH_RULES) if local_only else [])
-        if signers_rule(profile):
-            wanted.append(signers_rule(profile))
-        if profile.get("guard", "off") != "off":
-            wanted += CLAUDE_PROTECTED_RULES
-        wanted += restricted_rules(profile)
-        lifted = [rule for rule in lifted_rules(profile) if rule not in wanted]
-        deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES and rule not in lifted]
-        deny.extend(rule for rule in wanted if rule not in deny)
-        if not local_only:
-            deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]
-        if profile.get("guard", "off") != "off":
-            settings["hooks"] = _merge_hooks(settings.get("hooks"), host, profile.get("guard") == "enforce")
-        if profile.get("guard") == "enforce":
-            # A user setting "disableAllHooks": true turns every hook off unless the project says false.
-            settings["disableAllHooks"] = False
-        write_text(path, json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
-        written.append(CLAUDE_SETTINGS_FILE.as_posix())
+        written += _apply_claude(root, profile, local_only, host)
     elif host == "gemini-cli":
         if profile.get("guard", "off") != "off":
             written += _apply_gemini(root, profile)
     elif host == "codex":
-        write_text(root / CODEX_RULES_FILE, _codex_rules())
-        written.append(CODEX_RULES_FILE.as_posix())
-        if profile.get("guard", "off") != "off":
-            hooks_path = root / CODEX_HOOKS_FILE
-            current = _codex_hooks(root)
-            current["hooks"] = _merge_hooks(current.get("hooks"), host)
-            write_text(hooks_path, json.dumps(current, indent=2, ensure_ascii=False) + "\n")
-            written.append(CODEX_HOOKS_FILE.as_posix())
-        path = root / CODEX_CONFIG_FILE
-        config = _codex_config(root)
-        current = path.read_bytes().decode("utf-8-sig") if path.is_file() else ""
-        if local_only:
-            if "web_search" in config and config["web_search"] != "disabled":
-                raise ValueError(f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
-            sandbox = config.get("sandbox_workspace_write", {})
-            if isinstance(sandbox, dict) and sandbox.get("network_access") is True:
-                raise ValueError(f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
-            if "web_search" not in config:
-                write_text(path, _codex_disable_web_search(path, current, config))
-                written.append(CODEX_CONFIG_FILE.as_posix())
-        elif config.get("web_search") == "disabled":
-            updated = _codex_lift_web_search(path, current, config)
-            if updated is None:
-                raise ValueError(
-                    f'{path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. '
-                    "Remove it yourself, or set research to local-only."
-                )
-            write_text(path, updated)
-            written.append(CODEX_CONFIG_FILE.as_posix())
+        written += _apply_codex(root, profile, local_only, host)
     if written:
         audit_log.record(root, "host.applied", host=host, paths=written)
     return written
