@@ -12,9 +12,9 @@ from pathlib import Path
 
 from openguildkit.catalog import load_catalog
 from openguildkit.profile_cli import check_proposal
-from openguildkit.project import (
-    profile_fingerprint, render_instructions, rule_plan, rules_in_force, validate_profile,
-)
+from openguildkit.project import rules_in_force, validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import profile_fingerprint, rule_plan
 from openguildkit.results import expected_checks
 from openguildkit.storage import write_json
 from tests.support import run_cli

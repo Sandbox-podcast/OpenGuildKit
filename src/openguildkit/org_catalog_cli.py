@@ -39,7 +39,8 @@ from .org_catalog import (
     variable_name,
 )
 from .profile_cli import print_touched
-from .project import load_profile, sync_instructions
+from .project import load_profile
+from .project_instructions import sync_instructions
 from .shell import shell_word
 from .storage import print_json, project_lock
 from .tasks import tasks_touched

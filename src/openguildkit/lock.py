@@ -21,7 +21,8 @@ from .catalog import (
 from .ci import read_policy_pack
 from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
-from .project import RuleError, check_instructions, selected_packs
+from .project import selected_packs
+from .project_instructions import RuleError, check_instructions
 from .startup import package_version
 from .storage import file_signature, read_json, write_json
 

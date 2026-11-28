@@ -6,7 +6,9 @@ from pathlib import Path
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.detect import components_for_profile, detect_stack
 from openguildkit.patterns import patterns_to_review, recommend_patterns, technology_version
-from openguildkit.project import pack_scopes, render_instructions, resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import pack_scopes, resolved_profile
 from tests.support import run_cli
 
 

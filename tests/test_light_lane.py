@@ -18,7 +18,8 @@ from unittest.mock import patch
 
 from openguildkit import light_lane, profile_cli, surfaces
 from openguildkit.decisions import check_decision_seal, record_digest
-from openguildkit.project import profile_fingerprint, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
 from tests.support import registry_days_on_the_real_clock, run_cli, subprocess_environment
 

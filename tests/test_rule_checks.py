@@ -13,7 +13,9 @@ from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import main
-from openguildkit.project import init_questions, profile_recommendations, resolved_profile, validate_profile
+from openguildkit.project import profile_recommendations, validate_profile
+from openguildkit.project_rules import resolved_profile
+from openguildkit.project_setup import init_questions
 from openguildkit.rule_checks import (
     MAX_FILE_BYTES, MAX_FILES, MAX_SIZE_BYTES, describe_check, evaluate_check, validate_check,
 )

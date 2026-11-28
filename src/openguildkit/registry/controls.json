@@ -47,12 +47,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 266
+          "line": 267
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 316
+          "line": 317
         },
         {
           "file": "src/openguildkit/hosts.py",
@@ -86,7 +86,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 734
+          "line": 735
         }
       ],
       "in_dossier": [
@@ -149,7 +149,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1132
+          "line": 1133
         }
       ],
       "in_dossier": [
@@ -170,7 +170,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1132
+          "line": 1133
         }
       ],
       "in_dossier": [],
@@ -189,17 +189,17 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "export_decision",
-          "line": 438
+          "line": 439
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 872
+          "line": 873
         },
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 58
+          "line": 59
         }
       ],
       "in_dossier": [
@@ -217,19 +217,19 @@
       ],
       "code": [
         {
-          "file": "src/openguildkit/project.py",
+          "file": "src/openguildkit/project_rules.py",
           "symbol": "Fingerprints",
-          "line": 1348
+          "line": 322
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 728
+          "line": 729
         },
         {
           "file": "src/openguildkit/cli.py",
           "symbol": "check",
-          "line": 1247
+          "line": 1229
         }
       ],
       "in_dossier": [
@@ -249,17 +249,17 @@
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "write_change",
-          "line": 641
+          "line": 630
         },
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "weakening_changes",
-          "line": 151
+          "line": 140
         },
         {
           "file": "src/openguildkit/project.py",
           "symbol": "_changes",
-          "line": 582
+          "line": 242
         }
       ],
       "in_dossier": [
@@ -327,7 +327,7 @@
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 176
+          "line": 177
         }
       ],
       "in_dossier": [],

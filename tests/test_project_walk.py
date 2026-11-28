@@ -178,7 +178,8 @@ class LargeRepositoryLookupTests(unittest.TestCase):
         """Issue #536: a name the walk did not reach was listed as not found in the project."""
         from openguildkit.catalog import load_catalog
         from openguildkit.consultation import consult
-        from openguildkit.project import resolved_profile, validate_profile
+        from openguildkit.project import validate_profile
+        from openguildkit.project_rules import resolved_profile
 
         missing, not_searched = self.lookup("`render8()` and src/absent.ts are named.")
         self.assertEqual(missing, [])

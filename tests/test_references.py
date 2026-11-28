@@ -8,7 +8,9 @@ from pathlib import Path
 
 from openguildkit.catalog import ID_PATTERN, CatalogError, load_catalog
 from openguildkit.cli import main
-from openguildkit.project import render_instructions, resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import resolved_profile
 from openguildkit.references import (
     KINDS,
     check_reference_links,

@@ -7,7 +7,8 @@ from pathlib import Path
 from .catalog import COLLECTION_FIELDS, ID_PATTERN
 from .lock import lock_path, package_version, project_catalog
 from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
-from .project import Fingerprints, load_profile, rule_plan
+from .project import load_profile
+from .project_rules import Fingerprints, rule_plan
 from .results import RESULT_STATUSES
 from .sensitive import redact_credentials
 from .tasks import (

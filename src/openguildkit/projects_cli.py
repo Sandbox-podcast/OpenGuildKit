@@ -24,7 +24,8 @@ from .alerts import LEGACY_STATUSES, load_register
 from .decisions import exported_records
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
-from .project import GUARD_MODES, STATE_DIR, load_profile, state_path
+from .project import STATE_DIR, load_profile, state_path
+from .project_setup import GUARD_MODES
 from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks, unresolved_blockers

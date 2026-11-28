@@ -60,29 +60,11 @@ from .lock import (
 )
 from .patterns import patterns_to_review, role_choices
 from .profile_cli import print_touched
-from .project import (
-    ALREADY_INITIALIZED,
-    GUARD_MODES,
-    RULES_NOTE,
-    STATE_DIR,
-    Fingerprints,
-    RuleError,
-    complete_answers,
-    init_questions,
-    initialize,
-    is_norm,
-    load_profile,
-    profile_recommendations,
-    project_root,
-    require_resolved_conflicts,
-    rule_conflicts,
-    rule_plan,
-    setup_profile,
-    state_path,
-    sync_instructions,
-    unsure_answers,
-)
+from .project import RULES_NOTE, STATE_DIR, load_profile, profile_recommendations, project_root, state_path
 from .project_checks import propose_checks
+from .project_instructions import ALREADY_INITIALIZED, RuleError, initialize, sync_instructions
+from .project_rules import Fingerprints, require_resolved_conflicts, rule_conflicts, rule_plan
+from .project_setup import GUARD_MODES, complete_answers, init_questions, is_norm, setup_profile, unsure_answers
 from .prompts import prompt_questions
 from .rule_plan_text import print_recommendations, print_rule_plan
 from .storage import print_json, project_lock, read_json, write_json

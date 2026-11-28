@@ -5,7 +5,8 @@ from pathlib import Path
 
 from . import git
 from .catalog import EXPORT_EXPIRY_ID, rule_check
-from .project import profile_fingerprint, resolved_profile, rule_text
+from .project_instructions import rule_text
+from .project_rules import profile_fingerprint, resolved_profile
 from .rule_checks import compare_field, parse_fields
 from .storage import parse_json
 

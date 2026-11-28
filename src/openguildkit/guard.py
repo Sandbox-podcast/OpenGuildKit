@@ -44,7 +44,8 @@ from .delivered_review import exported_review
 from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import copies_read_from, organization_in, parse_copies
-from .project import STATE_DIR, Fingerprints, load_profile, project_root, restricted_paths, state_path
+from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
+from .project_rules import Fingerprints
 from .results import DONE_STATUSES, verification_of
 from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
 from .startup import UNKNOWN_MODE, declared_mode

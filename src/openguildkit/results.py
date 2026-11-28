@@ -18,8 +18,9 @@ from urllib.parse import urlsplit
 from . import lazy_re
 from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
-from .project import STATE_DIR, rule_text
+from .project import STATE_DIR
 from .project_checks import failure_message
+from .project_instructions import rule_text
 from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data

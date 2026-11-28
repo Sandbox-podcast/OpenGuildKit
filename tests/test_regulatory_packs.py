@@ -6,7 +6,9 @@ from datetime import datetime
 
 from openguildkit.catalog import load_catalog
 from openguildkit.patterns import recommend_patterns
-from openguildkit.project import render_instructions, resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import resolved_profile
 from openguildkit.references import find_references, load_references
 
 REGULATIONS = {

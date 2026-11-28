@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 from openguildkit import git
 from openguildkit.catalog import load_catalog
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.relevance import changed_files, pack_relevance
 
 NAMES = ["docs/résumé.md", "docs/a b.md", 'docs/say "hi".md']

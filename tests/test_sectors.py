@@ -13,14 +13,9 @@ from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.cli import _interactive_init, main
 from openguildkit.patterns import recommend_patterns
 from openguildkit.references import load_references
-from openguildkit.project import (
-    init_questions,
-    profile_recommendations,
-    resolved_profile,
-    rule_plan,
-    setup_profile,
-    validate_profile,
-)
+from openguildkit.project import profile_recommendations, validate_profile
+from openguildkit.project_rules import resolved_profile, rule_plan
+from openguildkit.project_setup import init_questions, setup_profile
 from openguildkit.storage import write_json
 
 SECTOR_PACKS = {

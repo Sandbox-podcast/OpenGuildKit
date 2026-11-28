@@ -14,7 +14,8 @@ from . import lazy_re, light_lane
 from .catalog import rule_check
 from .detect import SKIPPED_DIRECTORIES, walk
 from .patterns import is_stack_pattern, pattern_selection
-from .project import rule_text, rules_in_force
+from .project import rules_in_force
+from .project_instructions import rule_text
 from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components

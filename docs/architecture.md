@@ -78,7 +78,10 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `brains.py` | Assembles what a brain knows: its specialists' methods, packs and references. |
 | `detect.py` | Proposes components, technologies and versions from the repository's manifests, without running a package manager. |
 | `stack_versions.py` | Reads declared versions and version ranges for detection, patterns and the Storybook dependency report. |
-| `project.py` | Builds the setup questionnaire, validates the profile, resolves packs, renders the managed block of `AGENTS.md`, computes the profile fingerprint and checks that instructions are current. |
+| `project.py` | Finds a project and its state folder, and validates and loads its profile. |
+| `project_setup.py` | Builds the setup questionnaire of `init` and completes its answers into a profile. |
+| `project_rules.py` | Resolves the packs of a profile, their conflicts and scopes, the rule plan and the profile fingerprint. |
+| `project_instructions.py` | Renders the managed block of `AGENTS.md`, syncs the instruction files and checks that they are current. |
 | `project_checks.py` | Proposes the project's test commands at setup and explains why a check command failed. |
 | `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
 | `integrations.py` | Installs the agent skill and the subagents shipped with this version. |

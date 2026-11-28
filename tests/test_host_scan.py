@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import surfaces
-from openguildkit.project import BEGIN, END
+from openguildkit.project_instructions import BEGIN, END
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]

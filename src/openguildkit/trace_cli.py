@@ -13,7 +13,8 @@ from . import git
 from .decisions import exported_records
 from .guard import exported_decisions
 from .lock import project_catalog
-from .project import Fingerprints, load_profile
+from .project import load_profile
+from .project_rules import Fingerprints
 from .storage import print_json
 
 _COMMIT = frozenset("0123456789abcdef")

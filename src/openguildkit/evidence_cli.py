@@ -21,7 +21,8 @@ from .catalog import package_file
 from .decisions import approval_policy, exported_records, git_revision, record_digest, seal, verify_recorded_signature
 from .guard import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
-from .project import STATE_DIR, Fingerprints, load_profile
+from .project import STATE_DIR, load_profile
+from .project_rules import Fingerprints
 from .storage import json_text, read_json, write_text
 
 DOSSIER_FILES = ("alerts.jsonl", "controls.json", "decisions.jsonl", "profile-changes.jsonl", "signers-history.jsonl")
