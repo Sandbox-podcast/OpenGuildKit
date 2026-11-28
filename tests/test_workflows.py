@@ -355,8 +355,8 @@ class StatusTemplateTest(unittest.TestCase):
         self.assertEqual((row["state"], row["tools"]), ("not-a-project", ["claude-code"]))
 
     def test_issue_479_the_guide_gives_the_gh_loop_that_gathers_the_artifacts(self):
-        text = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
-        section = text.split("### A fleet without clones", 1)[1].split("\n## ", 1)[0]
+        text = (ROOT / "docs" / "workflow" / "several-projects.md").read_text(encoding="utf-8")
+        section = text.split("## A fleet without clones", 1)[1].split("\n## ", 1)[0]
         self.assertIn("integrations/github/openguildkit-status.yml", section)
         self.assertIn("gh run download", section)
 
