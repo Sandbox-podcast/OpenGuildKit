@@ -93,7 +93,7 @@ ACTION_HELP = {
     "revoke": "Withdraw an approval: the task goes back to changes requested (the person, at a terminal).",
     "handoff": "Print the approved implementation handoff, or the decision record of a decision task.",
     "decision-payload": "Print the exact decision an approver signs in a project that requires signed approvals.",
-    "show": "Print a summary of the task: status, decision, boards, result, next step; --full or --json for the record.",
+    "show": "Print a summary of the task; --full or --json for the whole record.",
     "checks": "List the checks the approved task must report.",
     "verify": "Run the project's check commands and the rules' machine checks, and record their results.",
     "result": "Record the delivered revision, criteria and check outcomes.",
@@ -178,12 +178,11 @@ def _show_options(command) -> None:
     shown.add_argument("--closing", action="store_true",
                        help="Print only the open points the closing left, with who closed the task.")
     shown.add_argument("--summary", action="store_true",
-                       help="Print the summary, which show prints by default: kept for the scripts that pass it.")
+                       help="Print the summary, the default: kept for scripts.")
     shown.add_argument("--full", action="store_true",
-                       help="Print the whole record as JSON, which show printed by default until 0.17.")
+                       help="Print the whole record as JSON (the default until 0.17).")
     command.add_argument("--json", action="store_true",
-                         help="Print the whole record as JSON, the form scripts read (in the envelope when "
-                              "OPENGUILDKIT_JSON_ENVELOPE is 1).")
+                         help="Print the record as JSON, for scripts (enveloped if OPENGUILDKIT_JSON_ENVELOPE=1).")
 
 
 def _reuse_answers_option(command) -> None:

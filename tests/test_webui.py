@@ -505,15 +505,16 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_json_answers_drop_the_duplicate_text_and_the_keys_a_page_does_not_need(self):
         self.run_in_page("task", "new", "Show request status", "--id", "request-status")
-        status, _, body = self.request("/api/run", {"argv": ["task", "show", "request-status", "--json"], "omit": ["brief"]})
+        show = ["task", "show", "request-status", "--json"]
+        status, _, body = self.request("/api/run", {"argv": show, "omit": ["brief"]})
         result = json.loads(body)
         self.assertEqual((status, result["stdout"]), (200, ""))
         self.assertEqual(result["json"]["id"], "request-status")
         self.assertNotIn("brief", result["json"])
-        status, _, body = self.request("/api/run", {"argv": ["task", "show", "request-status", "--json"], "raw": True})
+        status, _, body = self.request("/api/run", {"argv": show, "raw": True})
         self.assertIn('"brief"', json.loads(body)["stdout"])
         self.assertEqual(self.request("/api/run", {"argv": ["check"], "omit": "brief"})[0], 400)
-        status, _, body = self.request("/api/run", {"batch": {"one": ["task", "show", "request-status", "--json"]}, "omit": ["answers"]})
+        status, _, body = self.request("/api/run", {"batch": {"one": show}, "omit": ["answers"]})
         self.assertNotIn("answers", json.loads(body)["results"]["one"]["json"])
 
     def test_large_answers_are_compressed_for_browsers_that_accept_it(self):

@@ -140,7 +140,7 @@ export function CouncilRoom({ id }: { id: string }) {
 }
 
 function CouncilRecord({ id, reconsult }: { id: string; reconsult: string | null }) {
-  // The text of the consultation is read with `task brief` when the person opens it.
+  // The consultation text is read with `task brief` when the person opens it.
   const record = useCli<TaskRecord>(['task', 'show', id, '--json'], { omit: ['markdown', 'review_template'] });
   return (
     <Q q={record} label="Ouverture de la salle du Conseil">
