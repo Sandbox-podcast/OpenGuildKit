@@ -78,6 +78,7 @@ class SourceValidationTests(unittest.TestCase):
         validate_entry("packs", self.pack)
 
     def test_tracking_parameters_are_refused(self):
+        # OGK-CATALOG-018
         for url in (
             "https://example.org/guide?utm_source=newsletter&utm_medium=email",
             "https://example.org/guide?trk=public_post",
@@ -186,6 +187,7 @@ class ExecutableCatalogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             project_catalog = Path(directory)
             write_json(project_catalog / "packs" / sample.name, pack)
+            # OGK-CATALOG-067
             with self.assertRaisesRegex(CatalogError, "duplicate packs ID"):
                 load_catalog(project_catalog, central_policy=("0" * 40, pack))
 

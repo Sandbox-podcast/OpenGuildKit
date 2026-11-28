@@ -93,7 +93,7 @@ class RulePlanTests(unittest.TestCase):
         self.assertIn("both apply. Reason: Scrum with a Kanban board.", instructions)
 
     def test_invalid_resolutions_and_conflict_declarations_are_rejected(self):
-        # OGK-PROJECT-015
+        # OGK-CATALOG-022, OGK-PROJECT-015
         with self.assertRaisesRegex(ValueError, "keep must list"):
             validate_profile({"name": "x", "resolutions": [{"packs": ["kanban-delivery", "scrum-delivery"],
                                                             "keep": ["python"], "reason": "x"}]}, self.catalog)

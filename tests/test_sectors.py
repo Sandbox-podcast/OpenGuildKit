@@ -182,6 +182,7 @@ class SectorCatalogTests(unittest.TestCase):
             self.assertIn(pack_id, line)
 
     def test_a_pattern_can_match_on_its_sector_alone_but_not_on_nothing(self):
+        # OGK-CATALOG-039, OGK-CATALOG-040, OGK-CATALOG-041, OGK-CATALOG-042
         record = {
             "id": "retail-banking-rules", "title": "Retail banking", "description": "Sector rules.", "sources": [],
             "roles": ["legal"], "packs": ["dora"], "kind": "regulation", "match": {"sectors": ["general"]},

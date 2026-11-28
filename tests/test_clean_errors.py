@@ -66,7 +66,7 @@ class CleanErrorTests(unittest.TestCase):
 
     def test_json_nested_too_deeply_in_a_file_of_the_project_is_one_line(self):
         """Issue #460: a file of 200 000 [ then 200 000 ] gave a RecursionError traceback in six commands."""
-        # OGK-CORE-002, OGK-TOOLS-001, OGK-TOOLS-005
+        # OGK-CATALOG-005, OGK-CORE-002, OGK-TOOLS-001, OGK-TOOLS-005, OGK-TOOLS-020
         write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"],
                                                 "host": "claude-code", "guard": "observe"})
         self.run_cli("init", "--answers", self.root / "profile.json", code=0)
@@ -430,6 +430,7 @@ class CleanErrorTests(unittest.TestCase):
         self.assertIn("--policy-repo", self.run_cli("preview", "--answers", self.root / "policy.json"))
 
     def test_catalog_text_refuses_control_characters_and_misnamed_files(self):
+        # OGK-CATALOG-010, OGK-CATALOG-053
         pack = json.loads(json.dumps(load_catalog()["packs"]["python"]))
         for text in ("Bar\u0085", "x\u007fy", "a b"):
             with self.assertRaises(CatalogError):

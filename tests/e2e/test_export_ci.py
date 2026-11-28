@@ -168,7 +168,7 @@ class ExportCiTests(CliTestCase):
                 self.assertIn(revision, guidance)
 
     def test_invalid_values_and_unpinned_revisions_fail_closed(self):
-        # OGK-CI-002
+        # OGK-CATALOG-032, OGK-CI-002
         target = self.project / "repo"
         head = self.commit(target, "export.json", {"downloadLinkMinutes": True})
         invalid = json.loads(self.evaluate(self.original, target, head, expect=1).stdout)

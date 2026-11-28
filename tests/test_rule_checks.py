@@ -291,6 +291,7 @@ class SizeCheckTests(unittest.TestCase):
                          "Each file matching `AGENTS.md`, `docs/*.md` is at most 8000 bytes.")
 
     def test_a_pack_rule_can_declare_the_check_and_the_catalog_refuses_a_malformed_one(self):
+        # OGK-CATALOG-033
         rule = {"id": "small-instructions", "check": self.check(max_bytes=8000)}
         validate_entry("packs", pack([rule]))
         with self.assertRaisesRegex(CatalogError, "max_bytes"):
@@ -317,7 +318,7 @@ class CatalogFormatTests(unittest.TestCase):
             load_catalog(central_policy=("a" * 40, central))
 
     def test_a_rule_without_a_check_still_needs_its_text_and_evidence_is_named(self):
-        # OGK-RULE-013
+        # OGK-CATALOG-030, OGK-CATALOG-034, OGK-RULE-013
         with self.assertRaisesRegex(CatalogError, "missing fields: instruction"):
             validate_entry("packs", pack([{"id": "a", "verification": "Look."}]))
         named = {"id": "a", "instruction": "Do it.", "verification": "Look.",
@@ -471,6 +472,7 @@ class VerifyAndEvidenceTests(CapturedCli, unittest.TestCase):
         self.assertIn("rule:team-rules/record-processing: passed", output)
 
     def test_an_evidence_condition_names_known_data_answers(self):
+        # OGK-CATALOG-007, OGK-CATALOG-029
         bad = {**self.RECORD, "evidence": [{**self.RECORD["evidence"][0], "when": {"data": ["secret"]}}]}
         with self.assertRaisesRegex(CatalogError, "when.data"):
             validate_entry("packs", pack([bad]))

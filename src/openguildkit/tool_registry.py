@@ -82,7 +82,7 @@ DETECT_FIELDS = {"files", "npm", "pypi"}
 
 def _catalog_line(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip() or "\n" in value:
-        raise CatalogError(f"{label} must be one line of text")
+        raise CatalogError("OGK-CATALOG-071", f"{label} must be one line of text")
     return value
 
 
@@ -92,32 +92,32 @@ def _https(value: object, label: str, placeholders: bool = False) -> str:
     probe = SETTING_NAME.sub("x", text) if placeholders else text
     if not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::\d+)?(?:/[^\s?#]*)?(?:\?[^\s#]*)?", probe) and not (
             placeholders and re.fullmatch(r"http://(?:127\.0\.0\.1|localhost):\d{2,5}(?:/[^\s?#]*)?", probe)):
-        raise CatalogError(f"{label} must be an https URL")
+        raise CatalogError("OGK-CATALOG-072", f"{label} must be an https URL")
     if "?" in text and SECRET_WORD.search(text.split("?", 1)[1]):
-        raise CatalogError(f"{label} must not carry a credential in its query string")
+        raise CatalogError("OGK-CATALOG-073", f"{label} must not carry a credential in its query string")
     return text
 
 
 def _names(value: object, label: str, pattern: re.Pattern) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) or not pattern.fullmatch(item) for item in value) \
             or len(set(value)) != len(value):
-        raise CatalogError(f"{label} must be a list of unique names")
+        raise CatalogError("OGK-CATALOG-074", f"{label} must be a list of unique names")
     return value
 
 
 def _validate_server(server: object, label: str) -> None:
     if not isinstance(server, dict) or not SERVER_FIELDS <= server.keys() <= SERVER_FIELDS | SERVER_OPTIONAL:
         missing = sorted(SERVER_FIELDS - server.keys()) if isinstance(server, dict) else []
-        raise CatalogError(f"{label}: a server needs {', '.join(sorted(SERVER_FIELDS))}" + (
+        raise CatalogError("OGK-CATALOG-075", f"{label}: a server needs {', '.join(sorted(SERVER_FIELDS))}" + (
             f"; missing {', '.join(missing)}" if missing else ""))
     label = f"{label}/{server['id']}"
     if not isinstance(server["id"], str) or not TOOL_ID.fullmatch(server["id"]):
-        raise CatalogError(f"{label}: use a lowercase id with hyphens")
+        raise CatalogError("OGK-CATALOG-076", f"{label}: use a lowercase id with hyphens")
     for field in ("name", "maintainer", "capabilities"):
         _catalog_line(server[field], f"{label} {field}")
     for field, choices in (("publisher", PUBLISHERS), ("transport", TRANSPORTS), ("auth", AUTH), ("status", STATUSES)):
         if server[field] not in choices:
-            raise CatalogError(f"{label}: {field} is one of {', '.join(choices)}")
+            raise CatalogError("OGK-CATALOG-077", f"{label}: {field} is one of {', '.join(choices)}")
     _names(server["env"], f"{label} env", _ENV)
     _https(server["source"], f"{label} source")
     _read_on(server, "verified", label, "the source was read")
@@ -128,7 +128,7 @@ def _validate_server(server: object, label: str) -> None:
     remote = server["transport"] != "stdio"
     used = _remote_placeholders(server, label) if remote else _stdio_placeholders(server, label)
     if used != declared:
-        raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
+        raise CatalogError("OGK-CATALOG-078", f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
     if "read_only" in server:
         _validate_read_only(server, label)
 
@@ -159,7 +159,7 @@ def _server_settings(server: dict, label: str) -> set[str]:
         or not isinstance(item["name"], str) or not re.fullmatch(r"[a-z][a-z0-9_]*", item["name"])
         for item in settings
     ):
-        raise CatalogError(f"{label}: settings is a list of name and description")
+        raise CatalogError("OGK-CATALOG-079", f"{label}: settings is a list of name and description")
     for item in settings:
         _catalog_line(item["description"], f"{label} setting {item['name']}")
     return {item["name"] for item in settings}
@@ -168,7 +168,7 @@ def _server_settings(server: dict, label: str) -> set[str]:
 def _remote_placeholders(server: dict, label: str) -> set[str]:
     """The setting placeholders of a remote server's url, once it has a url and no command."""
     if set(server) & {"command", "args", "package"} or "url" not in server:
-        raise CatalogError(f"{label}: a remote server has a url and no command")
+        raise CatalogError("OGK-CATALOG-080", f"{label}: a remote server has a url and no command")
     _https(server["url"], f"{label} url", placeholders=True)
     return set(SETTING_NAME.findall(server["url"]))
 
@@ -177,20 +177,20 @@ def _stdio_placeholders(server: dict, label: str) -> set[str]:
     """The setting placeholders of a stdio server's command and args, once its launch, package and arguments are
     checked: no stand-in, no secret written inline."""
     if "url" in server or not {"command", "args", "package"} <= server.keys():
-        raise CatalogError(f"{label}: a stdio server has command, args and package, and no url")
+        raise CatalogError("OGK-CATALOG-081", f"{label}: a stdio server has command, args and package, and no url")
     _catalog_line(server["command"], f"{label} command")
     if not isinstance(server["args"], list) or any(not isinstance(arg, str) or not arg for arg in server["args"]):
-        raise CatalogError(f"{label}: args is a list of text")
+        raise CatalogError("OGK-CATALOG-082", f"{label}: args is a list of text")
     package = server["package"]
     if not isinstance(package, dict) or package.keys() != {"registry", "name"} \
             or package["registry"] not in PACKAGE_REGISTRIES:
-        raise CatalogError(f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
+        raise CatalogError("OGK-CATALOG-083", f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
     _catalog_line(package["name"], f"{label} package name")
     _check_stand_ins([server["command"], *server["args"]], label)
     for arg in server["args"]:
         inline = _INLINE_VALUE.match(arg)
         if inline and SECRET_WORD.search(arg.split("=", 1)[0]) and not SETTING_NAME.fullmatch(inline.group(1)):
-            raise CatalogError(f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
+            raise CatalogError("OGK-CATALOG-084", f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
     return {name for text in [server["command"], *server["args"]] for name in SETTING_NAME.findall(text)}
 
 
@@ -199,7 +199,7 @@ def _read_on(server: dict, field: str, label: str, meaning: str) -> None:
     try:
         validate_day(server[field], f"{label} {field}")
     except CatalogError as error:
-        raise CatalogError(f"{error}; {field} is the date {meaning}") from None
+        raise CatalogError("OGK-CATALOG-085", f"{error}; {field} is the date {meaning}") from None
 
 
 def _check_stand_ins(values: list[str], label: str) -> None:
@@ -207,7 +207,7 @@ def _check_stand_ins(values: list[str], label: str) -> None:
     plan ask for the real value instead."""
     for value in values:
         if _STAND_IN.search(value):
-            raise CatalogError(f"{label}: {value!r} stands in for a value: write placeholders as {{name}} and declare "
+            raise CatalogError("OGK-CATALOG-086", f"{label}: {value!r} stands in for a value: write placeholders as {{name}} and declare "
                                "them in settings, with where to find the value")
 
 
@@ -216,7 +216,7 @@ def _check_forwarded(args: list, env: list, label: str) -> None:
     forwarded = {args[index + 1].split("=", 1)[0] for index, arg in enumerate(args[:-1]) if arg == "-e"}
     missing = [name for name in env if name not in forwarded]
     if missing:
-        raise CatalogError(f"{label}: docker passes only the variables named with -e: add -e {missing[0]} to args")
+        raise CatalogError("OGK-CATALOG-087", f"{label}: docker passes only the variables named with -e: add -e {missing[0]} to args")
 
 
 def _validate_read_only(server: dict, label: str) -> None:
@@ -226,17 +226,17 @@ def _validate_read_only(server: dict, label: str) -> None:
     remote = server["transport"] != "stdio"
     allowed = {"how", "url", "headers"} if remote else {"how", "args", "env"}
     if not isinstance(variant, dict) or "how" not in variant or not variant.keys() <= allowed:
-        raise CatalogError(f"{label}: read_only has how, and {' or '.join(sorted(allowed - {'how'}))} when they select it")
+        raise CatalogError("OGK-CATALOG-088", f"{label}: read_only has how, and {' or '.join(sorted(allowed - {'how'}))} when they select it")
     _catalog_line(variant["how"], f"{label} read_only how")
     if "url" in variant:
         _https(variant["url"], f"{label} read_only url", placeholders=True)
         if set(SETTING_NAME.findall(variant["url"])) != set(SETTING_NAME.findall(server["url"])):
-            raise CatalogError(f"{label}: read_only url uses the same settings as url")
+            raise CatalogError("OGK-CATALOG-089", f"{label}: read_only url uses the same settings as url")
     headers = variant.get("headers", {})
     if not isinstance(headers, dict) or any(
             not isinstance(value, str) or name.casefold() in ("authorization", "cookie") or SECRET_WORD.search(name)
             or SECRET_WORD.search(value) for name, value in headers.items()):
-        raise CatalogError(f"{label}: read_only headers are plain names and values, never a credential")
+        raise CatalogError("OGK-CATALOG-090", f"{label}: read_only headers are plain names and values, never a credential")
     if "args" in variant:
         _read_only_args(server, variant["args"], label)
     if "env" in variant:
@@ -247,7 +247,7 @@ def _read_only_args(server: dict, args: object, label: str) -> None:
     """The args that select a read-only mode: text, with the same settings as the server's args."""
     if not isinstance(args, list) or any(not isinstance(arg, str) or not arg for arg in args) \
             or set(SETTING_NAME.findall(" ".join(args))) != set(SETTING_NAME.findall(" ".join(server["args"]))):
-        raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
+        raise CatalogError("OGK-CATALOG-091", f"{label}: read_only args is a list of text with the same settings as args")
     _check_stand_ins(args, f"{label} read_only")
     if server["command"] == "docker":
         _check_forwarded(args, server["env"], f"{label} read_only")
@@ -259,7 +259,7 @@ def _read_only_env(server: dict, env: object, label: str) -> None:
             not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or SECRET_WORD.search(name)
             or not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(value)
             for name, value in env.items()):
-        raise CatalogError(f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
+        raise CatalogError("OGK-CATALOG-092", f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
 
 
 def _tool_api_and_detect(tool: dict, label: str) -> None:
@@ -267,7 +267,7 @@ def _tool_api_and_detect(tool: dict, label: str) -> None:
     if "api" in tool:
         api = tool["api"]
         if not isinstance(api, dict) or api.keys() != {"kind", "docs"} or api["kind"] not in API_KINDS:
-            raise CatalogError(f"{label}: api has a kind ({', '.join(API_KINDS)}) and docs")
+            raise CatalogError("OGK-CATALOG-093", f"{label}: api has a kind ({', '.join(API_KINDS)}) and docs")
         _https(api["docs"], f"{label} api docs")
     if "detect" in tool:
         detect = tool["detect"]
@@ -275,37 +275,37 @@ def _tool_api_and_detect(tool: dict, label: str) -> None:
             not isinstance(values, list) or not values or any(not isinstance(item, str) or not item for item in values)
             for values in detect.values()
         ):
-            raise CatalogError(f"{label}: detect lists files, npm or pypi names")
+            raise CatalogError("OGK-CATALOG-094", f"{label}: detect lists files, npm or pypi names")
         for pattern in detect.get("files", []):
             if pattern.startswith(("/", "~")) or ".." in Path(pattern).parts or "**" in pattern:
-                raise CatalogError(f"{label}: detect files are paths inside the project, without ..")
+                raise CatalogError("OGK-CATALOG-095", f"{label}: detect files are paths inside the project, without ..")
 
 
 def _validate_tool(tool: object, label: str) -> None:
     if not isinstance(tool, dict) or not TOOL_FIELDS <= tool.keys() <= TOOL_FIELDS | TOOL_OPTIONAL:
-        raise CatalogError(f"{label}: a tool needs {', '.join(sorted(TOOL_FIELDS))}")
+        raise CatalogError("OGK-CATALOG-096", f"{label}: a tool needs {', '.join(sorted(TOOL_FIELDS))}")
     if not isinstance(tool["id"], str) or not TOOL_ID.fullmatch(tool["id"]):
-        raise CatalogError(f"{label}: use a lowercase id with hyphens")
+        raise CatalogError("OGK-CATALOG-097", f"{label}: use a lowercase id with hyphens")
     label = f"{label}/{tool['id']}"
     for field in ("title", "vendor", "summary"):
         _catalog_line(tool[field], f"{label} {field}")
     _https(tool["homepage"], f"{label} homepage")
     if not tool["brains"]:
-        raise CatalogError(f"{label}: name at least one brain")
+        raise CatalogError("OGK-CATALOG-098", f"{label}: name at least one brain")
     _names(tool["brains"], f"{label} brains", TOOL_ID)
     if "aliases" in tool and (not isinstance(tool["aliases"], list) or any(
             not isinstance(alias, str) or not alias.strip() for alias in tool["aliases"])):
-        raise CatalogError(f"{label}: aliases is a list of names")
+        raise CatalogError("OGK-CATALOG-099", f"{label}: aliases is a list of names")
     if "notes" in tool:
         _catalog_line(tool["notes"], f"{label} notes")
     _tool_api_and_detect(tool, label)
     if not isinstance(tool["servers"], list):
-        raise CatalogError(f"{label}: servers is a list, empty when the tool has no MCP server")
+        raise CatalogError("OGK-CATALOG-100", f"{label}: servers is a list, empty when the tool has no MCP server")
     seen = set()
     for server in tool["servers"]:
         _validate_server(server, label)
         if server["id"] in seen:
-            raise CatalogError(f"{label}: server {server['id']} is listed twice")
+            raise CatalogError("OGK-CATALOG-101", f"{label}: server {server['id']} is listed twice")
         seen.add(server["id"])
 
 
@@ -329,7 +329,7 @@ def _check_project_names(tool: dict, bundled: dict[str, str], tools: dict) -> No
     for name in tool_names(tool):
         taken = bundled.get(tool_key(name))
         if taken is not None:
-            raise CatalogError(
+            raise CatalogError("OGK-CATALOG-102",
                 f"tool {tool['id']}: the name {name!r} is the bundled tool {taken} ({tools[taken]['title']}). "
                 "A tool of the project catalog takes a name of its own, so that typing a bundled tool's name never "
                 "selects it. Rename the project tool and update the profile, or remove the project definition "
@@ -341,22 +341,22 @@ def _load_tool_file(path: Path, record: object, from_project: bool, tools: dict,
     """Add the tools of one category file to tools, refusing a tool defined twice, a server with two endpoints, and
     a project tool that takes a bundled tool's name."""
     if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
-        raise CatalogError("a tool file has id, title and tools")
+        raise CatalogError("OGK-CATALOG-103", "a tool file has id, title and tools")
     if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
-        raise CatalogError(f"name the file after its category: {', '.join(CATEGORIES)}")
+        raise CatalogError("OGK-CATALOG-104", f"name the file after its category: {', '.join(CATEGORIES)}")
     _catalog_line(record["title"], "title")
     if not isinstance(record["tools"], list):
-        raise CatalogError("tools must be a list")
+        raise CatalogError("OGK-CATALOG-105", "tools must be a list")
     for tool in record["tools"]:
         _validate_tool(tool, record["id"])
         if from_project:
             _check_project_names(tool, bundled, tools)
         if tool["id"] in tools:
-            raise CatalogError(f"tool {tool['id']} is already defined")
+            raise CatalogError("OGK-CATALOG-106", f"tool {tool['id']} is already defined")
         for server in tool["servers"]:
             known = endpoints.setdefault(server["id"], _endpoint(server))
             if known != _endpoint(server):
-                raise CatalogError(f"server {server['id']} has two different endpoints")
+                raise CatalogError("OGK-CATALOG-107", f"server {server['id']} has two different endpoints")
         tools[tool["id"]] = {**tool, "category": record["id"], **({"origin": PROJECT_ORIGIN} if from_project else {})}
 
 
@@ -376,7 +376,7 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
             try:
                 _load_tool_file(path, record, bool(from_project), tools, endpoints, bundled)
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-CATALOG-108", f"{path}: {error}") from error
     return dict(sorted(tools.items()))
 
 
@@ -384,7 +384,7 @@ def check_tool_links(tools: dict, boards: dict) -> None:
     for tool in tools.values():
         unknown = [brain for brain in tool["brains"] if brain not in boards]
         if unknown:
-            raise CatalogError(f"tool {tool['id']} names unknown brains: {', '.join(unknown)}")
+            raise CatalogError("OGK-CATALOG-109", f"tool {tool['id']} names unknown brains: {', '.join(unknown)}")
 
 
 def tool_key(text: str) -> str:

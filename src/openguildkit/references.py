@@ -56,15 +56,15 @@ def _validate_links(record: dict, record_id: str) -> None:
         validate_list(aliases, f"{record_id}.aliases")
         for alias in aliases:
             if not isinstance(alias, str) or not LEGACY_ID.fullmatch(alias) or alias == record_id:
-                raise CatalogError(f"{record_id}.aliases must list former IDs other than the current one")
+                raise CatalogError("OGK-DOCS-006", f"{record_id}.aliases must list former IDs other than the current one")
         if len(set(aliases)) != len(aliases):
-            raise CatalogError(f"{record_id}.aliases contains duplicates")
+            raise CatalogError("OGK-DOCS-007", f"{record_id}.aliases contains duplicates")
     if "brains" in record:
         validate_list(record["brains"], f"{record_id}.brains")
         for board_id in record["brains"]:
             validate_id(board_id, f"{record_id}.brains entry")
         if len(set(record["brains"])) != len(record["brains"]):
-            raise CatalogError(f"{record_id}.brains contains duplicates")
+            raise CatalogError("OGK-DOCS-008", f"{record_id}.brains contains duplicates")
     if "pattern" in record:
         validate_id(record["pattern"], f"{record_id}.pattern")
     if "packs" in record:
@@ -72,28 +72,28 @@ def _validate_links(record: dict, record_id: str) -> None:
         for pack_id in record["packs"]:
             validate_id(pack_id, f"{record_id}.packs entry")
         if len(set(record["packs"])) != len(record["packs"]):
-            raise CatalogError(f"{record_id}.packs contains duplicates")
+            raise CatalogError("OGK-DOCS-009", f"{record_id}.packs contains duplicates")
 
 
 def _validate_family(family, filename: str, bundled: bool = False) -> None:
     validate_fields(family, "family", {"id", "title", "references"})
     validate_id(family["id"], "family ID")
     if filename != f"{family['id']}.json":
-        raise CatalogError(f"Expected the family file to be named {family['id']}.json")
+        raise CatalogError("OGK-DOCS-010", f"Expected the family file to be named {family['id']}.json")
     validate_text(family["title"], "family title")
     validate_list(family["references"], "references")
     for record in family["references"]:
         validate_fields(record, "reference", {"id", "sources", *TEXT_FIELDS}, {*LINK_FIELDS, *OPTIONAL_TEXT_FIELDS})
         record_id = record["id"]
         if not isinstance(record_id, str) or not ID_PATTERN.fullmatch(record_id):
-            raise CatalogError(
+            raise CatalogError("OGK-DOCS-011",
                 f"Invalid reference ID: {record_id!r}. Use lowercase letters, digits and hyphens, "
                 "and keep a former ID in aliases."
             )
         for field in (*TEXT_FIELDS, *(name for name in OPTIONAL_TEXT_FIELDS if name in record)):
             validate_text(record[field], f"{record_id}.{field}")
         if record["kind"] not in KINDS:
-            raise CatalogError(f"{record_id}.kind must be one of: {', '.join(KINDS)}")
+            raise CatalogError("OGK-DOCS-012", f"{record_id}.kind must be one of: {', '.join(KINDS)}")
         _validate_links(record, record_id)
         validate_list(record["sources"], f"{record_id}.sources")
         validate_sources(record["sources"], require_checked=bundled)
@@ -106,11 +106,11 @@ def _merge_family(incoming: dict, families: dict, seen: set, project: set | None
         incoming["id"], {"id": incoming["id"], "title": incoming["title"], "references": []}
     )
     if incoming["title"] != family["title"]:
-        raise CatalogError(f"Expected family title {family['title']!r}")
+        raise CatalogError("OGK-DOCS-013", f"Expected family title {family['title']!r}")
     for reference in incoming["references"]:
         for name in (reference["id"], *reference.get("aliases", ())):
             if name in seen:
-                raise CatalogError(f"Duplicate reference ID: {name}")
+                raise CatalogError("OGK-DOCS-014", f"Duplicate reference ID: {name}")
             seen.add(name)
         family["references"].append(reference)
         if project is not None:
@@ -129,15 +129,15 @@ def load_references(extra_dir: Path | None = None, catalog: Catalog | None = Non
     project: set[str] = set()
     for directory in directories:
         if not directory.is_dir():
-            raise CatalogError(f"{directory} must be a directory")
+            raise CatalogError("OGK-DOCS-015", f"{directory} must be a directory")
         for path, incoming in record_files(directory):
             try:
                 _validate_family(incoming, path.name, directory == bundled)
                 _merge_family(incoming, families, seen, project if directory != bundled else None)
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-DOCS-016", f"{path}: {error}") from error
         if directory == bundled and not families:
-            raise CatalogError(f"{bundled} has no bundled reference families")
+            raise CatalogError("OGK-DOCS-017", f"{bundled} has no bundled reference families")
     families = dict(sorted(families.items()))
     if catalog is not None:
         check_reference_links(families, catalog, only=project)
@@ -176,19 +176,19 @@ def check_reference_links(families: dict, catalog: Catalog, only: set[str] | Non
             ("brains", sorted(set(record.get("brains", [])) - catalog["boards"].keys())),
             ("packs", sorted(set(record.get("packs", [])) - catalog["packs"].keys()))) if names]
         if unknown:
-            raise CatalogError(f"Reference {record_id!r} names {' and '.join(unknown)}")
+            raise CatalogError("OGK-DOCS-018", f"Reference {record_id!r} names {' and '.join(unknown)}")
         pattern_id = record.get("pattern")
         if pattern_id is not None and record_id not in catalog["patterns"].get(pattern_id, {}).get("references", []):
-            raise CatalogError(f"Pattern {pattern_id!r} must list reference {record_id!r} in references")
+            raise CatalogError("OGK-DOCS-019", f"Pattern {pattern_id!r} must list reference {record_id!r} in references")
     if only is not None:
         return
     for pattern_id, pattern in catalog["patterns"].items():
         for reference_id in pattern.get("references", []):
             record = records.get(reference_id)
             if record is None:
-                raise CatalogError(f"Pattern {pattern_id!r} names unknown reference {reference_id!r}")
+                raise CatalogError("OGK-DOCS-020", f"Pattern {pattern_id!r} names unknown reference {reference_id!r}")
             if record.get("pattern") != pattern_id and not set(record.get("packs", [])) & _active_packs(pattern["packs"], catalog["packs"]):
-                raise CatalogError(f"Reference {reference_id!r} names neither pattern {pattern_id!r} nor one of its packs")
+                raise CatalogError("OGK-DOCS-021", f"Reference {reference_id!r} names neither pattern {pattern_id!r} nor one of its packs")
 
 
 def _with_status(record: dict) -> dict:
@@ -207,7 +207,7 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
     Every entry gets a status: applied when packs turn it into rules, documentary otherwise.
     """
     if PATTERN_FAMILY in families:
-        raise CatalogError("The work-patterns family is generated from the pattern catalog")
+        raise CatalogError("OGK-DOCS-022", "The work-patterns family is generated from the pattern catalog")
     roles = role_choices(patterns)
     names = {
         name
@@ -222,16 +222,16 @@ def with_pattern_references(families: dict, patterns: dict) -> dict:
             if pattern_id is None:
                 continue
             if pattern_id not in patterns:
-                raise CatalogError(f"Reference {reference['id']!r} presents unknown pattern {pattern_id!r}")
+                raise CatalogError("OGK-DOCS-023", f"Reference {reference['id']!r} presents unknown pattern {pattern_id!r}")
             if pattern_id in presented:
-                raise CatalogError(f"Pattern {pattern_id!r} is presented by {presented[pattern_id]!r} and {reference['id']!r}")
+                raise CatalogError("OGK-DOCS-024", f"Pattern {pattern_id!r} is presented by {presented[pattern_id]!r} and {reference['id']!r}")
             presented[pattern_id] = reference["id"]
     records = []
     for pattern in patterns.values():
         pattern_id = pattern["id"]
         reference_id = f"pattern-{pattern_id}"
         if reference_id in names:
-            raise CatalogError(f"Reference ID {reference_id!r} is already used by a pattern")
+            raise CatalogError("OGK-DOCS-025", f"Reference ID {reference_id!r} is already used by a pattern")
         if pattern_id in presented:
             continue
         records.append(

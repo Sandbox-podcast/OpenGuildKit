@@ -33,6 +33,7 @@ class FeatureCatalogTests(unittest.TestCase):
             self.assertTrue(set(tools) <= self.tools.keys(), feature["id"])
 
     def test_a_feature_names_exactly_three_distinct_alternatives_of_the_registry(self):
+        # OGK-FEATURE-005, OGK-FEATURE-009, OGK-FEATURE-010
         record = {"id": "chat", "purpose": "Chat", "lead": {"tool": "slack"},
                   "alternatives": [{"tool": "discord"}, {"tool": "mattermost"}]}
         with self.assertRaisesRegex(CatalogError, "exactly 3 alternatives"):

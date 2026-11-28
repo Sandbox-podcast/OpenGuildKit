@@ -41,7 +41,7 @@ def _template(node: ast.expr) -> str:
 
 
 # The classes whose first argument is the code: OgkError and the errors of one area that derive from it.
-CODED = ("OgkError", "NestedTooDeeply", "ExcludedPath", "SignerNotCurrent", "InvalidProfile", "Weakening", "EntryProblems", "RuleError", "TaskStateError")
+CODED = ("OgkError", "NestedTooDeeply", "ExcludedPath", "SignerNotCurrent", "InvalidProfile", "Weakening", "EntryProblems", "RuleError", "TaskStateError", "CatalogError")
 
 
 def raise_sites(root: Path) -> list[dict]:
@@ -114,8 +114,13 @@ Under `--json`, an error is JSON on standard output too, with the same exit code
 
 
 def page_text(entries: list[dict]) -> str:
-    rows = "".join(f"| `{entry['code']}` | `{entry['module'].rsplit('/', 1)[-1]}:{entry['function']}` |\n"
-                   for entry in entries)
+    by_module: dict[str, dict[str, list[str]]] = {}
+    for entry in entries:
+        functions = by_module.setdefault(entry["module"].rsplit("/", 1)[-1], {})
+        functions.setdefault(str(entry["function"]), []).append(entry["code"])
+    rows = "".join(f"\n### {module}\n\n" + "".join(f"- `{function}`: {', '.join(codes)}\n"
+                                                  for function, codes in sorted(functions.items()))
+                   for module, functions in sorted(by_module.items()))
     return ("# Error codes\n\n"
             "For: a person or an agent that reads an error of the CLI and looks for where it comes from.\n\n"
             "An error that carries a code starts with it: `OpenGuildKit [OGK-TASK-004]: Task already exists: x`, and "
@@ -124,8 +129,8 @@ def page_text(entries: list[dict]) -> str:
             "sentence. `python scripts/build_errors.py` writes this page and [`agents/errors.json`](agents/errors.json) "
             "from the code; the other errors still print `OpenGuildKit: message`.\n"
             "The register holds the message of each code as the code writes it and the tests that cite it: "
-            "`grep -n OGK-TASK-004 docs/agents/errors.json`. This page keeps the code and where it is raised.\n\n"
-            "| Code | Raised by |\n|---|---|\n" + rows + JSON_OUTPUT)
+            "`grep -n OGK-TASK-004 docs/agents/errors.json`. This page lists the codes by module and function.\n\n"
+            "## Codes by module\n" + rows + JSON_OUTPUT)
 
 
 def main(argv: list[str] | None = None) -> int:

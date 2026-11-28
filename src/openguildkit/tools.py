@@ -79,7 +79,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
             try:
                 mock = validate_mock(load_json(path), tool_id)
             except ValueError as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-TOOLS-020", f"{path}: {error}") from error
             scenario = read_scenario(extra_dir)
             if scenario and tool_id in scenario["records"]:
                 label = f"{(extra_dir / SCENARIO).as_posix()} ({tool_id})"

@@ -42,7 +42,7 @@ CODED = ("tasks.py", "tasks_cli.py")
 # page. The count may go down, never up (#487); a broken invariant of the code raises errors.InternalError instead.
 PERSON_ERRORS = ("ValueError", "CatalogError", "TaskStateError", "Refused", "RuleError", "SignerNotCurrent",
                  "InvalidProfile", "EntryProblems", "Weakening", "ExcludedPath", "NestedTooDeeply")
-UNCODED_CEILING = 354
+UNCODED_CEILING = 213
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -422,7 +422,7 @@ class RegistryErrorTests(CodedRefusals):
                     return lock._validated_lock(path)
                 return read
 
-            with patch("openguildkit.lock.validate_dependencies", side_effect=CatalogError("loop")):
+            with patch("openguildkit.lock.validate_dependencies", side_effect=CatalogError("OGK-CATALOG-056", "loop")):
                 self.assertCodes([("OGK-CORE-020", lambda: lock.apply_lock(catalog, {"records": {"packs": {}}}))])
             self.assertCodes([
                 ("OGK-CORE-015", locked({}, version=2)),

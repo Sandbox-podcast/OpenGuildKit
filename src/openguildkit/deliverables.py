@@ -76,29 +76,29 @@ def _validate(record: dict, catalog: Catalog, bundled: bool = False) -> None:
     validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool", "decision"})
     for flag in ("market", "requires_tool", "decision"):
         if flag in record and not isinstance(record[flag], bool):
-            raise CatalogError(f"{flag} must be true or false")
+            raise CatalogError("OGK-RESULT-036", f"{flag} must be true or false")
     validate_id(record["id"], "id")
     for field in ("title", "description"):
         validate_text(record[field], field)
     validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
-        raise CatalogError(f"Unknown method pattern {record['method']!r}")
+        raise CatalogError("OGK-RESULT-037", f"Unknown method pattern {record['method']!r}")
     validate_list(record["brains"], "brains")
     unknown = sorted(set(record["brains"]) - catalog["boards"].keys())
     if unknown:
-        raise CatalogError(f"Unknown brains: {', '.join(unknown)}")
+        raise CatalogError("OGK-RESULT-038", f"Unknown brains: {', '.join(unknown)}")
     validate_list(record["inputs"], "inputs")
     for item in record["inputs"]:
         validate_fields(item, "input", {"id", "label", "data"})
         validate_id(item["id"], "input id")
         validate_text(item["label"], "input label")
         if item["data"] not in DATA_CLASSES:
-            raise CatalogError(f"input data must be one of {', '.join(DATA_CLASSES)}")
+            raise CatalogError("OGK-RESULT-039", f"input data must be one of {', '.join(DATA_CLASSES)}")
     validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
     for item in record["tool_actions"]:
         validate_fields(item, "tool action", {"action", "description"})
         if item["action"] not in ACTIONS:
-            raise CatalogError(f"tool action must be one of {', '.join(ACTIONS)}")
+            raise CatalogError("OGK-RESULT-040", f"tool action must be one of {', '.join(ACTIONS)}")
         validate_text(item["description"], "tool action description")
     for field in ("sections", "checks"):
         validate_list(record[field], field)
@@ -120,9 +120,9 @@ def load_deliverables(catalog: Catalog, extra_dir: Path | None = None) -> dict[s
             try:
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
-                    raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
+                    raise CatalogError("OGK-RESULT-041", f"name the file {record['id']}.json and keep IDs unique")
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-RESULT-042", f"{path}: {error}") from error
             found[record["id"]] = record
     return dict(sorted(found.items()))
 
