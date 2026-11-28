@@ -282,18 +282,26 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### org_catalog.py
 
+- `_contents`: OGK-ORG-014
+- `_listed_files`: OGK-ORG-013
 - `_named_folder`: OGK-ORG-002
 - `organization_in`: OGK-ORG-006
 - `parse_copies`: OGK-ORG-001
 - `read_files`: OGK-ORG-003, OGK-ORG-004, OGK-ORG-005
+- `refuse`: OGK-ORG-015
+- `validate_history`: OGK-ORG-016
 
 ### org_catalog_cli.py
 
-- `_set`: OGK-ORG-007
+- `_accept`: OGK-ORG-019, OGK-ORG-020
+- `_person`: OGK-ORG-017
+- `_set`: OGK-ORG-007, OGK-ORG-018
 - `_write_pinned`: OGK-ORG-008
 
 ### org_policy.py
 
+- `given`: OGK-ORG-022
+- `parse`: OGK-ORG-021
 - `refuse`: OGK-ORG-009
 - `refuse_lowering`: OGK-ORG-010
 
@@ -369,11 +377,13 @@ The register holds the message of each code as the code writes it and the tests 
 
 - `_read_instructions`: OGK-PROJECT-031, OGK-PROJECT-032
 - `check_instructions`: OGK-PROJECT-076, OGK-PROJECT-077
-- `merged_instructions`: OGK-PROJECT-029, OGK-PROJECT-030
+- `initialize`: OGK-PROJECT-079
+- `merged_instructions`: OGK-PROJECT-029, OGK-PROJECT-030, OGK-PROJECT-078
 
 ### project_mcp.py
 
 - `_check_path`: OGK-PROJECT-033
+- `_project`: OGK-PROJECT-080
 
 ### project_rules.py
 
@@ -382,12 +392,13 @@ The register holds the message of each code as the code writes it and the tests 
 ### project_setup.py
 
 - `_norm_answers`: OGK-PROJECT-034, OGK-PROJECT-035, OGK-PROJECT-036, OGK-PROJECT-037
+- `complete_answers`: OGK-PROJECT-081
 - `setup_profile`: OGK-PROJECT-038, OGK-PROJECT-039
 
 ### projects_cli.py
 
-- `read_policy`: OGK-PROJECT-042, OGK-PROJECT-043, OGK-PROJECT-044
-- `run`: OGK-PROJECT-040, OGK-PROJECT-041
+- `read_policy`: OGK-PROJECT-042, OGK-PROJECT-043, OGK-PROJECT-044, OGK-PROJECT-084, OGK-PROJECT-085
+- `run`: OGK-PROJECT-040, OGK-PROJECT-041, OGK-PROJECT-082
 
 ### prompts.py
 

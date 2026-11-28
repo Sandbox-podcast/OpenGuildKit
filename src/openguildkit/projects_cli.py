@@ -29,7 +29,7 @@ from .check_cli import check_status
 from .cli import command_parser
 from .command import Command
 from .decisions import exported_records
-from .errors import OgkError
+from .errors import InternalError, OgkError
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
 from .project import STATE_DIR, load_profile
@@ -85,7 +85,7 @@ def run(command: Command) -> int:
     result = {"projects": rows}
     if args.search is not None:
         if not args.search.strip():
-            raise ValueError("--search needs some text to find.")
+            raise OgkError("OGK-PROJECT-082", "--search needs some text to find.")
         result["matches"] = [match for folder in folders for match in _matches(folder, args.search)]
     if args.format == "csv":
         _print_csv(rows)
@@ -107,8 +107,8 @@ def read_policy(path: Path) -> dict:
         policy = read_json(path)
     except (OSError, ValueError) as error:
         raise OgkError("OGK-PROJECT-042", f"The policy file cannot be read: {error}") from None
-    if not isinstance(policy, dict):
-        raise ValueError(f"The policy file {path.name} must hold a JSON object.")
+    if not isinstance(policy, dict):  # read_json already refuses anything but an object (OGK-PROJECT-042).
+        raise InternalError(f"The policy file {path.name} must hold a JSON object.")
     unknown = sorted(str(name) for name in policy if name not in POLICY_FIELDS)
     if unknown:
         raise OgkError("OGK-PROJECT-043", f"The policy file {path.name} names {', '.join(unknown)}: a policy holds "
@@ -116,9 +116,9 @@ def read_policy(path: Path) -> dict:
     if "guard" in policy and policy["guard"] not in GUARD_RANK:
         raise OgkError("OGK-PROJECT-044", f"The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}.")
     if "approvals" in policy and policy["approvals"] != "signed":
-        raise ValueError('The approvals of the policy must be "signed".')
+        raise OgkError("OGK-PROJECT-084", 'The approvals of the policy must be "signed".')
     if "separate_requester" in policy and policy["separate_requester"] is not True:
-        raise ValueError("separate_requester in the policy must be true.")
+        raise OgkError("OGK-PROJECT-085", "separate_requester in the policy must be true.")
     return policy
 
 

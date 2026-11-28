@@ -251,7 +251,7 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"
     if any(_MARKER_LINE.fullmatch(line.strip()) for line in generated.splitlines()):
-        raise ValueError("Project instructions contain a reserved OpenGuildKit marker.")
+        raise OgkError("OGK-PROJECT-078", "Project instructions contain a reserved OpenGuildKit marker.")
     matches, open_fence = _scan_markers(current)
     block = newline.join([BEGIN, generated.replace("\n", newline), END])
     if not matches:
@@ -374,7 +374,7 @@ def sync_instructions(root: Path, profile: Profile, catalog: Catalog) -> list[st
 def initialize(root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     path = state / "project.json"
     if path.exists():
-        raise ValueError(ALREADY_INITIALIZED)
+        raise OgkError("OGK-PROJECT-079", ALREADY_INITIALIZED)
     sync_instructions(root, profile, catalog)
     write_json(path, profile)
 
