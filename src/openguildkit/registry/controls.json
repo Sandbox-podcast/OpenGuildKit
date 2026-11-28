@@ -20,7 +20,7 @@
       "code": [
         {
           "file": "src/openguildkit/tasks_cli.py",
-          "symbol": "_decide",
+          "symbol": "run_decide",
           "line": 634
         },
         {

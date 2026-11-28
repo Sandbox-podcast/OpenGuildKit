@@ -433,7 +433,7 @@ ACTION_OPTIONS = {
 
 
 @contextmanager
-def _input_file(path: Path):
+def input_file(path: Path):
     """Name the file a refusal comes from, so the person knows which file to correct. A refusal of the task's status
     is not the file's: it goes on as it is."""
     try:
@@ -444,7 +444,7 @@ def _input_file(path: Path):
         raise ValueError(f"{path.as_posix()}: {error}") from error
 
 
-def _show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str, closing: bool = False) -> None:
+def show_exported(root: Path, state: Path, profile: dict, catalog: dict, task_id: str, closing: bool = False) -> None:
     """Show a task known here only by its exported record, with whether that record still holds."""
     row = next(item for item in exported_decisions(root, state, profile, Fingerprints(profile, catalog))
                if item["path"].endswith(f"/{task_id}.json"))
@@ -510,7 +510,7 @@ def sharing_issues(root: Path, state: Path, records: list[dict], tasks: dict | N
                 cited[path.stem] = cited_evidence(read_task(state, path.stem))
             except ValueError:
                 continue
-    return issues + _unshared_evidence(root, cited)
+    return issues + unshared_evidence(root, cited)
 
 
 def _id_clashes(root: Path, state: Path, tasks: dict | None = None) -> dict[str, str]:
@@ -541,7 +541,7 @@ def _clash_message(task_id: str, path: str) -> str:
             f"NEW-ID (see {doc_link('docs/workflow.md', 'when-two-copies-use-the-same-task-id')}).")
 
 
-def _unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
+def unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
     """Evidence a reviewer cannot open from the repository: ignored by git or kept under .openguildkit/tasks/."""
     issues = []
     ignored = ignored_by_git(root, sorted({path for paths in cited.values() for path in paths}))
@@ -595,7 +595,7 @@ def _read_consultation(task: dict) -> dict:
     return task["consultation"]
 
 
-def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The person withdraws an approval at their terminal, as they gave it: never an agent."""
     result = revoke_approval(task, args.by, args.reason)
     refusal = ("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own terminal, "
@@ -631,7 +631,7 @@ def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> 
             *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]
 
 
-def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
     if args.approve and (lane := light_lane.lane_problem(task, profile)):
@@ -964,12 +964,12 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     return 1 if args.action == "verify" and failed else 0
 
 
-def _warn_inputs(original: object, recorded: object, label: str) -> None:
+def warn_inputs(original: object, recorded: object, label: str) -> None:
     for warning in input_warnings(original, recorded, label):
         print(warning, file=sys.stderr)
 
 
-def _questions(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_questions(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
     if light_lane.is_light(task):
         raise ValueError(light_lane.no_questions_message(args.id))
@@ -978,7 +978,7 @@ def _questions(args, root: Path, state: Path, profile: dict, catalog: dict, task
         answers, validated, open_list = {}, None, []
     else:
         answers = read_json(args.answers)
-        with _input_file(args.answers):
+        with input_file(args.answers):
             validated = validate_answers(answers)
         open_list = open_points(task["brief"], validated)
     questions = task_questions(task["brief"], validated)
@@ -998,7 +998,7 @@ def _questions(args, root: Path, state: Path, profile: dict, catalog: dict, task
     })
 
 
-def _brief(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_brief(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The saved consultation, a board's pass, the whole scope or the rules of one pack."""
     consultation = _read_consultation(task)
     if args.scope:
@@ -1012,12 +1012,12 @@ def _brief(args, root: Path, state: Path, profile: dict, catalog: dict, task: di
         print(consultation["markdown"])
 
 
-def _template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The review template as JSON."""
     print_json(_read_consultation(task)["review_template"])
 
 
-def _blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The review's blockers and how each was resolved."""
     items = blocker_list(task)
     for item in items:
@@ -1056,7 +1056,7 @@ EVIDENCE_WORDS = {"unchanged": "fingerprint: unchanged since it was cleared",
                   "no fingerprint": "no fingerprint: cleared before OpenGuildKit recorded one"}
 
 
-def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The person clears a blocker with evidence, or waives it within the project's policy."""
     action = args.action
     require_approval(task, profile, catalog, root)
@@ -1094,7 +1094,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     print(details["kind"])
 
 
-def _checks(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_checks(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The checks the approved task must report, and their outcomes so far."""
     if task["status"] not in ("approved", *DONE_STATUSES):
         raise TaskStateError("Checks belong to an approved task.")
@@ -1107,7 +1107,7 @@ def _checks(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         _print_checks(checks, reported, task["id"])
 
 
-def _result_template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_result_template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """A result file to fill in."""
     if task["status"] != "approved":
         raise TaskStateError("Results belong to an approved task that is not done yet.")
@@ -1118,7 +1118,7 @@ def _result_template(args, root: Path, state: Path, profile: dict, catalog: dict
         print(decision_revision_message(changed), file=sys.stderr)
 
 
-def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Run the checks, record a result file, or close the task; then what is left before it is done."""
     action = args.action
     if task["status"] != "approved":
@@ -1156,15 +1156,15 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         if action == "verify":
             result = record_result(current_task, profile, payload, "verify", relevance, root)
         elif action == "result":
-            with _input_file(args.file):
+            with input_file(args.file):
                 reported = read_json(args.file)
                 result = record_result(current_task, profile, reported, "report", relevance, root, changed=changed)
-            _warn_inputs(reported, redact_data(reported), "task result")
+            warn_inputs(reported, redact_data(reported), "task result")
         else:
             result = closing
         held = result.pop("_held", [])
         write_task(task_path(state, args.id), result)
-    for warning in _unshared_evidence(root, {args.id: cited_evidence(result)}):
+    for warning in unshared_evidence(root, {args.id: cited_evidence(result)}):
         print(f"OpenGuildKit: {warning}", file=sys.stderr)
     if action == "complete":
         _print_closing(result, listed=bool(args.by))
@@ -1205,14 +1205,14 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 
-def _alerts(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_alerts(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The task's dependency alerts: import, link and review them."""
     from .alerts_cli import task_command  # Not imported by the other task commands (#539).
 
     task_command(args, state, task)
 
 
-def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The scenarios whose outcome changed between the last two ChaosFolk replays."""
     comparison = compare_runs(task)
     if comparison is None:
@@ -1226,7 +1226,7 @@ def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
         print(f"{plural(len(comparison['unchanged']), 'scenario')} unchanged")
 
 
-def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Write the shareable decision record, or the withdrawal of its approval into it."""
     if task["status"] not in ("approved", *DONE_STATUSES):
         path = export_withdrawal(root, state, task, args.output).resolve()
@@ -1250,7 +1250,7 @@ def _export(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
-def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The objections between boards and the response template; without objection, that there is nothing to answer."""
     request = deliberation_request(task)
     print_json(request)
@@ -1258,14 +1258,14 @@ def _deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, tas
         print(f"OpenGuildKit: {nothing_to_deliberate(task['id'])}", file=sys.stderr)
 
 
-def _respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Record the boards' answers to each other's objections."""
     payload = read_json(args.file)
     with project_lock(state):
         current_task = read_task(state, args.id)
         if current_task != task:
             raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
-        with _input_file(args.file):
+        with input_file(args.file):
             result = record_deliberation(current_task, payload)
         write_task(task_path(state, args.id), result)
     deliberation = result["deliberation"]
@@ -1273,7 +1273,7 @@ def _respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     print(RESOLUTION_RULE, file=sys.stderr)
 
 
-def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The decision brief and each board's challenge."""
     recall = previous_round_line(task)
     if recall:
@@ -1283,7 +1283,7 @@ def _challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task
     print(challenge_report(task, lines, root), end="")
 
 
-def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Preview the boards a consultation would select, and why."""
     if light_lane.is_light(task):
         raise ValueError(light_lane.no_route_message(args.id))
@@ -1291,7 +1291,7 @@ def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: di
         raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
     if args.answers:
-        with _input_file(args.answers):
+        with input_file(args.answers):
             answers = validate_answers(read_json(args.answers))
             require_concerns(answers)
     else:
@@ -1306,7 +1306,7 @@ def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: di
         _print_route(state, task, answers, profile, selected, _selection(args), args.answers)
 
 
-def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Record the answers and prepare the consultation of the boards, under the project lock."""
     # Only a consultation reads the reference library and the Storybook record: the other commands start without.
     from .alerts_cli import consultation_task
@@ -1314,7 +1314,7 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     from .storybook import scope_entry as storybook_scope_entry
 
     if args.brief_file is not None:
-        with _input_file(args.brief_file):
+        with input_file(args.brief_file):
             args.revised_brief = args.brief_file.read_text(encoding="utf-8-sig")
     if light_lane.is_light(task):
         answers = _light_answers(args, task, profile)
@@ -1327,7 +1327,7 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             else _prompt_task_questions(args.revised_brief or task["brief"])
         )
     if args.answers is not None and not args.reuse_answers:
-        with _input_file(args.answers):
+        with input_file(args.answers):
             validate_answers(answers)
             require_concerns(answers)
     else:
@@ -1363,8 +1363,8 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             result["dependency_alerts"] = current_task["dependency_alerts"]
         write_task(task_path(state, args.id), result)
     if args.revised_brief is not None:
-        _warn_inputs(args.revised_brief.strip(), result["brief"], "revised brief")
-    _warn_inputs(answers, redact_data(answers), "task answers")
+        warn_inputs(args.revised_brief.strip(), result["brief"], "revised brief")
+    warn_inputs(answers, redact_data(answers), "task answers")
     print(result["consultation"]["markdown"])
     for line in board_replacements(catalog):
         print(f"OpenGuildKit: {line}", file=sys.stderr)
@@ -1391,7 +1391,7 @@ def _reused_answers(args, task: dict) -> dict:
                          f"consult {task['id']} --answers FILE.")
     answers = dict(task["answers"])
     if args.answers is not None:
-        with _input_file(args.answers):
+        with input_file(args.answers):
             given = read_json(args.answers)
             if not isinstance(given, dict):
                 raise ValueError("Task answers must be a JSON object.")
@@ -1409,7 +1409,7 @@ def _reused_answers(args, task: dict) -> dict:
     return answers
 
 
-def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_review(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Record the completed board reviews."""
     review = read_json(args.file) if args.file else None
     with project_lock(state):
@@ -1417,7 +1417,7 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         if current_task != task:
             raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
         if review is not None:
-            with _input_file(args.file):
+            with input_file(args.file):
                 result = record_review(current_task, review, root)
         else:
             result = assemble_review(current_task, args.summary)
@@ -1433,7 +1433,7 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
           "person.", file=sys.stderr)
 
 
-def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Start one board's pass, or record its entry."""
     action = args.action
     entry = read_json(args.file) if action == "submit" else None
@@ -1444,7 +1444,7 @@ def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
             result = start_pass(current_task, args.board, args.mode or "sequential", args.again)
             submitted = result.pop("_submitted", False)
         else:
-            with _input_file(args.file):
+            with input_file(args.file):
                 result = submit_pass(current_task, entry, args.mode, root)
         error = result.pop("_error", None)
         copied = result.pop("_warnings", [])
@@ -1467,7 +1467,7 @@ def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
         print(passes_left(result), file=sys.stderr)
 
 
-def _progress(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_progress(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Which board passes are done, failed, started or missing."""
     _read_consultation(task)
     progress = pass_progress(task)
@@ -1481,7 +1481,7 @@ def _progress(args, root: Path, state: Path, profile: dict, catalog: dict, task:
                 print(f"    {item['error']}")
 
 
-def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_decision_payload(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The exact decision an approver signs, after the text they read before approving."""
     if task["status"] != "reviewed":
         decided = decided_message(task, approval_problem(task, profile, catalog, root))
@@ -1505,7 +1505,7 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
         print(text, end="")
 
 
-def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """A person allows or refuses an external action outside the authorized scope."""
     refusal = "Allowing an external action requires a person at an interactive terminal."
     if args.allow and not interactive():
@@ -1521,7 +1521,7 @@ def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task
     print(entry["decision"])
 
 
-def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The approved implementation handoff, or the decision record of a decision task."""
     evidence, checks = [], None
     if task.get("status") in ("approved", *DONE_STATUSES):
@@ -1565,7 +1565,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         waits = waiting_for({"after": list(statuses)}, statuses)
         print(f"Waits for {waits_line(waits)}." if waits else f"Its dependencies are done: {', '.join(statuses)}.",
               file=sys.stderr)
-    _warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
+    warn_inputs(brief.strip(), redact_credentials(brief.strip()), "task brief")
     # Standard output keeps only the ID, which scripts read; the next steps go to the agent on stderr, in the README's
     # order, with the folder the working files go in.
     if lane:
@@ -1577,7 +1577,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
           f"then consult the boards with openguildkit task consult {task_id} --answers FILE.", file=sys.stderr)
 
 
-def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def run_list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     """The project's tasks with their status and next open point, or the exported decisions."""
     if args.decisions:
         rows = exported_decisions(root, state, profile, Fingerprints(profile, catalog))
@@ -1662,7 +1662,7 @@ def _closed_facts(state: Path) -> tuple[list[dict], dict]:
     return facts, ignored
 
 
-def _retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
+def run_retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     """The retrospective of one closed task, or with --all of the project: read from the records, never written."""
     if bool(args.id) == args.all:
         raise ValueError("Name the closed task to read, openguildkit task retro ID, or count the whole project with "
@@ -1725,7 +1725,7 @@ def _summary(task: dict, profile: dict) -> str:
     return "\n".join(lines)
 
 
-def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The task record as JSON, only the open points its closing left, or a summary."""
     if args.summary and args.json:
         raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
@@ -1737,12 +1737,13 @@ def _show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
 
 # What runs each action on an existing task. new, list and retro come before the task is read.
 HANDLERS = {
-    "show": _show, "questions": _questions, "brief": _brief, "template": _template, "blockers": _blockers,
-    "clear": _resolve, "waive": _resolve, "checks": _checks, "verify": _outcome, "result": _outcome,
-    "complete": _outcome, "alerts": _alerts, "runs": _runs, "export": _export, "deliberate": _deliberate,
-    "respond": _respond, "challenge": _challenge, "route": _route, "consult": _consult, "review": _review,
-    "pass": _pass, "submit": _pass, "progress": _progress, "decide": _decide, "revoke": _revoke,
-    "decision-payload": _decision_payload, "authorize": _authorize, "handoff": _handoff,
+    "show": run_show, "questions": run_questions, "brief": run_brief, "template": run_template,
+    "blockers": run_blockers, "clear": run_resolve, "waive": run_resolve, "checks": run_checks, "verify": run_outcome,
+    "result": run_outcome, "complete": run_outcome, "alerts": run_alerts, "runs": run_runs, "export": run_export,
+    "deliberate": run_deliberate, "respond": run_respond, "challenge": run_challenge, "route": run_route,
+    "consult": run_consult, "review": run_review, "pass": run_pass, "submit": run_pass, "progress": run_progress,
+    "decide": run_decide, "revoke": run_revoke, "decision-payload": run_decision_payload, "authorize": run_authorize,
+    "handoff": run_handoff,
     "diff-review": lambda args, root, state, profile, catalog, task: delivered_review.run(args, root, state, task),
 }
 # The actions that read an approval: an approval that no longer holds stops them, or is shown with show and checks.
@@ -1764,16 +1765,16 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
     if action == "new":
         return _new(args, root, state, profile, catalog)
     if action == "list":
-        return _list(args, root, state, profile, catalog)
+        return run_list(args, root, state, profile, catalog)
     if action == "retro":
-        return _retro(args, root, state, profile, catalog)
+        return run_retro(args, root, state, profile, catalog)
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":
             if args.summary:
                 raise ValueError(f"Task {args.id} exists here only as the exported record, which has no summary: run "
                                  f"openguildkit task show {args.id}.")
-            _show_exported(root, state, profile, catalog, args.id, args.closing)
+            show_exported(root, state, profile, catalog, args.id, args.closing)
             return None
         raise ValueError(f"Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, "
                          f"a teammate's task or an earlier one: read it with openguildkit task show {args.id} or "
@@ -1789,5 +1790,5 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
             print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
         elif problem:
             raise ValueError(problem["message"])
-    handler = _result_template if action == "result" and args.template else HANDLERS[action]
+    handler = run_result_template if action == "result" and args.template else HANDLERS[action]
     return handler(args, root, state, profile, catalog, task)
