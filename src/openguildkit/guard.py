@@ -78,7 +78,7 @@ def _age_days(moment: str) -> int | None:
     return days_since(moment)
 
 
-def _read_task(state: Path, task_id: str) -> dict:
+def read_task_lazily(state: Path, task_id: str) -> dict:
     """tasks.read_task, imported on the first call: the hook loads tasks only when a record may be approved."""
     from .tasks import read_task as read
 
@@ -103,7 +103,7 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
     approved = []
     for task_id in tasks_with_status(state, set(NOT_COVERING)):
         try:
-            task = _read_task(state, task_id)
+            task = read_task_lazily(state, task_id)
         except Exception:  # A broken record covers nothing; it must not stop the guard.
             continue
         if task["status"] == "approved" and task.get("answers", {}).get("kind") != "decision":
@@ -666,7 +666,7 @@ def _extract_base(root: Path, base: str, directory: Path, names: list[str]) -> N
         target.write_bytes(content)
 
 
-def _record_shape(record: dict, relative: str) -> None:
+def record_shape(record: dict, relative: str) -> None:
     """Refuse a record that openguildkit task export could not have written."""
     decision = record.get("decision")
     problem = None
@@ -700,7 +700,7 @@ def _record_shape(record: dict, relative: str) -> None:
                          "Export the decision again or remove the file.")
 
 
-def _record_check(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path,
+def record_check(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path,
                   earlier: dict, *, extracted: bool = False, history: Path | None = None) -> tuple[str, str, str] | None:
     """The kind of problem a decision record has, its message and the code of its rule (docs/sarif.md), or None when
     it holds.
@@ -754,7 +754,7 @@ def _rules_hold(fingerprint: "str | Fingerprints", recorded: str) -> bool:
 
 def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path, earlier: dict,
                   *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
-    """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which _record_check writes
+    """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which record_check writes
     for the codes decision-stale, decision-record-unverified and decision-withdrawn; None when it holds.
 
     Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
@@ -915,8 +915,8 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: "str
                 raise ValueError(conflict_message(path, relative) or (
                     f"{relative} is not a decision record written by openguildkit task export. "
                     "Export the decision again or remove the file."))
-            _record_shape(record, relative)
-            found = _record_check(record, relative, fingerprint, policy, root, {})
+            record_shape(record, relative)
+            found = record_check(record, relative, fingerprint, policy, root, {})
         except (OSError, ValueError) as error:
             row["problem"] = {"kind": "invalid-record", "severity": "error", "message": str(error),
                               "code": "decision-record-invalid"}
@@ -951,7 +951,7 @@ def _withdrawn_here(state: Path, record: dict, tasks: dict | None = None) -> dic
     task = (tasks or {}).get(record["task"])
     if task is None:
         try:
-            task = _read_task(state, record["task"])
+            task = read_task_lazily(state, record["task"])
         except Exception:  # An unreadable task record is reported by task list and check.
             return None
     return withdrawal_of(task, record)
@@ -982,7 +982,7 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
                          "record to write the withdrawal into, and nothing for guard --ci to accept.")
     _refuse_foreign_record(root, path, task)
     record = read_json(path)
-    _record_shape(record, shown)
+    record_shape(record, shown)
     withdrawn = withdrawal_of(task, record)
     if withdrawn is None:
         raise ValueError(f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
@@ -1260,11 +1260,11 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                     "Export the decision again or remove the file."), relative))
                 continue
             try:
-                _record_shape(record, relative)
+                record_shape(record, relative)
             except ValueError as error:
                 problems.append(flag("decision-record-invalid", str(error), relative))
                 continue
-            checked = _record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
+            checked = record_check(record, relative, fingerprint, policy, base_root, earlier, extracted=True, history=root)
             fault = (checked[2], checked[1]) if checked else None
             # A waiver that expired opens its blocker again: the record no longer covers the change.
             expired = None if fault else expired_waiver_problem(record, relative)

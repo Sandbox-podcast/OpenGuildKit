@@ -322,7 +322,7 @@ class CheckReadTests(unittest.TestCase):
                 return original(state, task_id)
 
             with patch("openguildkit.tasks.read_task", counting), patch("openguildkit.tasks_cli.read_task", counting), \
-                    patch("openguildkit.guard._read_task", counting), \
+                    patch("openguildkit.guard.read_task_lazily", counting), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
                 self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())
         self.assertEqual(sorted(set(reads)), [f"task-{index}" for index in range(6)])
