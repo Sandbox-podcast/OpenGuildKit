@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Contributing: `.git-blame-ignore-revs` lists the two squashes of 523 and 387 files so that `git blame` skips them (`git config blame.ignoreRevsFile .git-blame-ignore-revs`), and `GOVERNANCE.md` says how a pull request of several issues is squashed, one line `#N symptom (file:function)` per issue (#483)
 - `task show ID` prints a summary by default (status, decision, boards, result counts, next step, under 5 KB); `--full` prints the whole record as JSON as it did until 0.17, `--json` still prints the record for scripts, `--summary` stays accepted, and the web page asks for `--json` (#498)
 - JSON output: `check`, `task verify`, `task decide` and `task export` take `--json`; under `--json` an error is JSON on standard output (`schema_version`, `error.code`, `error.message`, `error.next`) with the same exit code; `OPENGUILDKIT_JSON_ENVELOPE=1` puts every `--json` answer in `{schema_version, command, data}`, off by default to keep the shape scripts and the web page read (#484)
 - Errors: an error of the task commands starts with its stable code, `OpenGuildKit [OGK-TASK-004]: Task already exists: x`; 13 codes, each raised from one place, are listed with their function and tests in `docs/errors.md` and `docs/agents/errors.json` (`scripts/build_errors.py`), and a test refuses a code raised twice or untested and a rise of the 717 uncoded errors (#487)

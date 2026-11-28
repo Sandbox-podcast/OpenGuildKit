@@ -43,7 +43,10 @@ python -m unittest discover -s tests
 python -m openguildkit catalog
 python -m openguildkit references
 python -m openguildkit patterns
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
+
+The last line makes `git blame` skip the commits listed in `.git-blame-ignore-revs` (a formatting pass and two bulk squashes), so a line leads to the commit that wrote it rather than to a squash of 387 or 523 files; a line that only such a squash wrote keeps it. [Merging](GOVERNANCE.md#merging) says why `main` has these squashes and how a pull request of several issues is merged.
 
 The web interface (`web/`, React and TypeScript) needs Node 22.12 or 24 and has its own checks; `npm run bundle` copies the build into the package, where `openguildkit ui` serves it:
 

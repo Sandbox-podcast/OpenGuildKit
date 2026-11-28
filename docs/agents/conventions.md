@@ -233,6 +233,7 @@ One commit of 523 files owns 41 to 77 % of the lines of the five central modules
 
 **Today.** Done for the pull requests to come: `scripts/check_pr_text.py`, run by the `conventions` job of CI, checks the title, the commit subjects and the body, and `GOVERNANCE.md#merging` says how `main` merges.
 The 10 subjects already on `main` stay.
+`.git-blame-ignore-revs` lists the two squashes of whole branches (`6ec06a5`, 523 files; `001f1c1`, 387 files) next to the Prettier pass of #515, each with its reason: run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, and add a commit there only if it reformats, imports or moves code in bulk, never a fix. `BlameIgnoreTests` checks that each line is a full SHA with a comment above it.
 Issue #483.
 
 ### `changelog-entry-shape`

@@ -22,7 +22,15 @@ The pull request records the proposal, review and decision. Link an existing iss
 
 ## Merging
 
-`main` takes a squash merge after one approval and a green `contribution-checks`, whatever the number of issues the pull request closes. The description of a pull request that closes issues has one line per issue, `#N symptom (file:function)`, which the squash commit keeps, and CI refuses a title or a commit subject that names a range of issues. A merge commit or a rebase for a pull request of several issues, to keep one commit per issue for `git blame`, is proposed in issue #483 and not adopted: it depends on the signature rule of `main`, which has not been checked.
+`main` takes a squash merge and no other kind: the ruleset "Protect main contributions" of the repository allows only the squash method, and asks one approval, resolved review threads and a green `contribution-checks` (ruleset read on 28 November 2026). This holds whatever the number of issues the pull request closes.
+
+A pull request that closes several issues is merged as one squash commit that names each issue on a line of its own:
+
+1. Each commit of the branch names one issue in its subject, which ends with `(#N)` and names no range or list (`#377 to #407`, `#12, #13`), and its body has the line `#N symptom (file:function)`.
+2. The description has `Closes #N` and one line `#N symptom (file:function)` for each issue it closes, and a `## Not verified` section. `scripts/check_pr_text.py`, run by the `conventions` job, refuses a title or a commit subject that names a range or a list, a `Closes #N` without its line, and a missing or empty `## Not verified`.
+3. The squash commit takes the title of the pull request, and as its body the messages of the branch's commits, as the repository settings write it. Before confirming, the person who merges checks that the body keeps one line `#N symptom (file:function)` per issue closed, and pastes the lines of the description when it does not.
+
+`git log --grep '#N'` then finds each issue, and `git blame` leads to the squash whose body names it. `.git-blame-ignore-revs` lists the two squashes of whole branches (387 and 523 files) that came before this rule; [set up](CONTRIBUTING.md#set-up) says how to use it. A merge commit or a rebase, which would keep one commit per issue on `main` (proposed in issue #483), needs the maintainers to change the ruleset: it is not adopted.
 
 ## Becoming a steward or maintainer
 
