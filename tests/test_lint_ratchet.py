@@ -241,8 +241,8 @@ class CommittedFilesTests(unittest.TestCase):
         self.assertIn("needs.lint.result", gate)
 
     def test_the_fast_check_and_the_docs_know_the_script(self):
-        check_fast = (ROOT / "scripts" / "check_fast.py").read_text(encoding="utf-8")
-        self.assertIn('"scripts/lint_ratchet.py": ["tests/test_lint_ratchet.py"]', check_fast)
+        module_map = json.loads((ROOT / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
+        self.assertIn({"path": "scripts/lint_ratchet.py", "tests": ["tests/test_lint_ratchet.py"]}, module_map["paths"])
         self.assertIn("`test_lint_ratchet.py`", (ROOT / "docs" / "testing.md").read_text(encoding="utf-8"))
 
 

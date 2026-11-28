@@ -36,7 +36,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/build_map.py --check`, to add: regenerates in memory, compares with the committed file, exits 1 with the entries that differ.
 
-**Today.** Map present and tested since #364, written by hand, without commands. Issue #502.
+**Today.** `scripts/build_map.py` adds the tests that import each module, the fixtures and the `commands` section, and `--check` runs in `tests/test_agent_native.py`; role, entry points and documentation page are still written in the map, and the modules carry no `Entry:` or `Tests:` header. Issue #502.
 
 ### `map-query-command`
 
@@ -46,7 +46,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/check_fast.py --plan src/openguildkit/results.py | wc -c` prints 1024 at most and runs no test.
 
-**Today.** `check_fast.py` takes `--base` only. Issue #502.
+**Today.** `python scripts/check_fast.py --plan PATH` or `--plan "task new"`, tested under 1 KB. Issue #502.
 
 ### `byte-budget-ratchet`
 
@@ -242,7 +242,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A timed test that changes the module with the most attached tests in a copy and runs `scripts/check_fast.py` under 30 seconds.
 
-**Today.** The command exists (#365); no module of five measured stays under the budget. Issue #456.
+**Today.** Parallel processes, closest test first, stop at the first failure and at the 30 s budget; the timed test runs under `OPENGUILDKIT_PERF=1`. Issue #456.
 
 ### `lint-and-type-ratchet`
 

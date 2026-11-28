@@ -18,6 +18,7 @@ if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line 
 import argparse
 import os
 import re
+import signal
 import subprocess
 import tempfile
 import threading
@@ -64,7 +65,7 @@ def run(paths: list[str], jobs: int, *, deadline: float | None = None, stop_on_f
     running: dict[str, subprocess.Popen] = {}
     killed: set[str] = set()
     result = {"passed": [], "failed": [], "stopped": [], "not_run": [], "tests": 0}
-    pycache = tempfile.TemporaryDirectory(prefix="ogk-run-tests-pycache-")
+    pycache = tempfile.TemporaryDirectory(prefix="ogk-run-tests-pycache-", ignore_cleanup_errors=True)
     environment = {**os.environ, "PYTHONPATH": str(root / "src") + os.pathsep + os.environ.get("PYTHONPATH", ""),
                    "OPENGUILDKIT_TEST_PYCACHE": pycache.name}
 
@@ -72,7 +73,13 @@ def run(paths: list[str], jobs: int, *, deadline: float | None = None, stop_on_f
         stop.set()
         for path, process in running.items():
             killed.add(path)
-            process.kill()
+            if os.name == "posix":  # The processes a test started go with it.
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    process.kill()
+            else:
+                process.kill()
 
     def worker() -> None:
         while True:
@@ -82,7 +89,8 @@ def run(paths: list[str], jobs: int, *, deadline: float | None = None, stop_on_f
                 path = queue.pop(0)
                 process = subprocess.Popen([sys.executable, "-m", "unittest", module_name(path)], cwd=root,
                                            env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                           text=True, encoding="utf-8", errors="replace")
+                                           text=True, encoding="utf-8", errors="replace",
+                                           start_new_session=os.name == "posix")
                 running[path] = process
             output, _ = process.communicate()
             with lock:
