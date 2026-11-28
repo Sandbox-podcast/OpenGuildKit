@@ -76,17 +76,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 154
+          "line": 143
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 201
+          "line": 190
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 736
+          "line": 739
         }
       ],
       "in_dossier": [
@@ -107,17 +107,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 236
+          "line": 224
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 209
+          "line": 198
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 330
+          "line": 317
         }
       ],
       "in_dossier": [
@@ -194,12 +194,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 874
+          "line": 877
         },
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 59
+          "line": 58
         }
       ],
       "in_dossier": [
@@ -224,7 +224,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 730
+          "line": 733
         },
         {
           "file": "src/openguildkit/cli.py",
