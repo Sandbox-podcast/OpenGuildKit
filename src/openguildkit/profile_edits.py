@@ -176,67 +176,98 @@ def _change_list(profile: dict, field: str, values: list[str], add: bool, catalo
     return {**profile, key: current}
 
 
+def _approval_setting(value: str, options: dict) -> tuple[str, object]:
+    """The approval mode: local, or signed by the approvers with the allowed signers file; the age limit and roles
+    are kept."""
+    # The limit on the age of an approval and the roles are set by their own commands.
+    kept = {key: item for key, item in options["approval"].items() if key in ("max_age_days", "roles")}
+    if value == "local":
+        return "approval", {"mode": "local", **kept} if kept else None
+    if not options["signers"] or not options["approver"]:
+        raise ValueError("profile set approval signed needs --signers PATH and at least one --approver NAME.")
+    return "approval", {"mode": "signed", "allowed_signers": options["signers"], "approvers": options["approver"],
+                        **kept}
+
+
+def _approver_roles_setting(value: str, options: dict) -> tuple[str, object]:
+    """The people of a board's approver role, or none to remove it."""
+    approval, board, names = options["approval"], value, options["paths"][1:]
+    roles = dict(approval.get("roles") or {})
+    if not names:
+        raise ValueError("profile set approver-roles BOARD needs the people of the role, or none. Nothing was "
+                         "written.")
+    if names == ["none"]:
+        if board not in roles:
+            raise ValueError(f"The {board} board has no role. Nothing was written.")
+        del roles[board]
+    elif roles.get(board) == names:
+        raise ValueError(f"The role of the {board} board already holds {', '.join(names)}. Nothing was written.")
+    else:
+        roles[board] = names
+    rest = {key: item for key, item in approval.items() if key != "roles"}
+    return "approval", {**rest, "roles": roles} if roles else (rest if len(rest) > 1 else None)
+
+
+def _restricted_setting(value: str, options: dict) -> tuple[str, object]:
+    """The paths the team closes to the agent, or none."""
+    if value == "none":
+        if options["paths"][1:]:
+            raise ValueError("profile set restricted-paths none takes no other path. Nothing was written.")
+        return "restricted_paths", None
+    return "restricted_paths", [{"paths": list(dict.fromkeys(path.strip() for path in options["paths"]))}]
+
+
+def _max_age_setting(value: str, options: dict) -> tuple[str, object]:
+    """The age in days after which an approval no longer covers the work, or none."""
+    approval = options["approval"]
+    if value == "none":
+        rest = {key: item for key, item in approval.items() if key != "max_age_days"}
+        return "approval", rest if len(rest) > 1 else None
+    if not value.isdigit() or not 1 <= int(value) <= 366:
+        raise ValueError("profile set max-approval-age takes a whole number of days, 1 to 366, or none. Nothing "
+                         "was written.")
+    return "approval", {**approval, "max_age_days": int(value)}
+
+
+def _waivers_setting(value: str, options: dict) -> tuple[str, object]:
+    """Who may waive a blocker and for how many days, or none."""
+    if value == "none":
+        return "waivers", None
+    if not options["allowed_by"] or options["max_days"] is None:
+        raise ValueError("profile set waivers allowed needs at least one --allowed-by NAME and --max-days DAYS.")
+    return "waivers", {"allowed_by": options["allowed_by"], "max_days": options["max_days"]}
+
+
+def _light_paths_setting(value: str, options: dict) -> tuple[str, object]:
+    """The paths of the short lane, or none."""
+    if value == "none":
+        if options["paths"][1:]:
+            raise ValueError("profile set light-paths none takes no other path. Nothing was written.")
+        return "light_paths", None
+    return "light_paths", short_lane.normalize_entries(options["paths"], "light-paths")
+
+
 def _setting(field: str, value: str, options: dict) -> tuple[str, object]:
     """The profile key a set command writes and its new value; None removes the key."""
     if field == "approval":
-        # The limit on the age of an approval and the roles are set by their own commands.
-        kept = {key: item for key, item in options["approval"].items() if key in ("max_age_days", "roles")}
-        if value == "local":
-            return "approval", {"mode": "local", **kept} if kept else None
-        if not options["signers"] or not options["approver"]:
-            raise ValueError("profile set approval signed needs --signers PATH and at least one --approver NAME.")
-        return "approval", {"mode": "signed", "allowed_signers": options["signers"], "approvers": options["approver"],
-                            **kept}
+        return _approval_setting(value, options)
     if field == "freeze":
         return "frozen", {"by": options["by"], "on": today().isoformat(), "reason": options["reason"]} \
             if value == "on" else None
     if field == "approver-roles":
-        approval, board, names = options["approval"], value, options["paths"][1:]
-        roles = dict(approval.get("roles") or {})
-        if not names:
-            raise ValueError("profile set approver-roles BOARD needs the people of the role, or none. Nothing was "
-                             "written.")
-        if names == ["none"]:
-            if board not in roles:
-                raise ValueError(f"The {board} board has no role. Nothing was written.")
-            del roles[board]
-        elif roles.get(board) == names:
-            raise ValueError(f"The role of the {board} board already holds {', '.join(names)}. Nothing was written.")
-        else:
-            roles[board] = names
-        rest = {key: item for key, item in approval.items() if key != "roles"}
-        return "approval", {**rest, "roles": roles} if roles else (rest if len(rest) > 1 else None)
+        return _approver_roles_setting(value, options)
     if field == "restricted-paths":
-        if value == "none":
-            if options["paths"][1:]:
-                raise ValueError("profile set restricted-paths none takes no other path. Nothing was written.")
-            return "restricted_paths", None
-        return "restricted_paths", [{"paths": list(dict.fromkeys(path.strip() for path in options["paths"]))}]
+        return _restricted_setting(value, options)
     if field == "max-approval-age":
-        approval = options["approval"]
-        if value == "none":
-            rest = {key: item for key, item in approval.items() if key != "max_age_days"}
-            return "approval", rest if len(rest) > 1 else None
-        if not value.isdigit() or not 1 <= int(value) <= 366:
-            raise ValueError("profile set max-approval-age takes a whole number of days, 1 to 366, or none. Nothing "
-                             "was written.")
-        return "approval", {**approval, "max_age_days": int(value)}
+        return _max_age_setting(value, options)
     if field == "waivers":
-        if value == "none":
-            return "waivers", None
-        if not options["allowed_by"] or options["max_days"] is None:
-            raise ValueError("profile set waivers allowed needs at least one --allowed-by NAME and --max-days DAYS.")
-        return "waivers", {"allowed_by": options["allowed_by"], "max_days": options["max_days"]}
+        return _waivers_setting(value, options)
     if field == "ask-every-rule":
         return "ask_every_rule", True if value == "yes" else None
     if field == "separate-requester":
         return requester.FIELD, True if value == "on" else None
     if field == "light-paths":
-        if value == "none":
-            if options["paths"][1:]:
-                raise ValueError("profile set light-paths none takes no other path. Nothing was written.")
-            return "light_paths", None
-        return "light_paths", short_lane.normalize_entries(options["paths"], "light-paths")
+        return _light_paths_setting(value, options)
     return field.replace("-", "_"), value == "yes" if field in ("personal-data", "people-decisions") else value
 
 
