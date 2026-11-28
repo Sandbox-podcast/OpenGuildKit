@@ -58,7 +58,8 @@ def tracked_markdown() -> list[str]:
 class WorkflowPagesTests(unittest.TestCase):
     def test_no_markdown_file_grows_over_the_budget_and_the_list_of_those_over_it_only_shrinks(self):
         """Issue #505: four documents were over 40 KB, docs/workflow.md at 115 KB, and nothing bounded a page."""
-        sizes = {name: (REPO / name).stat().st_size for name in tracked_markdown()}
+        # Bytes as committed: a Windows checkout with autocrlf adds a \r to each line.
+        sizes = {name: len((REPO / name).read_bytes().replace(b"\r\n", b"\n")) for name in tracked_markdown()}
         over = {name for name, size in sizes.items() if size > PAGE_BUDGET}
         self.assertEqual(sorted(over - OVER_BUDGET), [])
         self.assertEqual(sorted(OVER_BUDGET - over), [], "remove from OVER_BUDGET a file now under the budget")
