@@ -160,6 +160,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - CI coordinator: the `ci-coordinator` job runs `tsc --checkJs` on `bin/`, `lib/` and `pilot/` (`integrations/ci/jsconfig.json`) and fails when the count of errors passes its ceiling, 59 today, which each fix lowers (#531)
 - Web journeys: `npm run e2e` and `npm run e2e:project` draw their default ports from the path of the copy of the repository (5201 to 6200, and four ports from 7322 to 11321), so two copies run their journeys at once; `PW_PORT` and `PW_PROJECT_PORT` still choose them (#518)
 - Documentation: the SARIF page, the Chaosfolk guide and the export-expiry example pin `actions/checkout` v7.0.1, `actions/setup-python` v7.1.0 and `actions/upload-artifact` v7.0.2 by commit and date, as the workflows do, instead of v5, v6 and v4 (#473)
+- Pack `agent-native-engineering` 1.2.0: `brief-subagents-with-a-contract` gets a machine check, each agent file of `.claude/agents/`, `.codex/agents/`, `.gemini/agents/`, `.github/agents/`, `agents/` or `integrations/*/agents/` must state its stop condition (the word stop), so six of nine rules carry a check (#521)
 
 ## 0.17.0
 

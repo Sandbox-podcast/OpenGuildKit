@@ -103,12 +103,12 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-61 of 661 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+62 of 661 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
 | account-health-review | 4 | 0 | 0 |
-| agent-native-engineering | 9 | 5 | 4 |
+| agent-native-engineering | 9 | 6 | 3 |
 | agent-workflow | 4 | 0 | 0 |
 | agentic-application-security | 16 | 1 | 0 |
 | airborne-software-assurance | 10 | 0 | 10 |
