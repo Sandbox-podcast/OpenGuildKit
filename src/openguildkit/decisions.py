@@ -226,7 +226,7 @@ def committed_signers(root: Path, relative: str) -> str:
     return committed
 
 
-class SignerNotCurrent(ValueError):
+class SignerNotCurrent(OgkError):
     """The signer is not among the current approvers, or the current signers file does not verify their signature."""
 
 
@@ -239,7 +239,7 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
     the current time, or with at_signing at the signed_at of the payload when it has one.
     """
     if signer not in policy["approvers"]:
-        raise SignerNotCurrent(f"{signer} is not an approver for this project. "
+        raise SignerNotCurrent("OGK-DECISION-009", f"{signer} is not an approver for this project. "
                                f"Approvers: {', '.join(policy['approvers'])}.")
     allowed = (root / policy["allowed_signers"]).resolve()
     if not allowed.is_file() or root.resolve() not in allowed.parents:
@@ -267,7 +267,7 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: st
             input=payload_text(payload).encode("utf-8"), capture_output=True, check=False,
         )
     if result.returncode:
-        raise SignerNotCurrent(f"The signature does not verify for {signer}: "
+        raise SignerNotCurrent("OGK-DECISION-010", f"The signature does not verify for {signer}: "
                                f"{result.stderr.decode(errors='replace').strip()}")
 
 
@@ -352,7 +352,7 @@ def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature
         if recorded is None or signer not in recorded[0]:
             unmerged = history is None and signers_at_approval(source, payload)
             if unmerged and signer in unmerged[0]:
-                raise SignerNotCurrent(f"{current}{_not_merged(source, payload)}") from None
+                raise SignerNotCurrent("OGK-DECISION-011", f"{current}{_not_merged(source, payload)}") from None
             raise
         try:
             _ssh_verify(recorded[1], payload, signature, signer, verify_time(payload))

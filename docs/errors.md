@@ -46,6 +46,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-BOARD-013` | `board_entries.py:validate_review` |
 | `OGK-BOARD-014` | `brains.py:write_brain_skeleton` |
 | `OGK-BOARD-015` | `board_entries.py:_project_path` |
+| `OGK-BOARD-016` | `board_entries.py:validate_board_entry` |
 | `OGK-CATALOG-001` | `catalog_cli.py:print_patterns` |
 | `OGK-CATALOG-002` | `catalog_cli.py:print_brains` |
 | `OGK-CATALOG-003` | `catalog_queries.py:recorded_value` |
@@ -108,6 +109,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-CORE-018` | `lock.py:_validated_lock` |
 | `OGK-CORE-019` | `lock.py:central_policy` |
 | `OGK-CORE-020` | `lock.py:apply_lock` |
+| `OGK-CORE-021` | `storage.py:_loads` |
 | `OGK-DECISION-001` | `decisions.py:signing_time` |
 | `OGK-DECISION-002` | `decisions.py:signing_time` |
 | `OGK-DECISION-003` | `decisions.py:verify_time` |
@@ -116,6 +118,9 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-DECISION-006` | `decisions.py:check_decision_seal` |
 | `OGK-DECISION-007` | `decisions.py:check_decision_seal` |
 | `OGK-DECISION-008` | `decisions.py:check_decision_seal` |
+| `OGK-DECISION-009` | `decisions.py:verify_signature` |
+| `OGK-DECISION-010` | `decisions.py:_ssh_verify` |
+| `OGK-DECISION-011` | `decisions.py:verify_recorded_signature` |
 | `OGK-DOCS-001` | `docs_cli.py:deliverable` |
 | `OGK-DOCS-002` | `docs_cli.py:deliverable` |
 | `OGK-DOCS-003` | `references.py:find_references` |
@@ -168,6 +173,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-LANE-008` | `short_lane.py:declare` |
 | `OGK-LANE-009` | `short_lane.py:declare` |
 | `OGK-LANE-010` | `short_lane.py:proposed_routing` |
+| `OGK-LANE-011` | `short_lane.py:normalize_entries` |
 | `OGK-MARKET-001` | `market.py:_day` |
 | `OGK-MARKET-002` | `market.py:_day` |
 | `OGK-MARKET-003` | `market.py:_day` |
@@ -277,6 +283,10 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-PROFILE-029` | `profile_edits.py:_approver_roles_setting` |
 | `OGK-PROFILE-030` | `profile_edits.py:_restricted_setting` |
 | `OGK-PROFILE-031` | `profile_edits.py:_light_paths_setting` |
+| `OGK-PROFILE-032` | `profile_changes.py:edit` |
+| `OGK-PROFILE-033` | `profile_changes.py:edit` |
+| `OGK-PROFILE-034` | `profile_changes.py:refuse` |
+| `OGK-PROFILE-035` | `profile_cli.py:_confirm` |
 | `OGK-PROJECT-001` | `project.py:_texts` |
 | `OGK-PROJECT-002` | `project.py:_texts` |
 | `OGK-PROJECT-003` | `project.py:catalog_ids` |
@@ -555,6 +565,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-TASK-088` | `workflow.py:validate_deliberation` |
 | `OGK-TASK-089` | `workflow.py:validate_deliberation` |
 | `OGK-TASK-090` | `workflow.py:validate_deliberation` |
+| `OGK-TASK-091` | `tasks_decide_cli.py:run_decide` |
 | `OGK-TOOLS-001` | `tool_connections.py:_mcp_file` |
 | `OGK-TOOLS-002` | `tool_connections.py:_write_host` |
 | `OGK-TOOLS-003` | `tool_connections.py:check_settings` |

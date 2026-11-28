@@ -120,7 +120,7 @@ def run_decide(command: TaskCommand) -> None:
                                                             signed_at=signed_at), text, args.signer)
         except SignerNotCurrent as error:
             hint = " If the payload you signed has a signed_at line, pass --signed-at VALUE." if not signed_at else ""
-            raise SignerNotCurrent(f"{error}{hint}") from None
+            raise SignerNotCurrent("OGK-TASK-091", f"{error}{hint}") from None
         signature = {"signer": args.signer, "text": text}
     # The roles of the boards that blocked (roles.py): the verified signer, or the name typed.
     if args.approve and (outside := roles.approval_problem(task, profile, args.by, args.signer)):

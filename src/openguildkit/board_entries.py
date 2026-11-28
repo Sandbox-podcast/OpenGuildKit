@@ -156,13 +156,13 @@ def received_value(value: object) -> str:
     return text if len(text) <= 60 else text[:57] + "..."
 
 
-class EntryProblems(ValueError):
+class EntryProblems(OgkError):
     """Every problem of one board's entry, each with its key path, the value received and the accepted values."""
 
-    def __init__(self, board_id: str, problems: list[str]):
+    def __init__(self, code: str, board_id: str, problems: list[str]):
         self.problems = problems
         heading = f"{board_id} entry has {len(problems)} problem{'s' if len(problems) > 1 else ''}"
-        super().__init__(heading + ":\n- " + "\n- ".join(problems))
+        super().__init__(code, heading + ":\n- " + "\n- ".join(problems))
 
 
 # A key the entry lacks: its absence is reported once by _keys, and its own check is skipped.
@@ -442,7 +442,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     reported = {problem.split(": ", 1)[0] for problem in problems}
     problems.extend(problem for problem in credentials if problem.split(": ", 1)[0] not in reported)
     if problems:
-        raise EntryProblems(board_id, problems)
+        raise EntryProblems("OGK-BOARD-016", board_id, problems)
     return result
 
 

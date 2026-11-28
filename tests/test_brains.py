@@ -50,6 +50,7 @@ class BrainReviewTests(unittest.TestCase):
             validate_review(self.consultation, self.review)
 
     def test_observed_findings_need_a_citation(self):
+        # OGK-BOARD-016
         self.challenge["specialists"][0]["evidence_refs"] = []
         with self.assertRaisesRegex(ValueError, "needs an evidence reference"):
             validate_review(self.consultation, self.review)

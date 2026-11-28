@@ -266,7 +266,7 @@ class ActivationTests(ProjectCase):
             with self.subTest(entry=entry):
                 _, error = self.run_cli("profile", "set", "light-paths", entry, "--by", "Sam", "--reason", "x",
                                         typed=entry, code=1)
-                self.assertRegex(error, r"^OpenGuildKit(?: \[OGK-LANE-002\])?: ")
+                self.assertRegex(error, r"^OpenGuildKit \[(?:OGK-LANE-002|OGK-LANE-011)\]: ")
                 self.assertNotIn("Traceback", error)
                 self.assertNotIn("light_paths", self.profile())
         self.assertIn("rules, dependencies, the profile", self.run_cli(

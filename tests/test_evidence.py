@@ -239,6 +239,7 @@ class EvidenceTests(unittest.TestCase):
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None, "needs ssh-keygen")
     def test_a_signed_project_shows_the_verified_signer_and_the_history_of_its_signers_file_without_the_keys(self):
+        # OGK-DECISION-011
         keys = self.work / "keys"
         keys.mkdir()
         for name in ("camille", "alex"):

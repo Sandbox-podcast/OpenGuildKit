@@ -154,6 +154,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
                 self.assertIn(f"openguildkit profile adopt rule {RULE}", error)
 
     def test_the_web_page_cannot_decline_a_rule(self):
+        # OGK-PROFILE-034
         from openguildkit.profile_changes import Weakening, save_edited
         edited = {**self.profile(), "declined_rules": [{"id": RULE, "by": "S", "on": "2026-11-21", "reason": "x"}]}
         with self.assertRaises(Weakening):

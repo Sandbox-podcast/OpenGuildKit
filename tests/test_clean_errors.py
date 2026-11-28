@@ -58,7 +58,7 @@ class CleanErrorTests(unittest.TestCase):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", code=0)
 
     def test_deeply_nested_json_is_an_input_error(self):
-        # OGK-CORE-009
+        # OGK-CORE-009, OGK-CORE-021
         nested = self.root / "nested.json"
         nested.write_text('{"a":' + "[" * 300000 + "]" * 300000 + "}", encoding="utf-8")
         error = self.run_cli("recommend", "--answers", nested)

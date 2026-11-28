@@ -468,6 +468,7 @@ class WebInterfaceTests(unittest.TestCase):
                 self.assertIn("packs", result["json"])
 
     def test_the_profile_is_saved_then_synchronized_or_restored(self):
+        # OGK-PROFILE-032
         profile = self.root / ".openguildkit" / "project.json"
         saved = json.loads(profile.read_text(encoding="utf-8"))
         status, _, body = self.request("/api/profile/save", {"text": json.dumps({**saved, "conventions": ["Write tests."]})})
@@ -660,6 +661,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.save_from_page(self.saved_profile(), by="Two\nlines")[0], 400)
 
     def test_the_page_cannot_rewrite_the_history_of_profile_changes(self):
+        # OGK-PROFILE-033
         self.profile_command("add", "tool", "Jira", "--by", "Sam", "--reason", "Tracker")
         self.profile_command("add", "convention", "Write tests.", "--by", "Sam", "--reason", "Team")
         before = (self.root / ".openguildkit" / "project.json").read_text(encoding="utf-8")

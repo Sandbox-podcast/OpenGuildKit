@@ -41,7 +41,7 @@ def _template(node: ast.expr) -> str:
 
 
 # The classes whose first argument is the code: OgkError and the errors of one area that derive from it.
-CODED = ("OgkError",)
+CODED = ("OgkError", "NestedTooDeeply", "ExcludedPath", "SignerNotCurrent", "InvalidProfile", "Weakening", "EntryProblems")
 
 
 def raise_sites(root: Path) -> list[dict]:
