@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import market, mcp_mock, project, rule_checks, tasks_decide_cli
+from openguildkit import market, mcp_mock, project, rule_checks, storybook, tasks_decide_cli
 from openguildkit.catalog import load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
@@ -24,7 +24,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 213
+UNCODED_CEILING = 190
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -292,6 +292,59 @@ class MarketErrorTests(CodedRefusals):
             ("OGK-MARKET-033", lambda: market.watch_source(watched, source)),
             ("OGK-MARKET-034", lambda: market.mark_checked(watched, "https://other.example.com/")),
         ])
+
+
+class StorybookErrorTests(CodedRefusals):
+    """Issue #487: each wrong Storybook index, record, proposal or option is refused with its own code."""
+
+    def test_issue_487_each_wrong_storybook_input_has_its_code(self):
+        story = {"id": "button--primary", "title": "Button", "name": "Primary"}
+        index = {"ref": "company", "source": "a", "sha256": "b", "recorded": "2026-01-02", "stories": [story]}
+        item = {"key": "button", "status": "proposed", "name": "Button"}
+        proposals = {"schema_version": 1, "components": [item], "variants": [], "tokens": []}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / ".storybook").mkdir()
+
+            def entries(**entry):
+                def read():
+                    write_json(root / "index.json", {"v": 5, "entries": {"button--primary": {**story, **entry}}})
+                    return storybook.read_index(root / "index.json")
+                return read
+
+            def record(**fields):
+                return lambda: storybook.validate_record({"schema_version": 1, "indexes": [{**index, **fields}]})
+
+            def proposed(**fields):
+                return lambda: storybook.validate_proposals({**proposals, **fields})
+
+            write_json(root / "old.json", {"v": 3, "entries": {}})
+            write_json(root / "inventory.json", {"schema_version": 2})
+            self.assertCodes([
+                ("OGK-STORY-014", lambda: storybook.ref_id("Company")),
+                ("OGK-STORY-015", lambda: storybook.read_index(root / "old.json")),
+                ("OGK-STORY-016", entries(name=" ")),
+                ("OGK-STORY-017", entries(type="page")),
+                ("OGK-STORY-018", entries(tags="ui")),
+                ("OGK-STORY-019", lambda: storybook.compose(root, "company", "https://x.example.com", config_dir="..")),
+                ("OGK-STORY-020", lambda: storybook.compose(root, "company", "https://x.example.com", title="A\nB")),
+                ("OGK-STORY-021", record(stories=[{"id": "x"}])),
+                ("OGK-STORY-022", lambda: storybook.validate_record({"schema_version": 2})),
+                ("OGK-STORY-023", lambda: storybook.validate_record({"schema_version": 1, "indexes": [{"ref": "x"}]})),
+                ("OGK-STORY-024", lambda: storybook.validate_record({"schema_version": 1, "indexes": [index, index]})),
+                ("OGK-STORY-025", record(recorded="today")),
+                ("OGK-STORY-026", record(stories={})),
+                ("OGK-STORY-027", lambda: list(storybook.source_files([root / "missing"]))),
+                ("OGK-STORY-028", lambda: storybook.import_indexes(root, root, ref=storybook.PROJECT_REF)),
+                ("OGK-STORY-029", lambda: storybook.import_indexes(root, root)),
+                ("OGK-STORY-030", proposed(components=[{**item, "name": " "}])),
+                ("OGK-STORY-031", lambda: storybook.validate_proposals({"schema_version": 1})),
+                ("OGK-STORY-032", proposed(variants=[{"key": "v", "status": "proposed", "name": "V", "component": "x"}])),
+                ("OGK-STORY-033", proposed(components=[item, item])),
+                ("OGK-STORY-034", proposed(components=[{**item, "args": []}])),
+                ("OGK-STORY-035", proposed(components=[{**item, "callback_props": [""]}])),
+                ("OGK-STORY-036", lambda: storybook.propose(root, root, root / "inventory.json")),
+            ])
 
 
 if __name__ == "__main__":
