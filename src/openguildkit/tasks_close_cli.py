@@ -9,6 +9,7 @@ from .alerts import blocking_alerts, load_register
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
 from .guard_export import changes_since_approval, export_decision, export_withdrawal, untracked_files
+from .handoff import handoff
 from .lock import require_instructions
 from .project import STATE_DIR
 from .relevance import changed_files, pack_relevance
@@ -44,7 +45,7 @@ from .tasks_record import timestamp
 from .tasks_review import cited_evidence
 from .terminal import interactive, typed
 from .wording import plural
-from .workflow import TaskStateError, handoff, is_decision_task
+from .workflow import TaskStateError, is_decision_task
 
 
 def _relevance(root: Path, task: dict, profile: dict, catalog: dict, every: bool = False) -> dict:

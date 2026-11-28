@@ -19,6 +19,7 @@ from .decisions import (
     signing_time,
     verify_signature,
 )
+from .handoff import review_lines
 from .lock import project_catalog, require_instructions
 from .project import load_profile
 from .results import evidence_state
@@ -30,7 +31,7 @@ from .tasks_closing import record_authorization, record_decision, revoke_approva
 from .tasks_command import TaskCommand
 from .tasks_review import decision_text, previous_round_line
 from .terminal import interactive, typed
-from .workflow import TaskStateError, blocker_list, is_decision_task, pending_removals, review_lines, verdict_lines
+from .workflow import TaskStateError, blocker_list, is_decision_task, pending_removals, verdict_lines
 
 
 def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> None:
