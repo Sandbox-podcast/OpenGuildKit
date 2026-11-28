@@ -68,18 +68,24 @@ def _wording(text: str) -> str:
     return _collapse(text).rstrip(".;: ")
 
 
+def _sort_person_fields(value: dict, found: set[str], pending: list) -> None:
+    """Add to found the person a field of value names, and to pending the other fields to look into."""
+    for key, item in value.items():
+        if key in PERSON_KEYS and isinstance(item, str):
+            if item.strip():
+                found.add(item.strip())
+        else:
+            pending.append(item)
+
+
 def _people(record: object) -> set[str]:
     """Every text under a field that names a person, anywhere in a record."""
-    found, pending = set(), [record]
+    found: set[str] = set()
+    pending = [record]
     while pending:
         value = pending.pop()
         if isinstance(value, dict):
-            for key, item in value.items():
-                if key in PERSON_KEYS and isinstance(item, str):
-                    if item.strip():
-                        found.add(item.strip())
-                else:
-                    pending.append(item)
+            _sort_person_fields(value, found, pending)
         elif isinstance(value, list):
             pending.extend(value)
     return found
