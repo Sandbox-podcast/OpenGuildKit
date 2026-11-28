@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from openguildkit import lock
 from openguildkit.catalog import bundled_ids, load_catalog
-from openguildkit.cli import _print_update
+from openguildkit.catalog_cli import _print_update
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
 from openguildkit.project import validate_profile
 from openguildkit.storage import write_json
