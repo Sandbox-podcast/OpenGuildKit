@@ -8,7 +8,7 @@ from . import delivered_review, short_lane
 from .alerts import blocking_alerts, load_register
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
-from .guard import changes_since_approval, export_decision, export_withdrawal, untracked_files
+from .guard_export import changes_since_approval, export_decision, export_withdrawal, untracked_files
 from .lock import require_instructions
 from .project import STATE_DIR
 from .relevance import changed_files, pack_relevance
