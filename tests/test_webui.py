@@ -1242,7 +1242,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(compress.call_args.kwargs["compresslevel"], 6)
         for status, headers, body in (first, second):
             self.assertEqual((status, headers["Content-Encoding"], headers["Vary"]), (200, "gzip", "Accept-Encoding"))
-            self.assertEqual(gzip.decompress(body).decode("utf-8"), script.read_text(encoding="utf-8"))
+            self.assertEqual(gzip.decompress(body), script.read_bytes())  # bytes: Windows reads text with \r\n folded
         self.assertEqual(first[2], second[2])
         plain = self.request("/assets/big-0123456789.js")
         self.assertIsNone(plain[1]["Content-Encoding"])
