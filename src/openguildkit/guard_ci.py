@@ -34,7 +34,7 @@ def _git_lines(root: Path, command: str, *args: str) -> list[str]:
 
     result = git.required(root, command, "-z", *args, needs=_NEEDS_GIT)
     if result.returncode:
-        raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
+        raise OgkError("OGK-GUARD-020", f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
     return [line for line in git.split_names(result.stdout) if line.strip()]
 
 

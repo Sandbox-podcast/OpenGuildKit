@@ -89,10 +89,10 @@ def _json(opener, origin: str, path: str, payload=None) -> dict:
     with opener.open(request, timeout=10) as response:
         content = response.read(2_000_001)
     if len(content) > 2_000_000:
-        raise ValueError("The Documentalist response exceeded the size limit.")
+        raise OgkError("OGK-PORTAL-005", "The Documentalist response exceeded the size limit.")
     data = json.loads(content.decode("utf-8"))
     if not isinstance(data, dict):
-        raise ValueError("The Documentalist response is not an object.")
+        raise OgkError("OGK-PORTAL-006", "The Documentalist response is not an object.")
     return data
 
 
@@ -179,13 +179,13 @@ def verify_portal(state: Path, portal: str, user: str) -> dict:
         listing = _json(opener, origin, "/api/spaces")
         spaces = listing.get("spaces")
         if not isinstance(spaces, list):
-            raise ValueError("The instance did not return a space list.")
+            raise OgkError("OGK-PORTAL-007", "The instance did not return a space list.")
         found = [item for item in spaces if isinstance(item, dict) and item.get("slug") == slug]
         if len(found) != 1 or not isinstance(found[0].get("id"), str):
-            raise ValueError("The selected space is not visible to this account.")
+            raise OgkError("OGK-PORTAL-008", "The selected space is not visible to this account.")
         data = _json(opener, origin, f"/api/spaces/{quote(found[0]['id'], safe='')}/access/invites")
         if not isinstance(data.get("emails"), list) or not all(isinstance(v, str) for v in data["emails"]):
-            raise ValueError("The instance did not return its invitation list.")
+            raise OgkError("OGK-PORTAL-009", "The instance did not return its invitation list.")
         if "expirations" not in data:
             no_end_dates = True
             problem = "This Documentalist version keeps no end date per reader; remove each access by hand after its last day."

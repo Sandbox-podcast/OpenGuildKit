@@ -21,7 +21,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### allowlist.py
 
-- `load_allow`: OGK-GUARD-001, OGK-GUARD-002
+- `load_allow`: OGK-GUARD-001, OGK-GUARD-002, OGK-GUARD-022
 
 ### audit_cli.py
 
@@ -162,8 +162,10 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### docs_cli.py
 
+- `_share_add`: OGK-DOCS-027
+- `_share_revoke`: OGK-DOCS-028
 - `_share_verify`: OGK-DOCS-005
-- `deliverable`: OGK-DOCS-001, OGK-DOCS-002
+- `deliverable`: OGK-DOCS-001, OGK-DOCS-002, OGK-DOCS-026
 
 ### errors.py
 
@@ -192,18 +194,19 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### guard.py
 
-- `_decide_hook`: OGK-GUARD-006
+- `_decide_hook`: OGK-GUARD-006, OGK-GUARD-019
 - `edited_paths`: OGK-GUARD-003, OGK-GUARD-004, OGK-GUARD-005
 
 ### guard_ci.py
 
+- `_git_lines`: OGK-GUARD-020
 - `ci_guard`: OGK-GUARD-007, OGK-GUARD-008
 
 ### guard_export.py
 
 - `_refuse_foreign_record`: OGK-GUARD-009, OGK-GUARD-010
 - `export_decision`: OGK-GUARD-017
-- `export_withdrawal`: OGK-GUARD-012, OGK-GUARD-018
+- `export_withdrawal`: OGK-GUARD-012, OGK-GUARD-018, OGK-GUARD-021
 - `record_shape`: OGK-GUARD-011
 
 ### guard_records.py
@@ -316,9 +319,10 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### portal_verification.py
 
+- `_json`: OGK-PORTAL-005, OGK-PORTAL-006
 - `_origin`: OGK-PORTAL-004
 - `redirect_request`: OGK-PORTAL-001
-- `verify_portal`: OGK-PORTAL-002, OGK-PORTAL-003
+- `verify_portal`: OGK-PORTAL-002, OGK-PORTAL-003, OGK-PORTAL-007, OGK-PORTAL-008, OGK-PORTAL-009
 
 ### profile_changes.py
 
@@ -411,9 +415,10 @@ The register holds the message of each code as the code writes it and the tests 
 - `_exported_files`: OGK-PUBLISH-001
 - `_share_end`: OGK-PUBLISH-013, OGK-PUBLISH-014, OGK-PUBLISH-015
 - `_shared_item`: OGK-PUBLISH-006, OGK-PUBLISH-007
-- `add_share`: OGK-PUBLISH-010
-- `export_docs`: OGK-PUBLISH-002, OGK-PUBLISH-003, OGK-PUBLISH-004, OGK-PUBLISH-005
+- `add_share`: OGK-PUBLISH-010, OGK-PUBLISH-017
+- `export_docs`: OGK-PUBLISH-002, OGK-PUBLISH-003, OGK-PUBLISH-004, OGK-PUBLISH-005, OGK-PUBLISH-016
 - `portal_space`: OGK-PUBLISH-008, OGK-PUBLISH-009
+- `revoke_share`: OGK-PUBLISH-018, OGK-PUBLISH-019, OGK-PUBLISH-020
 
 ### questionnaire.py
 
@@ -429,7 +434,7 @@ The register holds the message of each code as the code writes it and the tests 
 - `_validate_family`: OGK-DOCS-010, OGK-DOCS-011, OGK-DOCS-012
 - `_validate_links`: OGK-DOCS-006, OGK-DOCS-007, OGK-DOCS-008, OGK-DOCS-009
 - `check_reference_links`: OGK-DOCS-018, OGK-DOCS-019, OGK-DOCS-020, OGK-DOCS-021
-- `find_references`: OGK-DOCS-003, OGK-DOCS-004
+- `find_references`: OGK-DOCS-003, OGK-DOCS-004, OGK-DOCS-029, OGK-DOCS-030
 - `load_references`: OGK-DOCS-015, OGK-DOCS-016, OGK-DOCS-017
 - `with_pattern_references`: OGK-DOCS-022, OGK-DOCS-023, OGK-DOCS-024, OGK-DOCS-025
 
@@ -481,7 +486,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### sensitive.py
 
-- `public_evidence_url`: OGK-GUARD-015, OGK-GUARD-016
+- `public_evidence_url`: OGK-GUARD-015, OGK-GUARD-016, OGK-GUARD-023
 - `refuse_link_credentials`: OGK-GUARD-014
 
 ### short_lane.py

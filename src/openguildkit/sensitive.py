@@ -209,7 +209,7 @@ def public_evidence_url(ref: str, field: str) -> None:
     except ValueError:
         hostname = None
     if not hostname or url.scheme != "https" or any(char.isspace() for char in ref):
-        raise ValueError(f"{field}: a public source needs an https link in ref.")
+        raise OgkError("OGK-GUARD-023", f"{field}: a public source needs an https link in ref.")
     if _carries_credentials(url):
         raise OgkError("OGK-GUARD-015", f"{field}: a public source must use a link without credentials.")
     host = hostname.rstrip(".")

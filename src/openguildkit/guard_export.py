@@ -308,7 +308,7 @@ def export_withdrawal(root: Path, state: Path, task: Task, output: Path | None =
     record_shape(record, shown)
     withdrawn = withdrawal_of(task, record)
     if withdrawn is None:
-        raise ValueError(f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
+        raise OgkError("OGK-GUARD-021", f"{shown} holds an approval of {task['id']} that was not withdrawn: it is left as it is.")
     record = {key: value for key, value in record.items() if key != "record_sha256"}
     record["withdrawn"] = withdrawn
     record["record_sha256"] = export_digest(record)

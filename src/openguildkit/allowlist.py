@@ -49,7 +49,7 @@ def load_allow(path: Path) -> dict:
                          "server and name, a name of letters, digits, - and _.")
     names = [item["name"] for item in block.get("mcp_servers", []) if isinstance(item, dict)]
     if len(names) != len(set(names)):
-        raise ValueError(f"The allow list {path.as_posix()} gives one name to two servers: give each its own.")
+        raise OgkError("OGK-GUARD-022", f"The allow list {path.as_posix()} gives one name to two servers: give each its own.")
     lists = {axis: [(item["server"] if isinstance(item, dict) else item).strip() for item in items]
              for axis, items in block.items()}
     if "mcp_servers" in block:

@@ -48,7 +48,7 @@ def deliverable(args, root: Path, state: Path, profile: Profile, catalog: Catalo
             raise OgkError("OGK-DOCS-001", f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
-            raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")
+            raise OgkError("OGK-DOCS-026", f"{args.path} is not a draft written by openguildkit deliverable new.")
         problems = draft_problems(templates[match.group(1)], text)
         for problem in problems:
             print(f"- {problem}")
@@ -101,7 +101,7 @@ def _docs_export(args, root: Path, state: Path, profile: Profile, catalog: Catal
 def _share_add(args, state: Path) -> int:
     """docs share add: record a share, and warn about the readers it really reaches."""
     if not (args.deliverable and args.until and args.portal and args.by):
-        raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
+        raise OgkError("OGK-DOCS-027", "docs share add needs --deliverable, --recipient, --until, --portal and --by.")
     share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
     _print_share_added(share)
     for given in dict.fromkeys(args.recipient):
@@ -125,7 +125,7 @@ def _share_add(args, state: Path) -> int:
 def _share_revoke(args, state: Path) -> int:
     """docs share revoke: record the end of a share, and name the other shares the same access ended."""
     if not args.share_id or not args.by:
-        raise ValueError("docs share revoke needs --id and --by.")
+        raise OgkError("OGK-DOCS-028", "docs share revoke needs --id and --by.")
     share = revoke_share(state, args.share_id, args.by)
     print("revoked")
     space = share["space"] or f"of the portal {share['portal']}"

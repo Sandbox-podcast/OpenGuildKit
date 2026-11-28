@@ -266,7 +266,7 @@ def find_references(
     if family_id is not None and family_id not in families:
         raise OgkError("OGK-DOCS-003", f"Unknown reference family: {family_id}. Run openguildkit references.")
     if record_id is not None and query is not None:
-        raise ValueError("Choose either a search query or --id.")
+        raise OgkError("OGK-DOCS-029", "Choose either a search query or --id.")
     selected = [families[family_id]] if family_id is not None else families.values()
     records = [
         {**record, "family": family["id"], "family_title": family["title"]}
@@ -282,7 +282,7 @@ def find_references(
         return records
     terms = set(_words(query))
     if not terms:
-        raise ValueError("Supply at least one word to search the references.")
+        raise OgkError("OGK-DOCS-030", "Supply at least one word to search the references.")
     ranked = []
     for record in records:
         names = set(_words(" ".join([record["id"], record["title"], record.get("title_en", ""), *record.get("aliases", ())])))
