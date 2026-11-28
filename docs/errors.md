@@ -267,6 +267,16 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-PROFILE-019` | `profile_edits.py:_set` |
 | `OGK-PROFILE-020` | `profile_edits.py:_set` |
 | `OGK-PROFILE-021` | `profile_edits.py:_set` |
+| `OGK-PROFILE-022` | `profile_edits.py:_adopt` |
+| `OGK-PROFILE-023` | `profile_edits.py:_adopt` |
+| `OGK-PROFILE-024` | `profile_edits.py:_decline` |
+| `OGK-PROFILE-025` | `profile_edits.py:rule_argument` |
+| `OGK-PROFILE-026` | `profile_edits.py:rule_argument` |
+| `OGK-PROFILE-027` | `profile_edits.py:_approver_roles_setting` |
+| `OGK-PROFILE-028` | `profile_edits.py:_approver_roles_setting` |
+| `OGK-PROFILE-029` | `profile_edits.py:_approver_roles_setting` |
+| `OGK-PROFILE-030` | `profile_edits.py:_restricted_setting` |
+| `OGK-PROFILE-031` | `profile_edits.py:_light_paths_setting` |
 | `OGK-PROJECT-001` | `project.py:_texts` |
 | `OGK-PROJECT-002` | `project.py:_texts` |
 | `OGK-PROJECT-003` | `project.py:catalog_ids` |

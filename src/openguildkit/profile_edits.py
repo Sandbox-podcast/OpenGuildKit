@@ -62,9 +62,9 @@ def lifted_paths(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[st
 
 def _adopt(profile: Profile, pattern_id: str, catalog: Catalog) -> dict:
     if pattern_id not in catalog["patterns"]:
-        raise ValueError(f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
+        raise OgkError("OGK-PROFILE-022", f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
     if pattern_id in {pattern_selection(entry)[0] for entry in profile.get("patterns", [])}:
-        raise ValueError(f"{pattern_id} is already active. Nothing was written.")
+        raise OgkError("OGK-PROFILE-023", f"{pattern_id} is already active. Nothing was written.")
     plan = recommend_patterns(catalog, profile.get("stack", []), profile["sector"], profile.get("roles", []),
                               profile.get("components"))
     scopes = {entry["id"]: entry.get("components") for entry in [*plan["matched"], *plan["suggested"]]}
@@ -78,7 +78,7 @@ def _decline(profile: Profile, pattern_id: str, catalog: Catalog, by: str, reaso
     if pattern_id not in catalog["patterns"]:
         raise OgkError("OGK-PROFILE-001", f"Unknown pattern: {pattern_id}. Run openguildkit patterns.")
     if pattern_id in declined_ids(profile):
-        raise ValueError(f"{pattern_id} is already declined. Nothing was written.")
+        raise OgkError("OGK-PROFILE-024", f"{pattern_id} is already declined. Nothing was written.")
     patterns = [entry for entry in profile.get("patterns", []) if pattern_selection(entry)[0] != pattern_id]
     decline = {"id": pattern_id, "by": by, "on": today().isoformat(), "reason": reason}
     return {**profile, "patterns": patterns, "declined": [*profile.get("declined", []), decline]}
@@ -138,11 +138,11 @@ def rule_argument(args) -> str | None:
     rule = getattr(args, "rule", None)
     if args.pattern != RULE_WORD:
         if rule is not None:
-            raise ValueError(f"profile {args.profile_action} takes one PATTERN, or the word rule and PACK/RULE: "
+            raise OgkError("OGK-PROFILE-025", f"profile {args.profile_action} takes one PATTERN, or the word rule and PACK/RULE: "
                              f"openguildkit profile {args.profile_action} rule {rule}. Nothing was written.")
         return None
     if rule is None:
-        raise ValueError(f"profile {args.profile_action} rule needs PACK/RULE, such as openguildkit profile "
+        raise OgkError("OGK-PROFILE-026", f"profile {args.profile_action} rule needs PACK/RULE, such as openguildkit profile "
                          f"{args.profile_action} rule python/follow-python-style --by INITIALS --reason WHY.")
     return rule
 
@@ -202,14 +202,14 @@ def _approver_roles_setting(value: str, options: dict) -> tuple[str, object]:
     approval, board, names = options["approval"], value, options["paths"][1:]
     roles = dict(approval.get("roles") or {})
     if not names:
-        raise ValueError("profile set approver-roles BOARD needs the people of the role, or none. Nothing was "
+        raise OgkError("OGK-PROFILE-027", "profile set approver-roles BOARD needs the people of the role, or none. Nothing was "
                          "written.")
     if names == ["none"]:
         if board not in roles:
-            raise ValueError(f"The {board} board has no role. Nothing was written.")
+            raise OgkError("OGK-PROFILE-028", f"The {board} board has no role. Nothing was written.")
         del roles[board]
     elif roles.get(board) == names:
-        raise ValueError(f"The role of the {board} board already holds {', '.join(names)}. Nothing was written.")
+        raise OgkError("OGK-PROFILE-029", f"The role of the {board} board already holds {', '.join(names)}. Nothing was written.")
     else:
         roles[board] = names
     rest = {key: item for key, item in approval.items() if key != "roles"}
@@ -220,7 +220,7 @@ def _restricted_setting(value: str, options: dict) -> tuple[str, object]:
     """The paths the team closes to the agent, or none."""
     if value == "none":
         if options["paths"][1:]:
-            raise ValueError("profile set restricted-paths none takes no other path. Nothing was written.")
+            raise OgkError("OGK-PROFILE-030", "profile set restricted-paths none takes no other path. Nothing was written.")
         return "restricted_paths", None
     return "restricted_paths", [{"paths": list(dict.fromkeys(path.strip() for path in options["paths"]))}]
 
@@ -250,7 +250,7 @@ def _light_paths_setting(value: str, options: dict) -> tuple[str, object]:
     """The paths of the short lane, or none."""
     if value == "none":
         if options["paths"][1:]:
-            raise ValueError("profile set light-paths none takes no other path. Nothing was written.")
+            raise OgkError("OGK-PROFILE-031", "profile set light-paths none takes no other path. Nothing was written.")
         return "light_paths", None
     return "light_paths", short_lane.normalize_entries(options["paths"], "light-paths")
 

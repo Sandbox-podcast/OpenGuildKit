@@ -10,7 +10,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import alerts, controls, lock, market, mcp_mock, project, rule_checks, storybook, tasks_decide_cli
+from openguildkit import (
+    alerts,
+    controls,
+    lock,
+    market,
+    mcp_mock,
+    profile_edits,
+    project,
+    rule_checks,
+    storybook,
+    tasks_decide_cli,
+)
 from openguildkit.catalog import CatalogError, load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
@@ -26,7 +37,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 168
+UNCODED_CEILING = 158
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -410,6 +421,34 @@ class RegistryErrorTests(CodedRefusals):
                 ("OGK-CORE-018", locked({"packs": {"other": pack}})),
                 ("OGK-CORE-019", lambda: lock.central_policy(argparse.Namespace(policy_repo="repo", policy_commit=None))),
             ])
+
+
+class ProfileEditErrorTests(CodedRefusals):
+    """Issue #487: each profile command that would change nothing, or whose words do not fit, has its own code."""
+
+    def test_issue_487_each_refused_profile_edit_has_its_code(self):
+        catalog = load_catalog()
+        profile = project.validate_profile({"name": "Shop", "stack": ["Python"], "patterns": ["a-b-testing"],
+                                            "declined": ["account-health-review"]}, catalog)
+        roles = {"approval": {"mode": "local", "roles": {"backend": ["Sam"]}}}
+
+        def words(pattern, rule=None):
+            return lambda: profile_edits.rule_argument(argparse.Namespace(profile_action="adopt", pattern=pattern, rule=rule))
+
+        self.assertCodes([
+            ("OGK-PROFILE-022", lambda: profile_edits._adopt(profile, "no-such-pattern", catalog)),
+            ("OGK-PROFILE-023", lambda: profile_edits._adopt(profile, "a-b-testing", catalog)),
+            ("OGK-PROFILE-024", lambda: profile_edits._decline(profile, "account-health-review", catalog, "Sam", "No.")),
+            ("OGK-PROFILE-025", words("a-b-testing", "python/x")),
+            ("OGK-PROFILE-026", words(profile_edits.RULE_WORD)),
+            ("OGK-PROFILE-027", lambda: profile_edits._approver_roles_setting("backend", {**roles, "paths": ["backend"]})),
+            ("OGK-PROFILE-028", lambda: profile_edits._approver_roles_setting("design", {**roles,
+                                                                                         "paths": ["design", "none"]})),
+            ("OGK-PROFILE-029", lambda: profile_edits._approver_roles_setting("backend", {**roles,
+                                                                                          "paths": ["backend", "Sam"]})),
+            ("OGK-PROFILE-030", lambda: profile_edits._restricted_setting("none", {"paths": ["none", "docs"]})),
+            ("OGK-PROFILE-031", lambda: profile_edits._light_paths_setting("none", {"paths": ["none", "docs"]})),
+        ])
 
 
 if __name__ == "__main__":
