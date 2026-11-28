@@ -186,7 +186,7 @@ A message is counted once however many lines it fills. Each model has its rate i
 ## Code coverage
 
 `.github/workflows/coverage.yml` runs the whole suite under `coverage` (branches, and the processes the tests start), combines the measures and writes the percentage of each module of `src/openguildkit` in the summary of the run.
-It fails when `guard.py` or `hosts.py` falls under its floor: 85 % and 94 %, one point under what the audit measured with the 19 test files the map attaches to them (86 % and 95 %).
+It fails when the package falls under 92 %, `guard.py` under 93 % or `hosts.py` under 95 %: one point under a measure of the whole suite on 28 November 2026, on macOS with Python 3.15.2 (93.3 %, 93.9 % and 96.1 %, branches included; #472). Two tests failed under `coverage` in that run and pass without it: `TraceTests.test_importing_the_cli_does_not_load_the_traceback_module` of `tests/test_cli_errors.py` (`coverage` loads `traceback`) and `CheckCommandTests.test_a_check_command_that_could_not_run_in_three_tasks_comes_with_the_command_to_remove_it` of `tests/e2e/test_task_retro.py`; until they are fixed, the step that runs the tests fails before the report.
 It runs on request only (Actions, Run workflow); making it a check of every pull request is a decision for the maintainers.
 Do not confuse it with `scripts/coverage.py` and `docs/coverage.md`: they measure what the catalog covers (rules, sources, sectors), not which lines of the code a test runs.
 The settings are in `[tool.coverage.run]` of `pyproject.toml`; the data goes to `build/coverage/`, which Git ignores.

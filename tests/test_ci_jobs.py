@@ -219,6 +219,14 @@ class CoverageWorkflowTest(unittest.TestCase):
         for module, floor in floors.items():
             self.assertTrue(0 < int(floor) < 100, module)
 
+    def test_issue_472_the_package_has_a_floor_under_its_measured_coverage(self):
+        """Issue #472: the floors waited for a first measure of the whole suite."""
+        script = run_text(self.job)
+        total = re.search(r"coverage report --fail-under=(\d+)\n", script)
+        self.assertIsNotNone(total, "a floor for the whole package")
+        guide = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+        self.assertIn(f"falls under {total.group(1)} %", guide)
+
     def test_the_testing_guide_tells_the_coverage_of_the_code_from_that_of_the_catalog(self):
         guide = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
         section = guide.split("## Code coverage", 1)[1].split("\n## ", 1)[0]
