@@ -90,9 +90,9 @@ class WebPagesTests(unittest.TestCase):
 
 
 def places() -> dict[str, str]:
-    """The places of web/src/shared/places.ts, each key with its RPG name."""
+    """The places of web/src/shared/places.ts, each key with its RPG name, on one line or as Prettier wraps them."""
     source = _read(REPO / "web" / "src" / "shared" / "places.ts")
-    return dict(re.findall(r"\{ key: '([a-z]+)', name: '([^']+)'", source))
+    return dict(re.findall(r"\{\s*key: '([a-z]+)',\s*name: '([^']+)'", source))
 
 
 def sweep_routes() -> list[str]:
