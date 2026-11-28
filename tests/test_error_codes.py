@@ -42,7 +42,7 @@ CODED = ("tasks.py", "tasks_cli.py")
 # page. The count may go down, never up (#487); a broken invariant of the code raises errors.InternalError instead.
 PERSON_ERRORS = ("ValueError", "CatalogError", "TaskStateError", "Refused", "RuleError", "SignerNotCurrent",
                  "InvalidProfile", "EntryProblems", "Weakening", "ExcludedPath", "NestedTooDeeply")
-UNCODED_CEILING = 159
+UNCODED_CEILING = 118
 
 
 def uncoded_sites(path: Path) -> list[int]:

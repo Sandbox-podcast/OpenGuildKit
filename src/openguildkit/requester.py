@@ -47,7 +47,7 @@ def principals(root: Path, relative: str) -> list[str]:
     try:
         text = (root / relative).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as error:
-        raise ValueError(f"The allowed signers file {relative} cannot be read ({getattr(error, 'strerror', None) or error}), "
+        raise OgkError("OGK-TASK-109", f"The allowed signers file {relative} cannot be read ({getattr(error, 'strerror', None) or error}), "
                          "so the requester cannot be checked against its principals. Nothing was written.") from None
     found = []
     for line in text.splitlines():

@@ -34,7 +34,7 @@ def task_path(state: Path, task_id: str) -> Path:
         raise OgkError("OGK-TASK-020", "Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
     path = state / "tasks" / f"{task_id}.json"
     if path.resolve() != path:
-        raise ValueError(f"Task records must stay inside their project: {path}")
+        raise OgkError("OGK-TASK-110", f"Task records must stay inside their project: {path}")
     return path
 
 

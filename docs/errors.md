@@ -407,6 +407,7 @@ The register holds the message of each code as the code writes it and the tests 
 ### requester.py
 
 - `declared`: OGK-TASK-016, OGK-TASK-017, OGK-TASK-018
+- `principals`: OGK-TASK-109
 
 ### result_form.py
 
@@ -494,7 +495,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 - `_validated_task`: OGK-TASK-022, OGK-TASK-023
 - `read_task`: OGK-TASK-021
-- `task_path`: OGK-TASK-019, OGK-TASK-020
+- `task_path`: OGK-TASK-019, OGK-TASK-020, OGK-TASK-110
 
 ### tasks.py
 
@@ -504,14 +505,15 @@ The register holds the message of each code as the code writes it and the tests 
 
 ### tasks_approval.py
 
-- `require_current_scope`: OGK-TASK-024
+- `require_approval`: OGK-TASK-111
+- `require_current_scope`: OGK-TASK-024, OGK-TASK-112
 
 ### tasks_blockers.py
 
 - `_check_clearance_signature`: OGK-TASK-026
 - `_clearing_evidence`: OGK-TASK-025
 - `require_blocker_status`: OGK-TASK-103
-- `resolve_blocker`: OGK-TASK-027, OGK-TASK-028, OGK-TASK-029, OGK-TASK-030, OGK-TASK-031, OGK-TASK-032, OGK-TASK-033, OGK-TASK-034, OGK-TASK-035, OGK-TASK-036
+- `resolve_blocker`: OGK-TASK-027, OGK-TASK-028, OGK-TASK-029, OGK-TASK-030, OGK-TASK-031, OGK-TASK-032, OGK-TASK-033, OGK-TASK-034, OGK-TASK-035, OGK-TASK-036, OGK-TASK-113, OGK-TASK-114, OGK-TASK-115, OGK-TASK-116, OGK-TASK-117, OGK-TASK-118
 
 ### tasks_cli.py
 
@@ -522,47 +524,55 @@ The register holds the message of each code as the code writes it and the tests 
 ### tasks_close_cli.py
 
 - `_cannot_run`: OGK-TASK-044, OGK-TASK-045
-- `_closing`: OGK-TASK-037, OGK-TASK-038, OGK-TASK-039, OGK-TASK-040, OGK-TASK-041
-- `_declaration_checks`: OGK-TASK-042, OGK-TASK-043
-- `_verify_payload`: OGK-TASK-047
-- `_withdraw`: OGK-TASK-046
+- `_closing`: OGK-TASK-037, OGK-TASK-038, OGK-TASK-039, OGK-TASK-040, OGK-TASK-041, OGK-TASK-119
+- `_declaration_checks`: OGK-TASK-042, OGK-TASK-043, OGK-TASK-120
+- `_verify_payload`: OGK-TASK-047, OGK-TASK-123
+- `_withdraw`: OGK-TASK-046, OGK-TASK-121, OGK-TASK-122
 - `run_checks`: OGK-TASK-098
-- `run_diff_review`: OGK-TASK-048
-- `run_outcome`: OGK-TASK-100
+- `run_diff_review`: OGK-TASK-048, OGK-TASK-125
+- `run_outcome`: OGK-TASK-100, OGK-TASK-124
 - `run_result_template`: OGK-TASK-099
 - `run_runs`: OGK-TASK-101
 
 ### tasks_closing.py
 
 - `complete_task`: OGK-TASK-050, OGK-TASK-051
-- `record_authorization`: OGK-TASK-055
-- `record_decision`: OGK-TASK-052, OGK-TASK-053, OGK-TASK-106
+- `defer_evidence`: OGK-TASK-126, OGK-TASK-127
+- `record_authorization`: OGK-TASK-055, OGK-TASK-131, OGK-TASK-132
+- `record_decision`: OGK-TASK-052, OGK-TASK-053, OGK-TASK-106, OGK-TASK-128, OGK-TASK-129
 - `record_result`: OGK-TASK-049, OGK-TASK-105
-- `revoke_approval`: OGK-TASK-054, OGK-TASK-107
+- `revoke_approval`: OGK-TASK-054, OGK-TASK-107, OGK-TASK-130
 
 ### tasks_consult_cli.py
 
 - `_light_answers`: OGK-TASK-059, OGK-TASK-060
 - `_read_consultation`: OGK-TASK-102
+- `_reused_answers`: OGK-TASK-138
+- `_selection`: OGK-TASK-133
 - `input_file`: OGK-TASK-056
+- `run_consult`: OGK-TASK-137
 - `run_pass`: OGK-TASK-061
-- `run_questions`: OGK-TASK-057
-- `run_route`: OGK-TASK-058
+- `run_questions`: OGK-TASK-057, OGK-TASK-134
+- `run_respond`: OGK-TASK-135
+- `run_review`: OGK-TASK-140
+- `run_route`: OGK-TASK-058, OGK-TASK-136
 
 ### tasks_decide_cli.py
 
 - `_save_decided`: OGK-TASK-013
 - `run_authorize`: OGK-TASK-073
 - `run_decide`: OGK-TASK-063, OGK-TASK-064, OGK-TASK-065, OGK-TASK-066, OGK-TASK-067, OGK-TASK-068, OGK-TASK-069, OGK-TASK-070, OGK-TASK-091
-- `run_decision_payload`: OGK-TASK-072, OGK-TASK-104
-- `run_resolve`: OGK-TASK-071
+- `run_decision_payload`: OGK-TASK-072, OGK-TASK-104, OGK-TASK-143
+- `run_resolve`: OGK-TASK-071, OGK-TASK-141, OGK-TASK-142
 - `run_revoke`: OGK-TASK-062
 
 ### tasks_list_cli.py
 
 - `_closing_points`: OGK-TASK-108
-- `_retro_record`: OGK-TASK-074
+- `_retro_record`: OGK-TASK-074, OGK-TASK-145
 - `run_retro`: OGK-TASK-075, OGK-TASK-076, OGK-TASK-077, OGK-TASK-078, OGK-TASK-079
+- `run_show`: OGK-TASK-146
+- `show_exported`: OGK-TASK-144
 
 ### tasks_record.py
 
@@ -575,6 +585,7 @@ The register holds the message of each code as the code writes it and the tests 
 - `assemble_review`: OGK-TASK-097
 - `record_consultation`: OGK-TASK-082, OGK-TASK-083, OGK-TASK-084
 - `record_review`: OGK-TASK-095
+- `start_pass`: OGK-TASK-147, OGK-TASK-148
 - `submit_pass`: OGK-TASK-085
 
 ### terminal.py
@@ -659,7 +670,7 @@ The register holds the message of each code as the code writes it and the tests 
 
 - `challenge_report`: OGK-TASK-093
 - `deliberation_request`: OGK-TASK-092
-- `validate_deliberation`: OGK-TASK-086, OGK-TASK-087, OGK-TASK-088, OGK-TASK-089, OGK-TASK-090
+- `validate_deliberation`: OGK-TASK-086, OGK-TASK-087, OGK-TASK-088, OGK-TASK-089, OGK-TASK-090, OGK-TASK-149
 
 ### workstation.py
 

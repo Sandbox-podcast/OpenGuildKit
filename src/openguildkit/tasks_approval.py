@@ -66,7 +66,7 @@ def require_approval(task: Task, profile: Profile, catalog: Catalog, root: Path 
     """Refuse to act on an approved task whose approval no longer holds, with the one message every reader prints."""
     problem = approval_problem(task, profile, catalog, root)
     if problem and problem["severity"] == "error":
-        raise ValueError(problem["message"])
+        raise OgkError("OGK-TASK-111", problem["message"])
 
 
 def decided_message(task: Task, problem: dict | None = None) -> str | None:
@@ -106,5 +106,5 @@ def require_current_scope(task: Task, profile: Profile, catalog: Catalog) -> Non
     """Refuse to decide over a review given under other rules, checks or boards than the profile's."""
     if not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
         if task["status"] in ("approved", *DONE_STATUSES):
-            raise ValueError(stale_approval_message(task["id"], rule_changes(task, profile, catalog)))
+            raise OgkError("OGK-TASK-112", stale_approval_message(task["id"], rule_changes(task, profile, catalog)))
         raise OgkError("OGK-TASK-024", stale_review_message(task["id"]))

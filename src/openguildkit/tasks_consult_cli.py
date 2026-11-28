@@ -14,7 +14,7 @@ from .alerts import load_register
 from .board_brief import board_brief, pack_rules
 from .brains import BriefKnowledge, consultation_context
 from .catalog_queries import board_replacements
-from .errors import OgkError
+from .errors import InternalError, OgkError
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -80,7 +80,7 @@ def _selection(args) -> dict:
     for item in args.delegate:
         board_id, separator, name = item.partition("=")
         if not separator or not board_id.strip() or not name.strip():
-            raise ValueError("Use --delegate BOARD=NAME.")
+            raise OgkError("OGK-TASK-133", "Use --delegate BOARD=NAME.")
         delegate[board_id.strip()] = name.strip()
     return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
 
@@ -174,7 +174,7 @@ def run_questions(command: TaskCommand) -> None:
         question = concerns_question()
         follow_ups.append({key: question[key] for key in ("id", "prompt", "type", "choices", "unsure")})
     if args.follow_ups and args.answers is None:
-        raise ValueError(f"--follow-ups lists what the answers leave to ask: openguildkit task questions {args.id} "
+        raise OgkError("OGK-TASK-134", f"--follow-ups lists what the answers leave to ask: openguildkit task questions {args.id} "
                          "--answers FILE --follow-ups.")
     print_json({
         **({} if args.follow_ups else {"questions": questions}),
@@ -220,7 +220,7 @@ def run_respond(command: TaskCommand) -> None:
     with project_lock(state):
         current_task = read_task(state, args.id)
         if current_task != task:
-            raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
+            raise OgkError("OGK-TASK-135", "The task changed while you were deliberating. Run task deliberate again.")
         with input_file(args.file):
             result = record_deliberation(current_task, payload)
         write_task(task_path(state, args.id), result)
@@ -246,7 +246,7 @@ def run_route(command: TaskCommand) -> None:
     if short_lane.is_light(task):
         raise OgkError("OGK-TASK-058", short_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
-        raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
+        raise OgkError("OGK-TASK-136", f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
     if args.answers:
         with input_file(args.answers):
@@ -295,7 +295,7 @@ def run_consult(command: TaskCommand) -> None:
     with project_lock(state):
         current_task = read_task(state, args.id)
         if current_task != task:
-            raise ValueError("The task changed while you were answering. Review it and retry.")
+            raise OgkError("OGK-TASK-137", "The task changed while you were answering. Review it and retry.")
         catalog = project_catalog(args, state)
         profile = load_profile(state, catalog)
         require_instructions(args, root, state, profile, catalog)
@@ -347,14 +347,14 @@ def _reused_answers(args, task: Task) -> dict:
     concerns asked at a terminal when neither has it (a task consulted before the question was required). Without a
     terminal a missing concerns is answered unsure, which keeps every topic's rules open, and the command says so."""
     if "answers" not in task:
-        raise ValueError(f"Task {task['id']} has no recorded answers to reuse: consult it with openguildkit task "
+        raise OgkError("OGK-TASK-138", f"Task {task['id']} has no recorded answers to reuse: consult it with openguildkit task "
                          f"consult {task['id']} --answers FILE.")
     answers = dict(task["answers"])
     if args.answers is not None:
         with input_file(args.answers):
             given = read_json(args.answers)
-            if not isinstance(given, dict):
-                raise ValueError("Task answers must be a JSON object.")
+            if not isinstance(given, dict):  # read_json already refuses anything but an object (OGK-CORE-010).
+                raise InternalError("Task answers must be a JSON object.")
             answers.update(given)
             validate_answers(answers)
     if "concerns" not in answers:
@@ -376,7 +376,7 @@ def run_review(command: TaskCommand) -> None:
     with project_lock(state):
         current_task = read_task(state, args.id)
         if current_task != task:
-            raise ValueError("The task changed while you were reviewing. Read the consultation and retry.")
+            raise OgkError("OGK-TASK-140", "The task changed while you were reviewing. Read the consultation and retry.")
         if review is not None:
             with input_file(args.file):
                 result = record_review(current_task, review, root)

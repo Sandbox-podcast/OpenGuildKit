@@ -231,9 +231,9 @@ def start_pass(task: Task, board_id: str, mode: str, again: bool = False) -> Tas
     after a failed or done pass counts a new attempt, printing a pass that is already started does not."""
     passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
-        raise ValueError(f"Board {board_id!r} is not part of this consultation.")
+        raise OgkError("OGK-TASK-147", f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
-        raise ValueError("A pass runs as a subagent or in sequence.")
+        raise OgkError("OGK-TASK-148", "A pass runs as a subagent or in sequence.")
     previous = passes["boards"].get(board_id, {})
     if previous.get("status") == "done" and not again:
         return {**task, "passes": passes, "_submitted": True}

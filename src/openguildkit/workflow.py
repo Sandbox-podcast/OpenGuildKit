@@ -240,7 +240,7 @@ def validate_deliberation(task: Task, payload: dict) -> dict:
     if not items:
         raise OgkError("OGK-TASK-086", nothing_to_deliberate(task["id"]))
     if not isinstance(payload, dict) or payload.keys() != {"consultation_id", "responses", "decision_needed"}:
-        raise ValueError("A deliberation contains consultation_id, responses and decision_needed. Run task deliberate.")
+        raise OgkError("OGK-TASK-149", "A deliberation contains consultation_id, responses and decision_needed. Run task deliberate.")
     if payload["consultation_id"] != task["consultation"]["id"]:
         raise OgkError("OGK-TASK-087", "This deliberation belongs to another consultation.")
     if not isinstance(payload["responses"], list):

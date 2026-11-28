@@ -138,23 +138,23 @@ def resolve_blocker(task: Task, blocker_id: str, resolution: dict, profile: Prof
     if verification and task["status"] != "approved":
         raise OgkError("OGK-TASK-030", "Resolve a verification blocker after approval and before completion.")
     if not verification and task["status"] != "reviewed":
-        raise ValueError("Resolve approval blockers after the review is recorded and before the decision.")
+        raise OgkError("OGK-TASK-113", "Resolve approval blockers after the review is recorded and before the decision.")
     by = resolution.get("by", "").strip()
     if not by:
-        raise ValueError("Name the person who resolves the blocker.")
+        raise OgkError("OGK-TASK-114", "Name the person who resolves the blocker.")
     entry = {"kind": resolution["kind"], "by": by, "at": clock.real_timestamp(),
              "recorded_from": "terminal" if resolution.get("terminal") else "no terminal"}
     if resolution["kind"] == "cleared":
         for field in ("evidence", "supports"):
             if not resolution.get(field, "").strip():
-                raise ValueError(f"Clearing a blocker needs --{field}.")
+                raise OgkError("OGK-TASK-115", f"Clearing a blocker needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["evidence"] = _clearing_evidence(entry["evidence"], root)
         entry["fingerprint"] = evidence_fingerprint(root, entry["evidence"])
         policy = approval_policy(profile)
         if signing_payload:
             if policy["mode"] != "signed":
-                raise ValueError("A clearance payload is signed: it belongs to a project with signed approvals.")
+                raise OgkError("OGK-TASK-116", "A clearance payload is signed: it belongs to a project with signed approvals.")
             return cast(Task, _clearance_payload(task, blocker_id, entry))  # The payload to sign, not a task.
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
@@ -178,13 +178,13 @@ def resolve_blocker(task: Task, blocker_id: str, resolution: dict, profile: Prof
             raise OgkError("OGK-TASK-035", problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
-            raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
+            raise OgkError("OGK-TASK-117", "Give the waiver's end date as YYYY-MM-DD.")
         days = (datetime.fromisoformat(until).date() - clock.real_now().date()).days
         if days < 1 or days > waivers["max_days"]:
             raise OgkError("OGK-TASK-036", f"A waiver lasts between 1 and {waivers['max_days']} days.")
         for field in ("reason", "scope"):
             if not resolution.get(field, "").strip():
-                raise ValueError(f"A waiver needs --{field}.")
+                raise OgkError("OGK-TASK-118", f"A waiver needs --{field}.")
             entry[field] = resolution[field].strip()
         entry["until"] = until
     if expired:

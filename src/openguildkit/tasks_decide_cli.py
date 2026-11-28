@@ -218,7 +218,7 @@ def run_resolve(command: TaskCommand) -> None:
     else:
         details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
         if (args.signature is None) != (args.signer is None):
-            raise ValueError("Pass --signature and --signer together.")
+            raise OgkError("OGK-TASK-141", "Pass --signature and --signer together.")
         if args.payload:
             payload = resolve_blocker(task, args.blocker, details, profile, root, signing_payload=True)
             args.payload.write_bytes(payload_text(payload).encode("utf-8"))
@@ -226,7 +226,7 @@ def run_resolve(command: TaskCommand) -> None:
             return
         if args.signature:
             if approval_policy(profile)["mode"] != "signed":
-                raise ValueError("A clearance signature is only used in a project with signed approvals.")
+                raise OgkError("OGK-TASK-142", "A clearance signature is only used in a project with signed approvals.")
             details.update(signature=args.signature.read_text(encoding="utf-8"), signer=args.signer)
     details["terminal"] = interactive()
     result = resolve_blocker(task, args.blocker, details, profile, root)
@@ -259,7 +259,7 @@ def run_decision_payload(command: TaskCommand) -> None:
     if task["status"] != "reviewed":
         decided = decided_message(task, approval_problem(task, profile, catalog, root))
         if decided:
-            raise ValueError(decided)
+            raise OgkError("OGK-TASK-143", decided)
         raise TaskStateError("OGK-TASK-104", "Record the boards' review before preparing a decision.")
     # The signer is not known yet: decide compares the requester to the signer as well.
     same = requester.approval_problem(task, profile, args.by)
