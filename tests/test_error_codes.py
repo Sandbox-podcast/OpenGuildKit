@@ -8,7 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import tasks_decide_cli
+from openguildkit import project, tasks_decide_cli
+from openguildkit.catalog import load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
 from openguildkit.tasks import create_task
@@ -23,7 +24,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 302
+UNCODED_CEILING = 271
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -117,6 +118,68 @@ class TaskErrorTests(ApprovalCase):
         with self.assertRaises(OgkError) as raised:
             tasks_decide_cli._save_decided(self.state, {**task, "brief": "Another brief."}, task)
         self.assertEqual(raised.exception.code, "OGK-TASK-013")
+
+
+class CodedRefusals(unittest.TestCase):
+    """Calls each case and expects the OgkError of its code: the errors no other test meets (#487)."""
+
+    def assertCodes(self, cases):
+        for code, call in cases:
+            with self.subTest(code=code), self.assertRaises(OgkError) as raised:
+                call()
+            self.assertEqual(raised.exception.code, code, raised.exception)
+
+
+class ProfileErrorTests(CodedRefusals):
+    """Issue #487: each field of project.json that is wrong is refused with its own code."""
+
+    def test_issue_487_each_wrong_field_of_a_profile_has_its_code(self):
+        catalog = load_catalog()
+        pack, other = "agent-workflow", "agent-native-engineering"
+
+        def profile(**fields):
+            return lambda: project.validate_profile({"name": "Shop", "stack": ["Python"], **fields}, catalog)
+
+        signed = {"mode": "signed", "allowed_signers": "keys", "approvers": ["Sam"]}
+        resolution = {"packs": [pack, other], "keep": [pack], "reason": "One."}
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "file").write_text("", encoding="utf-8")
+            root = Path(folder).resolve()
+            (root / "elsewhere").mkdir()
+            (root / project.STATE_DIR).symlink_to(root / "elsewhere")
+            self.assertCodes([("OGK-PROJECT-045", lambda: project.project_root(root / "file")),
+                              ("OGK-PROJECT-046", lambda: project.state_path(root))])
+        self.assertCodes([
+            ("OGK-PROJECT-047", profile(components={})),
+            ("OGK-PROJECT-048", profile(components=[{"id": "api"}])),
+            ("OGK-PROJECT-049", profile(components=[{"id": "API", "stack": ["Python"]}])),
+            ("OGK-PROJECT-050", profile(components=[{"id": "api", "stack": ["Python"]}] * 2)),
+            ("OGK-PROJECT-051", profile(frozen={"by": "Sam", "on": "today", "reason": "Audit."})),
+            ("OGK-PROJECT-052", profile(declined={})),
+            ("OGK-PROJECT-053", profile(declined=[{"id": "a-b-testing"}])),
+            ("OGK-PROJECT-054", profile(declined_rules={})),
+            ("OGK-PROJECT-055", profile(approval={"mode": "local", "roles": {}})),
+            ("OGK-PROJECT-056", profile(approval={"mode": "local", "roles": {"backend": []}})),
+            ("OGK-PROJECT-057", profile(changes={})),
+            ("OGK-PROJECT-058", profile(changes=[{"change": "x"}])),
+            ("OGK-PROJECT-059", profile(patterns=[{"id": "a-b-testing"}])),
+            ("OGK-PROJECT-060", profile(patterns=["no-such-pattern"])),
+            ("OGK-PROJECT-061", profile(resolutions={})),
+            ("OGK-PROJECT-062", profile(resolutions=[{"packs": [pack, other]}])),
+            ("OGK-PROJECT-063", profile(resolutions=[{**resolution, "packs": [pack]}])),
+            ("OGK-PROJECT-064", profile(resolutions=[{**resolution, "reason": "Two\nlines."}])),
+            ("OGK-PROJECT-065", profile(resolutions=[resolution, resolution])),
+            ("OGK-PROJECT-066", profile(colour="blue")),
+            ("OGK-PROJECT-067", profile(name=" ")),
+            ("OGK-PROJECT-068", profile(approval={"mode": "remote"})),
+            ("OGK-PROJECT-069", profile(approval={"mode": "signed"})),
+            ("OGK-PROJECT-070", profile(approval={**signed, "allowed_signers": "../keys"})),
+            ("OGK-PROJECT-071", profile(approval={"mode": "local", "approvers": ["Sam"]})),
+            ("OGK-PROJECT-072", profile(approval={"mode": "local", "max_age_days": 0})),
+            ("OGK-PROJECT-073", profile(waivers={"allowed_by": ["Sam"]})),
+            ("OGK-PROJECT-074", profile(waivers={"allowed_by": ["Sam"], "max_days": 400})),
+            ("OGK-PROJECT-075", profile(frozen={"by": "Sam"})),
+        ])
 
 
 if __name__ == "__main__":
