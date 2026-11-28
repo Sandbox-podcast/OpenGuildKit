@@ -392,7 +392,7 @@ def _texts(value, field: str) -> list[str]:
     return list(dict.fromkeys(item.strip() for item in value))
 
 
-def _ids(value, field: str, available: dict) -> list[str]:
+def catalog_ids(value, field: str, available: dict) -> list[str]:
     chosen = _texts(value, field)
     unknown = sorted(set(chosen) - available.keys())
     if unknown:
@@ -413,7 +413,7 @@ def _recommended_packs(stack: list[str], catalog: dict) -> list[str]:
     return sorted(candidates & catalog["packs"].keys())
 
 
-def _default_packs(stack: list[str], components: list[dict], patterns: list, catalog: dict) -> list[str]:
+def default_packs(stack: list[str], components: list[dict], patterns: list, catalog: dict) -> list[str]:
     """Recommended packs. In a monorepo a language pack that a selected pattern brings keeps that pattern's scope."""
     packs = _recommended_packs(stack, catalog)
     if not components:
@@ -453,7 +453,7 @@ def _components(value) -> list[dict]:
     return components
 
 
-def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str], list[dict]]:
+def project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list[str], list[dict]]:
     sector = answers.get("sector", "general")
     if not isinstance(sector, str) or sector not in catalog["sectors"]:
         raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
@@ -462,7 +462,7 @@ def _project_context(answers: dict, catalog: dict) -> tuple[str, list[str], list
     if components:
         # With components, the project stack is the union of what each component uses.
         stack = list(dict.fromkeys([*stack, *(item for component in components for item in component["stack"])]))
-    roles = _ids(answers.get("roles", []), "roles", role_choices(catalog["patterns"]))
+    roles = catalog_ids(answers.get("roles", []), "roles", role_choices(catalog["patterns"]))
     return sector, stack, roles, components
 
 
@@ -490,7 +490,7 @@ def _decision_text(value, field: str) -> str:
     return value.strip()
 
 
-def _decision(entry: dict, label: str) -> dict:
+def decision_record(entry: dict, label: str) -> dict:
     """Who decided, on which day and why: each a single line, the day as YYYY-MM-DD."""
     record = {key: _decision_text(entry[key], f"{label} {key}") for key in DECISION_FIELDS}
     if not DATE.fullmatch(record["on"]):
@@ -498,7 +498,7 @@ def _decision(entry: dict, label: str) -> dict:
     return record
 
 
-def _declined(value, catalog: dict) -> list:
+def declined_entries(value, catalog: dict) -> list:
     """Declined patterns: plain IDs (written before declines were recorded), or objects with who, when and why."""
     if not isinstance(value, list):
         raise ValueError("declined must be a list")
@@ -516,7 +516,7 @@ def _declined(value, catalog: dict) -> list:
             continue
         seen.add(pattern_id)
         decided = isinstance(entry, dict)
-        entries.append({"id": pattern_id, **_decision(entry, f"declined {pattern_id}")} if decided else pattern_id)
+        entries.append({"id": pattern_id, **decision_record(entry, f"declined {pattern_id}")} if decided else pattern_id)
     return entries
 
 
@@ -549,7 +549,7 @@ def _declined_rules(value, required: list[str]) -> list[dict]:
                              f"(openguildkit profile adopt rule {rule}).")
         if rule not in seen:
             seen.add(rule)
-            entries.append({"id": rule, **_decision(entry, f"declined rule {rule}")})
+            entries.append({"id": rule, **decision_record(entry, f"declined rule {rule}")})
     return entries
 
 
@@ -587,27 +587,27 @@ def _changes(value) -> list[dict]:
     for entry in value:
         if not isinstance(entry, dict) or set(entry) != {"change", *DECISION_FIELDS}:
             raise ValueError('Each change needs change, by, on and reason')
-        result.append({"change": _decision_text(entry["change"], "change"), **_decision(entry, "change")})
+        result.append({"change": _decision_text(entry["change"], "change"), **decision_record(entry, "change")})
     return result
 
 
-def _recommendation_inputs(answers: dict, catalog: dict) -> dict:
+def recommendation_inputs(answers: dict, catalog: dict) -> dict:
     """Everything that preselects patterns besides the stack: personal data, decisions about people and
     declined patterns."""
     return {
         "personal_data": _personal_data(answers.get("personal_data")),
         "people_decisions": _yes_no(answers.get("people_decisions"), "people_decisions"),
         "declined": [entry["id"] if isinstance(entry, dict) else entry
-                     for entry in _declined(answers.get("declined", []), catalog)],
+                     for entry in declined_entries(answers.get("declined", []), catalog)],
     }
 
 
 def profile_recommendations(answers: dict, catalog: dict) -> dict:
     """Preselected and suggested patterns for setup answers or a saved profile, and the packs they bring."""
-    sector, stack, roles, components = _project_context(answers, catalog)
-    inputs = _recommendation_inputs(answers, catalog)
+    sector, stack, roles, components = project_context(answers, catalog)
+    inputs = recommendation_inputs(answers, catalog)
     result = recommend_patterns(catalog, stack, sector, roles, components, **inputs)
-    result["declined"] = _declined(answers.get("declined", []), catalog)
+    result["declined"] = declined_entries(answers.get("declined", []), catalog)
     base_packs = ["agent-workflow", *_recommended_packs(stack, catalog)]
     for entry in [*result["matched"], *result["suggested"]]:
         entry["rules"] = pattern_rules(entry, catalog)
@@ -645,7 +645,7 @@ def pack_rule_counts(pack_ids: list[str], catalog: dict) -> dict[str, int]:
     return counts
 
 
-def _pattern_entries(value, catalog: dict, components: list[dict]) -> list:
+def pattern_entries(value, catalog: dict, components: list[dict]) -> list:
     """Validate selected patterns: plain IDs, or objects limiting a pattern to components."""
     if not isinstance(value, list):
         raise ValueError("patterns must be a list")
@@ -679,8 +679,8 @@ def _resolutions(value, catalog: dict) -> list[dict]:
     for item in value:
         if not isinstance(item, dict) or set(item) != {"packs", "keep", "reason"}:
             raise ValueError("Each resolution needs packs, keep and reason")
-        packs = _ids(item["packs"], "resolution packs", catalog["packs"])
-        keep = _ids(item["keep"], "resolution keep", catalog["packs"])
+        packs = catalog_ids(item["packs"], "resolution packs", catalog["packs"])
+        keep = catalog_ids(item["keep"], "resolution keep", catalog["packs"])
         if len(packs) < 2:
             raise ValueError("A resolution names at least two conflicting packs")
         if not keep or not set(keep) <= set(packs):
@@ -741,23 +741,23 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     name = answers.get("name")
     if not isinstance(name, str) or not name.strip() or not _single_line(name):
         raise ValueError("name must be a non-empty single line")
-    sector, stack, roles, components = _project_context(answers, catalog)
+    sector, stack, roles, components = project_context(answers, catalog)
     research = answers.get("research", "local-only")
     if research not in ("local-only", "public-sources"):
         raise ValueError("research must be local-only or public-sources")
-    inputs = _recommendation_inputs(answers, catalog)
-    patterns = _pattern_entries(answers.get("patterns", []), catalog, components)
+    inputs = recommendation_inputs(answers, catalog)
+    patterns = pattern_entries(answers.get("patterns", []), catalog, components)
     if "patterns" not in answers and "packs" not in answers:
         patterns = [
             {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
             for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
         ]
-    declined = _declined(answers.get("declined", []), catalog)
+    declined = declined_entries(answers.get("declined", []), catalog)
     both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
     if both:
         raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
     check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
-    packs = _ids(answers.get("packs", _default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
+    packs = catalog_ids(answers.get("packs", default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
     profile = {
         "schema_version": SCHEMA_VERSION,
         "name": name.strip(),
@@ -765,7 +765,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "stack": stack,
         **({"components": components} if components else {}),
         "packs": list(dict.fromkeys(["agent-workflow", *packs])),
-        "boards": _ids(answers.get("boards", []), "boards", catalog["boards"]),
+        "boards": catalog_ids(answers.get("boards", []), "boards", catalog["boards"]),
         "research": research,
         "conventions": _texts(answers.get("conventions", []), "conventions"),
         "checks": _texts(answers.get("checks", []), "checks"),
@@ -854,7 +854,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if "frozen" in answers:
         if not isinstance(answers["frozen"], dict) or set(answers["frozen"]) != set(DECISION_FIELDS):
             raise ValueError("frozen must name by, on and reason")
-        profile["frozen"] = _decision(answers["frozen"], "frozen")
+        profile["frozen"] = decision_record(answers["frozen"], "frozen")
     # Folders closed to the agent: the edit hook refuses them, host apply writes them into the host settings.
     if answers.get("restricted_paths"):
         restricted_paths(answers)
@@ -864,7 +864,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         raise ValueError("ask_every_rule must be true or false")
     if ask_every_rule:
         profile["ask_every_rule"] = True
-    required = _ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
+    required = catalog_ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
     if required:
         profile["required_boards"] = required
     resolutions = _resolutions(answers.get("resolutions", []), catalog)
@@ -888,7 +888,7 @@ def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
         if answer in ("yes", True):
             answers[pattern_id] = None
         elif isinstance(answer, dict) and answer.get("answer") == "no" and set(answer) == {"answer", "by", "reason"}:
-            answers[pattern_id] = {"id": pattern_id, **_decision({**answer, "on": today().isoformat()},
+            answers[pattern_id] = {"id": pattern_id, **decision_record({**answer, "on": today().isoformat()},
                                                                  f"norm {pattern_id}")}
         elif answer in ("no", False) or isinstance(answer, dict):
             raise ValueError(
@@ -910,8 +910,8 @@ def _merged_stack(detected: list[str], written: list) -> list[str]:
 
 def unanswered_norms(answers: dict, catalog: dict, norms: dict) -> list[dict]:
     """The norms whose condition the answers meet and that no answer accepts, lists or declines."""
-    sector, stack, roles, components = _project_context(answers, catalog)
-    inputs = _recommendation_inputs(answers, catalog)
+    sector, stack, roles, components = project_context(answers, catalog)
+    inputs = recommendation_inputs(answers, catalog)
     chosen = {pattern_selection(entry)[0] for entry in answers.get("patterns", []) if isinstance(entry, (str, dict))}
     plan = recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
     return [entry for entry in plan if is_norm(catalog["patterns"][entry["id"]])
@@ -940,7 +940,7 @@ def complete_answers(answers: object, questions: list[dict], catalog: dict) -> t
     norms = _norm_answers(completed.pop("norms", {}), catalog)
     declined = [decline for decline in norms.values() if decline is not None]
     if declined:
-        earlier = _declined(completed.get("declined", []), catalog)
+        earlier = declined_entries(completed.get("declined", []), catalog)
         named = {decline["id"] for decline in declined}
         completed["declined"] = [*(entry for entry in earlier if (entry["id"] if isinstance(entry, dict) else entry)
                                    not in named), *declined]
@@ -966,19 +966,19 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):
         raise ValueError("replace_default_packs must be true or false")
-    sector, stack, roles, components = _project_context(completed, catalog)
+    sector, stack, roles, components = project_context(completed, catalog)
     if "patterns" not in completed:
-        inputs = _recommendation_inputs(completed, catalog)
+        inputs = recommendation_inputs(completed, catalog)
         completed["patterns"] = [
             {"id": record["id"], "components": record["components"]} if record.get("components") else record["id"]
             for record in recommend_patterns(catalog, stack, sector, roles, components, **inputs)["matched"]
         ]
-    patterns = _pattern_entries(completed["patterns"], catalog, components)
+    patterns = pattern_entries(completed["patterns"], catalog, components)
     selected = {pattern_selection(entry)[0] for entry in patterns}
     completed["patterns"] = [*(pattern_id for pattern_id in kept_norms if pattern_id not in selected), *patterns]
-    chosen = _ids(completed.get("packs", []), "packs", catalog["packs"])
+    chosen = catalog_ids(completed.get("packs", []), "packs", catalog["packs"])
     if not replace:
-        chosen = [*_default_packs(stack, components, completed["patterns"], catalog), *chosen]
+        chosen = [*default_packs(stack, components, completed["patterns"], catalog), *chosen]
     completed["packs"] = list(dict.fromkeys(chosen))
     return validate_profile(completed, catalog), left_aside
 
