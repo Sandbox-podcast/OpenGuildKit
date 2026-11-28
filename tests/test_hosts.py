@@ -292,7 +292,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
     def test_host_apply_fails_while_a_setting_stays_missing(self):
         self.init(host="claude-code", guard="enforce")
         # A setting the write did not install, as when the settings file cannot be written.
-        with patch("openguildkit.cli.apply_host_settings", return_value=[]):
+        with patch("openguildkit.check_cli.apply_host_settings", return_value=[]):
             output, _ = self.run_cli("host", "apply", code=1)
         self.assertIn("settings missing. Run openguildkit host apply", output)
         self.run_cli("host", "apply")

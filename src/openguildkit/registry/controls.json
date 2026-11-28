@@ -227,9 +227,9 @@
           "line": 728
         },
         {
-          "file": "src/openguildkit/cli.py",
+          "file": "src/openguildkit/check_cli.py",
           "symbol": "check",
-          "line": 1247
+          "line": 173
         }
       ],
       "in_dossier": [
