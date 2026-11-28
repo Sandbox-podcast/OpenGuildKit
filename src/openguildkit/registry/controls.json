@@ -19,9 +19,9 @@
       ],
       "code": [
         {
-          "file": "src/openguildkit/tasks_cli.py",
+          "file": "src/openguildkit/tasks_decide_cli.py",
           "symbol": "run_decide",
-          "line": 634
+          "line": 88
         },
         {
           "file": "src/openguildkit/terminal.py",

@@ -46,7 +46,11 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `cli_errors.py` | What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file. |
 | `completion_cli.py` | The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh. |
 | `wording.py` | The words of the outputs: a count with its noun, in the singular when the count is one. |
-| `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
+| `tasks_cli.py` | The `task` command: its parser, `task new`, and the table that runs each action, with a refusal that names the command to run next. |
+| `tasks_consult_cli.py` | The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass, submit, progress, review, deliberate, respond, challenge. |
+| `tasks_decide_cli.py` | The task actions a person decides at a terminal: decide, revoke, decision-payload, authorize, blockers, clear, waive, alerts. |
+| `tasks_close_cli.py` | The task actions after the approval: checks, verify, result, complete, runs, export, handoff, and the declarations that a check cannot run. |
+| `tasks_list_cli.py` | The task actions that read the tasks: list, show and retro, with a teammate's exported records and what the team does not share. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
 | `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |
