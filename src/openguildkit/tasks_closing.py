@@ -12,6 +12,7 @@ from pathlib import Path
 from . import clock, delivered_review
 from .approval_check import DONE_STATUSES
 from .decisions import decision_payload, seal, signing_time_of
+from .errors import OgkError
 from .records import Profile, Task, as_dict
 from .relevance import sensitive_area
 from .result_form import validate_result
@@ -91,7 +92,7 @@ def record_result(task: Task, profile: Profile, payload: dict, source: str = "re
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated, source)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
-        raise ValueError(
+        raise OgkError("OGK-TASK-049",
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
         )
     updated: Task = {**task, "result": result}
@@ -146,11 +147,11 @@ def complete_task(task: Task, profile: Profile, root: Path | None = None, releva
                    if item.get("phase") != "verification"]
                 + completion_problems(task, profile, relevance, changed=changed, root=root))
     if problems:
-        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(problems))
+        raise OgkError("OGK-TASK-050", "The task cannot be declared done:\n- " + "\n- ".join(problems))
     groups = points_left_open(task, profile, relevance, root)
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
-        raise ValueError(
+        raise OgkError("OGK-TASK-051",
             f"{plural(len(sensitive['points']), 'data protection, security or AI point')} "
             f"{'is' if len(sensitive['points']) == 1 else 'are'} skipped, failed or declared not "
             "applicable as a pack. A person "
@@ -270,7 +271,7 @@ def record_decision(
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
-            raise ValueError(decided)
+            raise OgkError("OGK-TASK-052", decided)
         raise TaskStateError("Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
@@ -280,7 +281,7 @@ def record_decision(
         )
     open_blockers = unresolved_blockers(task)
     if approve and open_blockers:
-        raise ValueError(
+        raise OgkError("OGK-TASK-053",
             f"Resolve each blocker before approving: {', '.join(open_blockers)}. Clear it with evidence "
             "(task clear), waive it if the project allows (task waive), or request changes."
         )
@@ -312,7 +313,7 @@ def revoke_approval(task: Task, by: str, reason: str) -> Task:
     task at once."""
     task_id, status = task["id"], task["status"]
     if status in DONE_STATUSES:
-        raise ValueError(decided_message(task))
+        raise OgkError("OGK-TASK-054", decided_message(task))
     if status != "approved":
         raise TaskStateError("Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
@@ -336,7 +337,7 @@ def record_authorization(task: Task, action: str, target: str, allow: bool, by: 
     if action not in ACTIONS:
         raise ValueError(f"Choose the action from {', '.join(ACTIONS)}.")
     if not _TARGET.fullmatch(target) or "?" in target or "@" in target:
-        raise ValueError("Name the target as a host or tool name, without a query, an address or private details.")
+        raise OgkError("OGK-TASK-055", "Name the target as a host or tool name, without a query, an address or private details.")
     if not by.strip() or not reason.strip():
         raise ValueError("Supply the decision owner and a reason.")
     entry = {

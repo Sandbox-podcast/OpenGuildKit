@@ -17,6 +17,7 @@ from pathlib import Path
 from . import lazy_re
 from .detect_gradle import gradle_components, gradle_modules
 from .detect_manifest import DetectedComponent, read_manifest_text
+from .errors import OgkError
 from .stack_versions import declared_version, version_key
 
 # The folders no walk of the project enters: version control, OpenGuildKit's state, dependencies, virtual
@@ -195,7 +196,7 @@ def _json_manifest(path: Path) -> dict:
     try:
         data = json.loads(text) if text else None
     except RecursionError as error:
-        raise ValueError(f"{path.as_posix()}: JSON nested too deeply") from error
+        raise OgkError("OGK-CORE-002", f"{path.as_posix()}: JSON nested too deeply") from error
     except ValueError:
         return {}
     return data if isinstance(data, dict) else {}

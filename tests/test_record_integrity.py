@@ -346,6 +346,7 @@ class SharedIdTests(SharingCase):
         return record
 
     def test_a_record_with_git_conflict_markers_is_named_as_a_conflict(self):
+        # OGK-GUARD-009
         theirs = self.teammate_record()
         theirs["decision"]["by"] = "Alex Tester"
         self.approved()

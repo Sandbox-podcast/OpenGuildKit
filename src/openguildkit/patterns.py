@@ -7,6 +7,7 @@ Tests: tests/test_patterns.py
 import unicodedata
 from collections import Counter
 
+from .errors import OgkError
 from .records import Catalog, Profile
 
 # The edit hook loads this module: stack_versions is imported in the functions that use it (#539).
@@ -278,5 +279,5 @@ def check_pattern_choices(pattern_ids: list[str], patterns: dict) -> None:
         if group is None:
             continue
         if group in selected:
-            raise ValueError(f"Choose one pattern in {group}: {selected[group]} or {pattern_id}.")
+            raise OgkError("OGK-CORE-007", f"Choose one pattern in {group}: {selected[group]} or {pattern_id}.")
         selected[group] = pattern_id

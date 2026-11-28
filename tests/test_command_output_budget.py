@@ -681,6 +681,7 @@ class CommandOutputBudgetTests(unittest.TestCase):
         assert_within_budget(example.command, self.measure(example), budget_of(example.command))
 
     def test_every_command_prints_at_most_its_budget(self):
+        # OGK-CORE-006
         for example in EXAMPLES:
             with self.subTest(command=example.command):
                 self.check(example)

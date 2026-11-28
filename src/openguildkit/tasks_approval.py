@@ -10,6 +10,7 @@ from pathlib import Path
 from .approval_check import DONE_STATUSES, approval_problem
 from .consultation import profile_settings
 from .decisions import reconsult_command, stale_approval_message
+from .errors import OgkError
 from .project import rules_in_force
 from .project_rules import fingerprint_holds, task_scope_profile
 from .records import Catalog, Profile, Task
@@ -106,4 +107,4 @@ def require_current_scope(task: Task, profile: Profile, catalog: Catalog) -> Non
     if not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
         if task["status"] in ("approved", *DONE_STATUSES):
             raise ValueError(stale_approval_message(task["id"], rule_changes(task, profile, catalog)))
-        raise ValueError(stale_review_message(task["id"]))
+        raise OgkError("OGK-TASK-024", stale_review_message(task["id"]))

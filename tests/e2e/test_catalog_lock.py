@@ -113,7 +113,7 @@ class CatalogLockTests(CliTestCase):
                 self.lock_path().write_text(json.dumps(lock), encoding="utf-8")
                 for command in (("check",), ("update",)):
                     error = self.run_cli(*command, expect=1).stderr
-                    self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                    self.assertTrue(error.startswith("OpenGuildKit [OGK-CORE-004]: "), error)
                     self.assertIn("catalog.lock.json: packs/agent-workflow is not an object", error)
                     self.assertIn("Restore the file from Git, or delete it and run openguildkit update --apply", error)
                     self.assertNotIn("Traceback", error)

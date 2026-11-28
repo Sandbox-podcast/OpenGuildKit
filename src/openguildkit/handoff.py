@@ -11,6 +11,7 @@ from pathlib import Path
 from . import owners, short_lane
 from .board_entries import required_text, validate_review
 from .consultation import answer_lines, json_section, scope_lines
+from .errors import OgkError
 from .records import Task
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
@@ -148,7 +149,7 @@ def handoff(task: Task, evidence: list[dict] | None = None, checks: list[dict] |
     owner = owners.owner_line(root, task) if root is not None else None
     status = task.get("status")
     if status == "changes-requested":
-        raise ValueError(f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
+        raise OgkError("OGK-TASK-015", f"Task {task['id']} has changes requested by {task['decision']['by']}: there is nothing to "
                          f"implement. Next: openguildkit task consult {task['id']} --reuse-answers")
     if status not in ("approved", "done", "done-with-reservations"):
         raise TaskStateError("A human approval is required before implementation.")

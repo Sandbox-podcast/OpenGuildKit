@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .command import Command
 from .deliverables import draft_problems, launch_notice, load_deliverables, new_draft, project_path, utm_link
-from .errors import unknown
+from .errors import OgkError, unknown
 from .publishing import (
     add_share,
     export_docs,
@@ -45,7 +45,7 @@ def deliverable(args, root: Path, state: Path, profile: Profile, catalog: Catalo
         try:
             text = path.read_text(encoding="utf-8-sig")
         except UnicodeError as error:
-            raise ValueError(f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
+            raise OgkError("OGK-DOCS-001", f"{args.path} is not UTF-8 text ({error}): save the draft as UTF-8.") from error
         match = re.search(r'^deliverable: "([a-z0-9-]+)"$', text, re.MULTILINE)
         if not match or match.group(1) not in templates:
             raise ValueError(f"{args.path} is not a draft written by openguildkit deliverable new.")
@@ -56,7 +56,7 @@ def deliverable(args, root: Path, state: Path, profile: Profile, catalog: Catalo
             print("Ready for review by " + ", ".join(templates[match.group(1)]["brains"]))
         return 1 if problems else 0
     if args.id not in templates:
-        raise ValueError(unknown("deliverable", args.id, "deliverable list"))
+        raise OgkError("OGK-DOCS-002", unknown("deliverable", args.id, "deliverable list"))
     template = templates[args.id]
     if action == "show":
         print(f"{template['title']} [{template['id']}]\n{template['description']}\nBefore starting the tool:")
@@ -145,7 +145,7 @@ def _share_revoke(args, state: Path) -> int:
 def _share_verify(args, state: Path) -> int:
     """docs share verify: compare the register with the accesses the portal reports."""
     if not args.portal or not args.user:
-        raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
+        raise OgkError("OGK-DOCS-005", "docs share verify needs --portal and --user; the password is requested at the terminal.")
     from .portal_verification import verify_portal
     report = verify_portal(state, args.portal, args.user)
     if args.json:

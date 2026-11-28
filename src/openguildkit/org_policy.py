@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import NoReturn, cast
 
 from . import requester
+from .errors import OgkError
 from .lock import read_lock
 from .org_catalog import POLICY_FILE, copies_read_from, organization_in, read_files
 from .project import STATE_DIR
@@ -45,7 +46,7 @@ def parse(data: bytes, commit: str) -> dict:
         raise ValueError(f"{where} is not valid JSON. Fix it in the organization catalog.") from None
 
     def refuse(problem: str) -> NoReturn:
-        raise ValueError(f"{where}: {problem}. Fix it in the organization catalog, then pin the new commit.")
+        raise OgkError("OGK-ORG-009", f"{where}: {problem}. Fix it in the organization catalog, then pin the new commit.")
 
     if not isinstance(policy, dict) or policy.get("schema_version") != 1:
         refuse('it must be an object with "schema_version": 1')
@@ -145,7 +146,7 @@ def refuse_lowering(before: Profile, after: Profile, catalog: Catalog, lock: dic
     new = {key: message for key, message in gaps(after, catalog, policy).items()
            if key not in gaps(before, catalog, policy)}
     if new:
-        raise ValueError(f"Refused: {' '.join(new.values())} A repository may be stricter than the organization "
+        raise OgkError("OGK-ORG-010", f"Refused: {' '.join(new.values())} A repository may be stricter than the organization "
                          "policy, never less strict. Nothing was written.")
 
 

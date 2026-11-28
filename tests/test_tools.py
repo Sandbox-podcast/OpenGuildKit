@@ -213,6 +213,7 @@ class MatchingTests(unittest.TestCase):
         self.assertIn("stripe", next(item for item in listed if item["id"] == "tools")["default"])
 
     def test_the_vendor_remote_server_comes_first_and_community_servers_need_consent(self):
+        # OGK-TOOLS-007
         self.assertEqual(choose_server(TOOLS["github"])["id"], "github-remote")
         self.assertIsNone(choose_server(TOOLS["redmine"]))
         self.assertEqual(choose_server(TOOLS["redmine"], community=True)["publisher"], "community")
@@ -242,6 +243,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(claude["entry"]["headers"], {"Authorization": "Bearer ${LINEAR_API_KEY}"})
 
     def test_settings_fill_the_endpoint_and_refuse_anything_that_looks_like_a_secret(self):
+        # OGK-TOOLS-008, OGK-TOOLS-009
         missing = plan_connections(TOOLS, ["zendesk"], "claude-code")[0]
         self.assertEqual(missing["needs"]["settings"], ["subdomain"])
         filled = plan_connections(TOOLS, ["zendesk"], "claude-code", settings={"zendesk": {"subdomain": "acme"}})[0]
@@ -356,6 +358,7 @@ class PlanTests(unittest.TestCase):
         self.assertIn("Select it with --read-only", plan_connections(TOOLS, ["linear"], "codex")[0]["review"]["read_only"])
 
     def test_read_only_selects_a_live_server_never_a_mock(self):
+        # OGK-TOOLS-010
         with self.assertRaisesRegex(ValueError, "--read-only selects a live server"):
             plan_connections(TOOLS, ["jira"], "codex", mock=True, mocks=mock_ids(), read_only=True)
 
@@ -411,11 +414,13 @@ class ApplyTests(unittest.TestCase):
 
     def test_a_server_the_person_already_defined_is_never_overwritten(self):
         (self.root / ".mcp.json").write_text(json.dumps({"mcpServers": {"atlassian-rovo": {"type": "http", "url": "https://other.example/mcp"}}}), encoding="utf-8")
+        # OGK-TOOLS-004
         with self.assertRaisesRegex(ValueError, "already defines atlassian-rovo"):
             apply_connections(self.root, self.state, "claude-code", plan_connections(TOOLS, ["jira"], "claude-code"))
         self.assertEqual(read_manifest(self.state)["connections"], [])
 
     def test_codex_block_is_valid_toml_beside_the_persons_configuration(self):
+        # OGK-TOOLS-002
         config = self.root / ".codex" / "config.toml"
         config.parent.mkdir()
         config.write_text('web_search = "disabled"\n\n[mcp_servers.mine]\ncommand = "my-server"\n', encoding="utf-8")
@@ -464,6 +469,7 @@ class ApplyTests(unittest.TestCase):
         })
 
     def test_missing_settings_block_the_write(self):
+        # OGK-TOOLS-003
         with self.assertRaisesRegex(ValueError, "Settings are missing"):
             apply_connections(self.root, self.state, "claude-code", plan_connections(TOOLS, ["zendesk"], "claude-code"))
         self.assertFalse((self.root / ".mcp.json").exists())
@@ -490,6 +496,7 @@ class ApplyTests(unittest.TestCase):
 
 class CommandTests(unittest.TestCase):
     def test_list_show_and_call_work_without_a_project(self):
+        # OGK-TOOLS-006
         with tempfile.TemporaryDirectory() as directory:
             code, out, _ = run("--project", directory, "tools", "list", "--category", "time-tracking")
             self.assertEqual(code, 0)
@@ -502,6 +509,7 @@ class CommandTests(unittest.TestCase):
             self.assertIn("Unknown tool", err)
 
     def test_applying_live_connections_can_be_confirmed_in_the_terminal(self):
+        # OGK-TOOLS-015
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             answers = root / "profile.json"
@@ -527,6 +535,7 @@ class CommandTests(unittest.TestCase):
             self.assertIn("Type yes", prompt)
 
     def test_call_lists_a_mocks_tools_and_answers_one_call(self):
+        # OGK-TOOLS-019
         with tempfile.TemporaryDirectory() as directory:
             code, out, _ = run("--project", directory, "tools", "call", "jira")
             self.assertEqual(code, 0)
@@ -549,6 +558,7 @@ class CommandTests(unittest.TestCase):
             self.assertIn("openguildkit task authorize", err)
 
     def test_call_lists_only_the_mocks_tools_as_json(self):
+        # OGK-TOOLS-018
         with tempfile.TemporaryDirectory() as directory:
             code, out, err = run("--project", directory, "tools", "call", "zendesk", "--json")
             self.assertEqual(code, 0, err)
@@ -761,6 +771,7 @@ class MockDataTests(unittest.TestCase):
         self.assertEqual(answer("stripe", "list_refunds", {"invoice_id": "in_test_001"})["data"]["count"], 1)
 
     def test_a_projects_scenario_replaces_the_bundled_records_and_stays_consistent(self):
+        # OGK-MCP-001, OGK-MCP-002, OGK-MCP-003, OGK-MCP-004, OGK-MCP-005
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
             scenario = {"about": "Ours", "records": {"hubspot": {
@@ -784,6 +795,7 @@ class MockDataTests(unittest.TestCase):
                     load_mock("hubspot", folder)
 
     def test_a_starting_scenario_keeps_the_bundled_records_and_adds_one_tracker_record_for_the_task(self):
+        # OGK-TOOLS-016
         brief = "Let patients book an appointment online.\nMore."
         scenario = scenario_records(["jira", "stripe"], "Clinic booking", TOOLS, "booking", brief)
         issues = scenario["records"]["jira"]["issues"]
@@ -1088,6 +1100,7 @@ class PolishTests(unittest.TestCase):
     """Last field points: more key shapes, hints without values, variable names, unknown tools, mock state."""
 
     def test_other_vendors_key_shapes_are_refused_as_settings(self):
+        # OGK-TOOLS-011
         for value in ("gl" + "pat-" + "k" * 20, "AI" + "za" + "m" * 35, "sk" + "-ant-" + "n" * 40, "xo" + "xe-" + "7" * 16):
             with self.subTest(value=value[:6]), self.assertRaisesRegex(ValueError, "never a credential"):
                 plan_connections(TOOLS, ["zendesk"], "claude-code", settings={"zendesk": {"subdomain": value}})
@@ -1104,6 +1117,7 @@ class PolishTests(unittest.TestCase):
         self.assertIn("--set zendesk.subdomain=VALUE --set zendesk.region=eu", command)
 
     def test_a_lowercase_variable_name_is_accepted_for_a_bearer_token(self):
+        # OGK-TOOLS-012
         item = plan_connections(TOOLS, ["linear"], "codex", token_env={"linear": "linear_token"})[0]
         self.assertEqual(item["entry"]["bearer_token_env_var"], "linear_token")
         with self.assertRaisesRegex(ValueError, "names an environment variable"):

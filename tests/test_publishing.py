@@ -67,6 +67,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.run_cli("task", "complete", task_id)
 
     def test_completed_tasks_become_reference_learn_and_dated_blog_pages(self):
+        # OGK-PUBLISH-002
         self.done_task()
         self.run_cli("task", "new", "Not finished yet.", "--id", "draft")
         self.run_cli("docs", "export", "--tasks", "draft", "--output", "docs-site", "--version", "1.4.0", code=1)
@@ -131,6 +132,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
             self.assertIn(f"\n{brief}\n", markdown)
 
     def test_export_refuses_a_folder_it_did_not_create(self):
+        # OGK-PUBLISH-003
         self.done_task()
         (self.root / "notes").mkdir()
         (self.root / "notes" / "team.md").write_text("# Team\n", encoding="utf-8")
@@ -142,6 +144,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         path.write_text("# Shared page\n", encoding="utf-8")
 
     def test_shares_record_recipients_end_date_and_revocation(self):
+        # OGK-PUBLISH-010
         self.deliverable("docs-site/reference/request-status.md")
         until = (clock.real_today() + timedelta(days=14)).isoformat()
         common = ["docs", "share", "add", "--deliverable", "docs-site/reference/request-status.md", "--portal", "https://docs.example.org/p/portal"]
@@ -187,6 +190,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         write_json(site / ".openguildkit-export.json", manifest)
 
     def test_export_refuses_a_manifest_without_a_list_of_files_and_names_it(self):
+        # OGK-PUBLISH-001
         self.done_task()
         manifest = self.root / "docs-site" / publishing.MANIFEST
         for content in ('{"version": "1"}', '{"files": null}', '{"files": "reference/a.md"}', '{"files": ["a.md", 3]}'):
@@ -199,6 +203,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
                 self.assertEqual(sorted(path.name for path in (self.root / "docs-site").iterdir()), [publishing.MANIFEST])
 
     def test_export_names_an_openapi_file_that_is_not_utf8(self):
+        # OGK-PUBLISH-004
         self.done_task()
         (self.root / "api.yaml").write_bytes(b"\xff\xfeopenapi: 3.0.0\n")
         _, error = self.run_cli("docs", "export", "--tasks", TASK, "--output", "docs-site", "--version", "2",
@@ -241,6 +246,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn("kept blog/linked/old.md", output)
 
     def test_export_refuses_to_write_pages_through_a_link_out_of_the_folder(self):
+        # OGK-PUBLISH-005
         site = self.exported_site()
         outside = self.root / "outside"
         outside.mkdir()
@@ -360,7 +366,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         later = clock.real_today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
             _, error = self.run_cli(*common, *portal, "--until", until, code=1)
-            self.assertTrue(error.startswith("OpenGuildKit: "), error)
+            self.assertRegex(error, r"^OpenGuildKit \[OGK-PUBLISH-01[35]\]: ")  # OGK-PUBLISH-013, OGK-PUBLISH-015
         self.run_cli(*common, "--portal", "https://", "--until", later.isoformat(), code=1)
         self.run_cli(*common, *portal, "--until", later.isoformat())
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]
@@ -487,6 +493,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn("--deliverable .OpenGuildKit/tasks/report-csv.json is in .openguildkit/", error)
 
     def test_a_missing_file_or_a_folder_without_an_export_is_not_shared(self):
+        # OGK-PUBLISH-006, OGK-PUBLISH-007
         self.assertIn("--deliverable docs-site/reference/nonexistent.md does not exist",
                       self.share("docs-site/reference/nonexistent.md", code=1))
         (self.root / "notes").mkdir()
@@ -551,6 +558,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         return json.loads(self.run_cli("docs", "share", "list", "--json")[0])
 
     def test_a_share_records_and_shows_the_portal_space_as_its_perimeter(self):
+        # OGK-PUBLISH-009
         self.deliverable()
         self.deliverable("docs-site/reference/request-status.md")
         output, _ = self.add("docs-site/reference/request-status.md",
@@ -667,6 +675,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("also carries", warning)
         self.assertEqual([row["also_in_space"] for row in self.shares()], [[], []])
         _, error = self.add((self.root / "e").as_posix(), portal=dedicated, code=1)
+        # OGK-PUBLISH-011
         self.assertIn("Space docs.example.test/p/deliverable-d is dedicated to d", error)
         # A register written before the path was normalized still holds the absolute path.
         data = json.loads(register.read_text(encoding="utf-8"))
@@ -693,6 +702,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.add("e")
         self.add("d")
         _, error = self.add("e", recipient="third@example.test", dedicated=True, code=1)
+        # OGK-PUBLISH-012
         self.assertIn("already carries d (share", error)
         self.assertIn("cannot be dedicated", error)
         self.assertEqual([row["dedicated"] for row in self.shares()], [True, True, False, False])
@@ -836,7 +846,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
                        "http://127.0.0.1:99999/p/support-portal"):
             with self.subTest(portal=portal):
                 _, error = self.add(portal=portal, code=1)
-                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                self.assertTrue(error.startswith("OpenGuildKit [OGK-PUBLISH-008]: "), error)
         self.assertEqual(len(self.shares()), 3)
 
     def section(self, title):

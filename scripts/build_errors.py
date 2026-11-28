@@ -108,21 +108,19 @@ Under `--json`, an error is JSON on standard output too, with the same exit code
 """
 
 
-def _cell(text: str) -> str:
-    return text.replace("|", "\\|")
-
-
 def page_text(entries: list[dict]) -> str:
-    rows = "".join(f"| `{entry['code']}` | `{entry['module'].rsplit('/', 1)[-1]}:{entry['function']}` | "
-                   f"{_cell(entry['message'])} | {', '.join(entry['tests'])} |\n" for entry in entries)
+    rows = "".join(f"| `{entry['code']}` | `{entry['module'].rsplit('/', 1)[-1]}:{entry['function']}` |\n"
+                   for entry in entries)
     return ("# Error codes\n\n"
             "For: a person or an agent that reads an error of the CLI and looks for where it comes from.\n\n"
             "An error that carries a code starts with it: `OpenGuildKit [OGK-TASK-004]: Task already exists: x`, and "
             "under `--json` its object holds the same code in `error.code` ([JSON output](#json-output)).\n"
             "A code is raised from one place and keeps its meaning when its words change: search the code, not the "
             "sentence. `python scripts/build_errors.py` writes this page and [`agents/errors.json`](agents/errors.json) "
-            "from the code; the other errors still print `OpenGuildKit: message`.\n\n"
-            "| Code | Raised by | Message | Tests |\n|---|---|---|---|\n" + rows + JSON_OUTPUT)
+            "from the code; the other errors still print `OpenGuildKit: message`.\n"
+            "The register holds the message of each code as the code writes it and the tests that cite it: "
+            "`grep -n OGK-TASK-004 docs/agents/errors.json`. This page keeps the code and where it is raised.\n\n"
+            "| Code | Raised by |\n|---|---|\n" + rows + JSON_OUTPUT)
 
 
 def main(argv: list[str] | None = None) -> int:

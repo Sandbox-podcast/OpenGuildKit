@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import cast
 
 from . import task_index
+from .errors import OgkError
 from .records import Task, as_dict
 from .storage import file_signature, read_json
 from .tasks_record import task_record_problem
@@ -28,9 +29,9 @@ WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
 
 def task_path(state: Path, task_id: str) -> Path:
     if task_id in WINDOWS_RESERVED_NAMES:
-        raise ValueError(f"{task_id} is a reserved file name on Windows. Choose another task ID.")
+        raise OgkError("OGK-TASK-019", f"{task_id} is a reserved file name on Windows. Choose another task ID.")
     if len(task_id) > 64 or not ID_PATTERN.fullmatch(task_id):
-        raise ValueError("Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
+        raise OgkError("OGK-TASK-020", "Use a task ID of up to 64 lowercase letters, digits and separating hyphens.")
     path = state / "tasks" / f"{task_id}.json"
     if path.resolve() != path:
         raise ValueError(f"Task records must stay inside their project: {path}")
@@ -96,7 +97,7 @@ def keeping_records(kept: KeptRecords):
 def read_task(state: Path, task_id: str) -> Task:
     path = task_path(state, task_id)
     if not path.is_file():
-        raise ValueError(_unknown_task(state, task_id))
+        raise OgkError("OGK-TASK-021", _unknown_task(state, task_id))
     kept = _KEPT
     if kept is None:
         return _validated_task(state, path, task_id)
@@ -116,11 +117,11 @@ def read_task(state: Path, task_id: str) -> Task:
 def _validated_task(state: Path, path: Path, task_id: str) -> Task:
     task = cast(Task, read_json(path))  # Checked below: task_record_problem names the first field that departs.
     if task.get("schema_version") != 1 or task.get("id") != task_id:
-        raise ValueError(f"Unsupported or mismatched task record: {path}")
+        raise OgkError("OGK-TASK-022", f"Unsupported or mismatched task record: {path}")
     problem = task_record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
-        raise ValueError(
+        raise OgkError("OGK-TASK-023",
             f"Task record {task_id} is damaged: {problem}. Restore {path.relative_to(state.parent).as_posix()} from a "
             "backup, or delete that file and open a new task with openguildkit task new."
         )

@@ -197,6 +197,7 @@ class ProjectBrainTests(unittest.TestCase):
             load_catalog(self.root)
 
     def test_the_skeleton_loads_and_reports_its_placeholders(self):
+        # OGK-BOARD-014
         written = write_brain_skeleton(self.root, "risk-office", load_catalog())
         self.assertEqual(len(written), 4)
         catalog = load_catalog(self.root)

@@ -203,6 +203,7 @@ class RoutingTests(unittest.TestCase):
 
     def test_concerns_are_checked_and_none_or_unsure_stand_alone(self):
         # A recorded answer file without concerns still reads; task consult and task route ask for it (require_concerns).
+        # OGK-RESULT-013, OGK-RESULT-014
         self.assertNotIn("concerns", validate_answers(NEUTRAL))
         with self.assertRaisesRegex(ValueError, "Answer concerns.*none, unsure"):
             require_concerns(validate_answers(NEUTRAL))

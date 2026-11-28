@@ -11,6 +11,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .errors import OgkError
+
 # No way to reach a network: a replaced or lazily fetched object, or a remote protocol, would read outside the copy.
 _OFFLINE = ("--no-replace-objects", "-c", "protocol.allow=never")
 _ESCAPE = re.compile(rb'\\([0-7]{3}|.)')
@@ -36,7 +38,7 @@ def required(root: Path, *args: str, needs: str, stdin: bytes | None = None,
     the error raised when Git is not installed."""
     result = run(root, *args, stdin=stdin, offline=offline)
     if result is None:
-        raise ValueError(f"{needs} needs Git: it is not installed or not on the PATH.")
+        raise OgkError("OGK-CORE-003", f"{needs} needs Git: it is not installed or not on the PATH.")
     return result
 
 

@@ -16,6 +16,7 @@ import re
 from pathlib import Path
 
 from . import lazy_re
+from .errors import InternalError, OgkError
 from .patterns import pattern_selection
 from .profile_changes import check_proposal
 from .project import DRAFT_MARK
@@ -221,7 +222,7 @@ def facts_of_record(record: dict) -> dict:
     """What an exported decision record says of a task it holds as completed. It carries no objections between
     boards, so it cannot say which board brought nothing."""
     if not isinstance(record.get("task"), str):
-        raise ValueError("An exported record names its task: this one does not.")
+        raise OgkError("OGK-RESULT-029", "An exported record names its task: this one does not.")
     if record.get("completed") is not True or record.get("status") not in DONE:
         raise _refusal(record["task"], record.get("status"))
     result = _dict(record.get("result"))
@@ -280,7 +281,7 @@ def recurrences(all_facts: list[dict], minimum: int) -> list[dict]:
     it brought nothing, with the tasks where it was convened; a reservation by its wording.
     """
     if minimum < 1:
-        raise ValueError("--min counts tasks: give a number of 1 or more.")
+        raise InternalError("--min counts tasks: give a number of 1 or more.")  # task retro checks --min first.
     ordered = sorted(all_facts, key=lambda facts: (facts["id"], facts["created"]))
     slots, convened = {}, {}
     for facts in ordered:
@@ -616,7 +617,7 @@ def write_draft(root: Path, state: Path, folder: Path, pack: dict) -> str:
     path = project_path(root, state, folder, "--draft-rules") / f"{pack['id']}.json"
     shown = path.relative_to(root.resolve()).as_posix()
     if path.exists():
-        raise ValueError(f"{shown} already exists: review it, rename it or remove it before writing another draft "
+        raise OgkError("OGK-RESULT-031", f"{shown} already exists: review it, rename it or remove it before writing another draft "
                          "today. Nothing was written.")
     write_json(path, pack)
     return shown

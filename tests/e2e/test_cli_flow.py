@@ -106,6 +106,7 @@ class CatalogTests(CliTestCase):
         self.assertTrue(brain["review"]["challenge"])
 
     def test_reference_library_commands_work_without_an_initialized_project(self):
+        # OGK-DOCS-003
         groups = self.run_cli("references").stdout
         self.assertIn("references", groups)
         self.assertIn("governance", groups)
@@ -284,11 +285,13 @@ class ProjectSetupTests(CliTestCase):
         self.run_cli("check")
 
     def test_init_refuses_to_run_twice(self):
+        # OGK-INIT-004
         self.init_example()
         result = self.run_cli("init", "--answers", EXAMPLE / "profile.json", expect=1)
         self.assertIn("already initialized", result.stderr)
 
     def test_init_without_terminal_needs_answers(self):
+        # OGK-INIT-005
         result = self.run_cli("init", expect=1)
         self.assertIn("--answers", result.stderr)
 
@@ -437,6 +440,7 @@ class TaskFlowTests(CliTestCase):
         self.assertEqual(consultation["adjustments"][0]["reason"], "No launch planned")
 
     def test_other_answer_requires_context(self):
+        # OGK-RESULT-020
         self.init_example()
         self.run_cli("task", "new", "Something unusual", "--id", "odd")
         answers = {"kind": "other", "surface": "unsure", "data": "none", "research": "local"}

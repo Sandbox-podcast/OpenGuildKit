@@ -57,6 +57,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
         return self.run_cli("task", "decide", TASK, "--approve", "--by", "Agent", "--reason", "again", code=1)[1]
 
     def test_deciding_an_approved_task_says_it_is_already_approved_and_by_whom(self):
+        # OGK-TASK-063
         self.approved()
         error = self.decide_again()
         self.assertIn(f"Task {TASK} is already approved by Camille on ", error)
@@ -64,6 +65,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("Record the boards' review", error)
 
     def test_deciding_a_completed_task_says_it_is_already_decided_with_its_status(self):
+        # OGK-TASK-052
         self.done()
         status = json.loads(self.run_cli("task", "show", TASK, "--json")[0])["status"]
         error = self.decide_again()
@@ -74,6 +76,7 @@ class DecidedTaskTests(CapturedCli, unittest.TestCase):
         self.reviewed()
         self.run_cli("task", "decide", TASK, "--request-changes", "--by", "Camille", "--reason", "Narrow it")
         error = self.decide_again()
+        # OGK-TASK-015
         self.assertIn("already has changes requested by Camille", error)
         self.assertIn(f"Next: openguildkit task consult {TASK}", error)
         error = self.run_cli("task", "handoff", TASK, code=1)[1]

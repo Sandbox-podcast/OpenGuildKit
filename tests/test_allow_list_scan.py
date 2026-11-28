@@ -112,6 +112,7 @@ class AllowListTests(SurfaceCase):
         self.assertEqual([item["path"] for item in self.not_allowed(result, "endpoint-not-allowed")], [".codex/config.toml"])
 
     def test_a_list_that_cannot_be_read_is_one_line_naming_the_file(self):
+        # OGK-GUARD-001
         for document in ("{", "[]", {"mcp_servers": "npm:x"}, {"servers": []}, {"models": [1]}, {"models": [""]}):
             with self.subTest(document=document):
                 path = self.root / "policy" / "allow.json"

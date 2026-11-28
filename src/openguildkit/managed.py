@@ -17,6 +17,7 @@ from pathlib import Path
 
 from . import allowlist, hosts
 from .doc_links import doc_link
+from .errors import OgkError
 from .storage import load_json, write_text
 from .wording import plural
 
@@ -204,9 +205,9 @@ def _guidance(host: str, system: str, shown_at: str | None, left: list[str]) -> 
 def run(args) -> int:
     """host managed: print the file of one host, or write it in the folder --output names, and say how to deploy it."""
     if not args.host or not args.os:
-        raise ValueError("host managed needs --host (claude-code, codex or gemini-cli) and --os (macos, linux or windows).")
+        raise OgkError("OGK-CORE-005", "host managed needs --host (claude-code, codex or gemini-cli) and --os (macos, linux or windows).")
     if args.json:
-        raise ValueError("host managed prints the file as it is deployed, so --json is not an option of it.")
+        raise OgkError("OGK-CORE-006", "host managed prints the file as it is deployed, so --json is not an option of it.")
     if args.block_on_failure and args.host != "claude-code":
         raise ValueError("--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
     allow = allowlist.load_allow(args.allow) if args.allow else None

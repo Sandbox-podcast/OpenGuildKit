@@ -138,6 +138,7 @@ class HostCoverageTests(unittest.TestCase):
                     self.assertEqual(row["edit_tools"], hosts.EDIT_MATCHERS[row["host"]].split("|"))
         self.assertEqual({row["host"] for row in report["rows"]},
                          {*hosts.HOOK_HOSTS, *hosts.UNHOOKED_TOOLS, "other"})
+        # OGK-HOST-001
         self.assertIn("--matrix is an option of openguildkit host check.", refused.stderr)
 
     def test_the_matrix_of_the_hosts_has_a_column_for_each_host_init_offers_and_a_version_row(self):

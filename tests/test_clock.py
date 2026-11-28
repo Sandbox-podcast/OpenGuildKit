@@ -95,6 +95,7 @@ class ClockTests(unittest.TestCase):
             self.assertEqual(len(set(local_days.values())), 2, local_days)
 
     def test_a_malformed_source_date_epoch_is_a_clear_error(self):
+        # OGK-CORE-001
         for value in ("yesterday", "-5", "1.5", "²", "99999999999999999999"):
             with self.subTest(value=value), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": value}):
                 with self.assertRaisesRegex(ValueError, "SOURCE_DATE_EPOCH"):
@@ -128,6 +129,7 @@ class ClockTests(unittest.TestCase):
             self.assertNotIn("SOURCE_DATE_EPOCH", self.cli(root, "task", "new", "Show request history.", "--id", "history")[1])
 
     def test_shares_follow_the_real_clock_under_source_date_epoch(self):
+        # OGK-PUBLISH-014
         root = self.project()
         until = (clock.real_today() + timedelta(days=10)).isoformat()
         with patch.dict(os.environ, {"SOURCE_DATE_EPOCH": LATER}):
@@ -188,6 +190,7 @@ class ClockTests(unittest.TestCase):
                 self.assertEqual(storybook_scope(state)["indexes"][0]["age_days"], 0)
 
     def test_evidence_dates_follow_the_real_clock_under_source_date_epoch(self):
+        # OGK-BOARD-005
         today = clock.real_today().isoformat()
         later = (clock.real_today() + timedelta(days=30)).isoformat()
         for fixed in (LATER, EARLIER):

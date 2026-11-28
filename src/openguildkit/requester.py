@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .doc_links import doc_link
+from .errors import OgkError
 from .records import Profile, Task
 
 FIELD = "separate_requester"
@@ -61,19 +62,19 @@ def declared(name: str | None, profile: Profile, root: Path | None = None) -> st
     option on in a project with signed approvals, it is a principal of the allowed signers file."""
     if name is None:
         if active(profile):
-            raise ValueError("This project separates who requests a task from who approves it (profile "
+            raise OgkError("OGK-TASK-016", "This project separates who requests a task from who approves it (profile "
                              "separate-requester on): name the person who asked for the work with --requested-by NAME. "
                              "Nothing was written.")
         return None
     if not name.strip() or "\n" in name or "\r" in name:
-        raise ValueError("--requested-by takes the name of the person who asked for the work, on one line. "
+        raise OgkError("OGK-TASK-017", "--requested-by takes the name of the person who asked for the work, on one line. "
                          "Nothing was written.")
     approval = profile.get("approval") or {}
     if root is not None and active(profile) and approval.get("mode") == "signed":
         relative = approval.get("allowed_signers", "")
         known = principals(root, relative)
         if not any(fnmatch.fnmatchcase(name.strip(), item) for item in known):
-            raise ValueError(f"{name.strip()} is not a principal of {relative}: in a project with signed approvals, the "
+            raise OgkError("OGK-TASK-018", f"{name.strip()} is not a principal of {relative}: in a project with signed approvals, the "
                              f"requester is named as their key signs ({', '.join(known[:10]) or 'no principal'}), so "
                              f"that they cannot approve their own request under another name ({section()}). Nothing "
                              "was written.")

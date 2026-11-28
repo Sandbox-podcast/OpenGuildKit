@@ -78,6 +78,7 @@ class TeamSharingTests(SharingCase):
         self.assertEqual((problem["kind"], problem["severity"]), ("earlier-rules", "error"))
 
     def test_records_exported_before_the_completed_field_still_list(self):
+        # OGK-GUARD-013
         self.approved()
         self.run_cli("task", "export", TASK)
         path = self.state / "decisions" / f"{TASK}.json"
@@ -174,6 +175,7 @@ class TeamSharingTests(SharingCase):
         self.assertIn("completed_at", record)
 
     def test_a_teammate_record_keeps_its_id_and_is_never_replaced(self):
+        # OGK-GUARD-010
         self.approved()
         teammate = self.root / "teammate.json"
         self.run_cli("task", "export", TASK)

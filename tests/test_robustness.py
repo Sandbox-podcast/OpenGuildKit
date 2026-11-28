@@ -193,6 +193,7 @@ class FuzzTestCase(unittest.TestCase):
 
 class InputFileTests(FuzzTestCase):
     def test_setup_answers(self):
+        # OGK-PROJECT-001, OGK-PROJECT-003, OGK-PROJECT-005, OGK-PROJECT-006, OGK-PROJECT-018, OGK-PROJECT-021
         profile = json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8"))
         profile.update(boards=["security"], guard="warn", waivers={"allowed_by": ["Camille"], "max_days": 30})
         self.fuzz("preview --answers", profile, lambda path: self.cli("preview", "--answers", path, "--json"))
@@ -218,6 +219,7 @@ class InputFileTests(FuzzTestCase):
         self.fuzz("init --answers", profile, run, count=12)
 
     def test_task_answers(self):
+        # OGK-RESULT-012, OGK-RESULT-016, OGK-RESULT-018, OGK-RESULT-019
         self.init()
         self.expect("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
         answers = json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8"))
@@ -228,12 +230,14 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"draft", "consulting"}))
 
     def test_review_files(self):
+        # OGK-BOARD-002, OGK-CORE-008, OGK-CORE-010, OGK-TASK-056
         self.consulted()
         review = self.review()
         self.fuzz("task review --file", review, lambda path: self.cli("task", "review", TASK, "--file", path),
                   self.record_loads({"consulting", "reviewed"}), count=40)
 
     def test_board_entries(self):
+        # OGK-BOARD-010, OGK-TASK-061
         self.consulted()
         entry = next(item for item in self.review()["boards"] if item["id"] == "security")
         self.expect("task", "pass", TASK, "security")
@@ -241,6 +245,7 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"consulting"}), count=40)
 
     def test_deliberations(self):
+        # OGK-TASK-087, OGK-TASK-088, OGK-TASK-089, OGK-TASK-090
         self.reviewed()
         request = json.loads(self.expect("task", "deliberate", TASK))
         payload = request["template"]
@@ -251,6 +256,7 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"reviewed"}))
 
     def test_result_files(self):
+        # OGK-RESULT-022, OGK-RESULT-024, OGK-RESULT-026, OGK-RESULT-027
         self.reviewed()
         self.expect("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", typed=TASK)
         checks = json.loads(self.expect("task", "checks", TASK, "--json"))
@@ -264,6 +270,7 @@ class InputFileTests(FuzzTestCase):
 
 class StateFileTests(FuzzTestCase):
     def test_a_damaged_profile_gives_a_message_on_every_command(self):
+        # OGK-PROJECT-013, OGK-PROJECT-017
         self.consulted()
         profile_path = self.root / ".openguildkit" / "project.json"
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
@@ -307,6 +314,7 @@ class StateFileTests(FuzzTestCase):
 
 class HookInputTests(FuzzTestCase):
     def test_hook_input_never_crashes_and_enforce_still_refuses_an_uncovered_edit(self):
+        # OGK-GUARD-003
         self.init(guard="enforce")
         hook = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
                 "tool_input": {"file_path": str(self.root / "src" / "app.py")}, "cwd": str(self.root)}
@@ -327,6 +335,7 @@ class CommandSequenceTests(FuzzTestCase):
     """A small model-based test: random valid and invalid task commands, checked against a model of the states."""
 
     def test_random_command_sequences_keep_every_record_consistent(self):
+        # OGK-TASK-020
         self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
         entries = {item["id"]: item for item in json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))["boards"]}
         model = {}

@@ -29,6 +29,7 @@ from .check_cli import check_status
 from .cli import command_parser
 from .command import Command
 from .decisions import exported_records
+from .errors import OgkError
 from .guard import guard_mode
 from .lock import project_catalog, read_lock
 from .project import STATE_DIR, load_profile
@@ -74,9 +75,9 @@ def run(command: Command) -> int:
     args = command.args
     policy = read_policy(args.policy) if args.policy is not None else None
     if args.strict and policy is None:
-        raise ValueError("--strict compares each project with a policy: add --policy FILE.")
+        raise OgkError("OGK-PROJECT-040", "--strict compares each project with a policy: add --policy FILE.")
     if args.format == "csv" and (args.json or args.search is not None):
-        raise ValueError("--format csv prints the projects only: use --json for the matches of --search, or for a program.")
+        raise OgkError("OGK-PROJECT-041", "--format csv prints the projects only: use --json for the matches of --search, or for a program.")
     surfaces = args.surfaces or policy is not None
     folders, others = project_folders(args.folders)
     rows = [_project(args, folder, policy, surfaces) for folder in folders]
@@ -105,15 +106,15 @@ def read_policy(path: Path) -> dict:
     try:
         policy = read_json(path)
     except (OSError, ValueError) as error:
-        raise ValueError(f"The policy file cannot be read: {error}") from None
+        raise OgkError("OGK-PROJECT-042", f"The policy file cannot be read: {error}") from None
     if not isinstance(policy, dict):
         raise ValueError(f"The policy file {path.name} must hold a JSON object.")
     unknown = sorted(str(name) for name in policy if name not in POLICY_FIELDS)
     if unknown:
-        raise ValueError(f"The policy file {path.name} names {', '.join(unknown)}: a policy holds "
+        raise OgkError("OGK-PROJECT-043", f"The policy file {path.name} names {', '.join(unknown)}: a policy holds "
                          f"{', '.join(POLICY_FIELDS)}.")
     if "guard" in policy and policy["guard"] not in GUARD_RANK:
-        raise ValueError(f"The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}.")
+        raise OgkError("OGK-PROJECT-044", f"The guard of the policy must be {', '.join(list(GUARD_RANK)[:-1])} or {list(GUARD_RANK)[-1]}.")
     if "approvals" in policy and policy["approvals"] != "signed":
         raise ValueError('The approvals of the policy must be "signed".')
     if "separate_requester" in policy and policy["separate_requester"] is not True:

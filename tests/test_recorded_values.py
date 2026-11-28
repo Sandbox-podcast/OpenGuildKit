@@ -47,6 +47,7 @@ class RecordedValueTests(unittest.TestCase):
         self.assertNotIn("records", checks["rule:llm-evaluations/record-evaluation-setup"])
 
     def test_a_passed_or_failed_outcome_needs_the_value_with_its_unit(self):
+        # OGK-CATALOG-003
         check = "rule:llm-evaluations/compare-evaluation-baselines"
         payload = {"revision": "abc1234", "checks": [outcome(check)]}
         with self.assertRaisesRegex(ValueError, "regression-budget.*value"):
@@ -58,6 +59,7 @@ class RecordedValueTests(unittest.TestCase):
         self.assertEqual(validate_result(self.task, {}, payload)["checks"][0]["value"], "2 percentage points")
 
     def test_a_recorded_number_must_fall_within_the_bounds_its_rule_declares(self):
+        # OGK-CATALOG-004
         def record(check, value):
             payload = {"revision": "abc1234", "checks": [outcome(check, value=value)]}
             return validate_result(self.task, {}, payload)["checks"][0]["value"]

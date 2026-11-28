@@ -274,6 +274,7 @@ class GeminiApplyTests(GeminiCase):
         self.assertEqual(self.board()["status"], "enforced")
 
     def test_host_apply_refuses_a_file_it_cannot_read_and_keeps_it(self):
+        # OGK-HOST-003, OGK-HOST-004, OGK-HOST-006
         self.init("enforce")
         for text, message in (("{not json", "is not valid JSON"), ("[]", "must hold a JSON object"),
                               ('{"hooks": {"BeforeTool": [{"hooks": "x"}]}}', "must be a list of handlers"),
@@ -481,6 +482,7 @@ class GeminiHostListTests(GeminiCase):
     def test_a_profile_with_an_unknown_host_names_the_choices(self):
         write_json(self.root / "answers.json", {"personal_data": "no", "name": "Portal", "host": "nope"})
         _, error = self.run_cli("init", "--answers", self.root / "answers.json", code=1)
+        # OGK-PROJECT-020
         self.assertIn("host must be one of claude-code, codex, gemini-cli, other", error)
 
     def question(self) -> dict:
@@ -518,6 +520,7 @@ class GeminiHostListTests(GeminiCase):
         self.assertNotIn("This host has no hook", output)
 
     def test_tools_commands_say_which_host_the_project_has(self):
+        # OGK-TOOLS-013
         self.init("observe")
         _, error = self.run_cli("tools", "apply", "jira", "--mock", code=1)
         self.assertIn("the project's host is gemini-cli", error)
@@ -575,6 +578,7 @@ class GeminiCoverageTests(GeminiCase):
         self.assertIn("context.fileName", text)
 
     def test_a_settings_file_that_cannot_be_read_is_reported_as_unreadable(self):
+        # OGK-HOST-002
         self.init("enforce")
         (self.root / ".gemini").mkdir()
         (self.root / ".gemini" / "settings.json").write_text("{nope", encoding="utf-8")

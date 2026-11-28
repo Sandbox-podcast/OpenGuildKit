@@ -471,6 +471,7 @@ class CommandTests(ScanCase):
         self.assertEqual(data["scanned"]["files"], 1)
 
     def test_scan_needs_no_initialized_project_and_strict_belongs_to_scan(self):
+        # OGK-CHECK-006
         self.assertFalse((self.root / ".openguildkit").exists())
         self.cli(code=0)
         result = run_cli(self.root, "host", "check", "--strict", expect=None)
@@ -557,12 +558,13 @@ class SarifTests(ScanCase):
             self.assertIn("## " + anchor.replace("-", " ").capitalize(), page)
 
     def test_sarif_does_not_go_with_json_nor_with_another_mode_and_the_message_says_what_to_type(self):
+        # OGK-CHECK-002
         write(self.root, "AGENTS.md", "Run.\n")
         both = run_cli(self.root, "host", "scan", "--format", "sarif", "--json", expect=1)
         self.assertIn("openguildkit host scan --format sarif", both.stderr)
         other = run_cli(self.root, "host", "check", "--format", "sarif", expect=1)
         self.assertIn("openguildkit host scan --format sarif", other.stderr)
-        self.assertEqual((json.loads(both.stdout)["error"]["code"], other.stdout), (None, ""))  # Issue #484.
+        self.assertEqual((json.loads(both.stdout)["error"]["code"], other.stdout), ("OGK-CHECK-003", ""))  # Issue #484.
 
 
 class SourceTests(unittest.TestCase):

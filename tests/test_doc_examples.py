@@ -78,6 +78,7 @@ class ToolsScenarioTests(unittest.TestCase):
         self.assertEqual(set(written["records"]), {"jira", "tempo", "snyk"})
 
     def test_without_a_tool_the_message_says_what_was_examined_and_what_to_type(self):
+        # OGK-TOOLS-017
         error = run_cli(self.root, "tools", "scenario", "--task", "request-status", expect=1).stderr
         self.assertIn("The profile names no tool and no tool is connected as a mock", error)
         self.assertIn("openguildkit tools scenario TOOL", error)

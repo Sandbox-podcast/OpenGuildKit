@@ -23,6 +23,7 @@ class AssumptionAnswerTests(unittest.TestCase):
         self.assertEqual(validated["assumptions"], ["One link per account.", "Labels stay in English."])
 
     def test_a_wrong_type_is_refused_with_what_to_write(self):
+        # OGK-RESULT-015
         for value in ("One link per account.", [1], ["ok", ""], {"a": "b"}, [["nested"]]):
             with self.subTest(value=value), self.assertRaises(ValueError) as error:
                 validate_answers({**BASE, "assumptions": value})

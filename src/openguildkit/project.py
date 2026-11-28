@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from . import lazy_re, short_lane
+from .errors import OgkError
 from .patterns import (
     check_pattern_choices,
     pattern_selection,
@@ -31,7 +32,7 @@ def project_root(path: Path | None) -> Path:
     if path is not None:
         root = path.resolve(strict=True)
         if not root.is_dir():
-            raise ValueError(f"Project path must be a directory: {root}")
+            raise OgkError("OGK-PROJECT-045", f"Project path must be a directory: {root}")
         return root
     current = Path.cwd().resolve()
     for candidate in (current, *current.parents):
@@ -43,7 +44,7 @@ def project_root(path: Path | None) -> Path:
 def state_path(root: Path) -> Path:
     state = root / STATE_DIR
     if state.resolve() != state:
-        raise ValueError(f"Project state must stay inside its project: {state}")
+        raise OgkError("OGK-PROJECT-046", f"Project state must stay inside its project: {state}")
     return state
 
 
@@ -54,9 +55,9 @@ def _single_line(value: str) -> bool:
 
 def _texts(value, field: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
-        raise ValueError(f"{field} must be a list of non-empty strings")
+        raise OgkError("OGK-PROJECT-001", f"{field} must be a list of non-empty strings")
     if any(not _single_line(item) for item in value):
-        raise ValueError(f"Each entry of {field} must be a single line")
+        raise OgkError("OGK-PROJECT-002", f"Each entry of {field} must be a single line")
     return list(dict.fromkeys(item.strip() for item in value))
 
 
@@ -68,7 +69,7 @@ def catalog_ids(value, field: str, available: dict) -> list[str]:
             " It comes from a central policy: pass --policy-repo and --policy-commit."
             if "export-link-expiry" in unknown else " Run openguildkit catalog."
         )
-        raise ValueError(f"Unknown {field}: {', '.join(unknown)}.{hint}")
+        raise OgkError("OGK-PROJECT-003", f"Unknown {field}: {', '.join(unknown)}.{hint}")
     return chosen
 
 
@@ -98,23 +99,23 @@ def _components(value) -> list[dict]:
     if value is None:
         return []
     if not isinstance(value, list):
-        raise ValueError("components must be a list of objects with id, path and stack")
+        raise OgkError("OGK-PROJECT-047", "components must be a list of objects with id, path and stack")
     components, seen = [], set()
     for component in value:
         if not isinstance(component, dict) or not {"id", "stack"} <= component.keys() <= {"id", "path", "stack"}:
-            raise ValueError("Each component needs an id and a stack, and can have a path")
+            raise OgkError("OGK-PROJECT-048", "Each component needs an id and a stack, and can have a path")
         component_id = component["id"]
         if not isinstance(component_id, str) or len(component_id) > 64 or not COMPONENT_ID.fullmatch(component_id):
-            raise ValueError("Component IDs use up to 64 lowercase letters, digits and separating hyphens")
+            raise OgkError("OGK-PROJECT-049", "Component IDs use up to 64 lowercase letters, digits and separating hyphens")
         if component_id in seen:
-            raise ValueError(f"Duplicate component: {component_id}")
+            raise OgkError("OGK-PROJECT-050", f"Duplicate component: {component_id}")
         seen.add(component_id)
         entry = {"id": component_id}
         if "path" in component:
             path = component["path"]
             parts = path.replace("\\", "/").split("/") if isinstance(path, str) else []
             if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ":" in path or ".." in parts:
-                raise ValueError(f"Component {component_id} needs a path relative to the project root")
+                raise OgkError("OGK-PROJECT-004", f"Component {component_id} needs a path relative to the project root")
             entry["path"] = path.strip()
         entry["stack"] = _texts(component["stack"], f"components.{component_id}.stack")
         components.append(entry)
@@ -124,7 +125,7 @@ def _components(value) -> list[dict]:
 def project_context(answers: Mapping[str, Any], catalog: Catalog) -> tuple[str, list[str], list[str], list[dict]]:
     sector = answers.get("sector", "general")
     if not isinstance(sector, str) or sector not in catalog["sectors"]:
-        raise ValueError(f"Unknown sector: {sector}. Run openguildkit catalog.")
+        raise OgkError("OGK-PROJECT-005", f"Unknown sector: {sector}. Run openguildkit catalog.")
     components = _components(answers.get("components"))
     stack = _texts(answers.get("stack", []), "stack")
     if components:
@@ -140,7 +141,7 @@ def _yes_no(value, field: str) -> bool | None:
         return value
     if value in ("yes", "no"):
         return value == "yes"
-    raise ValueError(f"{field} must be yes, no, true or false")
+    raise OgkError("OGK-PROJECT-006", f"{field} must be yes, no, true or false")
 
 
 def _personal_data(value) -> bool | None:
@@ -154,7 +155,7 @@ DATE = lazy_re.compile(r"\d{4}-\d{2}-\d{2}")
 
 def _decision_text(value, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or not _single_line(value):
-        raise ValueError(f"{field} must be a non-empty single line")
+        raise OgkError("OGK-PROJECT-007", f"{field} must be a non-empty single line")
     return value.strip()
 
 
@@ -162,24 +163,24 @@ def decision_record(entry: dict, label: str) -> dict:
     """Who decided, on which day and why: each a single line, the day as YYYY-MM-DD."""
     record = {key: _decision_text(entry[key], f"{label} {key}") for key in DECISION_FIELDS}
     if not DATE.fullmatch(record["on"]):
-        raise ValueError(f"{label} on must be a date written YYYY-MM-DD")
+        raise OgkError("OGK-PROJECT-051", f"{label} on must be a date written YYYY-MM-DD")
     return record
 
 
 def declined_entries(value, catalog: Catalog) -> list:
     """Declined patterns: plain IDs (written before declines were recorded), or objects with who, when and why."""
     if not isinstance(value, list):
-        raise ValueError("declined must be a list")
+        raise OgkError("OGK-PROJECT-052", "declined must be a list")
     entries, seen = [], set()
     for entry in value:
         if isinstance(entry, dict):
             if set(entry) != {"id", *DECISION_FIELDS}:
-                raise ValueError('A declined entry is an ID or {"id", "by", "on", "reason"}')
+                raise OgkError("OGK-PROJECT-053", 'A declined entry is an ID or {"id", "by", "on", "reason"}')
             pattern_id = entry["id"]
         else:
             pattern_id = entry
         if not isinstance(pattern_id, str) or pattern_id not in catalog["patterns"]:
-            raise ValueError(f"Unknown declined: {pattern_id}. Run openguildkit catalog.")
+            raise OgkError("OGK-PROJECT-008", f"Unknown declined: {pattern_id}. Run openguildkit catalog.")
         if pattern_id in seen:
             continue
         seen.add(pattern_id)
@@ -201,18 +202,18 @@ def _declined_rules(value, required: list[str]) -> list[dict]:
     """Single rules a person set aside (profile decline rule PACK/RULE), each with who, when and why. A rule the
     catalog no longer has is kept: it sets nothing aside, and the person restores it with profile adopt rule."""
     if not isinstance(value, list):
-        raise ValueError("declined_rules must be a list")
+        raise OgkError("OGK-PROJECT-054", "declined_rules must be a list")
     entries, seen = [], set()
     for entry in value:
         if not isinstance(entry, dict) or set(entry) != {"id", *DECISION_FIELDS}:
-            raise ValueError('A declined_rules entry is {"id": "PACK/RULE", "by", "on", "reason"}')
+            raise OgkError("OGK-PROJECT-009", 'A declined_rules entry is {"id": "PACK/RULE", "by", "on", "reason"}')
         rule = entry["id"]
         pack_id, _, rule_id = rule.partition("/") if isinstance(rule, str) else ("", "", "")
         if not pack_id or not rule_id or "/" in rule_id:
-            raise ValueError(f"A declined rule is named PACK/RULE, as openguildkit catalog lists it: {rule!r} is not")
+            raise OgkError("OGK-PROJECT-010", f"A declined rule is named PACK/RULE, as openguildkit catalog lists it: {rule!r} is not")
         both = [item for item in required if item in (pack_id, rule)]
         if both:
-            raise ValueError(f"Rule {rule} is both required and declined: remove {both[0]} from the required rules "
+            raise OgkError("OGK-PROJECT-011", f"Rule {rule} is both required and declined: remove {both[0]} from the required rules "
                              f"(openguildkit profile remove required-rule {both[0]}) or restore the rule "
                              f"(openguildkit profile adopt rule {rule}).")
         if rule not in seen:
@@ -237,24 +238,24 @@ def rules_in_force(pack: dict, profile: Profile) -> dict:
 def _approval_roles(value, catalog: Catalog) -> dict[str, list[str]]:
     """approval.roles: each board, by ID, with the people of its role (roles.py)."""
     if not isinstance(value, dict) or not value:
-        raise ValueError("approval.roles must map a board to the people of its role")
+        raise OgkError("OGK-PROJECT-055", "approval.roles must map a board to the people of its role")
     unknown = sorted(set(value) - catalog["boards"].keys())
     if unknown:
-        raise ValueError(f"Unknown board in approval.roles: {', '.join(unknown)}. Run openguildkit catalog.")
+        raise OgkError("OGK-PROJECT-012", f"Unknown board in approval.roles: {', '.join(unknown)}. Run openguildkit catalog.")
     roles = {board: _texts(names, f"approval.roles.{board}") for board, names in sorted(value.items())}
     if not all(roles.values()):
-        raise ValueError("Each role of approval.roles needs at least one person")
+        raise OgkError("OGK-PROJECT-056", "Each role of approval.roles needs at least one person")
     return roles
 
 
 def _changes(value) -> list[dict]:
     """The history of profile commands: who changed what, on which day and why."""
     if not isinstance(value, list):
-        raise ValueError("changes must be a list")
+        raise OgkError("OGK-PROJECT-057", "changes must be a list")
     result = []
     for entry in value:
         if not isinstance(entry, dict) or set(entry) != {"change", *DECISION_FIELDS}:
-            raise ValueError('Each change needs change, by, on and reason')
+            raise OgkError("OGK-PROJECT-058", 'Each change needs change, by, on and reason')
         result.append({"change": _decision_text(entry["change"], "change"), **decision_record(entry, "change")})
     return result
 
@@ -316,22 +317,22 @@ def pack_rule_counts(pack_ids: list[str], catalog: Catalog) -> dict[str, int]:
 def pattern_entries(value, catalog: Catalog, components: list[dict]) -> list:
     """Validate selected patterns: plain IDs, or objects limiting a pattern to components."""
     if not isinstance(value, list):
-        raise ValueError("patterns must be a list")
+        raise OgkError("OGK-PROJECT-013", "patterns must be a list")
     known_components = {component["id"] for component in components}
     entries, seen = [], set()
     for entry in value:
         if isinstance(entry, dict):
             if set(entry) != {"id", "components"}:
-                raise ValueError("A scoped pattern needs exactly id and components")
+                raise OgkError("OGK-PROJECT-059", "A scoped pattern needs exactly id and components")
             scope = _texts(entry["components"], "pattern components")
             unknown = sorted(set(scope) - known_components)
             if unknown:
-                raise ValueError(f"Pattern {entry['id']} names unknown components: {', '.join(unknown)}")
+                raise OgkError("OGK-PROJECT-014", f"Pattern {entry['id']} names unknown components: {', '.join(unknown)}")
             pattern_id = entry["id"]
         else:
             pattern_id, scope = entry, None
         if not isinstance(pattern_id, str) or pattern_id not in catalog["patterns"]:
-            raise ValueError(f"Unknown patterns: {pattern_id}. Run openguildkit catalog.")
+            raise OgkError("OGK-PROJECT-060", f"Unknown patterns: {pattern_id}. Run openguildkit catalog.")
         if pattern_id in seen:
             continue
         seen.add(pattern_id)
@@ -342,23 +343,23 @@ def pattern_entries(value, catalog: Catalog, components: list[dict]) -> list:
 def _resolutions(value, catalog: Catalog) -> list[dict]:
     """Validate the team's choices between conflicting packs."""
     if not isinstance(value, list):
-        raise ValueError("resolutions must be a list")
+        raise OgkError("OGK-PROJECT-061", "resolutions must be a list")
     result, seen = [], set()
     for item in value:
         if not isinstance(item, dict) or set(item) != {"packs", "keep", "reason"}:
-            raise ValueError("Each resolution needs packs, keep and reason")
+            raise OgkError("OGK-PROJECT-062", "Each resolution needs packs, keep and reason")
         packs = catalog_ids(item["packs"], "resolution packs", catalog["packs"])
         keep = catalog_ids(item["keep"], "resolution keep", catalog["packs"])
         if len(packs) < 2:
-            raise ValueError("A resolution names at least two conflicting packs")
+            raise OgkError("OGK-PROJECT-063", "A resolution names at least two conflicting packs")
         if not keep or not set(keep) <= set(packs):
-            raise ValueError("keep must list one or more of the resolution's packs")
+            raise OgkError("OGK-PROJECT-015", "keep must list one or more of the resolution's packs")
         reason = item["reason"]
         if not isinstance(reason, str) or not reason.strip() or not _single_line(reason):
-            raise ValueError("A resolution needs a single-line reason")
+            raise OgkError("OGK-PROJECT-064", "A resolution needs a single-line reason")
         key = tuple(sorted(packs))
         if key in seen:
-            raise ValueError(f"Duplicate resolution for {', '.join(key)}")
+            raise OgkError("OGK-PROJECT-065", f"Duplicate resolution for {', '.join(key)}")
         seen.add(key)
         result.append({"packs": sorted(packs), "keep": sorted(keep), "reason": reason.strip()})
     return result
@@ -388,7 +389,7 @@ def restricted_paths(profile: Mapping[str, Any]) -> list[str]:
                 or not isinstance(entry.get("class", ""), str)
                 or (not isinstance(entry.get("boards", []), list)
                     or any(not isinstance(item, str) for item in entry.get("boards", [])))):
-            raise ValueError(shape)
+            raise OgkError("OGK-PROJECT-016", shape)
         paths += [item.strip() for item in listed]
     return list(dict.fromkeys(paths))
 
@@ -404,17 +405,17 @@ def validate_profile(answers: Mapping[str, Any], catalog: Catalog) -> Profile:
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
-        raise ValueError(f"Unknown profile fields: {', '.join(unknown)}")
+        raise OgkError("OGK-PROJECT-066", f"Unknown profile fields: {', '.join(unknown)}")
     version = answers.get("schema_version", SCHEMA_VERSION)
     if type(version) is not int or version != SCHEMA_VERSION:
-        raise ValueError(f"Unsupported project schema version: {version}")
+        raise OgkError("OGK-PROJECT-017", f"Unsupported project schema version: {version}")
     name = answers.get("name")
     if not isinstance(name, str) or not name.strip() or not _single_line(name):
-        raise ValueError("name must be a non-empty single line")
+        raise OgkError("OGK-PROJECT-067", "name must be a non-empty single line")
     sector, stack, roles, components = project_context(answers, catalog)
     research = answers.get("research", "local-only")
     if research not in ("local-only", "public-sources"):
-        raise ValueError("research must be local-only or public-sources")
+        raise OgkError("OGK-PROJECT-018", "research must be local-only or public-sources")
     inputs = recommendation_inputs(answers, catalog)
     patterns, declined = _chosen_patterns(answers, catalog, (sector, stack, roles, components), inputs)
     packs = catalog_ids(answers.get("packs", default_packs(stack, components, patterns, catalog)), "packs", catalog["packs"])
@@ -459,7 +460,7 @@ def _chosen_patterns(answers: Mapping[str, Any], catalog: Catalog, context: tupl
     declined = declined_entries(answers.get("declined", []), catalog)
     both = sorted(set(inputs["declined"]) & {pattern_selection(entry)[0] for entry in patterns})
     if both:
-        raise ValueError(f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
+        raise OgkError("OGK-PROJECT-019", f"Pattern {', '.join(both)} is both selected and declined: remove it from one of the lists.")
     check_pattern_choices([pattern_selection(entry)[0] for entry in patterns], catalog["patterns"])
     return patterns, declined
 
@@ -470,7 +471,7 @@ def _add_agent_settings(profile: Profile, answers: Mapping[str, Any]) -> None:
     if host is not None:
         from .hosts import HOSTS
         if host not in HOSTS:
-            raise ValueError(f"host must be one of {', '.join(HOSTS)}")
+            raise OgkError("OGK-PROJECT-020", f"host must be one of {', '.join(HOSTS)}")
         profile["host"] = host
     tools = _texts(answers.get("tools", []), "tools")
     if tools:
@@ -478,7 +479,7 @@ def _add_agent_settings(profile: Profile, answers: Mapping[str, Any]) -> None:
     guard = answers.get("guard")
     if guard is not None:
         if guard not in ("off", "observe", "enforce"):
-            raise ValueError("guard must be off, observe or enforce")
+            raise OgkError("OGK-PROJECT-021", "guard must be off, observe or enforce")
         profile["guard"] = guard
 
 
@@ -489,7 +490,7 @@ def _add_rule_choices(profile: Profile, answers: Mapping[str, Any], catalog: Cat
         pack_id, _, rule_id = item.partition("/")
         pack = catalog["packs"].get(pack_id)
         if pack is None or (rule_id and rule_id not in {rule["id"] for rule in pack["rules"]}):
-            raise ValueError(f"Unknown required rule {item}: use PACK or PACK/RULE from openguildkit catalog")
+            raise OgkError("OGK-PROJECT-022", f"Unknown required rule {item}: use PACK or PACK/RULE from openguildkit catalog")
     if required_rules:
         profile["required_rules"] = required_rules
     declined_rules = _declined_rules(answers.get("declined_rules", []), required_rules)
@@ -498,7 +499,7 @@ def _add_rule_choices(profile: Profile, answers: Mapping[str, Any], catalog: Cat
     drafts = [pack_id for pack_id in selected_packs(profile, catalog)
               if str(catalog["packs"][pack_id].get("description", "")).startswith(DRAFT_MARK)]
     if drafts:
-        raise ValueError(f"Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and "
+        raise OgkError("OGK-PROJECT-023", f"Pack {drafts[0]} is a draft written by task retro: review each rule, replace each TODO and "
                          "rewrite its description before a profile uses it.")
 
 
@@ -508,23 +509,23 @@ def _add_approval(profile: Profile, answers: Mapping[str, Any], catalog: Catalog
     if approval is None:
         return
     if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
-        raise ValueError("approval.mode must be local or signed")
+        raise OgkError("OGK-PROJECT-068", "approval.mode must be local or signed")
     # max_age_days (incident.py) and roles (roles.py) are options that go with either mode.
     setting = {key: value for key, value in approval.items() if key not in ("max_age_days", "roles")}
     if setting["mode"] == "signed":
         if set(setting) != {"mode", "allowed_signers", "approvers"}:
-            raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
+            raise OgkError("OGK-PROJECT-069", "A signed approval needs allowed_signers (a project path) and approvers")
         path = setting["allowed_signers"]
         if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/"):
-            raise ValueError("approval.allowed_signers must be a path inside the project")
+            raise OgkError("OGK-PROJECT-070", "approval.allowed_signers must be a path inside the project")
         profile["approval"] = {"mode": "signed", "allowed_signers": path.strip(),
                                "approvers": _texts(setting["approvers"], "approval.approvers")}
     elif set(setting) != {"mode"}:
-        raise ValueError("A local approval takes no other setting")
+        raise OgkError("OGK-PROJECT-071", "A local approval takes no other setting")
     if "max_age_days" in approval:
         days = approval["max_age_days"]
         if type(days) is not int or not 1 <= days <= 366:
-            raise ValueError("approval.max_age_days must be a whole number of days between 1 and 366")
+            raise OgkError("OGK-PROJECT-072", "approval.max_age_days must be a whole number of days between 1 and 366")
         profile["approval"] = {**profile.get("approval", {"mode": "local"}), "max_age_days": days}
     if "roles" in approval:
         profile["approval"] = {**profile.get("approval", {"mode": "local"}),
@@ -537,10 +538,10 @@ def _add_options(profile: Profile, answers: Mapping[str, Any], catalog: Catalog)
     waivers = answers.get("waivers")
     if waivers is not None:
         if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:
-            raise ValueError("waivers needs allowed_by (names) and max_days")
+            raise OgkError("OGK-PROJECT-073", "waivers needs allowed_by (names) and max_days")
         max_days = waivers["max_days"]
         if type(max_days) is not int or not 1 <= max_days <= 366:
-            raise ValueError("waivers.max_days must be a whole number of days between 1 and 366")
+            raise OgkError("OGK-PROJECT-074", "waivers.max_days must be a whole number of days between 1 and 366")
         profile["waivers"] = {"allowed_by": _texts(waivers["allowed_by"], "waivers.allowed_by"), "max_days": max_days}
     # The short lane (short_lane.py): absent, or an empty list, means it is off.
     if answers.get("light_paths"):
@@ -548,12 +549,12 @@ def _add_options(profile: Profile, answers: Mapping[str, Any], catalog: Catalog)
     # The requester and the approver (requester.py, RFC #445): absent means off; only true is written.
     if "separate_requester" in answers:
         if answers["separate_requester"] is not True:
-            raise ValueError("separate_requester must be true, or absent when the option is off")
+            raise OgkError("OGK-PROJECT-024", "separate_requester must be true, or absent when the option is off")
         profile["separate_requester"] = True
     # A freeze (incident.py): who, when and why; absent means the project is not frozen.
     if "frozen" in answers:
         if not isinstance(answers["frozen"], dict) or set(answers["frozen"]) != set(DECISION_FIELDS):
-            raise ValueError("frozen must name by, on and reason")
+            raise OgkError("OGK-PROJECT-075", "frozen must name by, on and reason")
         profile["frozen"] = decision_record(answers["frozen"], "frozen")
     # Folders closed to the agent: the edit hook refuses them, host apply writes them into the host settings.
     if answers.get("restricted_paths"):
@@ -561,7 +562,7 @@ def _add_options(profile: Profile, answers: Mapping[str, Any], catalog: Catalog)
         profile["restricted_paths"] = answers["restricted_paths"]
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
-        raise ValueError("ask_every_rule must be true or false")
+        raise OgkError("OGK-PROJECT-025", "ask_every_rule must be true or false")
     if ask_every_rule:
         profile["ask_every_rule"] = True
     required = catalog_ids(answers.get("required_boards", []), "required_boards", catalog["boards"])
@@ -579,13 +580,13 @@ def load_profile(state: Path, catalog: Catalog) -> Profile:
     path = state / "project.json"
     if not path.is_file():
         # Run from the wrong folder, a bare "run init" would start a second project there.
-        raise ValueError(f"No OpenGuildKit project found for {state.parent.as_posix()}: {STATE_DIR}/project.json "
+        raise OgkError("OGK-PROJECT-026", f"No OpenGuildKit project found for {state.parent.as_posix()}: {STATE_DIR}/project.json "
                          "does not exist. cd into the project folder or pass --project PATH; run openguildkit init "
                          "only to set up a new project here.")
     answers = read_json(path)
     sector = answers.get("sector", "general")
     if isinstance(sector, str) and sector not in catalog["sectors"]:
-        raise ValueError(
+        raise OgkError("OGK-PROJECT-027",
             f".openguildkit/project.json names the sector {sector!r}, which neither this release nor the catalog "
             "lock provides: choose one listed by openguildkit catalog, set it in .openguildkit/project.json, "
             "then run openguildkit sync."
@@ -593,7 +594,7 @@ def load_profile(state: Path, catalog: Catalog) -> Profile:
     missing = _missing_records(answers, catalog)
     if missing:
         entries = ", ".join(f'"{record_id}" from "{field}"' for field, record_id in missing)
-        raise ValueError(
+        raise OgkError("OGK-PROJECT-028",
             f".openguildkit/project.json uses records that neither this release nor the catalog lock provides: "
             f"remove {entries}, then run openguildkit sync."
         )

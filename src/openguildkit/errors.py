@@ -3,7 +3,7 @@ with the command that lists them, and the stable code of an error (`OpenGuildKit
 
 docs/errors.md lists each code with its module, function and test (scripts/build_errors.py writes it).
 
-Entry: os_error_message, unknown, OgkError, error_line, named_command
+Entry: os_error_message, unknown, OgkError, InternalError, error_line, named_command
 Tests: tests/test_error_forms.py, tests/test_error_codes.py
 """
 
@@ -17,9 +17,14 @@ class OgkError(ValueError):
     """An error a person reads, with its stable code: `raise OgkError("OGK-TASK-004", f"Task already exists: {x}")`.
     The message is unchanged (`str(error)`); the CLI prints the code before it, and in `error.code` under --json."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: object):
         super().__init__(message)
         self.code = code
+
+
+class InternalError(ValueError):
+    """A broken invariant of the code itself, which no command or file a person writes can reach: it has no code
+    (#487). An error a person can meet is an OgkError."""
 
 
 def error_line(error: BaseException, text: str) -> str:

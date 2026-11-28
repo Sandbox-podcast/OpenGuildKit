@@ -58,6 +58,7 @@ class CleanErrorTests(unittest.TestCase):
             self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", code=0)
 
     def test_deeply_nested_json_is_an_input_error(self):
+        # OGK-CORE-009
         nested = self.root / "nested.json"
         nested.write_text('{"a":' + "[" * 300000 + "]" * 300000 + "}", encoding="utf-8")
         error = self.run_cli("recommend", "--answers", nested)
@@ -65,6 +66,7 @@ class CleanErrorTests(unittest.TestCase):
 
     def test_json_nested_too_deeply_in_a_file_of_the_project_is_one_line(self):
         """Issue #460: a file of 200 000 [ then 200 000 ] gave a RecursionError traceback in six commands."""
+        # OGK-CORE-002, OGK-TOOLS-001, OGK-TOOLS-005
         write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"],
                                                 "host": "claude-code", "guard": "observe"})
         self.run_cli("init", "--answers", self.root / "profile.json", code=0)
@@ -105,7 +107,7 @@ class CleanErrorTests(unittest.TestCase):
             capture_output=True, env={**os.environ, "PYTHONPATH": str(REPO / "src")},
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn(b"OpenGuildKit: Unknown brain", result.stderr)
+        self.assertIn(b"OpenGuildKit [OGK-CATALOG-002]: Unknown brain", result.stderr)
         self.assertNotIn(b"Traceback", result.stderr)
 
     def test_a_project_folder_that_does_not_exist_is_named_in_one_sentence(self):
@@ -161,7 +163,8 @@ class CleanErrorTests(unittest.TestCase):
             path.write_text(json.dumps(damaged), encoding="utf-8")
             for command in (("task", "show"), ("task", "challenge"), ("task", "progress")):
                 error = self.run_cli(*command, "request-status")
-                self.assertTrue(error.startswith(f"OpenGuildKit: Task record request-status is damaged: {field}"), error)
+                self.assertTrue(error.startswith(f"OpenGuildKit [OGK-TASK-023]: Task record request-status is damaged: {field}"),
+                                error)
                 self.assertEqual(len(error.strip().splitlines()), 1, error)
                 self.assertTrue(error.strip().endswith("or delete that file and open a new task with openguildkit task new."),
                                 error)
@@ -174,7 +177,7 @@ class CleanErrorTests(unittest.TestCase):
     def refusal(self, *arguments) -> str:
         """The one-line refusal of a command; a traceback fails the test."""
         error = self.run_cli(*arguments)
-        self.assertTrue(error.startswith("OpenGuildKit: "), error)
+        self.assertRegex(error, r"^OpenGuildKit(?: \[OGK-[A-Z]+-\d{3}\])?: ")
         return error.strip()
 
     def test_task_answers_of_the_wrong_type_name_the_file_and_the_field(self):
@@ -224,12 +227,14 @@ class CleanErrorTests(unittest.TestCase):
             self.assertIn(f"task result {TASK} --template", error)
 
     def test_evidence_dates_must_be_real_and_past_and_cited_files_must_exist(self):
+        # OGK-BOARD-004
         review = self.consulted()
         path = self.root / "review.json"
         later = (clock.real_today() + timedelta(days=3)).isoformat()
         for change, message in (({"source": "measurement", "date": "2026-99-99"}, "not a real date"),
                                 ({"source": "measurement", "date": later}, "in the future"),
                                 ({"source": "project-file", "ref": "nowhere/does-not-exist.txt"}, "not a file or folder"),
+                                # OGK-BOARD-015
                                 ({"source": "test", "ref": "tests/missing.py::test_x"}, "not a file or folder")):
             broken = json.loads(json.dumps(review))
             broken["boards"][0]["evidence"][0].update(change)
@@ -261,6 +266,7 @@ class CleanErrorTests(unittest.TestCase):
             self.assertNotIn(value, warning)
 
     def test_public_evidence_rejects_private_hosts_and_credentials(self):
+        # OGK-GUARD-016
         review = self.consulted()
         path = self.root / "review.json"
         evidence = review["boards"][0]["evidence"][0]
@@ -293,6 +299,7 @@ class CleanErrorTests(unittest.TestCase):
             entry["recommendation"] = ""
         write_json(self.root / "review.json", broken)
         error = self.refusal("task", "review", TASK, "--file", self.root / "review.json")
+        # OGK-BOARD-013
         self.assertIn("The review has 3 problems", error)
         for entry in broken["boards"][:3]:
             self.assertIn(f"{entry['id']}.recommendation must contain text", error)
@@ -384,6 +391,7 @@ class CleanErrorTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE((self.root / name).stat().st_mode), 0o644, name)
 
     def test_a_failed_command_leaves_no_state_folder(self):
+        # OGK-PROJECT-026
         self.assertIn("No OpenGuildKit project found", self.run_cli("sync"))
         self.assertFalse((self.root / ".openguildkit").exists())
 
@@ -412,6 +420,7 @@ class CleanErrorTests(unittest.TestCase):
         self.assertNotIn("Did you mean", message)
 
     def test_prompt_and_identifier_messages_are_precise(self):
+        # OGK-TASK-019
         question = {"type": "multi-select", "choices": [{"id": "a"}, {"id": "b"}]}
         self.assertEqual(prompt_choices(question, "1,"), ["a"])
         self.init()

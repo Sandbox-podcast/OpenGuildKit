@@ -170,6 +170,7 @@ class CheckSarifTests(SarifProject):
                                                          ("decision-stale", "error", f".openguildkit/tasks/{TASK}.json")])
 
     def test_a_task_record_that_cannot_be_read_is_reported_without_the_folder_of_the_machine(self):
+        # OGK-TASK-022
         self.init()
         tasks = self.root / ".openguildkit" / "tasks"
         tasks.mkdir(exist_ok=True)
@@ -215,7 +216,7 @@ class CheckSarifTests(SarifProject):
     def test_a_failure_that_is_not_a_finding_prints_no_file(self):
         result = self.cli("check", "--format", "sarif", code=1)
         self.assertEqual(result.stdout, "")
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-PROJECT-026]: "), result.stderr)
 
     def test_the_exit_code_of_each_failure_is_the_one_of_the_text_form(self):
         self.init(host="claude-code")
@@ -524,9 +525,10 @@ class OptionTests(SarifProject):
         self.assertIn("--format sarif", result.stderr)
         self.assertIn("--json", result.stderr)
         self.assertIn("one of them", result.stderr)
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-CHECK-005]: "), result.stderr)
 
     def test_sarif_without_ci_is_refused_and_names_the_command_that_writes_it(self):
+        # OGK-CHECK-004
         self.init()
         for arguments in (("guard",), ("guard", "--hook", "prompt")):
             with self.subTest(arguments=arguments):

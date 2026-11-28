@@ -10,6 +10,7 @@ from typing import Any
 
 from .clock import today
 from .doc_links import doc_link
+from .errors import OgkError
 from .patterns import pattern_selection, recommend_patterns, role_choices, technology_key
 from .project import (
     catalog_ids,
@@ -346,23 +347,23 @@ def _norm_answers(value, catalog: Catalog) -> dict[str, dict | None]:
     """The answers to the norms question: "yes" (or true) accepts a norm; a no names who and why,
     {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
     if not isinstance(value, dict):
-        raise ValueError('norms must be an object such as {"gdpr-personal-data": "yes"}')
+        raise OgkError("OGK-PROJECT-034", 'norms must be an object such as {"gdpr-personal-data": "yes"}')
     answers: dict[str, dict | None] = {}
     for pattern_id, answer in value.items():
         if pattern_id not in catalog["patterns"] or not is_norm(catalog["patterns"][pattern_id]):
-            raise ValueError(f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
+            raise OgkError("OGK-PROJECT-035", f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")
         if answer in ("yes", True):
             answers[pattern_id] = None
         elif isinstance(answer, dict) and answer.get("answer") == "no" and set(answer) == {"answer", "by", "reason"}:
             answers[pattern_id] = {"id": pattern_id, **decision_record({**answer, "on": today().isoformat()},
                                                                  f"norm {pattern_id}")}
         elif answer in ("no", False) or isinstance(answer, dict):
-            raise ValueError(
+            raise OgkError("OGK-PROJECT-036",
                 f'Declining norm {pattern_id} records who and why: write {{"answer": "no", "by": "NAME", '
                 '"reason": "WHY"}, with the name of the person who decided.'
             )
         else:
-            raise ValueError(f"The answer for norm {pattern_id} must be yes or no")
+            raise OgkError("OGK-PROJECT-037", f"The answer for norm {pattern_id} must be yes or no")
     return answers
 
 
@@ -423,7 +424,7 @@ def setup_profile(answers: object, catalog: Catalog, questions: list[dict]) -> t
     missing = unanswered_norms(completed, catalog, {pattern_id: True for pattern_id in kept_norms})
     if missing:
         listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
-        raise ValueError(
+        raise OgkError("OGK-PROJECT-038",
             f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
             'Add this line to the answers file, "yes" for a norm that applies, or {"answer": "no", "by": "NAME", '
             f'"reason": "WHY"}} to decline it: "norms": {json.dumps({entry["id"]: "yes" for entry in missing})}. '
@@ -431,7 +432,7 @@ def setup_profile(answers: object, catalog: Catalog, questions: list[dict]) -> t
         )
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):
-        raise ValueError("replace_default_packs must be true or false")
+        raise OgkError("OGK-PROJECT-039", "replace_default_packs must be true or false")
     sector, stack, roles, components = project_context(completed, catalog)
     if "patterns" not in completed:
         inputs = recommendation_inputs(completed, catalog)

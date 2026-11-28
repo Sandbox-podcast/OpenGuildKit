@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from .approval_check import DONE_STATUSES
 from .board_entries import required_text
 from .catalog_queries import recorded_value
+from .errors import OgkError
 from .records import Profile, Task
 from .relevance import sensitive_area
 from .results import asked_checks, decision_revision_message, evidence_fingerprint, expected_checks, not_concerned
@@ -30,7 +31,7 @@ def _evidence_reference(value: str, check_id: str) -> str:
     try:
         validate_path(value, f"{check_id} evidence", pattern=False)
     except ValueError:
-        raise ValueError(
+        raise OgkError("OGK-RESULT-021",
             f"{check_id} evidence must be a project path such as docs/privacy/record.md or an https link."
         ) from None
     return value
@@ -69,7 +70,7 @@ class _Problems:
             raise self.found[0][1]
         if self.found:
             lines = [f"{path}: {str(error).removesuffix(' ' + _shape(self.task))}" for path, error in self.found]
-            raise ValueError(f"The result has {len(lines)} problems:\n- " + "\n- ".join(lines) + f"\n{_shape(self.task)}")
+            raise OgkError("OGK-RESULT-022", f"The result has {len(lines)} problems:\n- " + "\n- ".join(lines) + f"\n{_shape(self.task)}")
 
 
 # Fields of the result template that only explain it: a filled template is accepted as it is.
@@ -217,7 +218,7 @@ def _check_entry(task: Task, item: object, known: dict, source: str, root: Path 
             accepted = SUPPLY if check.get("must_supply") else "passed or not-applicable"
         raise _refusal(task, f"{item['check']} status is {accepted}, not {item['status']!r}.")
     if item["status"] == "passed" and item.get("exit_code", 0) != 0:
-        raise ValueError(f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
+        raise OgkError("OGK-RESULT-023", f"{item['check']} has exit_code {item['exit_code']}: a check that exits non-zero cannot pass.")
     entry = {"check": item["check"], "status": item["status"]}
     if item["status"] not in ("passed", "failed") and check.get("must_supply"):
         return entry, (f"{item['check']} must be supplied because {check['must_supply']}: ask "
@@ -253,17 +254,17 @@ def _check_entry(task: Task, item: object, known: dict, source: str, root: Path 
 def _check_source(check_id: object, known: dict, source: str) -> None:
     """Command checks and ChaosFolk scenarios are recorded by task verify only, never from a report."""
     if not isinstance(check_id, str):
-        raise ValueError("Each check names its ID as text. Run task checks for the expected IDs.")
+        raise OgkError("OGK-RESULT-024", "Each check names its ID as text. Run task checks for the expected IDs.")
     if check_id.startswith("chaosfolk:"):
         if source != "verify":
-            raise ValueError(f"{check_id} comes from a replay: run task verify --chaosfolk SUMMARY.")
+            raise OgkError("OGK-RESULT-025", f"{check_id} comes from a replay: run task verify --chaosfolk SUMMARY.")
         return
     if check_id not in known:
         raise ValueError(f"Unknown check {check_id}. Run task checks for the expected IDs.")
     if known[check_id]["kind"] == "command" and source != "verify":
-        raise ValueError(f"{check_id} is recorded by task verify, which runs the command. Run task verify.")
+        raise OgkError("OGK-RESULT-026", f"{check_id} is recorded by task verify, which runs the command. Run task verify.")
     if known[check_id]["kind"] == "machine" and source != "verify":
-        raise ValueError(f"{check_id} is recorded by task verify, which evaluates its check. Run task verify.")
+        raise OgkError("OGK-RESULT-027", f"{check_id} is recorded by task verify, which evaluates its check. Run task verify.")
 
 
 # The requirement of a named evidence, written with the statuses the result file accepts.

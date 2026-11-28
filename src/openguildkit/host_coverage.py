@@ -11,6 +11,7 @@ Tests: tests/test_doc_pages.py (HostCoverageTests), tests/test_cli_coverage.py.
 """
 
 from . import hosts
+from .errors import OgkError
 from .storage import print_json
 
 STATUSES = ("enforced", "partial", "instruction", "none", "not established")
@@ -111,7 +112,7 @@ def add_options(host) -> None:
 def run(args) -> int:
     """host check --matrix: the table of every host and surface, as JSON with --json."""
     if args.mode != "check":
-        raise ValueError("--matrix is an option of openguildkit host check.")
+        raise OgkError("OGK-HOST-001", "--matrix is an option of openguildkit host check.")
     if args.json:
         print_json({"statuses": list(STATUSES), "rows": matrix()})
     else:

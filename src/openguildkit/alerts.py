@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 from . import clock, lazy_re
-from .errors import unknown
+from .errors import OgkError, unknown
 from .records import Task
 from .storage import read_json, write_json
 
@@ -45,7 +45,7 @@ _SCOPE = lazy_re.compile(r"[a-z0-9](?:[a-z0-9./-]{0,62}[a-z0-9])?")
 def check_scope(scope: str | None) -> str | None:
     """The scope a person declares for a report, such as front or services/api; None when there is none."""
     if scope is not None and not _SCOPE.fullmatch(scope):
-        raise ValueError(f"Invalid scope {scope!r}: use 1 to 64 lowercase letters, digits, hyphens, slashes or dots, "
+        raise OgkError("OGK-ALERTS-001", f"Invalid scope {scope!r}: use 1 to 64 lowercase letters, digits, hyphens, slashes or dots, "
                          "starting and ending with a letter or a digit, such as front or services/api.")
     return scope
 
@@ -201,7 +201,7 @@ def _report_text(content: bytes, label: str) -> str:
     try:
         return content.decode("utf-16" if utf16 else "utf-8-sig")
     except UnicodeError as error:
-        raise ValueError(f"{label} is not valid {'UTF-16' if utf16 else 'UTF-8'} text: {error}. Save the scanner's "
+        raise OgkError("OGK-ALERTS-002", f"{label} is not valid {'UTF-16' if utf16 else 'UTF-8'} text: {error}. Save the scanner's "
                          "report as UTF-8.") from error
 
 
@@ -213,16 +213,16 @@ def read_report(content: bytes, label: str) -> dict:
     try:
         values = _json_documents(text)
     except (ValueError, RecursionError) as error:
-        raise ValueError(f"Invalid JSON in {label}: {error}") from error
+        raise OgkError("OGK-ALERTS-010", f"Invalid JSON in {label}: {error}") from error
     if not values:
-        raise ValueError(f"{label} is empty: give the scanner's JSON report.")
+        raise OgkError("OGK-ALERTS-011", f"{label} is empty: give the scanner's JSON report.")
     data = values[0]
     try:
         dependabot = _dependabot_pages(values)
         if dependabot is not None:
             return {"tool": "GitHub Dependabot", "alerts": _dependabot(dependabot), "analyzed": len(dependabot)}
         if len(values) > 1:
-            raise ValueError(f"{label} holds several JSON documents; only Dependabot pages can be concatenated.")
+            raise OgkError("OGK-ALERTS-003", f"{label} holds several JSON documents; only Dependabot pages can be concatenated.")
         if isinstance(data, dict) and isinstance(data.get("vulnerabilities"), dict):
             return {"tool": "npm audit", "alerts": _npm(data), "analyzed": _npm_analyzed(data)}
         if isinstance(data, dict) and isinstance(data.get("dependencies"), list):
@@ -232,8 +232,8 @@ def read_report(content: bytes, label: str) -> dict:
         if isinstance(data, dict) and isinstance(data.get("results"), list):
             return {"tool": "OSV-Scanner", "alerts": _osv(data), "analyzed": _osv_analyzed(data)}
     except (KeyError, TypeError, AttributeError) as error:
-        raise ValueError(f"{label} looks like a scanner report but a field is missing: {error}") from error
-    raise ValueError(f"{label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
+        raise OgkError("OGK-ALERTS-012", f"{label} looks like a scanner report but a field is missing: {error}") from error
+    raise OgkError("OGK-ALERTS-004", f"{label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
 
 
 # Why a report that analyzed no dependency leaves the register's alerts as they are, by scanner.
@@ -256,7 +256,7 @@ def load_register(state: Path) -> dict:
         return {"schema_version": 1, "alerts": [], "imports": []}
     register = read_json(path)
     if register.get("schema_version") != 1 or not isinstance(register.get("alerts"), list):
-        raise ValueError(f"Unsupported alert register: {path.as_posix()}. Restore it from git.")
+        raise OgkError("OGK-ALERTS-013", f"Unsupported alert register: {path.as_posix()}. Restore it from git.")
     return register
 
 
@@ -448,7 +448,7 @@ def find_alert(register: dict, alert_id: str) -> dict:
                                  for alias in alert.get("aliases", [])}
         if wanted in names:
             return alert
-    raise ValueError(unknown("alert", alert_id, "alerts list"))
+    raise OgkError("OGK-ALERTS-005", unknown("alert", alert_id, "alerts list"))
 
 
 def _replace(register: dict, alert: dict) -> dict:
@@ -465,14 +465,14 @@ def set_status(register: dict, alert_id: str, status: str, by: str, reason: str 
     """Record a reviewer's status on an alert: open, confirmed, or dismissed with a reason."""
     status = LEGACY_STATUSES.get(status, status)
     if status not in REVIEW_STATUSES:
-        raise ValueError(f"Choose the status from {', '.join(REVIEW_STATUSES)}; an import marks alerts resolved.")
+        raise OgkError("OGK-ALERTS-006", f"Choose the status from {', '.join(REVIEW_STATUSES)}; an import marks alerts resolved.")
     alert = find_alert(register, alert_id)
     if status == "dismissed" and not reason.strip():
-        raise ValueError("Give the reason for dismissing the alert with --reason.")
+        raise OgkError("OGK-ALERTS-007", "Give the reason for dismissing the alert with --reason.")
     if not by.strip():
-        raise ValueError("Name the person who reviewed the alert with --by.")
+        raise OgkError("OGK-ALERTS-008", "Name the person who reviewed the alert with --by.")
     if _status(alert) == "resolved":
-        raise ValueError(f"{alert['id']} is resolved: no scanner lists it anymore.")
+        raise OgkError("OGK-ALERTS-014", f"{alert['id']} is resolved: no scanner lists it anymore.")
     updated = {key: value for key, value in alert.items() if key not in ("reason", "accepted")}
     updated.update(status=status, by=by.strip(), decided_at=_now())
     if reason.strip():
@@ -483,9 +483,9 @@ def set_status(register: dict, alert_id: str, status: str, by: str, reason: str 
 def set_severity(register: dict, alert_id: str, severity: str, by: str, reason: str) -> dict:
     """Record the severity a person gives an alert, such as one pip-audit reports without any, with who and why."""
     if severity not in SEVERITIES:
-        raise ValueError(f"Choose the severity from {', '.join(SEVERITIES)}.")
+        raise OgkError("OGK-ALERTS-015", f"Choose the severity from {', '.join(SEVERITIES)}.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Name the person with --by and say why with --reason, such as the advisory's CVSS score.")
+        raise OgkError("OGK-ALERTS-016", "Name the person with --by and say why with --reason, such as the advisory's CVSS score.")
     alert = find_alert(register, alert_id)
     record = {"from": alert["severity"], "by": by.strip(), "reason": reason.strip(), "at": _now()}
     return _replace(register, {**alert, "severity": severity, "severity_set": record})
@@ -495,9 +495,9 @@ def accept_alert(register: dict, alert_id: str, by: str, reason: str) -> dict:
     """Record why a person accepts a confirmed alert, so it stops blocking its tasks."""
     alert = find_alert(register, alert_id)
     if _status(alert) != "confirmed":
-        raise ValueError(f"{alert['id']} is {_status(alert)}: only a confirmed alert is accepted.")
+        raise OgkError("OGK-ALERTS-017", f"{alert['id']} is {_status(alert)}: only a confirmed alert is accepted.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Name the person with --by and say why the risk is accepted with --reason.")
+        raise OgkError("OGK-ALERTS-009", "Name the person with --by and say why the risk is accepted with --reason.")
     return _replace(register, {**alert, "accepted": {"by": by.strip(), "reason": reason.strip(), "at": _now()}})
 
 

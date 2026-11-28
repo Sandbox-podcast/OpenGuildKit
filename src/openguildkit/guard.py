@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 from . import incident, lazy_re, short_lane
 from .catalog import load_catalog
 from .decisions import DECISIONS_DIR, base_commit, revisions_outside_history
+from .errors import InternalError, OgkError
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
@@ -118,20 +119,20 @@ def edited_paths(hook_input: object) -> list[str]:
     Raise ValueError when the input does not say which files change, so the hook can refuse.
     """
     if not isinstance(hook_input, dict) or not isinstance(hook_input.get("tool_input"), dict):
-        raise ValueError("the hook input names no tool input")
+        raise OgkError("OGK-GUARD-003", "the hook input names no tool input")
     tool_input = hook_input["tool_input"]
     paths = []
     for key in ("file_path", "notebook_path", "path"):
         if key in tool_input:
             if not isinstance(tool_input[key], str):
-                raise ValueError(f"tool_input.{key} is not a file path")
+                raise OgkError("OGK-GUARD-004", f"tool_input.{key} is not a file path")
             paths.append(tool_input[key])
     for key in ("patch", "input", "command"):
         value = tool_input.get(key)
         if isinstance(value, str):
             paths.extend(match.strip() for match in _PATCH_FILE.findall(value))
     if not paths:
-        raise ValueError("the hook input names no file to edit")
+        raise OgkError("OGK-GUARD-005", "the hook input names no file to edit")
     return paths
 
 
@@ -258,7 +259,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     observe lets it through and says it is flagged.
     """
     if outcome not in HOOK_OUTCOMES:
-        raise ValueError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
+        raise InternalError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)
@@ -380,7 +381,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
         try:
             hook_input = json.loads(raw) if raw.strip() or event == "pre-edit" else {}
         except ValueError as error:
-            raise ValueError("the hook input is not JSON") from error
+            raise OgkError("OGK-GUARD-006", "the hook input is not JSON") from error
         dialect = hook_dialect(hook_input)
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.

@@ -4,6 +4,7 @@ Entry: task_questions, as_list, concerns_question, require_concerns, validate_an
 Tests: tests/test_assumptions.py, tests/test_brain_selection.py, tests/test_first_run.py, tests/test_questions.py
 """
 
+from .errors import OgkError
 
 _QUESTIONS = (
     (
@@ -194,10 +195,10 @@ def _optional_answers(answers: dict) -> dict:
         allowed = [choice_id for choice_id, _ in choices]
         selected = as_list(answers[question_id])
         if any(item not in allowed for item in selected) or len(set(selected)) != len(selected):
-            raise ValueError(f"Choose {question_id} values from {', '.join(allowed)}.")
+            raise OgkError("OGK-RESULT-012", f"Choose {question_id} values from {', '.join(allowed)}.")
         for alone in EXCLUSIVE_CONCERNS:
             if alone in selected and len(selected) > 1:
-                raise ValueError(f"Choose {question_id} values or {alone}, not both.")
+                raise OgkError("OGK-RESULT-013", f"Choose {question_id} values or {alone}, not both.")
         validated[question_id] = selected
     return validated
 
@@ -216,14 +217,14 @@ def require_concerns(answers: dict) -> None:
     if "concerns" in answers:
         return
     choices = ", ".join(choice["id"] for choice in concerns_question()["choices"])
-    raise ValueError(f"Answer concerns, a list of the topics the task involves: choose from {choices}, for "
+    raise OgkError("OGK-RESULT-014", f"Answer concerns, a list of the topics the task involves: choose from {choices}, for "
                      "example \"concerns\": [\"none\"]; unsure keeps every topic's rules open and consults its boards.")
 
 
 def _assumptions(value: object) -> list[str]:
     """The working assumptions as sentences, in order and once each; an empty list records none."""
     if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
-        raise ValueError('Task assumptions must be a list of sentences, such as ["Requests are linked to accounts by '
+        raise OgkError("OGK-RESULT-015", 'Task assumptions must be a list of sentences, such as ["Requests are linked to accounts by '
                          'the customer ID."], or left out.')
     return list(dict.fromkeys(item.strip() for item in value))
 
@@ -240,13 +241,13 @@ def validate_answers(answers: dict) -> dict:
         if question_id in MULTIPLE:
             selected = as_list(answer)
             if not selected or any(item not in allowed for item in selected) or len(set(selected)) != len(selected):
-                raise ValueError(f"Choose one or more {question_id} values from {', '.join(allowed)}.")
+                raise OgkError("OGK-RESULT-016", f"Choose one or more {question_id} values from {', '.join(allowed)}.")
             if "unsure" in selected and len(selected) > 1:
-                raise ValueError(f"Choose {question_id} values or unsure, not both.")
+                raise OgkError("OGK-RESULT-017", f"Choose {question_id} values or unsure, not both.")
             validated[question_id] = selected
             continue
         if answer not in allowed:
-            raise ValueError(f"Choose {question_id} from {', '.join(allowed)}.")
+            raise OgkError("OGK-RESULT-018", f"Choose {question_id} from {', '.join(allowed)}.")
         validated[question_id] = answer
     validated.update(_optional_answers(answers))
     if "components" in answers:
@@ -260,7 +261,7 @@ def validate_answers(answers: dict) -> dict:
         validated[ASSUMPTIONS] = assumptions
     unknown = answers.keys() - validated.keys() - {"context", ASSUMPTIONS, *FOLLOW_UPS}
     if unknown:
-        raise ValueError(f"Unknown task answer fields: {', '.join(sorted(unknown))}.")
+        raise OgkError("OGK-RESULT-019", f"Unknown task answer fields: {', '.join(sorted(unknown))}.")
     for field in ("context", *FOLLOW_UPS):
         value = answers.get(field, "")
         if not isinstance(value, str):
@@ -269,7 +270,7 @@ def validate_answers(answers: dict) -> dict:
             validated[field] = value.strip()
     chosen = [validated[key] for key in ("kind", "data", "research")] + validated["surface"]
     if "other" in chosen and not validated.get("context"):
-        raise ValueError("Describe the answer marked 'other' in context.")
+        raise OgkError("OGK-RESULT-020", "Describe the answer marked 'other' in context.")
     return validated
 
 

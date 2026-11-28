@@ -119,6 +119,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual((notes["state"], notes["holds"], notes["decided_at"]), ("unreadable", False, None))
 
     def test_the_period_keeps_the_decisions_dated_inside_it(self):
+        # OGK-EVIDENCE-002
         self.two_decisions()
         self.export("--since", "2026-10-01", "--until", "2026-10-31", output="october")
         self.assertEqual([row["task"] for row in lines(self.root / "october" / "decisions.jsonl")], ["first-task"])
@@ -176,6 +177,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertIn("extra.txt: not in the manifest", self.failure(dossier))
 
     def test_verify_refuses_a_manifest_that_names_a_file_outside_the_dossier(self):
+        # OGK-EVIDENCE-003
         self.two_decisions()
         self.export()
         dossier = self.root / "dossier"
@@ -190,6 +192,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertIn("MANIFEST.json", self.cli("evidence", "verify", self.work / "nothing", code=1).stderr)
 
     def test_export_reads_the_project_and_writes_only_a_new_folder_inside_it(self):
+        # OGK-EVIDENCE-001
         self.two_decisions()
         before = snapshot(self.root)
         self.export()

@@ -83,6 +83,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertTrue(brief["tool_actions"])
 
     def test_a_draft_starts_from_an_approved_task_with_an_approved_tool(self):
+        # OGK-RESULT-008
         output, _ = self.run_cli("deliverable", "show", "campaign-brief")
         self.assertIn("Needs your approval (task authorize --action send-message)", output)
         self.run_cli("task", "new", "Plan the spring campaign.", "--id", "draft-task")
@@ -117,6 +118,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("tool:", (self.root / "social.md").read_text(encoding="utf-8"))
 
     def test_an_approved_task_cannot_write_a_draft_outside_the_project_or_to_task_records(self):
+        # OGK-RESULT-001, OGK-RESULT-002
         self.approved_task()
         escape = f"../{self.root.name}-outside.md"
         self.addCleanup((self.root / escape).unlink, missing_ok=True)
@@ -170,6 +172,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertIn('Section "When to contact support" is empty.', self.write_and_check(empty_section, 1))
 
     def test_a_draft_saved_with_a_byte_order_mark_is_checked_and_another_encoding_is_named(self):
+        # OGK-DOCS-001
         self.approved_task()
         self.run_cli("deliverable", "new", "support-article", "--task", "launch", "--tool", "Brevo", "--output", "article.md")
         draft = self.filled((self.root / "article.md").read_text(encoding="utf-8"))
@@ -184,6 +187,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         return self.run_cli("deliverable", "check", "article.md", code=code)[0]
 
     def test_documentation_and_command_agree_on_the_task_states_accepted(self):
+        # OGK-RESULT-007
         self.run_cli("task", "new", "Plan the spring campaign.", "--id", "draft-task")
         _, error = self.run_cli("deliverable", "new", "campaign-brief", "--task", "draft-task", "--tool", "Brevo", "--output", "b.md", code=1)
         self.assertIn("approved or completed task", error)
@@ -231,6 +235,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
         self.assertNotIn("market:", draft.split("---", 2)[1])
 
     def test_utm_builds_a_campaign_link_that_follows_the_measurement_pack(self):
+        # OGK-RESULT-003, OGK-RESULT-004
         output, _ = self.run_cli("deliverable", "utm", "--url", "https://www.example.test/pricing?plan=team#compare",
                                  "--campaign", " spring-launch ", "--source", "newsletter", "--medium", "email",
                                  "--content", "header-button")
@@ -253,7 +258,7 @@ class DeliverableTests(CapturedCli, unittest.TestCase):
                 arguments = [item for item in common]
                 arguments[arguments.index(flag) + 1] = value
                 _, error = self.run_cli(*arguments, "--url", "https://www.example.test/", code=1)
-                self.assertTrue(error.startswith("OpenGuildKit: "), error)
+                self.assertRegex(error, r"^OpenGuildKit \[OGK-RESULT-00[56]\]: ")  # OGK-RESULT-005, OGK-RESULT-006
                 self.assertIn(message, error)
 
     def test_templates_that_publish_a_link_point_to_the_utm_command(self):

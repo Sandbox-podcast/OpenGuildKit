@@ -14,6 +14,7 @@ from .alerts import load_register
 from .board_brief import board_brief, pack_rules
 from .brains import BriefKnowledge, consultation_context
 from .catalog_queries import board_replacements
+from .errors import OgkError
 from .hosts import host_controls
 from .lock import project_catalog, require_instructions
 from .market import load_dossier
@@ -60,7 +61,7 @@ def input_file(path: Path):
     except TaskStateError:
         raise
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()}: {error}") from error
+        raise OgkError("OGK-TASK-056", f"{path.as_posix()}: {error}") from error
 
 
 def _prompt_task_questions(brief: str) -> dict:
@@ -156,7 +157,7 @@ def run_questions(command: TaskCommand) -> None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
     args, task = command.args, command.task
     if short_lane.is_light(task):
-        raise ValueError(short_lane.no_questions_message(args.id))
+        raise OgkError("OGK-TASK-057", short_lane.no_questions_message(args.id))
     # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
     if args.answers is None:
         answers, validated, open_list = {}, None, []
@@ -243,7 +244,7 @@ def run_route(command: TaskCommand) -> None:
     """Preview the boards a consultation would select, and why."""
     args, state, profile, catalog, task = command.args, command.state, command.profile, command.catalog, command.task
     if short_lane.is_light(task):
-        raise ValueError(short_lane.no_route_message(args.id))
+        raise OgkError("OGK-TASK-058", short_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
         raise ValueError(f"Pass the answers: openguildkit task route {args.id} --answers FILE previews the boards "
                          f"before openguildkit task consult {args.id} --answers FILE records them.")
@@ -334,10 +335,10 @@ def _light_answers(args, task: Task, profile: Profile) -> dict:
     requester's, so those options are refused, and a lane the profile no longer allows stops the consultation."""
     used = [option for option, given in (("--answers", args.answers), ("--add", args.add), ("--remove", args.remove)) if given]
     if used:
-        raise ValueError(short_lane.options_message(args.id, used))
+        raise OgkError("OGK-TASK-059", short_lane.options_message(args.id, used))
     problem = short_lane.lane_problem(task, profile)
     if problem:
-        raise ValueError(problem)
+        raise OgkError("OGK-TASK-060", problem)
     return short_lane.default_answers(task)
 
 
@@ -416,7 +417,7 @@ def run_pass(command: TaskCommand) -> None:
             print(f"The {args.board} pass is already submitted; to redo it on purpose, run openguildkit task pass "
                   f"{args.id} {args.board} --again. This copy is for reading only.", file=sys.stderr)
     elif error:
-        raise ValueError(f"{args.file.as_posix()}: the pass is recorded as failed. {error}\nFix these points in the "
+        raise OgkError("OGK-TASK-061", f"{args.file.as_posix()}: the pass is recorded as failed. {error}\nFix these points in the "
                          f"file and send it again: openguildkit task submit {args.id} --file {args.file.as_posix()}")
     else:
         print("done")

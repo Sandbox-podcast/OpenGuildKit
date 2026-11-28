@@ -14,6 +14,7 @@ import os
 import sys
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import load_json
 
 KEYS = ("audit_log", "no_profile")
@@ -38,9 +39,9 @@ def policy() -> dict:
         try:
             found = load_json(path)
         except (OSError, ValueError) as error:
-            raise ValueError(f"{path.as_posix()} cannot be read as the workstation policy: {error}") from error
+            raise OgkError("OGK-HOST-009", f"{path.as_posix()} cannot be read as the workstation policy: {error}") from error
         if not isinstance(found, dict) or set(found) - set(KEYS):
-            raise ValueError(f"{path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only.")
+            raise OgkError("OGK-HOST-010", f"{path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only.")
         return found
     return {}
 

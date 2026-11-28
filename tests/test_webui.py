@@ -299,6 +299,7 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertNotIn("Cookie", headers)
 
     def test_a_key_set_for_a_scripted_run_is_used_only_when_it_is_long_enough(self):
+        # OGK-WEB-001
         from openguildkit.webui import launch_key
 
         with patch.dict("os.environ", {"OPENGUILDKIT_UI_KEY": "k" * 40}):
@@ -445,7 +446,7 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertEqual((result["code"], result["json"]), (0, []))
             _, result = self.run_in_page("task", "show", "nope", "--json")
         self.assertEqual((result["code"], result["json"]), (1, None))
-        self.assertTrue(result["stderr"].startswith("OpenGuildKit: Unknown task: nope."), result["stderr"])
+        self.assertTrue(result["stderr"].startswith("OpenGuildKit [OGK-TASK-021]: Unknown task: nope."), result["stderr"])
 
     def test_concurrent_requests_keep_their_own_output(self):
         results = []
@@ -1136,6 +1137,7 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(self.request("/api/run", {"batch": {str(i): ["check"] for i in range(41)}})[0], 400)
 
     def test_only_valid_storybook_proposals_are_written(self):
+        # OGK-WEB-002
         path = ".openguildkit/storybook/proposals.json"
         self.assertEqual(self.request("/api/files/write", {"path": path, "text": "{not json"})[0], 400)
         status, _, _ = self.request("/api/files/write", {"path": path, "text": json.dumps({"components": []})})

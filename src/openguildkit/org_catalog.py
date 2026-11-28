@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from . import lazy_re
+from .errors import OgkError
 from .records import Catalog
 
 # The edit hook loads this module: git and shell are imported in the functions that use them (#539).
@@ -83,7 +84,7 @@ def parse_copies(items: list[str] | None) -> dict[str, str]:
     for item in items or []:
         name, _, path = item.partition("=")
         if not NAME.fullmatch(name) or not path:
-            raise ValueError(f"--org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}.")
+            raise OgkError("OGK-ORG-001", f"--org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}.")
         copies[name] = str(Path(path).resolve())
     return copies
 
@@ -102,7 +103,7 @@ def _named_folder(name: str, named: dict[str, str]) -> Path:
     """The copy of the catalog a lock names: the folder given for guard --ci, else the variable of this machine."""
     given = named.get(name) or os.environ.get(variable_name(name))
     if not given:
-        raise ValueError(f"This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to "
+        raise OgkError("OGK-ORG-002", f"This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to "
                          f"your Git copy of it (guard --ci: --org-catalog {name}=PATH).")
     return Path(given).resolve()
 
@@ -165,7 +166,7 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
     from .shell import shell_word
 
     if not FULL_COMMIT.fullmatch(commit):
-        raise ValueError(f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
+        raise OgkError("OGK-ORG-003", f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
                          f"{shell_word(repo)} rev-parse COMMIT prints it.")
     named = folder is not None
     folder = folder or repo_folder(repo, root)
@@ -174,12 +175,12 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
         return _READ[key]
     shown = repo if str(folder) == repo else f"{repo} ({'the copy at' if named else 'resolved to'} {folder.resolve()})"
     if not _is_repository(folder):
-        raise ValueError(f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
+        raise OgkError("OGK-ORG-004", f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
                          f"path, or point the project at your copy at a terminal: {SET_COMMAND}.")
     found = git.required(folder, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}", needs=_NEEDS_GIT,
                          offline=True)
     if found.returncode or found.stdout.strip() != commit.encode("ascii"):
-        raise ValueError(f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
+        raise OgkError("OGK-ORG-005", f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
                          f"{shell_word(str(folder) if named else repo)} fetch, then the command again, or "
                          f"pin a commit the copy has at a terminal: {SET_COMMAND}.")
     listed = _listed_files(folder, commit)
@@ -240,7 +241,7 @@ def organization_in(lock: dict | None, state: Path) -> dict | None:
     else:
         read = read_files(pin["repo"], pin["commit"], root)
     if read["fingerprint"] != pin["fingerprint"]:
-        raise ValueError(f"The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint "
+        raise OgkError("OGK-ORG-006", f"The files of the organization catalog at {pin['commit'][:12]} do not match the fingerprint "
                          f"pinned in {LOCK_NAME}. Restore the lock from Git, or review the commit and pin it again "
                          f"at a terminal: {SET_COMMAND}.")
     return read

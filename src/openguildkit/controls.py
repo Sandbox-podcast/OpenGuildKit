@@ -17,6 +17,7 @@ from pathlib import Path
 
 from . import clock
 from .catalog import package_file
+from .errors import OgkError
 from .storage import load_json
 
 FIELDS = {"id", "title", "guarantees", "not_covered", "commands", "code", "in_dossier", "maps_to"}
@@ -49,47 +50,47 @@ def load() -> dict:
 
 def _require_line(value: object, where: str) -> None:
     if not isinstance(value, str) or not value.strip() or "\n" in value:
-        raise ValueError(f"{where} must be a non-empty line of text.")
+        raise OgkError("OGK-CONTROL-001", f"{where} must be a non-empty line of text.")
 
 
 def _mapping(entry: object, where: str, frameworks: list) -> None:
     """One clause read from a framework: its reference in the catalog and on the page, the clause, the source, the day."""
     if not isinstance(entry, dict):
-        raise ValueError(f"{where}: an entry of maps_to is an object.")
+        raise OgkError("OGK-CONTROL-014", f"{where}: an entry of maps_to is an object.")
     for key in entry:
         if key not in MAPPING_FIELDS and key != "gap":
-            raise ValueError(f"{where}: unknown field {key} in maps_to.")
+            raise OgkError("OGK-CONTROL-002", f"{where}: unknown field {key} in maps_to.")
     for key in MAPPING_FIELDS:
         if key not in entry:
-            raise ValueError(f"{where}: an entry of maps_to needs {key}: a clause is entered with the source read and the "
+            raise OgkError("OGK-CONTROL-003", f"{where}: an entry of maps_to needs {key}: a clause is entered with the source read and the "
                              "day it was read, and a cell without them stays empty.")
     if entry["reference"] not in _references():
-        raise ValueError(f"{where}: reference {entry['reference']!r} is not a reference of the catalog.")
+        raise OgkError("OGK-CONTROL-004", f"{where}: reference {entry['reference']!r} is not a reference of the catalog.")
     if entry["reference"] not in frameworks:
-        raise ValueError(f"{where}: reference {entry['reference']!r} is not one of the frameworks of the page: add it "
+        raise OgkError("OGK-CONTROL-005", f"{where}: reference {entry['reference']!r} is not one of the frameworks of the page: add it "
                          "to frameworks first.")
     _require_line(entry["clause"], f"{where}: clause")
     if len(entry["clause"]) > MAX_CLAUSE:
-        raise ValueError(f"{where}: clause is a locator of at most {MAX_CLAUSE} characters, not a text of the framework.")
+        raise OgkError("OGK-CONTROL-006", f"{where}: clause is a locator of at most {MAX_CLAUSE} characters, not a text of the framework.")
     _require_line(entry["quote"], f"{where}: quote")
     if len(entry["quote"]) > MAX_QUOTE:
-        raise ValueError(f"{where}: quote is at most {MAX_QUOTE} characters: the words the cell relies on, not the clause.")
+        raise OgkError("OGK-CONTROL-007", f"{where}: quote is at most {MAX_QUOTE} characters: the words the cell relies on, not the clause.")
     if entry["fit"] not in FITS:
-        raise ValueError(f"{where}: fit is {' or '.join(FITS)}.")
+        raise OgkError("OGK-CONTROL-008", f"{where}: fit is {' or '.join(FITS)}.")
     if entry["fit"] == "partial":
         _require_line(entry.get("gap"), f"{where}: gap (what the clause asks that the control does not do, for a partial fit)")
     elif "gap" in entry:
-        raise ValueError(f"{where}: a clause the control matches has no gap: say partial and what is missing.")
+        raise OgkError("OGK-CONTROL-009", f"{where}: a clause the control matches has no gap: say partial and what is missing.")
     source = entry["source"]
     if not isinstance(source, str) or not source.startswith("https://") or len(source.split()) != 1:
-        raise ValueError(f"{where}: source is the https address of the page read.")
+        raise OgkError("OGK-CONTROL-010", f"{where}: source is the https address of the page read.")
     checked = entry["checked"]
     try:
         valid = isinstance(checked, str) and DAY.fullmatch(checked) and date.fromisoformat(checked) <= clock.today()
     except ValueError:
         valid = False
     if not valid:
-        raise ValueError(f"{where}: checked is the day the source was read, YYYY-MM-DD, not in the future.")
+        raise OgkError("OGK-CONTROL-011", f"{where}: checked is the day the source was read, YYYY-MM-DD, not in the future.")
 
 
 def _frameworks(data: dict) -> list:
@@ -97,10 +98,10 @@ def _frameworks(data: dict) -> list:
     frameworks = data["frameworks"]
     unknown = [item for item in frameworks if item not in _references()]
     if unknown or len(set(frameworks)) != len(frameworks):
-        raise ValueError(f"frameworks lists each reference of the catalog once: {', '.join(map(str, unknown)) or 'duplicate'}.")
+        raise OgkError("OGK-CONTROL-015", f"frameworks lists each reference of the catalog once: {', '.join(map(str, unknown)) or 'duplicate'}.")
     notes = data["framework_notes"]
     if not isinstance(notes, dict) or list(notes) != frameworks:
-        raise ValueError("framework_notes holds one note per framework, in the order of frameworks: how it was read, or "
+        raise OgkError("OGK-CONTROL-012", "framework_notes holds one note per framework, in the order of frameworks: how it was read, or "
                          "why it was not.")
     for name in frameworks:
         _require_line(notes[name], f"framework_notes: {name}")
@@ -111,26 +112,26 @@ def validate(data: dict) -> None:
     """Refuse a registry that names an unknown framework, a control twice, or a clause without its source and its day."""
     if not isinstance(data, dict) or data.keys() != {"schema_version", "frameworks", "framework_notes", "controls"} \
             or data["schema_version"] != 1:
-        raise ValueError("controls.json holds schema_version 1, frameworks, framework_notes and controls.")
+        raise OgkError("OGK-CONTROL-016", "controls.json holds schema_version 1, frameworks, framework_notes and controls.")
     frameworks = _frameworks(data)
     seen = set()
     for item in data["controls"]:
         if not isinstance(item, dict) or item.keys() != FIELDS or not ID.fullmatch(str(item["id"])):
-            raise ValueError(f"A control holds {', '.join(sorted(FIELDS))}, and an ID of lowercase words.")
+            raise OgkError("OGK-CONTROL-017", f"A control holds {', '.join(sorted(FIELDS))}, and an ID of lowercase words.")
         where = item["id"]
         if where in seen:
-            raise ValueError(f"The control {where} is listed twice.")
+            raise OgkError("OGK-CONTROL-013", f"The control {where} is listed twice.")
         seen.add(where)
         for key in ("title", "guarantees", "not_covered"):
             _require_line(item[key], f"{where}: {key}")
         for key in ("commands", "in_dossier"):
             if not isinstance(item[key], list) or not all(isinstance(value, str) for value in item[key]):
-                raise ValueError(f"{where}: {key} is a list of text.")
+                raise OgkError("OGK-CONTROL-018", f"{where}: {key} is a list of text.")
         if not item["code"] or not all(isinstance(place, dict) and place.keys() == {"file", "symbol", "line"}
                                        and isinstance(place["line"], int) for place in item["code"]):
-            raise ValueError(f"{where}: code names at least one file, symbol and line.")
+            raise OgkError("OGK-CONTROL-019", f"{where}: code names at least one file, symbol and line.")
         if not isinstance(item["maps_to"], list):
-            raise ValueError(f"{where}: maps_to is a list.")
+            raise OgkError("OGK-CONTROL-020", f"{where}: maps_to is a list.")
         for entry in item["maps_to"]:
             _mapping(entry, where, frameworks)
 
@@ -183,6 +184,6 @@ def render(data: dict) -> str:
 def update_page(text: str, data: dict) -> str:
     """The page with the generated part, between its two markers, replaced by the tables of the registry."""
     if START not in text or END not in text or text.index(START) > text.index(END):
-        raise ValueError(f"The page needs {START} and {END} around the generated tables.")
+        raise OgkError("OGK-CONTROL-021", f"The page needs {START} and {END} around the generated tables.")
     head, rest = text.split(START, 1)
     return f"{head}{START}\n{render(data)}\n{END}{rest.split(END, 1)[1]}"

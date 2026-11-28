@@ -55,6 +55,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_452_a_required_pack_cannot_be_removed(self):
         """Issue #452: the packs an organization requires were the choice of each repository."""
+        # OGK-ORG-010
         self.pin(self.first)
         self.cli("profile", "add", "pack", "org-review", "--by", "CM", "--reason", "Org")
         self.pin(self.policy(required={"packs": ["org-review"]}))
@@ -64,6 +65,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_452_guard_ci_takes_the_policy_from_the_option_not_the_lock(self):
         """Issue #452: guard --ci judged a pull request by the profile and pins of its own base only."""
+        # OGK-ORG-011
         self.pin(self.first)  # The base pins a commit without a policy.
         commit = self.policy(required={"packs": ["org-review"]})
         self.commit_project()
@@ -88,6 +90,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_452_an_invalid_policy_stops_the_pin(self):
         """Issue #452: a policy field OpenGuildKit does not enforce must not pass for one it does."""
+        # OGK-ORG-009
         commit = self.policy(hosts=["codex"])
         before = (self.root / ".openguildkit" / "catalog.lock.json").read_bytes()
         refused = self.pin_refused(commit)
@@ -100,6 +103,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_452_policy_repo_names_the_command_that_reads_a_policy(self):
         """Issue #452: --policy-repo on a policy commit said only that the export rule could not be read."""
+        # OGK-CI-004
         commit = self.policy(minimum={"guard": "enforce"})
         result = self.cli("--policy-repo", self.org, "--policy-commit", commit, "check", code=1)
         self.assertIn("openguildkit org-catalog set --repo PATH --commit SHA", result.stderr)

@@ -9,6 +9,7 @@ from collections.abc import Iterator, Mapping
 from typing import Any, cast
 
 from . import clock, short_lane
+from .errors import OgkError
 from .records import Task
 
 # The severities and actions of a finding of task diff-review (delivered_review.py).
@@ -198,7 +199,7 @@ def board_brief_problem(task: Task, board_id: str) -> None:
     stored = task.get("consultation", {}).get("board_briefs", {}).get(board_id)
     problem = shape_problem(stored, _BOARD_BRIEF, f"consultation.board_briefs.{board_id}") if stored is not None else None
     if problem:
-        raise ValueError(f"Task record {task['id']} is damaged: {problem}. Restore it from a backup or consult again.")
+        raise OgkError("OGK-TASK-080", f"Task record {task['id']} is damaged: {problem}. Restore it from a backup or consult again.")
 
 
 def validate_brief(brief: str) -> str:
@@ -208,7 +209,7 @@ def validate_brief(brief: str) -> str:
     """
     brief = brief.strip()
     if not brief:
-        raise ValueError("Supply a task brief.")
+        raise OgkError("OGK-TASK-081", "Supply a task brief.")
     from .sensitive import redact_credentials  # Only a new brief needs it: the edit hook reads records (#539).
 
     return redact_credentials(brief)

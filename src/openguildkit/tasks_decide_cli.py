@@ -60,7 +60,7 @@ def run_revoke(command: TaskCommand) -> None:
     refusal = ("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own terminal, "
                "as they approved.")
     if not interactive():
-        raise ValueError(refusal)
+        raise OgkError("OGK-TASK-062", refusal)
     problem = approval_problem(task, profile, catalog, root)
     if problem:
         print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
@@ -94,22 +94,22 @@ def run_decide(command: TaskCommand) -> None:
     args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
                                                  command.catalog, command.task)
     if task["status"] == "approved":
-        raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
+        raise OgkError("OGK-TASK-063", decided_message(task, approval_problem(task, profile, catalog, root)))
     if args.approve and (lane := short_lane.lane_problem(task, profile)):
-        raise ValueError(lane)
+        raise OgkError("OGK-TASK-064", lane)
     if args.approve and (same := requester.approval_problem(task, profile, args.by, args.signer)):
-        raise ValueError(same)
+        raise OgkError("OGK-TASK-065", same)
     separate = requester.active(profile)
     policy = approval_policy(profile)
     base = git_revision(root) if args.approve else None
     signature = None
     if args.signed_at and not (args.approve and policy["mode"] == "signed"):
-        raise ValueError("--signed-at goes with approving in a project that requires signed approvals. Nothing was "
+        raise OgkError("OGK-TASK-066", "--signed-at goes with approving in a project that requires signed approvals. Nothing was "
                          "written.")
     signed_at = signing_time(args.signed_at)
     if args.approve and policy["mode"] == "signed":
         if not args.signature or not args.signer:
-            raise ValueError(
+            raise OgkError("OGK-TASK-067",
                 "This project requires a signed approval: run task decision-payload, sign it with ssh-keygen -Y sign "
                 f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
             )
@@ -124,17 +124,17 @@ def run_decide(command: TaskCommand) -> None:
         signature = {"signer": args.signer, "text": text}
     # The roles of the boards that blocked (roles.py): the verified signer, or the name typed.
     if args.approve and (outside := roles.approval_problem(task, profile, args.by, args.signer)):
-        raise ValueError(outside)
+        raise OgkError("OGK-TASK-068", outside)
     register = load_register(state)
     blocking = blocking_alerts(register, task) if args.approve else []
     if blocking:
-        raise ValueError("Approval is blocked:\n- " + "\n- ".join(blocking))
+        raise OgkError("OGK-TASK-069", "Approval is blocked:\n- " + "\n- ".join(blocking))
     removals = pending_removals(task) if args.approve else []
     result = record_decision(task, args.approve, args.by, args.reason, base, signature, removals,
                              separate=args.approve and separate, signed_at=signed_at, dated=audit_log.is_on(root))
     if args.approve:
         if (signature is None or removals) and not interactive():
-            raise ValueError("Approval requires a person at an interactive terminal.")
+            raise OgkError("OGK-TASK-070", "Approval requires a person at an interactive terminal.")
         # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
         print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
         if signature is None:
@@ -213,7 +213,7 @@ def run_resolve(command: TaskCommand) -> None:
     require_blocker_status(task)
     if action == "waive":
         if not interactive():
-            raise ValueError("A waiver needs a person at an interactive terminal.")
+            raise OgkError("OGK-TASK-071", "A waiver needs a person at an interactive terminal.")
         details = {"kind": "waived", "by": args.by, "reason": args.reason, "scope": args.scope, "until": args.until}
     else:
         details = {"kind": "cleared", "by": args.by, "evidence": args.evidence, "supports": args.supports}
@@ -264,7 +264,7 @@ def run_decision_payload(command: TaskCommand) -> None:
     # The signer is not known yet: decide compares the requester to the signer as well.
     same = requester.approval_problem(task, profile, args.by)
     if same:
-        raise ValueError(same)
+        raise OgkError("OGK-TASK-072", same)
     # The signer reads what they sign: the same lines as the approval prompt, then the payload with the brief.
     print("\n".join(_decision_prompt(state, task, profile, load_register(state))), file=sys.stderr)
     text = payload_text(decision_payload(task, args.by, args.reason, git_revision(root),
@@ -283,7 +283,7 @@ def run_authorize(command: TaskCommand) -> None:
     args, root, state, task = command.args, command.root, command.state, command.task
     refusal = "Allowing an external action requires a person at an interactive terminal."
     if args.allow and not interactive():
-        raise ValueError(refusal)
+        raise OgkError("OGK-TASK-073", refusal)
     result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
     if args.allow:
         typed(args.id, f"Type {args.id} to allow {args.external_action} on {args.target}: ", refusal=refusal,

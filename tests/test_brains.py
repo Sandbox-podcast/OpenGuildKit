@@ -44,6 +44,7 @@ class BrainReviewTests(unittest.TestCase):
         self.assertIn("synthetic users", result)
 
     def test_all_specialist_lenses_must_return_a_finding(self):
+        # OGK-BOARD-012
         self.challenge["specialists"].pop()
         with self.assertRaisesRegex(ValueError, "specialist findings are missing"):
             validate_review(self.consultation, self.review)

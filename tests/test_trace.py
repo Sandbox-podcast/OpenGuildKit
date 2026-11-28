@@ -261,6 +261,7 @@ class TraceTests(CapturedCli, unittest.TestCase):
     def test_a_path_outside_the_project_is_refused_with_what_to_do(self):
         self.main_branch()
         _, err = self.trace(self.work / "profile.json", code=1)
+        # OGK-AUDIT-006
         self.assertIn("is outside the project", err)
 
     def test_outside_git_the_decisions_are_listed_without_the_change_check(self):

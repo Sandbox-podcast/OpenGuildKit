@@ -22,6 +22,7 @@ from .alerts import load_register
 from .catalog import package_file
 from .command import Command
 from .decisions import approval_policy, export_digest, exported_records, git_revision, seal, verify_recorded_signature
+from .errors import OgkError
 from .guard_records import exported_decisions
 from .lock import LOCK_FILE, package_version, project_catalog
 from .project import STATE_DIR, load_profile
@@ -62,7 +63,7 @@ def run(command: Command) -> int:
     target = project_path(root, state, args.output, "--output")
     shown = target.relative_to(root.resolve()).as_posix()
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
-        raise ValueError(f"--output {shown} already holds files: give a new folder, or an empty one. Nothing was written.")
+        raise OgkError("OGK-EVIDENCE-001", f"--output {shown} already holds files: give a new folder, or an empty one. Nothing was written.")
     catalog = project_catalog(args, state)
     profile = load_profile(state, catalog)
     notes = []
@@ -98,7 +99,7 @@ def _day(value: str | None, option: str) -> str | None:
             return value
     except ValueError:
         pass
-    raise ValueError(f"{option} must be a day written YYYY-MM-DD.")
+    raise OgkError("OGK-EVIDENCE-002", f"{option} must be a day written YYYY-MM-DD.")
 
 
 def _within(day: object, since: str | None, until: str | None) -> bool:
@@ -236,7 +237,7 @@ def _verify(dossier: Path) -> int:
     files of the folder, or are in the folder without being in the manifest."""
     path = dossier / MANIFEST
     if not path.is_file():
-        raise ValueError(f"{path.as_posix()} is not there: name the folder that `evidence export` wrote.")
+        raise OgkError("OGK-EVIDENCE-003", f"{path.as_posix()} is not there: name the folder that `evidence export` wrote.")
     manifest = read_json(path)
     files = manifest.get("files") if isinstance(manifest, dict) else None
     if not isinstance(files, dict):

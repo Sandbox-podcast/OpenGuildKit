@@ -204,6 +204,7 @@ class ProjectMcpTests(ResultCase):
         self.assertNotIn("checkout_flow", json.dumps(listed))
 
     def test_reads_require_a_project_and_refuse_paths_and_mutations(self):
+        # OGK-INIT-001
         done = self.exchange(project=False)
         self.assertEqual(done.returncode, 1)
         self.assertIn("--project PATH", done.stderr)
@@ -252,6 +253,7 @@ class ProjectMcpTests(ResultCase):
             self.assertNotIn(text, json.dumps(answer))
 
     def test_a_profile_linked_outside_the_state_directory_is_not_served(self):
+        # OGK-PROJECT-033
         write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"]})
         self.run_cli("init", "--answers", self.root / "profile.json")
         served, = self.replies(call(1, "project_profile"))

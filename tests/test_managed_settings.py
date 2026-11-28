@@ -100,6 +100,7 @@ class GeneratorTests(Folder):
         self.assertEqual(edit["onFailure"], "block")
 
     def test_a_host_or_a_system_that_is_not_listed_is_refused(self):
+        # OGK-CORE-005
         self.managed("--host", "cursor", "--os", "linux", code=2)
         self.managed("--host", "codex", "--os", "plan9", code=2)
         self.assertIn("needs --host", self.managed("--os", "linux", code=1).stderr)
@@ -169,6 +170,7 @@ class GeneratorTests(Folder):
         write_json(package, {"mcp_servers": [{"server": "npm:@playwright/mcp", "name": "playwright"}, "command:basecamp"]})
         codex = self.managed("--host", "codex", "--os", "linux", "--allow", package)
         self.assertNotIn("mcp_servers", tomllib.loads(codex.stdout))
+        # OGK-GUARD-002
         self.assertIn("The allow list is not written for codex", codex.stderr)
         gemini = self.managed("--host", "gemini-cli", "--os", "linux", "--allow", package)
         self.assertNotIn("mcp", json.loads(gemini.stdout))
@@ -212,6 +214,7 @@ class NoProfileTests(Folder):
         self.assertEqual(self.hook().stdout, "")
 
     def test_a_policy_that_cannot_be_read_refuses_and_names_the_file(self):
+        # OGK-HOST-009, OGK-HOST-010
         for text in ("{", '{"no_profile": "sometimes"}', '{"no_profil": "refuse"}', "[]"):
             with self.subTest(text=text):
                 self.policy(text)

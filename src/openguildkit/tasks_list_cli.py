@@ -14,6 +14,7 @@ from .approval_check import DONE_STATUSES
 from .clock import today
 from .decisions import DECISIONS_DIR, export_digest, exported_records, ignored_by_git
 from .doc_links import doc_link
+from .errors import OgkError
 from .guard_export import record_of_another_task
 from .guard_records import exported_decisions
 from .project import STATE_DIR
@@ -211,7 +212,7 @@ def _retro_record(root: Path, state: Path, task_id: str) -> dict:
     try:
         return facts_of_record(record)
     except ValueError:
-        raise ValueError(f"The exported record {where} was written before task {task_id} was completed, so it has no "
+        raise OgkError("OGK-TASK-074", f"The exported record {where} was written before task {task_id} was completed, so it has no "
                          "closing to read. Look at it with openguildkit task list --decisions; once the task is "
                          f"closed, openguildkit task export {task_id} writes it.") from None
 
@@ -243,18 +244,18 @@ def _closed_facts(state: Path) -> tuple[list[dict], dict]:
 def run_retro(args, root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     """The retrospective of one closed task, or with --all of the project: read from the records, never written."""
     if bool(args.id) == args.all:
-        raise ValueError("Name the closed task to read, openguildkit task retro ID, or count the whole project with "
+        raise OgkError("OGK-TASK-075", "Name the closed task to read, openguildkit task retro ID, or count the whole project with "
                          "openguildkit task retro --all (task retro ID reads one task and --all counts them all)."
                          if not args.id else
                          "task retro ID reads one task and --all counts the project: give one of them.")
     if args.minimum is not None and not args.all:
-        raise ValueError("--min counts tasks across the project: use it with openguildkit task retro --all.")
+        raise OgkError("OGK-TASK-076", "--min counts tasks across the project: use it with openguildkit task retro --all.")
     if args.draft_rules is not None and not args.all:
-        raise ValueError("--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
+        raise OgkError("OGK-TASK-077", "--draft-rules drafts rules from what comes back across the project: use it with openguildkit "
                          "task retro --all.")
     minimum = DEFAULT_MINIMUM if args.minimum is None else args.minimum
     if minimum < 1:
-        raise ValueError("--min counts tasks: give a number of 1 or more.")
+        raise OgkError("OGK-TASK-078", "--min counts tasks: give a number of 1 or more.")
     if args.all:
         facts, ignored = _closed_facts(state)
         summary = project_summary(facts, minimum, profile, catalog, ignored)
@@ -273,7 +274,7 @@ def run_retro(args, root: Path, state: Path, profile: Profile, catalog: Catalog)
         task = read_task(state, args.id)
         if task["status"] not in DONE_STATUSES:
             # Said without judging the approval, which would ask Git: the retrospective starts no process.
-            raise ValueError(state_refusal(task, "Only a closed task has a retrospective."))
+            raise OgkError("OGK-TASK-079", state_refusal(task, "Only a closed task has a retrospective."))
         record = facts_of_task(task)
     elif (state / DECISIONS_DIR / f"{args.id}.json").is_file():
         record = _retro_record(root, state, args.id)

@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 
 from . import incident, short_lane
 from .decisions import CLOCK_SKEW, DECISIONS_DIR, approval_policy
+from .errors import OgkError
 from .guard import guard_mode
 from .guard_export import conflict_message, record_shape
 from .guard_records import record_check
@@ -362,7 +363,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     from .project_rules import Fingerprints
 
     if git.required(root, "rev-parse", "--is-inside-work-tree", needs=_NEEDS_GIT).returncode:
-        raise ValueError("guard --ci needs a Git repository: the project folder is not inside one.")
+        raise OgkError("OGK-GUARD-007", "guard --ci needs a Git repository: the project folder is not inside one.")
     report = findings if findings is not None else []
 
     def flag(code: str, message: str, path: str | None = None, level: str = "error") -> str:
@@ -370,7 +371,7 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         return message
 
     if git.required(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", needs=_NEEDS_GIT).returncode:
-        raise ValueError(f"base revision {base} not found: pass --base REF")
+        raise OgkError("OGK-GUARD-008", f"base revision {base} not found: pass --base REF")
     changed = _git_lines(root, "diff", "--name-only", "--no-renames", f"{base}...HEAD")
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
     records = [path for path in changed if path.startswith(prefix) and path.endswith(".json")]

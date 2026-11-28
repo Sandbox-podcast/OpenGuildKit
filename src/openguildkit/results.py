@@ -21,6 +21,7 @@ from pathlib import Path, PurePosixPath
 from . import lazy_re
 from .catalog import rule_check
 from .decisions import changed_paths_since, git_revision
+from .errors import OgkError
 from .project import STATE_DIR
 from .project_checks import failure_message
 from .project_instructions import rule_text
@@ -592,7 +593,7 @@ def chaosfolk_checks(root: Path, summary_path: Path, tool_version: str | None = 
     summary = read_json(summary_path)
     results = summary.get("results")
     if summary.get("schema_version") != 1 or not isinstance(results, list) or not results:
-        raise ValueError(f"{summary_path} is not a ChaosFolk regression summary with results.")
+        raise OgkError("OGK-RESULT-028", f"{summary_path} is not a ChaosFolk regression summary with results.")
     try:
         evidence = summary_path.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:

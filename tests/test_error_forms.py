@@ -56,13 +56,14 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
 
     def test_an_unknown_identifier_reads_the_same_in_every_command(self):
         """Issue #528: an unknown task, deliverable and pattern had three forms."""
+        # OGK-CATALOG-001, OGK-DOCS-002, OGK-DOCS-004
         self.assertEqual(unknown("deliverable", "nope", "deliverable list"),
                          "Unknown deliverable: nope. Run openguildkit deliverable list.")
         for command, kind in ((("deliverable", "show", "nope"), "deliverable"), (("patterns", "--id", "nope"), "pattern"),
                               (("references", "--id", "nope"), "reference ID"), (("task", "show", "nope"), "task")):
             with self.subTest(command=" ".join(command)):
                 _, error = self.run_cli(*command, code=1)
-                self.assertRegex(error, rf"OpenGuildKit: Unknown {kind}: nope\. .*Run openguildkit [a-z ]+")
+                self.assertRegex(error, rf"OpenGuildKit(?: \[OGK-[A-Z]+-\d{{3}}\])?: Unknown {kind}: nope\. .*Run openguildkit [a-z ]+")
 
     def test_task_list_refuses_a_status_that_does_not_exist_and_names_the_statuses(self):
         """Issue #528: `task list --status Done` answered "No task matches." with exit 0."""
@@ -107,6 +108,7 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
         """Issue #528: guard --ci without origin/main printed Git's error and usage, without --base."""
         subprocess.run(["git", "-C", str(self.root), "init", "-q", "-b", "main"], check=True)
         _, error = self.run_cli("guard", "--ci", "--base", "origin/main", code=1)
+        # OGK-GUARD-008
         self.assertIn("base revision origin/main not found: pass --base REF", error)
 
 

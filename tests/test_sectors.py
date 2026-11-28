@@ -84,6 +84,7 @@ class SectorPreselectionTests(unittest.TestCase):
         self.assertNotIn("patterns", chosen)
 
     def test_a_declined_pattern_is_recorded_and_not_proposed_again(self):
+        # OGK-PROJECT-008, OGK-PROJECT-019
         answers = {"name": "Ledger", "sector": "financial-services", "declined": ["dora-financial-entity"]}
         profile = validate_profile(answers, self.catalog)
         self.assertEqual(profile["declined"], ["dora-financial-entity"])

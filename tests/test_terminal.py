@@ -55,6 +55,7 @@ class InteractiveTests(unittest.TestCase):
 
     def test_typed_refuses_without_a_terminal_and_compares_what_the_person_types(self):
         """Issue #461: the act a person types is written once, and it reads nothing without a terminal."""
+        # OGK-CORE-013
         with patch("sys.stdin", io.StringIO("")), patch("builtins.input") as asked:
             with self.assertRaisesRegex(ValueError, "^Run it at a terminal.$"):
                 terminal.typed("t1", "Type t1: ", refusal="Run it at a terminal.", cancelled="Cancelled.")
@@ -90,6 +91,7 @@ class ActsOfAPersonTests(ResultCase):
         with device_that_is_not_a_console():
             _, error = self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
                                     code=1)
+        # OGK-TASK-070
         self.assertIn("Approval requires a person at an interactive terminal.", error)
         self.assertNotIn("EOF", error)
         self.assertEqual(self.record()["status"], "reviewed")

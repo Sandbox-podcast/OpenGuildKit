@@ -137,6 +137,7 @@ class ComponentPatternTests(unittest.TestCase):
         self.assertNotIn("Applies to", instructions)
 
     def test_profile_rejects_unknown_component_scopes_and_unsafe_paths(self):
+        # OGK-PROJECT-004, OGK-PROJECT-014
         components = [{"id": "web", "path": "apps/web", "stack": ["React"]}]
         with self.assertRaisesRegex(ValueError, "unknown components"):
             validate_profile({"personal_data": "no", "name": "x", "components": components,

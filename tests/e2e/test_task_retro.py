@@ -371,6 +371,7 @@ class DraftRulesTests(RetroCase):
     builder = build_a
 
     def test_the_draft_is_written_only_in_the_folder_given_and_is_not_active(self):
+        # OGK-RESULT-031
         before = fingerprint(self.root)
         result = self.retro("--all", "--draft-rules", "drafts")
         files = list((self.root / "drafts").glob("retro-draft-*.json"))
@@ -391,6 +392,7 @@ class DraftRulesTests(RetroCase):
         self.assertIn("already exists", again)
 
     def test_the_json_names_the_draft_and_the_catalog_reads_it_but_no_profile_uses_it_unreviewed(self):
+        # OGK-PROJECT-023
         summary = json.loads(self.retro("--all", "--json", "--draft-rules", "drafts").stdout)
         draft = summary["draft"]
         self.assertEqual((draft["rules"], draft["path"]), (2, f"drafts/{draft['pack']}.json"))
@@ -402,6 +404,7 @@ class DraftRulesTests(RetroCase):
         self.assertIn("draft written by task retro", error)
 
     def test_the_draft_goes_outside_the_state_folder_and_only_with_all(self):
+        # OGK-TASK-077
         error = cli(self.root, "task", "retro", "--all", "--draft-rules", ".openguildkit/catalog/packs", code=1).stderr
         self.assertIn(".openguildkit/", error)
         error = cli(self.root, "task", "retro", "a1", "--draft-rules", "drafts", code=1).stderr
@@ -543,11 +546,12 @@ class RefusalTests(unittest.TestCase):
     def test_an_unknown_task_is_refused_with_the_command_that_lists_the_tasks(self):
         cli(self.root, "task", "new", "Show the status", "--id", "status")
         error = cli(self.root, "task", "retro", "statuz", code=1).stderr
-        self.assertTrue(error.startswith("OpenGuildKit: Unknown task: statuz."))
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-TASK-021]: Unknown task: statuz."))
         self.assertIn("Did you mean status?", error)
         self.assertIn("openguildkit task list", error)
 
     def test_a_task_not_closed_yet_is_refused_with_its_status_and_the_command_to_type(self):
+        # OGK-TASK-079
         cli(self.root, "task", "new", "Show the status", "--id", "status")
         error = cli(self.root, "task", "retro", "status", code=1).stderr
         self.assertIn("only a closed task has a retrospective", error.lower())
@@ -559,6 +563,7 @@ class RefusalTests(unittest.TestCase):
         self.assertIn("openguildkit task review second --summary TEXT", error)
 
     def test_an_exported_record_written_before_the_task_was_completed_is_refused_with_the_command(self):
+        # OGK-TASK-074
         close_task(self.root, {"id": "done-one"})
         cli(self.root, "task", "export", "done-one")
         path = self.root / ".openguildkit" / "decisions" / "done-one.json"
@@ -584,7 +589,7 @@ class RefusalTests(unittest.TestCase):
                                  (("--all", "--min", "0"), "--min"), (("a", "--min", "2"), "--min")):
             with self.subTest(arguments):
                 error = cli(self.root, "task", "retro", *arguments, code=1).stderr
-                self.assertTrue(error.startswith("OpenGuildKit: "))
+                self.assertRegex(error, r"^OpenGuildKit \[OGK-TASK-07[568]\]: ")  # OGK-TASK-075, OGK-TASK-076, OGK-TASK-078
                 self.assertIn(words, error)
 
     def test_a_project_written_by_an_earlier_release_has_no_closed_task_and_is_left_as_it_was(self):
