@@ -22,7 +22,8 @@ export function useCollection<T>(items: T[], opts: { text: (t: T) => string; fil
     const sort = opts.sorts?.find((s) => s.key === sortKey);
     if (sort) out = [...out].sort(sort.compare);
     return out;
-  }, [items, q, sortKey, JSON.stringify(active)]); // eslint-disable-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the active filters object is new at each render, its JSON is the key
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the JSON of the filters is the key
+  }, [items, q, sortKey, JSON.stringify(active)]);
   return { items: result, q, sortKey, active, prefix: p };
 }
 
