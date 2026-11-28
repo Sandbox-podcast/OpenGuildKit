@@ -224,25 +224,11 @@ def evidence_positions(references: object, count: int, path: str, problems: list
     return [index for index in references if index not in wrong]
 
 
-def _validate_challenge(
-    board_id: str, challenge: object, template: dict, evidence: list, structured: bool, problems: list[str],
-    not_concerned: set[str] | frozenset = frozenset(),
-) -> dict:
-    path = f"{board_id}.challenge"
-    if not isinstance(challenge, dict):
-        _keys(challenge, set(template), set(), path, problems)
-        return {}
-    _keys(challenge, set(template), set(), path, problems)
-    challenge = {key: challenge.get(key, _ABSENT) for key in template}
-    verdict = confidence = None
-    if challenge["verdict"] is not _ABSENT:
-        verdict = _choice(challenge["verdict"], "verdict", f"{path}.verdict", problems)
-    if challenge["confidence"] is not _ABSENT:
-        confidence = _choice(challenge["confidence"], "confidence", f"{path}.confidence", problems)
-    if verdict == "insufficient-evidence" and confidence not in (None, "low"):
-        problems.append(f"{path}.confidence: {board_id} must use low confidence when evidence is insufficient.")
-    expected = [specialist["id"] for specialist in template["specialists"]]
-    specialists = challenge["specialists"]
+def _lens_findings(board_id: str, path: str, raw: object, expected: list[str], evidence: list,
+                   not_concerned: set[str] | frozenset, problems: list[str]) -> dict:
+    """The finding of each expected lens of a challenge, by lens ID; a malformed, repeated, unexpected or missing
+    lens is a problem."""
+    specialists = raw
     findings = {}
     if specialists is _ABSENT:
         specialists = []
@@ -274,8 +260,15 @@ def _validate_challenge(
     # A lens whose finding is malformed is already reported; only the lenses never written are missing.
     written = {item.get("id") for item in specialists if isinstance(item, dict) and isinstance(item.get("id"), str)}
     missing = [specialist_id for specialist_id in expected if specialist_id not in written]
-    if missing and challenge["specialists"] is not _ABSENT and isinstance(challenge["specialists"], list):
+    if missing and raw is not _ABSENT and isinstance(raw, list):
         problems.append(f"{path}.specialists: {board_id} specialist findings are missing for {', '.join(missing)}.")
+    return findings
+
+
+def _verdict_evidence_problems(board_id: str, path: str, verdict: object, confidence: object, findings: dict,
+                               evidence: list, problems: list[str]) -> None:
+    """A proceed verdict or a high confidence needs an observed finding citing evidence other than the requester's
+    own words."""
     observed = any(finding["basis"] == "observed" for finding in findings.values())
     if (verdict == "proceed" or confidence == "high") and findings and not observed:
         problems.append(f"{path}: {board_id} needs an observed finding and cited evidence for this review.")
@@ -288,7 +281,13 @@ def _validate_challenge(
                 f"{path}: {board_id}: the requester's own words cannot be the only evidence for this verdict. "
                 "Cite a project file, test, measurement or other inspected source."
             )
-    blockers = [] if challenge["blockers"] is _ABSENT else challenge["blockers"]
+
+
+def _challenge_blockers(board_id: str, path: str, raw: object, structured: bool, verdict: object,
+                        problems: list[str]) -> list:
+    """The blockers of a challenge, required by a block verdict and refused with proceed unless of phase
+    verification."""
+    blockers = [] if raw is _ABSENT else raw
     if not isinstance(blockers, list):
         problems.append(f"{path}.blockers: got {received_value(blockers)}; expected a list, empty unless the board blocks.")
         blockers = []
@@ -303,6 +302,30 @@ def _validate_challenge(
     ):
         problems.append(f"{path}.blockers: {board_id} cannot recommend proceeding with unresolved blockers; only "
                         "blockers of phase verification can go with proceed.")
+    return blockers
+
+
+def _validate_challenge(
+    board_id: str, challenge: object, template: dict, evidence: list, structured: bool, problems: list[str],
+    not_concerned: set[str] | frozenset = frozenset(),
+) -> dict:
+    path = f"{board_id}.challenge"
+    if not isinstance(challenge, dict):
+        _keys(challenge, set(template), set(), path, problems)
+        return {}
+    _keys(challenge, set(template), set(), path, problems)
+    challenge = {key: challenge.get(key, _ABSENT) for key in template}
+    verdict = confidence = None
+    if challenge["verdict"] is not _ABSENT:
+        verdict = _choice(challenge["verdict"], "verdict", f"{path}.verdict", problems)
+    if challenge["confidence"] is not _ABSENT:
+        confidence = _choice(challenge["confidence"], "confidence", f"{path}.confidence", problems)
+    if verdict == "insufficient-evidence" and confidence not in (None, "low"):
+        problems.append(f"{path}.confidence: {board_id} must use low confidence when evidence is insufficient.")
+    expected = [specialist["id"] for specialist in template["specialists"]]
+    findings = _lens_findings(board_id, path, challenge["specialists"], expected, evidence, not_concerned, problems)
+    _verdict_evidence_problems(board_id, path, verdict, confidence, findings, evidence, problems)
+    blockers = _challenge_blockers(board_id, path, challenge["blockers"], structured, verdict, problems)
     return {
         "specialists": [findings[specialist_id] for specialist_id in expected if specialist_id in findings],
         "verdict": verdict,
@@ -338,6 +361,30 @@ def _contested(items: object, count: int, path: str, problems: list[str]) -> lis
 EXECUTION_MODES = ("subagents", "sequential", "mixed", "unspecified")
 
 
+def _entry_evidence(board_id: str, evidence: object, scope: dict, structured: bool, root: Path | None,
+                    problems: list[str]) -> list:
+    """The evidence list of a board entry, each item checked: structured items, or plain texts."""
+    evidence = [] if evidence is _ABSENT else evidence
+    if not isinstance(evidence, list):
+        problems.append(f"{board_id}.evidence: got {received_value(evidence)}; expected a list of evidence items.")
+        evidence = []
+    if structured:
+        return [
+            _evidence_item(item, f"{board_id}.evidence[{index}]", market_references(scope), storybook_references(scope),
+                           tool_references(scope), root, problems)
+            for index, item in enumerate(evidence, start=1)
+        ]
+    return _checked(problems, _text_list, evidence, f"{board_id} evidence") or []
+
+
+def _lenses_not_concerned(consultation: dict, board_id: str) -> set[str]:
+    """The lenses of a board its stored brief says the task's surfaces do not concern."""
+    stored = consultation.get("board_briefs", {}).get(board_id, {})
+    listed = stored.get("lenses_not_concerned") if isinstance(stored, dict) else None
+    return {lens["id"] for lens in listed if isinstance(lens, dict) and isinstance(lens.get("id"), str)} \
+        if isinstance(listed, list) else set()
+
+
 def validate_board_entry(consultation: dict, entry: object, root: Path | None = None) -> dict:
     """Validate one board's review entry against the consultation's template, reporting every problem at once.
 
@@ -366,18 +413,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     entry = {key: entry.get(key, _ABSENT) for key in fields}
     scope = consultation.get("scope", {})
     structured = consultation.get("evidence_format") == "structured"
-    evidence = [] if entry["evidence"] is _ABSENT else entry["evidence"]
-    if not isinstance(evidence, list):
-        problems.append(f"{board_id}.evidence: got {received_value(evidence)}; expected a list of evidence items.")
-        evidence = []
-    if structured:
-        checked = [
-            _evidence_item(item, f"{board_id}.evidence[{index}]", market_references(scope), storybook_references(scope),
-                           tool_references(scope), root, problems)
-            for index, item in enumerate(evidence, start=1)
-        ]
-    else:
-        checked = _checked(problems, _text_list, evidence, f"{board_id} evidence") or []
+    checked = _entry_evidence(board_id, entry["evidence"], scope, structured, root, problems)
     result = {
         "id": board_id,
         "recommendation": _checked(problems, required_text, entry["recommendation"], f"{board_id}.recommendation"),
@@ -387,10 +423,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     if "reviewer" in template:
         result["reviewer"] = _checked(problems, required_text, entry["reviewer"], f"{board_id}.reviewer")
     if "challenge" in template and entry["challenge"] is not _ABSENT:
-        stored = consultation.get("board_briefs", {}).get(board_id, {})
-        listed = stored.get("lenses_not_concerned") if isinstance(stored, dict) else None
-        not_concerned = {lens["id"] for lens in listed if isinstance(lens, dict) and isinstance(lens.get("id"), str)} \
-            if isinstance(listed, list) else set()
+        not_concerned = _lenses_not_concerned(consultation, board_id)
         result["challenge"] = _validate_challenge(
             board_id, entry["challenge"], template["challenge"], [item or {} for item in checked], structured, problems,
             not_concerned,
