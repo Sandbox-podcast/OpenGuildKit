@@ -115,6 +115,21 @@ def _validate_server(server: object, label: str) -> None:
     _names(server["env"], f"{label} env", _ENV)
     _https(server["source"], f"{label} source")
     _read_on(server, "verified", label, "the source was read")
+    _server_optional_fields(server, label)
+    if server.get("command") == "docker":
+        _check_forwarded(server.get("args", []), server["env"], label)
+    declared = _server_settings(server, label)
+    remote = server["transport"] != "stdio"
+    used = _remote_placeholders(server, label) if remote else _stdio_placeholders(server, label)
+    if used != declared:
+        raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
+    if "read_only" in server:
+        _validate_read_only(server, label)
+
+
+def _server_optional_fields(server: dict, label: str) -> None:
+    """The optional fields of a server: its repository, status source and license, the dates it was reviewed and
+    its pin read, its access, scopes and pin."""
     if "repository" in server:
         _https(server["repository"], f"{label} repository")
     if "status_source" in server:
@@ -128,8 +143,10 @@ def _validate_server(server: object, label: str) -> None:
     for field in ("access", "scopes", "pin"):
         if field in server:
             _text(server[field], f"{label} {field}")
-    if server.get("command") == "docker":
-        _check_forwarded(server.get("args", []), server["env"], label)
+
+
+def _server_settings(server: dict, label: str) -> set[str]:
+    """The names of the settings a server declares, each with its description."""
     settings = server.get("settings", [])
     if not isinstance(settings, list) or any(
         not isinstance(item, dict) or item.keys() != {"name", "description"}
@@ -139,34 +156,36 @@ def _validate_server(server: object, label: str) -> None:
         raise CatalogError(f"{label}: settings is a list of name and description")
     for item in settings:
         _text(item["description"], f"{label} setting {item['name']}")
-    declared = {item["name"] for item in settings}
-    remote = server["transport"] != "stdio"
-    if remote:
-        if set(server) & {"command", "args", "package"} or "url" not in server:
-            raise CatalogError(f"{label}: a remote server has a url and no command")
-        _https(server["url"], f"{label} url", placeholders=True)
-        used = set(SETTING_NAME.findall(server["url"]))
-    else:
-        if "url" in server or not {"command", "args", "package"} <= server.keys():
-            raise CatalogError(f"{label}: a stdio server has command, args and package, and no url")
-        _text(server["command"], f"{label} command")
-        if not isinstance(server["args"], list) or any(not isinstance(arg, str) or not arg for arg in server["args"]):
-            raise CatalogError(f"{label}: args is a list of text")
-        package = server["package"]
-        if not isinstance(package, dict) or package.keys() != {"registry", "name"} \
-                or package["registry"] not in PACKAGE_REGISTRIES:
-            raise CatalogError(f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
-        _text(package["name"], f"{label} package name")
-        _check_stand_ins([server["command"], *server["args"]], label)
-        for arg in server["args"]:
-            inline = _INLINE_VALUE.match(arg)
-            if inline and SECRET_WORD.search(arg.split("=", 1)[0]) and not SETTING_NAME.fullmatch(inline.group(1)):
-                raise CatalogError(f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
-        used = {name for text in [server["command"], *server["args"]] for name in SETTING_NAME.findall(text)}
-    if used != declared:
-        raise CatalogError(f"{label}: settings must declare exactly the placeholders used: {', '.join(sorted(used)) or 'none'}")
-    if "read_only" in server:
-        _validate_read_only(server, label)
+    return {item["name"] for item in settings}
+
+
+def _remote_placeholders(server: dict, label: str) -> set[str]:
+    """The setting placeholders of a remote server's url, once it has a url and no command."""
+    if set(server) & {"command", "args", "package"} or "url" not in server:
+        raise CatalogError(f"{label}: a remote server has a url and no command")
+    _https(server["url"], f"{label} url", placeholders=True)
+    return set(SETTING_NAME.findall(server["url"]))
+
+
+def _stdio_placeholders(server: dict, label: str) -> set[str]:
+    """The setting placeholders of a stdio server's command and args, once its launch, package and arguments are
+    checked: no stand-in, no secret written inline."""
+    if "url" in server or not {"command", "args", "package"} <= server.keys():
+        raise CatalogError(f"{label}: a stdio server has command, args and package, and no url")
+    _text(server["command"], f"{label} command")
+    if not isinstance(server["args"], list) or any(not isinstance(arg, str) or not arg for arg in server["args"]):
+        raise CatalogError(f"{label}: args is a list of text")
+    package = server["package"]
+    if not isinstance(package, dict) or package.keys() != {"registry", "name"} \
+            or package["registry"] not in PACKAGE_REGISTRIES:
+        raise CatalogError(f"{label}: package has a registry ({', '.join(PACKAGE_REGISTRIES)}) and a name")
+    _text(package["name"], f"{label} package name")
+    _check_stand_ins([server["command"], *server["args"]], label)
+    for arg in server["args"]:
+        inline = _INLINE_VALUE.match(arg)
+        if inline and SECRET_WORD.search(arg.split("=", 1)[0]) and not SETTING_NAME.fullmatch(inline.group(1)):
+            raise CatalogError(f"{label}: {arg.split('=', 1)[0]} must come from the environment, not from an argument")
+    return {name for text in [server["command"], *server["args"]] for name in SETTING_NAME.findall(text)}
 
 
 def _read_on(server: dict, field: str, label: str, meaning: str) -> None:
@@ -213,20 +232,47 @@ def _validate_read_only(server: dict, label: str) -> None:
             or SECRET_WORD.search(value) for name, value in headers.items()):
         raise CatalogError(f"{label}: read_only headers are plain names and values, never a credential")
     if "args" in variant:
-        if not isinstance(variant["args"], list) or any(not isinstance(arg, str) or not arg for arg in variant["args"]) \
-                or set(SETTING_NAME.findall(" ".join(variant["args"]))) != set(SETTING_NAME.findall(" ".join(server["args"]))):
-            raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
-        _check_stand_ins(variant["args"], f"{label} read_only")
-        if server["command"] == "docker":
-            _check_forwarded(variant["args"], server["env"], f"{label} read_only")
+        _read_only_args(server, variant["args"], label)
     if "env" in variant:
-        # A variable set to a plain value, never a credential; a container receives it only through -e in args.
-        env = variant["env"]
-        if server["command"] == "docker" or not isinstance(env, dict) or not env or any(
-                not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or SECRET_WORD.search(name)
-                or not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(value)
-                for name, value in env.items()):
-            raise CatalogError(f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
+        _read_only_env(server, variant["env"], label)
+
+
+def _read_only_args(server: dict, args: object, label: str) -> None:
+    """The args that select a read-only mode: text, with the same settings as the server's args."""
+    if not isinstance(args, list) or any(not isinstance(arg, str) or not arg for arg in args) \
+            or set(SETTING_NAME.findall(" ".join(args))) != set(SETTING_NAME.findall(" ".join(server["args"]))):
+        raise CatalogError(f"{label}: read_only args is a list of text with the same settings as args")
+    _check_stand_ins(args, f"{label} read_only")
+    if server["command"] == "docker":
+        _check_forwarded(args, server["env"], f"{label} read_only")
+
+
+def _read_only_env(server: dict, env: object, label: str) -> None:
+    """A variable set to a plain value, never a credential; a container receives it only through -e in args."""
+    if server["command"] == "docker" or not isinstance(env, dict) or not env or any(
+            not isinstance(name, str) or not _ENV.fullmatch(name) or name in server["env"] or SECRET_WORD.search(name)
+            or not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(value)
+            for name, value in env.items()):
+        raise CatalogError(f"{label}: read_only env sets plain values for a local, non-docker server, never a credential")
+
+
+def _tool_api_and_detect(tool: dict, label: str) -> None:
+    """The API a tool documents, and the files or package names that detect it in a project."""
+    if "api" in tool:
+        api = tool["api"]
+        if not isinstance(api, dict) or api.keys() != {"kind", "docs"} or api["kind"] not in API_KINDS:
+            raise CatalogError(f"{label}: api has a kind ({', '.join(API_KINDS)}) and docs")
+        _https(api["docs"], f"{label} api docs")
+    if "detect" in tool:
+        detect = tool["detect"]
+        if not isinstance(detect, dict) or not detect or not detect.keys() <= DETECT_FIELDS or any(
+            not isinstance(values, list) or not values or any(not isinstance(item, str) or not item for item in values)
+            for values in detect.values()
+        ):
+            raise CatalogError(f"{label}: detect lists files, npm or pypi names")
+        for pattern in detect.get("files", []):
+            if pattern.startswith(("/", "~")) or ".." in Path(pattern).parts or "**" in pattern:
+                raise CatalogError(f"{label}: detect files are paths inside the project, without ..")
 
 
 def _validate_tool(tool: object, label: str) -> None:
@@ -246,21 +292,7 @@ def _validate_tool(tool: object, label: str) -> None:
         raise CatalogError(f"{label}: aliases is a list of names")
     if "notes" in tool:
         _text(tool["notes"], f"{label} notes")
-    if "api" in tool:
-        api = tool["api"]
-        if not isinstance(api, dict) or api.keys() != {"kind", "docs"} or api["kind"] not in API_KINDS:
-            raise CatalogError(f"{label}: api has a kind ({', '.join(API_KINDS)}) and docs")
-        _https(api["docs"], f"{label} api docs")
-    if "detect" in tool:
-        detect = tool["detect"]
-        if not isinstance(detect, dict) or not detect or not detect.keys() <= DETECT_FIELDS or any(
-            not isinstance(values, list) or not values or any(not isinstance(item, str) or not item for item in values)
-            for values in detect.values()
-        ):
-            raise CatalogError(f"{label}: detect lists files, npm or pypi names")
-        for pattern in detect.get("files", []):
-            if pattern.startswith(("/", "~")) or ".." in Path(pattern).parts or "**" in pattern:
-                raise CatalogError(f"{label}: detect files are paths inside the project, without ..")
+    _tool_api_and_detect(tool, label)
     if not isinstance(tool["servers"], list):
         raise CatalogError(f"{label}: servers is a list, empty when the tool has no MCP server")
     seen = set()
@@ -298,6 +330,30 @@ def _check_project_names(tool: dict, bundled: dict[str, str], tools: dict) -> No
                 "to use OpenGuildKit's bundled tool.")
 
 
+def _load_tool_file(path: Path, record: object, from_project: bool, tools: dict, endpoints: dict,
+                    bundled: dict) -> None:
+    """Add the tools of one category file to tools, refusing a tool defined twice, a server with two endpoints, and
+    a project tool that takes a bundled tool's name."""
+    if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
+        raise CatalogError("a tool file has id, title and tools")
+    if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
+        raise CatalogError(f"name the file after its category: {', '.join(CATEGORIES)}")
+    _text(record["title"], "title")
+    if not isinstance(record["tools"], list):
+        raise CatalogError("tools must be a list")
+    for tool in record["tools"]:
+        _validate_tool(tool, record["id"])
+        if from_project:
+            _check_project_names(tool, bundled, tools)
+        if tool["id"] in tools:
+            raise CatalogError(f"tool {tool['id']} is already defined")
+        for server in tool["servers"]:
+            known = endpoints.setdefault(server["id"], _endpoint(server))
+            if known != _endpoint(server):
+                raise CatalogError(f"server {server['id']} has two different endpoints")
+        tools[tool["id"]] = {**tool, "category": record["id"], **({"origin": PROJECT_ORIGIN} if from_project else {})}
+
+
 def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
     """Every known tool by ID, with its category. A project can add its own in .openguildkit/catalog/tools/.
 
@@ -312,24 +368,7 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
             bundled = {tool_key(name): tool["id"] for tool in tools.values() for name in tool_names(tool)}
         for path, record in record_files(root):
             try:
-                if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
-                    raise CatalogError("a tool file has id, title and tools")
-                if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
-                    raise CatalogError(f"name the file after its category: {', '.join(CATEGORIES)}")
-                _text(record["title"], "title")
-                if not isinstance(record["tools"], list):
-                    raise CatalogError("tools must be a list")
-                for tool in record["tools"]:
-                    _validate_tool(tool, record["id"])
-                    if from_project:
-                        _check_project_names(tool, bundled, tools)
-                    if tool["id"] in tools:
-                        raise CatalogError(f"tool {tool['id']} is already defined")
-                    for server in tool["servers"]:
-                        known = endpoints.setdefault(server["id"], _endpoint(server))
-                        if known != _endpoint(server):
-                            raise CatalogError(f"server {server['id']} has two different endpoints")
-                    tools[tool["id"]] = {**tool, "category": record["id"], **({"origin": PROJECT_ORIGIN} if from_project else {})}
+                _load_tool_file(path, record, bool(from_project), tools, endpoints, bundled)
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
     return dict(sorted(tools.items()))
