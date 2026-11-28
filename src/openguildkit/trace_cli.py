@@ -141,7 +141,7 @@ def _evidence_changed(root: Path, result: dict) -> list[str]:
     return changed
 
 
-def _git(root: Path, *args: str) -> list[str] | None:
+def _printed_lines(root: Path, *args: str) -> list[str] | None:
     """The lines Git prints, or None when it fails or is not installed."""
     output = git.text(root, *args)
     return None if output is None else [line for line in output.splitlines() if line.strip()]
@@ -150,20 +150,20 @@ def _git(root: Path, *args: str) -> list[str] | None:
 def _changed_since(root: Path, relative: str, latest: dict) -> tuple[dict | None, str | None]:
     """The commits on the file after the latest decision: after its delivered revision when Git has it, otherwise
     after the commit that last wrote its record."""
-    if _git(root, "rev-parse", "--is-inside-work-tree") != ["true"]:
+    if _printed_lines(root, "rev-parse", "--is-inside-work-tree") != ["true"]:
         return None, "The project is not a Git repository: whether the file changed since the decision is not checked."
     revision = latest["revision"] if isinstance(latest["revision"], str) else ""
     since = None
     if 7 <= len(revision) <= 64 and set(revision) <= _COMMIT \
-            and _git(root, "merge-base", "--is-ancestor", revision, "HEAD") is not None:
+            and _printed_lines(root, "merge-base", "--is-ancestor", revision, "HEAD") is not None:
         since = revision
     else:
-        written = _git(root, "log", "-1", "--format=%H", "--", latest["record"])
+        written = _printed_lines(root, "log", "-1", "--format=%H", "--", latest["record"])
         since = written[0] if written else None
     if since is None:
         return None, (f"{latest['record']} is not committed and names no delivered revision in this history: whether "
                       "the file changed since the decision is not checked.")
-    commits = _git(root, "log", "--format=%H", f"{since}..HEAD", "--", relative) or []
+    commits = _printed_lines(root, "log", "--format=%H", f"{since}..HEAD", "--", relative) or []
     return {"since": since, "commit": commits[0] if commits else None, "commits": commits}, None
 
 

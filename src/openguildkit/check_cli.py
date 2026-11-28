@@ -333,7 +333,7 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
     for _, message, _ in issues:
         print(f"OpenGuildKit: {message}", file=sys.stderr)
     report.sharing(issues)
-    org_policy_cli.check(state, profile, catalog, report)
+    org_policy_cli.check_policy(state, profile, catalog, report)
     if failing:
         raise RuleError(f"The instructions match the project profile, but {len(failing)} "
                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "

@@ -287,14 +287,10 @@ GAP_WORDS = {
 }
 
 
-def _plural(count: int, word: str) -> str:
-    return f"{count} {word}{'' if count == 1 else 's'}"
-
-
 def _servers(row: dict) -> str:
     detail = ", ".join(text for text in (f"{row['mcp_unpinned']} not pinned" if row["mcp_unpinned"] else "",
                                          f"{row['mcp_unlisted']} not in the registry" if row["mcp_unlisted"] else "") if text)
-    return _plural(row["mcp_servers"], "MCP server") + (f" ({detail})" if detail else "")
+    return plural(row["mcp_servers"], "MCP server") + (f" ({detail})" if detail else "")
 
 
 def _surfaces_line(row: dict) -> str:
@@ -304,7 +300,7 @@ def _surfaces_line(row: dict) -> str:
     if row["mcp_servers"]:
         parts.append(_servers(row))
     if row["permissive"]:
-        parts.append(_plural(row["permissive"], "permissive setting"))
+        parts.append(plural(row["permissive"], "permissive setting"))
     parts += [f"lock {row['lock']}"] if row["lock"] else []
     parts += [f"organization catalog {row['catalog_commit'][:12]}"] if row["catalog_commit"] else []
     parts += [f"last decision {row['last_decision']}"] if row["last_decision"] else []
@@ -370,7 +366,7 @@ def _print(result: dict, search: str | None, policy: dict | None) -> None:
         print(f"Next: openguildkit --project {shell_word(failing['path'])} check")
     if policy is not None:
         short = sum(1 for row in rows if row.get("drift"))
-        print(f"Policy: {_plural(short, 'folder')} fall{'s' if short == 1 else ''} short." if short
+        print(f"Policy: {plural(short, 'folder')} fall{'s' if short == 1 else ''} short." if short
               else "Policy: no folder falls short.")
 
 

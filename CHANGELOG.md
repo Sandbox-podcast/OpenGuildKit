@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Code names: `projects` uses the shared `plural` instead of its copy, `trace` no longer defines a sixth `_git`, `org_policy_cli.check` is `check_policy` next to `check_cli.check`, and a test caps the function names defined in several modules at 75 (78 before) and refuses a new public one (#530)
 - Dead code: `webui.weakening_changes` and `patterns.VERSION_PATTERN`, which no module read, are removed, and `tests/test_dead_code.py` keeps no name pending (#511)
 - Code layers: the rule of what weakens a protection and the path of a profile change live in `profile_changes.py`, which the web page, the retrospective and `features` import instead of the `profile` command module; `projects` asks `check` for its result as a function instead of reading its standard error back; a test keeps command modules imported by the CLI only (#509)
 - CLI: every command runs through one table in `cli.py`, which imports its module only for that command, and every command module's `run` takes one `Command` (arguments, root, state, catalog, profile read once); `cli.py` falls from 1,484 to under 250 lines, its code split into `init_cli`, `catalog_cli`, `check_cli`, `docs_cli` and `connect_cli`. Outputs are unchanged (#462)

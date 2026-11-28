@@ -346,7 +346,7 @@ def _preview(command: Command) -> None:
     print_rule_plan(rule_plan(profile, catalog), args.json)
 
 
-def _recommend(command: Command) -> None:
+def _recommendations(command: Command) -> None:
     args, catalog = command.args, command.catalog
     if args.answers:
         questions = _setup_questions(command)
@@ -364,7 +364,7 @@ HANDLERS = {
     "brains": _brains,
     "detect": lambda command: print_detection(detect_stack(command.root), command.args.json),
     "preview": _preview,
-    "recommend": _recommend,
+    "recommend": _recommendations,
     "update": lambda command: update_catalog(command.args, command.root, command.state),
 }
 

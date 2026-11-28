@@ -14,6 +14,15 @@ PACKAGE = REPO / "src" / "openguildkit"
 MAX_MODULE_LINES = 2000
 MAX_CLI_LINES = 1500
 MAX_CLI_FUNCTION_LINES = 120
+# Top-level function names that more than one module of the package defines (#530): a name searched from its
+# command should lead to one function. Lower the ceiling when a copy goes; never raise it.
+MAX_SHARED_FUNCTION_NAMES = 75
+# The public names several modules define: the entry points every command module has, and the homonyms #530 lists
+# that are not merged yet. A public name added to two modules fails.
+SHARED_PUBLIC_NAMES = {
+    "add_parser", "run", "main", "add_options", "serve", "describe", "parse", "fingerprint", "timestamp",
+    "approval_problem", "board_brief", "changed_files", "frozen_text", "open_points", "record_digest", "scope_entry",
+}
 
 
 def parsed(path: Path) -> ast.Module:
@@ -103,6 +112,18 @@ class ModuleShapeTests(unittest.TestCase):
         projects = (PACKAGE / "projects_cli.py").read_text(encoding="utf-8")
         self.assertNotIn("cli.main", projects)
         self.assertNotIn("redirect_stderr", projects)
+
+    def test_issue_530_a_function_name_leads_to_one_function(self):
+        """Issue #530: 68 function names were defined in several modules, with different contracts (_git five
+        times), so a search by name found the wrong one."""
+        modules: dict[str, set[str]] = {}
+        for path in PACKAGE.glob("*.py"):
+            for node in parsed(path).body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    modules.setdefault(node.name, set()).add(path.name)
+        shared = {name for name, found in modules.items() if len(found) > 1}
+        self.assertLessEqual(len(shared), MAX_SHARED_FUNCTION_NAMES, sorted(shared))
+        self.assertEqual(sorted(name for name in shared if not name.startswith("_") and name not in SHARED_PUBLIC_NAMES), [])
 
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.
