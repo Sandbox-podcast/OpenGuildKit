@@ -365,6 +365,28 @@ class PullRequestTextTests(unittest.TestCase):
         self.assertIn("Fix many things (#377 to #407)", result.stdout)
         self.assertNotIn("Fix one thing", result.stdout)
 
+    def test_commits_a_squash_brought_to_the_base_and_merge_commits_are_not_asked_again(self):
+        """Issue #483: once the pull request below was squashed into main, its commits came back in the range of the
+        next one, retargeted to main, with subjects written before the check existed."""
+        notes = "\n\n## Not verified\n\nnothing"
+        root = _repository(self)
+        _commit(root, {"a.txt": "1"}, "start")
+        _git(root, "checkout", "-q", "-b", "lower")
+        _commit(root, {"a.txt": "2"}, "Speed things up (#1, #2)")
+        _git(root, "checkout", "-q", "-b", "upper")
+        _commit(root, {"b.txt": "1"}, "Add a check (#3)")
+        _git(root, "checkout", "-q", "main")
+        _commit(root, {"a.txt": "2"}, "Lower lot (#4)\n\n* Speed things up (#1, #2)\n")
+        _git(root, "checkout", "-q", "upper")
+        _git(root, "merge", "-q", "-s", "ours", "main", "-m", "Merge main after the squash (#1, #2)")
+        result = _run_script(root, "check_pr_text", "--base", "main", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 0, result.stdout)
+        _commit(root, {"b.txt": "2"}, "Fix more (#5, #6)")
+        result = _run_script(root, "check_pr_text", "--base", "main", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("Fix more (#5, #6)", result.stdout)
+        self.assertNotIn("Speed things up", result.stdout)
+
     def test_the_body_has_one_line_for_each_issue_it_closes(self):
         check = _load("check_pr_text")
         notes = "\n\n## Not verified\n\nnothing"
