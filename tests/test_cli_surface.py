@@ -131,9 +131,9 @@ class ProjectOptionTests(unittest.TestCase):
         self.assertIn("does not exist", err)
 
     def test_the_web_page_cannot_retarget_the_project(self):
-        from openguildkit import webui
+        from openguildkit import web_requests, webui
 
-        with self.assertRaises(webui.Refused):
+        with self.assertRaises(web_requests.Refused):
             webui.CliRunner(self.root).parse(["check", "--project", str(self.root / "elsewhere")])
 
     def test_hoisting_moves_each_global_option_in_front_in_order(self):

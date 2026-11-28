@@ -280,7 +280,7 @@ class ProjectsTests(unittest.TestCase):
 
     def test_the_web_interface_refuses_a_folder_outside_its_project(self):
         from openguildkit.cli import command_parser
-        from openguildkit.webui import Refused, check_paths
+        from openguildkit.web_requests import Refused, check_paths
 
         args = command_parser().parse_args(["projects", str(self.billing)])
         with self.assertRaises(Refused) as refused:

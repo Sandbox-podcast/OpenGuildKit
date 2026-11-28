@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import tools_cli, webui
+from openguildkit import tools_cli, web_requests, webui
 from openguildkit.cli import command_parser
 from openguildkit.hosts import approval_warning
 from openguildkit.shell import shell_command, shell_word
@@ -188,7 +188,7 @@ class QuotingTests(Project):
         for module in (webui, tools_cli):
             self.assertFalse(hasattr(module, "_quote"), module.__name__)
         root = Path("/work/my app")
-        self.assertEqual(webui.terminal_command(root, ["task", "revoke", "t", "--reason", REASON]),
+        self.assertEqual(web_requests.terminal_command(root, ["task", "revoke", "t", "--reason", REASON]),
                          shell_command(["openguildkit", "--project", str(root), "task", "revoke", "t", "--reason", REASON]))
         args = argparse.Namespace(tool=["zendesk"], mock=False, community=False, read_only=False, log=REASON,
                                   settings=[], token_env=[])
