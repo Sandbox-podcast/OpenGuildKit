@@ -155,6 +155,7 @@ class ResearchDecisionTests(unittest.TestCase):
         self.assertNotIn("needs no task authorize", local)
 
     def test_the_skill_says_it_for_every_policy_the_profile_accepts(self):
+        # OGK-TASK-014
         skill = (REPO / "src/openguildkit/agent_files/skills/openguildkit/SKILL.md").read_text(encoding="utf-8")
         for policy in ("local-only", "public-sources"):
             self.assertIn(consultation.research_decision(policy), skill)

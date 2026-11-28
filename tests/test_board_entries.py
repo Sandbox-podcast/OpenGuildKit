@@ -51,6 +51,7 @@ class EntryValidationTests(unittest.TestCase):
         self.assertIn(f'marketing/{lens} basis: got "seen"; accepted: observed, assumption, missing.', message)
 
     def test_an_entry_of_the_wrong_shape_names_its_keys(self):
+        # OGK-BOARD-009
         with self.assertRaisesRegex(ValueError, r"id: got null; write the board's ID, one of product, "):
             validate_board_entry(self.consultation, {"board": "security"})
         entry = copy.deepcopy(example_entries()["security"])
@@ -219,6 +220,7 @@ class PassCommandTests(CapturedCli, unittest.TestCase):
         self.assertTrue(all(pack["rules"] for pack in scope["packs"]))
 
     def test_a_damaged_stored_brief_is_reported_when_the_pass_is_printed(self):
+        # OGK-TASK-080
         path = self.root / ".openguildkit" / "tasks" / f"{TASK}.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         record["consultation"]["board_briefs"]["security"]["lenses"] = [None]
@@ -232,6 +234,7 @@ class PassCommandTests(CapturedCli, unittest.TestCase):
         """Issue 166: an entry was accepted for a board whose pass was never started."""
         write_json(self.root / "qa.json", example_entries()["qa"])
         _, error = self.run_cli("task", "submit", TASK, "--file", self.root / "qa.json", code=1)
+        # OGK-TASK-085
         self.assertIn(f"The qa pass was not started on the current consultation. Run openguildkit task pass {TASK} qa",
                       error)
         self.run_cli("task", "pass", TASK, "qa")

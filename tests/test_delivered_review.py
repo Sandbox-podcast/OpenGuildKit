@@ -109,6 +109,7 @@ class FindingTests(DeliveredReviewCase):
         self.deliver()
 
     def test_a_malformed_file_is_refused_with_every_problem_and_nothing_is_recorded(self):
+        # OGK-TASK-048
         _, error = self.submit({"board": "security", "findings": [
             {"file": "notes.md", "line": 0, "severity": "critical", "action": "fix", "finding": ""},
             {"file": "status.py", "line": 4, "severity": "important", "action": "defer", "finding": "Later."}]},

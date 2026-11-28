@@ -14,6 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 from . import lazy_re
+from .errors import OgkError
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
 from .records import Catalog, Profile, Task
 
@@ -699,7 +700,7 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
     delegations = dict(selection.get("delegate") or {})
     unknown = sorted(set(delegations) - set(required))
     if unknown:
-        raise ValueError(f"Only a required board can be delegated: {', '.join(unknown)}.")
+        raise OgkError("OGK-ROUTE-001", f"Only a required board can be delegated: {', '.join(unknown)}.")
     missing = []
     for board_id in required:
         if board_id in enabled:
@@ -710,17 +711,17 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
         else:
             missing.append(board_id)
     if missing:
-        raise ValueError(
+        raise OgkError("OGK-ROUTE-002", 
             f"Required reviews are unavailable: {', '.join(missing)} not enabled in the profile. Enable them, "
             "or name the person who will review with --delegate BOARD=NAME."
         )
     adjustments = []
     reason = (selection.get("reason") or "").strip()
     if (selection.get("add") or selection.get("remove")) and not reason:
-        raise ValueError("Give a --reason for adding or removing a board.")
+        raise OgkError("OGK-ROUTE-003", "Give a --reason for adding or removing a board.")
     for board_id in selection.get("add") or []:
         if board_id not in enabled:
-            raise ValueError(f"Board {board_id!r} is not enabled for this project.")
+            raise OgkError("OGK-ROUTE-004", f"Board {board_id!r} is not enabled for this project.")
         if board_id not in routing:
             routing[board_id] = [f"Added by the requester: {reason}"]
             adjustments.append({"action": "add", "board": board_id, "reason": reason})
@@ -728,7 +729,7 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
         if board_id not in routing:
             raise ValueError(f"Board {board_id!r} was not proposed for this task.")
         if board_id in required:
-            raise ValueError(f"The project requires the {board_id} review; it cannot be removed.")
+            raise OgkError("OGK-ROUTE-005", f"The project requires the {board_id} review; it cannot be removed.")
         adjustment = {"action": "remove", "board": board_id, "reason": reason}
         protected = _STRUCTURED_ROUTES["data"].get(answers["data"], {}).get(board_id)
         if answers["data"] in PROTECTED_DATA and protected in routing[board_id]:

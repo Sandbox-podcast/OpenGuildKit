@@ -13,6 +13,7 @@ from .alerts import blocking_alerts, load_register
 from .approval_check import DONE_STATUSES
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
+from .errors import OgkError
 from .guard_export import changes_since_approval, export_decision, export_withdrawal, print_written, untracked_files
 from .handoff import handoff
 from .lock import require_instructions
@@ -98,12 +99,12 @@ def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, r
     """The closed task. Deferring evidence or naming who closes needs the person at a terminal."""
     lane = _lane_problems(root, task, profile)
     if lane:
-        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(lane))
+        raise OgkError("OGK-TASK-037", "The task cannot be declared done:\n- " + "\n- ".join(lane))
     blocking = blocking_alerts(load_register(state), task)
     if blocking:
-        raise ValueError("The task cannot be declared done:\n- " + "\n- ".join(blocking))
+        raise OgkError("OGK-TASK-038", "The task cannot be declared done:\n- " + "\n- ".join(blocking))
     if args.defer and not args.by:
-        raise ValueError("Name the person who hands the evidence to a follow-up task: --by INITIALS.")
+        raise OgkError("OGK-TASK-039", "Name the person who hands the evidence to a follow-up task: --by INITIALS.")
     deferrals = []
     for item in args.defer:
         check_id, _, follow_up = item.rpartition("=")
@@ -114,7 +115,7 @@ def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, r
     closed = complete_task(current, profile, root, relevance, args.by, changed=changed)
     set_aside = set_aside_rules(current, profile, relevance)
     if set_aside and not (args.by or "").strip():
-        raise ValueError(
+        raise OgkError("OGK-TASK-040", 
             f"{plural(len(set_aside), 'data protection, security or AI rule')} "
             f"{'is' if len(set_aside) == 1 else 'are'} declared not applicable:\n- "
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "
@@ -122,7 +123,7 @@ def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, r
     if args.by:
         refusal = "Closing a task with --by needs the person at an interactive terminal."
         if not interactive():
-            raise ValueError(refusal)
+            raise OgkError("OGK-TASK-041", refusal)
         for group in closed["result"]["closing"]["open_points"]:
             print(f"{group['group']}:", file=sys.stderr)
             for point in group["points"]:
@@ -176,11 +177,11 @@ def _declaration_checks(args, task: Task, profile: Profile, check_id: str) -> di
     """The task's check commands; a declaration names one of them and the person, at a terminal."""
     commands = {check["id"]: check["command"] for check in expected_checks(task, profile) if check["kind"] == "command"}
     if check_id not in commands:
-        raise ValueError(f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
+        raise OgkError("OGK-TASK-042", f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
         raise ValueError("Name the person with --by INITIALS.")
     if not interactive():
-        raise ValueError(DECLARATION_REFUSAL)
+        raise OgkError("OGK-TASK-043", DECLARATION_REFUSAL)
     return commands
 
 
@@ -191,11 +192,11 @@ def _cannot_run(args, root: Path, state: Path, task: Task, profile: Profile, rel
     """
     commands = _declaration_checks(args, task, profile, args.cannot_run)
     if len((args.reason or "").split()) < MIN_REASON_WORDS:
-        raise ValueError(f"Say why {args.cannot_run} cannot run here, in at least {MIN_REASON_WORDS} words: "
+        raise OgkError("OGK-TASK-044", f"Say why {args.cannot_run} cannot run here, in at least {MIN_REASON_WORDS} words: "
                          '--reason "The sandbox has no network for npm ci."')
     ran = run_command_checks(root, state, task, profile, relevance=relevance, only={args.cannot_run})
     if ran and ran[0]["status"] == "passed":
-        raise ValueError(f"{args.cannot_run} passes in this environment: nothing to declare. Run task verify "
+        raise OgkError("OGK-TASK-045", f"{args.cannot_run} passes in this environment: nothing to declare. Run task verify "
                          f"{args.id} to record it as passed.")
     typed(args.id, f"Type {args.id} to record that {args.cannot_run} (`{commands[args.cannot_run]}`) cannot run "
           "here: ", refusal=DECLARATION_REFUSAL, cancelled="Cancelled.")
@@ -210,7 +211,7 @@ def _withdraw(args, root: Path, state: Path, task: Task, profile: Profile, relev
     if declaration is None:
         raise ValueError(f"No declaration that {args.withdraw} cannot run is recorded.")
     if declaration["owner"].casefold() != args.by.strip().casefold():
-        raise ValueError(f"{declaration['owner']} declared it: only they withdraw it.")
+        raise OgkError("OGK-TASK-046", f"{declaration['owner']} declared it: only they withdraw it.")
     ran = run_command_checks(root, state, task, profile, relevance=relevance, only={args.withdraw})
     if not ran:
         raise ValueError(f"{args.withdraw} does not concern the task any more.")
@@ -298,7 +299,7 @@ def _verify_payload(args, root: Path, state: Path, task: Task, profile: Profile,
     if decision and args.chaosfolk:
         raise ValueError("ChaosFolk replays are for implementation tasks.")
     if args.chaosfolk and (args.cannot_run or args.withdraw):
-        raise ValueError("--cannot-run and --withdraw concern a check command: run them without --chaosfolk.")
+        raise OgkError("OGK-TASK-047", "--cannot-run and --withdraw concern a check command: run them without --chaosfolk.")
     if args.cannot_run:
         payload["checks"] = [_cannot_run(args, root, state, task, profile, relevance)]
     elif args.withdraw:
@@ -485,7 +486,7 @@ def run_diff_review(command: TaskCommand) -> None:
             try:
                 updated, board = delivered_review.record_findings(task, change, payload)
             except ValueError as error:
-                raise ValueError(f"{args.submit.as_posix()}: {error}") from None
+                raise OgkError("OGK-TASK-048", f"{args.submit.as_posix()}: {error}") from None
             write_json(task_path(state, args.id), updated)
         findings = updated["delivered_review"]["boards"][board]["findings"]
         print(f"{board}: {plural(len(findings), 'finding')} recorded.")

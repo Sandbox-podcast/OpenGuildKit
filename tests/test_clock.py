@@ -189,6 +189,7 @@ class ClockTests(unittest.TestCase):
                 self.assertEqual(storybook_scope(state)["indexes"][0]["age_days"], 0)
 
     def test_evidence_dates_follow_the_real_clock_under_source_date_epoch(self):
+        # OGK-BOARD-005
         today = clock.real_today().isoformat()
         later = (clock.real_today() + timedelta(days=30)).isoformat()
         for fixed in (LATER, EARLIER):

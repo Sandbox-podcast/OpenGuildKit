@@ -163,7 +163,8 @@ class CleanErrorTests(unittest.TestCase):
             path.write_text(json.dumps(damaged), encoding="utf-8")
             for command in (("task", "show"), ("task", "challenge"), ("task", "progress")):
                 error = self.run_cli(*command, "request-status")
-                self.assertTrue(error.startswith(f"OpenGuildKit: Task record request-status is damaged: {field}"), error)
+                self.assertTrue(error.startswith(f"OpenGuildKit [OGK-TASK-023]: Task record request-status is damaged: {field}"),
+                                error)
                 self.assertEqual(len(error.strip().splitlines()), 1, error)
                 self.assertTrue(error.strip().endswith("or delete that file and open a new task with openguildkit task new."),
                                 error)
@@ -226,6 +227,7 @@ class CleanErrorTests(unittest.TestCase):
             self.assertIn(f"task result {TASK} --template", error)
 
     def test_evidence_dates_must_be_real_and_past_and_cited_files_must_exist(self):
+        # OGK-BOARD-004
         review = self.consulted()
         path = self.root / "review.json"
         later = (clock.real_today() + timedelta(days=3)).isoformat()
@@ -296,6 +298,7 @@ class CleanErrorTests(unittest.TestCase):
             entry["recommendation"] = ""
         write_json(self.root / "review.json", broken)
         error = self.refusal("task", "review", TASK, "--file", self.root / "review.json")
+        # OGK-BOARD-013
         self.assertIn("The review has 3 problems", error)
         for entry in broken["boards"][:3]:
             self.assertIn(f"{entry['id']}.recommendation must contain text", error)
@@ -416,6 +419,7 @@ class CleanErrorTests(unittest.TestCase):
         self.assertNotIn("Did you mean", message)
 
     def test_prompt_and_identifier_messages_are_precise(self):
+        # OGK-TASK-019
         question = {"type": "multi-select", "choices": [{"id": "a"}, {"id": "b"}]}
         self.assertEqual(prompt_choices(question, "1,"), ["a"])
         self.init()

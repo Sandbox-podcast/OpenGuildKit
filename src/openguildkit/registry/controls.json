@@ -222,12 +222,12 @@
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "approval_problem",
-          "line": 88
+          "line": 89
         },
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "record_problem",
-          "line": 114
+          "line": 115
         },
         {
           "file": "src/openguildkit/guard_ci.py",

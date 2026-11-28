@@ -69,6 +69,7 @@ class MarketDossierTests(unittest.TestCase):
             validate_dossier(broken, "support-portals")
 
     def test_boards_cite_dossier_observations_in_a_consultation(self):
+        # OGK-BOARD-006
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 

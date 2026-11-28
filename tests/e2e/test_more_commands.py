@@ -47,7 +47,8 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
             response.update(position="maintain", response="Our evidence still holds.", evidence_refs=[1])
         incomplete = self.run_cli("task", "respond", TASK_ID, "--file", self.write_json("d.json", payload), expect=1)
         self.assertIn("decision the responsible person", incomplete.stderr)
-        self.assertTrue(incomplete.stderr.startswith("OpenGuildKit: "))
+        # OGK-TASK-090, raised by the check of the file, comes out under the code of the file it reads.
+        self.assertTrue(incomplete.stderr.startswith("OpenGuildKit [OGK-TASK-056]: "), incomplete.stderr)
         payload["decision_needed"] = "Choose between shipping read-only now or after the access tests."
         result = self.run_cli("task", "respond", TASK_ID, "--file", self.write_json("d.json", payload))
         self.assertEqual(result.stdout.strip(), f"0 resolved, {len(request['objections'])} open")
@@ -59,6 +60,7 @@ class DeliberationCommandTests(ReviewedTaskTestCase):
 class BlockerCommandTests(ReviewedTaskTestCase):
     @unittest.skipUnless(shutil.which("ssh-keygen") and shutil.which("git"), "needs ssh-keygen and git")
     def test_signed_verification_blockers_are_reported_and_clear_with_the_named_signature(self):
+        # OGK-TASK-026
         principal = "camille@example.org"
         key = self.project / "synthetic-test-key"
         subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
@@ -119,7 +121,7 @@ class BlockerCommandTests(ReviewedTaskTestCase):
 
         unknown = self.run_cli("task", "clear", TASK_ID, "security:9", "--by", "Alex", "--evidence", "x", "--supports", "y",
                                expect=1)
-        self.assertTrue(unknown.stderr.startswith("OpenGuildKit: "))
+        self.assertTrue(unknown.stderr.startswith("OpenGuildKit [OGK-TASK-027]: "))
         missing_file = self.run_cli("task", "clear", TASK_ID, "security:1", "--by", "Alex", "--evidence",
                                     "tests/test_access.py", "--supports", "Cross-account access is refused.", expect=1)
         self.assertIn("existing file or folder of the project, or an https link", missing_file.stderr)
@@ -172,7 +174,7 @@ class WaiverCommandTests(ReviewedTaskTestCase):
 
     def test_a_waiver_without_a_terminal_is_refused(self):
         refused = self.run_cli(*self.waive(), expect=1)
-        self.assertEqual(refused.stderr.strip(), "OpenGuildKit: A waiver needs a person at an interactive terminal.")
+        self.assertEqual(refused.stderr.strip(), "OpenGuildKit [OGK-TASK-071]: A waiver needs a person at an interactive terminal.")
         self.assertIn("security:2 [open]", self.run_cli("task", "blockers", TASK_ID).stdout)
 
     @unittest.skipUnless(os.name == "posix", "the typed confirmation needs a pseudo-terminal, available on Linux and macOS")

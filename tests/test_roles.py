@@ -80,6 +80,7 @@ class RolesTests(RoleCase):
 
     def test_issue_475_a_blocker_of_a_committee_with_a_role_is_cleared_only_by_a_member(self):
         """Issue #475: any person cleared the blocker of any board."""
+        # OGK-TASK-031
         self.assertEqual(self.roles(), {"security": ["CM"]})
         self.reviewed()
         _, error = self.clear("PL", code=1)
@@ -92,6 +93,7 @@ class RolesTests(RoleCase):
 
     def test_issue_475_a_blocker_is_waived_only_by_a_member_either(self):
         """Issue #475: a waiver is a way to lift a blocker, so it follows the role too."""
+        # OGK-TASK-035
         self.run_cli("profile", "set", "waivers", "allowed", "--allowed-by", "PL", "--allowed-by", "CM", "--max-days",
                      "30", "--by", "Sam", "--reason", "Waivers", typed="allowed")
         self.reviewed()
@@ -103,6 +105,7 @@ class RolesTests(RoleCase):
 
     def test_issue_475_the_approval_of_a_task_with_a_blocking_security_advice_needs_a_member_too(self):
         """Issue #475: the final approval was open to any approver as well."""
+        # OGK-TASK-068
         self.reviewed()
         self.clear("CM")
         _, error = self.decide("PL", code=1)

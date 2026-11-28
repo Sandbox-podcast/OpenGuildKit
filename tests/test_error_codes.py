@@ -23,7 +23,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 551
+UNCODED_CEILING = 445
 
 
 def uncoded_sites(path: Path) -> list[int]:

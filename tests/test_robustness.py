@@ -229,13 +229,14 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"draft", "consulting"}))
 
     def test_review_files(self):
-        # OGK-CORE-008, OGK-CORE-010
+        # OGK-BOARD-002, OGK-CORE-008, OGK-CORE-010, OGK-TASK-056
         self.consulted()
         review = self.review()
         self.fuzz("task review --file", review, lambda path: self.cli("task", "review", TASK, "--file", path),
                   self.record_loads({"consulting", "reviewed"}), count=40)
 
     def test_board_entries(self):
+        # OGK-BOARD-010, OGK-TASK-061
         self.consulted()
         entry = next(item for item in self.review()["boards"] if item["id"] == "security")
         self.expect("task", "pass", TASK, "security")
@@ -243,6 +244,7 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"consulting"}), count=40)
 
     def test_deliberations(self):
+        # OGK-TASK-087, OGK-TASK-088, OGK-TASK-089, OGK-TASK-090
         self.reviewed()
         request = json.loads(self.expect("task", "deliberate", TASK))
         payload = request["template"]
@@ -331,6 +333,7 @@ class CommandSequenceTests(FuzzTestCase):
     """A small model-based test: random valid and invalid task commands, checked against a model of the states."""
 
     def test_random_command_sequences_keep_every_record_consistent(self):
+        # OGK-TASK-020
         self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
         entries = {item["id"]: item for item in json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))["boards"]}
         model = {}

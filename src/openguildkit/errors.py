@@ -17,7 +17,7 @@ class OgkError(ValueError):
     """An error a person reads, with its stable code: `raise OgkError("OGK-TASK-004", f"Task already exists: {x}")`.
     The message is unchanged (`str(error)`); the CLI prints the code before it, and in `error.code` under --json."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: object):
         super().__init__(message)
         self.code = code
 

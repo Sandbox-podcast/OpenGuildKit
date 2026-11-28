@@ -445,7 +445,7 @@ class WebInterfaceTests(unittest.TestCase):
             self.assertEqual((result["code"], result["json"]), (0, []))
             _, result = self.run_in_page("task", "show", "nope", "--json")
         self.assertEqual((result["code"], result["json"]), (1, None))
-        self.assertTrue(result["stderr"].startswith("OpenGuildKit: Unknown task: nope."), result["stderr"])
+        self.assertTrue(result["stderr"].startswith("OpenGuildKit [OGK-TASK-021]: Unknown task: nope."), result["stderr"])
 
     def test_concurrent_requests_keep_their_own_output(self):
         results = []

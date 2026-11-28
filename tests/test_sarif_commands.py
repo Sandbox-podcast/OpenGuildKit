@@ -170,6 +170,7 @@ class CheckSarifTests(SarifProject):
                                                          ("decision-stale", "error", f".openguildkit/tasks/{TASK}.json")])
 
     def test_a_task_record_that_cannot_be_read_is_reported_without_the_folder_of_the_machine(self):
+        # OGK-TASK-022
         self.init()
         tasks = self.root / ".openguildkit" / "tasks"
         tasks.mkdir(exist_ok=True)

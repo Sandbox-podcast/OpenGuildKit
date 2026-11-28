@@ -14,19 +14,20 @@ from pathlib import Path
 from . import clock, lazy_re
 from .board_brief import CONTEST_ITEM
 from .consultation import CHOICES, EVIDENCE_SOURCES, market_references, one_based, storybook_references, tool_references
+from .errors import OgkError
 from .questionnaire import ASSUMPTIONS
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
 
 
 def required_text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field} must contain text.")
+        raise OgkError("OGK-BOARD-001", f"{field} must contain text.")
     return value.strip()
 
 
 def _text_list(value: object, field: str) -> list[str]:
     if not isinstance(value, list):
-        raise ValueError(f"{field} must be a list of strings.")
+        raise OgkError("OGK-BOARD-002", f"{field} must be a list of strings.")
     return [required_text(item, field) for item in value]
 
 
@@ -45,13 +46,13 @@ _LOCATION = lazy_re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
 def _evidence_day(value: object, field: str) -> str:
     """A real YYYY-MM-DD date that is not in the future on the real clock (one day of margin for time zones)."""
     if not isinstance(value, str) or not _DATE.fullmatch(value):
-        raise ValueError(f"{field}: got {received_value(value)}; write the date YYYY-MM-DD.")
+        raise OgkError("OGK-BOARD-003", f"{field}: got {received_value(value)}; write the date YYYY-MM-DD.")
     try:
         day = date.fromisoformat(value)
     except ValueError:
-        raise ValueError(f"{field}: {value} is not a real date. Write it YYYY-MM-DD.") from None
+        raise OgkError("OGK-BOARD-004", f"{field}: {value} is not a real date. Write it YYYY-MM-DD.") from None
     if day > clock.real_today() + timedelta(days=1):
-        raise ValueError(f"{field}: {value} is in the future. Write the day the evidence was observed.")
+        raise OgkError("OGK-BOARD-005", f"{field}: {value} is in the future. Write the day the evidence was observed.")
     return value
 
 
@@ -129,14 +130,14 @@ def _check_reference(
     """A reference names a recorded market observation or story, a connected tool's record, an https page or a
     project file, as its source requires."""
     if ref.startswith("market:") and ref not in market_refs:
-        raise ValueError(f"{field}: {ref} is not an observation or change of the attached market dossier.")
+        raise OgkError("OGK-BOARD-006", f"{field}: {ref} is not an observation or change of the attached market dossier.")
     if ref.startswith("storybook:") and ref not in storybook_refs:
-        raise ValueError(f"{field}: {ref} is not a story of the Storybook indexes the project recorded.")
+        raise OgkError("OGK-BOARD-007", f"{field}: {ref} is not a story of the Storybook indexes the project recorded.")
     if source == "tool":
         tool_id, separator, record = ref.partition(":")
         if not separator or not record.strip() or tool_id not in tool_ids:
             connected = ", ".join(sorted(tool_ids)) or "none"
-            raise ValueError(
+            raise OgkError("OGK-BOARD-008", 
                 f"{field}: a tool source is written TOOL:RECORD (for example jira:SUP-142) for a tool connected to the "
                 f"project. Connected: {connected}."
             )
@@ -401,10 +402,10 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
         raise ValueError("A board review must be a JSON object, as printed under Entry to return.")
     board_id = entry.get("id")
     if not isinstance(board_id, str) or not board_id.strip():
-        raise ValueError(f"id: got {received_value(board_id)}; write the board's ID, one of {', '.join(selected)}.")
+        raise OgkError("OGK-BOARD-009", f"id: got {received_value(board_id)}; write the board's ID, one of {', '.join(selected)}.")
     board_id = board_id.strip()
     if board_id not in selected:
-        raise ValueError(f"id: board {board_id!r} was not selected for this consultation. Selected: {', '.join(selected)}.")
+        raise OgkError("OGK-BOARD-010", f"id: board {board_id!r} was not selected for this consultation. Selected: {', '.join(selected)}.")
     templates = {item["id"]: item for item in consultation.get("review_template", {}).get("boards", [])}
     template = templates.get(board_id, {})
     fields = {"id", "recommendation", "evidence", "open_questions"} | ({"challenge", "reviewer"} & template.keys())
@@ -456,7 +457,7 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     if execution not in EXECUTION_MODES:
         raise ValueError(f"Review execution must be one of {', '.join(EXECUTION_MODES)}.")
     if review["consultation_id"] != consultation["id"]:
-        raise ValueError("This review belongs to another consultation. Run task template again.")
+        raise OgkError("OGK-BOARD-011", "This review belongs to another consultation. Run task template again.")
     summary = required_text(review["summary"], "Review summary")
     if not isinstance(review["boards"], list):
         raise ValueError("Review boards must be a list.")
@@ -480,9 +481,9 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     if missing and not problems:
         problems.append(f"Board reviews are missing for {', '.join(missing)}.")
     if len(problems) == 1:
-        raise ValueError(problems[0])
+        raise OgkError("OGK-BOARD-012", problems[0])
     if problems:
-        raise ValueError(f"The review has {len(problems)} problems:\n- " + "\n- ".join(problems))
+        raise OgkError("OGK-BOARD-013", f"The review has {len(problems)} problems:\n- " + "\n- ".join(problems))
     validated = {
         "consultation_id": consultation["id"],
         "summary": summary,

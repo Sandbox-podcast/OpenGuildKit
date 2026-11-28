@@ -16,6 +16,7 @@ from .approval_check import approval_problem
 from .board_entries import review_warnings, validate_board_entry, validate_review
 from .code_lookup import code_lookup
 from .consultation import consult
+from .errors import OgkError
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
 from .records import Catalog, Profile, Task, as_dict
@@ -61,11 +62,11 @@ def record_consultation(
     if task["status"] == "approved":
         reopened = approval_problem(task, profile, catalog, root)
         if not reopened or reopened["severity"] != "error":
-            raise ValueError(decided_message(task))
+            raise OgkError("OGK-TASK-082", decided_message(task))
     elif task["status"] == "reviewed" and not fingerprint_holds(task.get("profile_fingerprint"), profile, catalog):
-        raise ValueError(stale_review_message(task["id"]))
+        raise OgkError("OGK-TASK-083", stale_review_message(task["id"]))
     elif task["status"] not in {"draft", "consulting", "changes-requested"}:
-        raise ValueError(decided_message(task) or (
+        raise OgkError("OGK-TASK-084", decided_message(task) or (
             f"The review of {task['id']} is recorded and waits for the person's decision: they approve it or request "
             f"changes at their terminal (openguildkit task decide {task['id']}), and you consult again after a change "
             "request."))
@@ -261,7 +262,7 @@ def submit_pass(task: Task, entry: dict, mode: str | None = None, root: Path | N
     board_id = raw_id.strip() if isinstance(raw_id, str) else None
     current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
     if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and not current:
-        raise ValueError(
+        raise OgkError("OGK-TASK-085", 
             f"The {board_id} pass was not started on the current consultation. Run openguildkit task pass "
             f"{task['id']} {board_id}, review through that brief, then submit the entry."
         )

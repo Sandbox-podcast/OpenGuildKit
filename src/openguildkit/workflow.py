@@ -16,6 +16,7 @@ from typing import Any
 from . import owners
 from .board_entries import evidence_positions, received_value, validate_review
 from .consultation import json_section
+from .errors import OgkError
 from .questionnaire import ASSUMPTIONS
 from .records import Task
 from .routing import normalize_text, trigger_matches
@@ -237,13 +238,13 @@ def validate_deliberation(task: Task, payload: dict) -> dict:
     request = deliberation_request(task)
     items = {item["id"]: item for item in request["objections"]}
     if not items:
-        raise ValueError(nothing_to_deliberate(task["id"]))
+        raise OgkError("OGK-TASK-086", nothing_to_deliberate(task["id"]))
     if not isinstance(payload, dict) or payload.keys() != {"consultation_id", "responses", "decision_needed"}:
         raise ValueError("A deliberation contains consultation_id, responses and decision_needed. Run task deliberate.")
     if payload["consultation_id"] != task["consultation"]["id"]:
-        raise ValueError("This deliberation belongs to another consultation.")
+        raise OgkError("OGK-TASK-087", "This deliberation belongs to another consultation.")
     if not isinstance(payload["responses"], list):
-        raise ValueError("responses must be a list.")
+        raise OgkError("OGK-TASK-088", "responses must be a list.")
     evidence = {entry["id"]: entry["evidence"] for entry in task["review"]["boards"]}
     responses, problems = {}, []
     for position, response in enumerate(payload["responses"]):
@@ -261,7 +262,7 @@ def validate_deliberation(task: Task, payload: dict) -> dict:
     if missing and not problems:
         problems.append(f"Responses are missing: {', '.join(missing)}.")
     if problems:
-        raise ValueError(f"The deliberation has {len(problems)} problem{'s' if len(problems) > 1 else ''}:\n- "
+        raise OgkError("OGK-TASK-089", f"The deliberation has {len(problems)} problem{'s' if len(problems) > 1 else ''}:\n- "
                          + "\n- ".join(problems))
     agreed, open_items = [], []
     for item_id, item in items.items():
@@ -270,7 +271,7 @@ def validate_deliberation(task: Task, payload: dict) -> dict:
         (agreed if _resolved(positions) else open_items).append(item_id)
     decision = payload["decision_needed"].strip() if isinstance(payload["decision_needed"], str) else ""
     if open_items and not decision:
-        raise ValueError(f"Some disagreements remain ({', '.join(open_items)}): say in decision_needed which "
+        raise OgkError("OGK-TASK-090", f"Some disagreements remain ({', '.join(open_items)}): say in decision_needed which "
                          f"decision the responsible person must take. {RESOLUTION_RULE}")
     return {
         "consultation_id": payload["consultation_id"],

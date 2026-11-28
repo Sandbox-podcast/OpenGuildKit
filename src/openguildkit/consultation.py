@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from . import short_lane
 from .code_lookup import MAX_SCANNED_FILES, code_lookup
+from .errors import OgkError
 from .patterns import is_stack_pattern, pattern_selection
 from .project import rules_in_force
 from .questionnaire import ASSUMPTIONS, as_list, open_points, validate_answers
@@ -98,7 +99,7 @@ def research_decision(policy: str, answer: str | None = None) -> str:
         return (f"Research policy local-only{_LOCAL_CAUSES.get(answer, '')}: a public search is outside this task's "
                 "scope, so the person decides first and records it with openguildkit task authorize ID --action "
                 "public-research --target HOST.")
-    raise ValueError(f"Unknown research policy: {policy}")
+    raise OgkError("OGK-TASK-014", f"Unknown research policy: {policy}")
 
 
 # Outputs an agent reads in full: long lists show this many items, then count the rest and name the command

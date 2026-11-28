@@ -16,6 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from .catalog import ID_PATTERN
+from .errors import OgkError
 from .records import Catalog, Profile, Task
 
 MAX_REFERENCES_IN_BRIEF = 12
@@ -272,7 +273,7 @@ def write_brain_skeleton(catalog_dir: Path, board_id: str, catalog: Catalog) -> 
     if not isinstance(board_id, str) or not ID_PATTERN.fullmatch(board_id):
         raise ValueError("Name the brain with lowercase letters, digits and hyphens, such as risk-office.")
     if board_id in catalog["boards"]:
-        raise ValueError(
+        raise OgkError("OGK-BOARD-014", 
             f"Brain {board_id} already exists. To complete it, write .openguildkit/catalog/boards/{board_id}.json "
             "with only the lenses, evidence or criteria to add."
         )

@@ -210,6 +210,7 @@ class ScopeTests(unittest.TestCase):
 
 class DecisionTests(ApprovalCase):
     def test_the_prompt_and_challenge_show_a_critical_alert_an_import_resolved(self):
+        # OGK-TASK-069
         self.init()
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "t1")
         output, _ = self.run_cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--task", "t1")

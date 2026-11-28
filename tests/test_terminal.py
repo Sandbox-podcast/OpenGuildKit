@@ -91,6 +91,7 @@ class ActsOfAPersonTests(ResultCase):
         with device_that_is_not_a_console():
             _, error = self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed",
                                     code=1)
+        # OGK-TASK-070
         self.assertIn("Approval requires a person at an interactive terminal.", error)
         self.assertNotIn("EOF", error)
         self.assertEqual(self.record()["status"], "reviewed")

@@ -113,6 +113,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_a_signed_project_verifies_the_approver(self):
+        # OGK-TASK-067
         keys = self.keys("camille", "intruder")
         public = (keys / "camille.pub").read_text().strip()
         (self.root / "allowed_signers").write_text(f"camille@example.org {public}\n", encoding="utf-8")
@@ -484,6 +485,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_issue_478_a_signature_without_signed_at_is_what_it_was_before(self):
         """Issue #478: nothing changes for an approver who does not ask for signed_at."""
+        # OGK-TASK-066
         keys = self.keys("camille")
         (self.root / "allowed_signers").write_text(
             f"{self.PRINCIPAL} {(keys / 'camille.pub').read_text().strip()}\n", encoding="utf-8")

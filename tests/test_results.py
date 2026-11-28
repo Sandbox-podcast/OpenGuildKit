@@ -248,6 +248,7 @@ class ResultTests(ResultCase):
         self.assertIn("checked", error)
 
     def test_a_person_can_record_an_environment_reservation_for_a_project_command(self):
+        # OGK-TASK-043, OGK-TASK-047
         self.approved(exit_code=1)
         options = ("--cannot-run", "command:1", "--by", "Camille", "--reason", "Dependencies unavailable offline")
         with patch("sys.stdin.isatty", return_value=False):
@@ -309,6 +310,7 @@ class ResultTests(ResultCase):
         self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
 
     def test_a_task_with_an_expected_outcome_needs_a_criterion(self):
+        # OGK-TASK-049
         self.approved(answers={"outcome": "Customers see the status of their own requests."})
         self.run_cli("task", "verify", TASK)
         _, error = self.report(*self.rule_outcomes(), code=1)
@@ -495,6 +497,7 @@ class ProportionateResultTests(ResultCase):
         self.assertIn(f"{GDPR_RECORD} status is passed, not 'supplied'", error)
 
     def test_a_result_that_lacks_only_named_evidence_is_recorded_and_the_task_waits_for_its_owner(self):
+        # OGK-TASK-039, OGK-TASK-041
         self.gdpr_task()
         handoff = self.run_cli("task", "handoff", TASK)[0]
         self.assertLess(handoff.index("## Evidence the closing will ask for"), handoff.index("## Human approval"))
@@ -575,6 +578,7 @@ class ProportionateResultTests(ResultCase):
             self.assertIn(message, error)
 
     def test_one_answer_covers_a_pack_but_a_sensitive_pack_needs_the_person(self):
+        # OGK-TASK-051
         self.gdpr_task()
         rules = [item for item in self.answers() if not item["check"].startswith("rule:gdpr/")]
         output, warned = self.file(*rules, *self.documents(), packs=[
@@ -661,6 +665,7 @@ class ProportionateResultTests(ResultCase):
         self.assertIn("rule:gdpr/apply-retention-period", error)
         # A rule of a pack the answers do not select is not asked again: the python pack is no sensitive area.
         self.assertNotIn("rule:python/", error)
+        # OGK-TASK-040
         self.assertIn(f"openguildkit task complete {TASK} --by INITIALS, at a terminal.", error)
         self.assertEqual(self.record()["status"], "approved")
         _, error = self.run_cli("task", "complete", TASK, "--by", "CM", typed="another-task", code=1)
@@ -730,6 +735,7 @@ class ProportionateResultTests(ResultCase):
         self.assertNotIn("Implement", step)
 
     def test_a_person_records_a_command_that_cannot_run_here_and_the_task_closes_with_that_reservation(self):
+        # OGK-TASK-042, OGK-TASK-044
         failing = f'"{sys.executable}" -c "import sys; print(\'Cannot find module express\'); sys.exit(1)"'
         self.approved(checks=[failing, failing.replace("express", "jest")])
         handoff = self.run_cli("task", "handoff", TASK)[0]
@@ -767,6 +773,7 @@ class ProportionateResultTests(ResultCase):
             self.run_cli("task", "verify", TASK, "--cannot-run", "command:1", "--by", "Camille",
                          "--reason", "No network in this sandbox.")
             error = self.run_cli("task", "verify", TASK, "--withdraw", "command:1", "--by", "Alex", code=1)[1]
+            # OGK-TASK-046
             self.assertIn("Camille declared it: only they withdraw it.", error)
             self.run_cli("task", "verify", TASK, "--withdraw", "command:1", "--by", "Camille", code=1)
         statuses = {item["check"]: item for item in self.record()["result"]["checks"]}
@@ -774,6 +781,7 @@ class ProportionateResultTests(ResultCase):
         self.assertNotIn("cannot_run", statuses["command:1"])
 
     def test_a_command_that_passes_here_cannot_be_declared_unable_to_run(self):
+        # OGK-TASK-045
         self.approved()
         with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=TASK):
             error = self.run_cli("task", "verify", TASK, "--cannot-run", "command:1", "--by", "Camille",

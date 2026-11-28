@@ -129,6 +129,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
                       consultation)
 
     def test_external_actions_need_a_recorded_decision(self):
+        # OGK-TASK-055, OGK-TASK-073
         self.init()
         self.run_cli("task", "new", "Show statuses.", "--id", "status")
         common = ["task", "authorize", "status", "--action", "external-api", "--by", "Camille", "--reason", "Status page"]

@@ -27,6 +27,7 @@ class BrainSelectionTests(unittest.TestCase):
         self.assertEqual(selected["adjustments"], [])
 
     def test_the_requester_adds_or_removes_a_board_with_a_reason(self):
+        # OGK-ROUTE-003
         selection = {"add": ["finance"], "remove": ["marketing"], "reason": "Exports are billed per page."}
         consultation = consult(self.profile(), self.catalog, self.task, selection)
         self.assertIn("finance", consultation["boards"])
@@ -40,6 +41,7 @@ class BrainSelectionTests(unittest.TestCase):
             select_boards(self.profile(), self.catalog, self.task, self.answers, {"remove": ["marketing"]})
 
     def test_required_boards_are_added_and_cannot_be_removed(self):
+        # OGK-ROUTE-005
         profile = self.profile(required_boards=["security"])
         selected = select_boards(profile, self.catalog, self.task, self.answers)
         self.assertEqual(selected["routing"]["security"], ["Required by the project"])
@@ -48,6 +50,7 @@ class BrainSelectionTests(unittest.TestCase):
 
     def test_an_unavailable_required_board_needs_a_named_reviewer(self):
         profile = self.profile(boards=["product", "design"], required_boards=["security"])
+        # OGK-ROUTE-002
         with self.assertRaisesRegex(ValueError, "Required reviews are unavailable: security"):
             consult(profile, self.catalog, self.task)
         consultation = consult(profile, self.catalog, self.task, {"delegate": {"security": "Alex Moreau"}})
@@ -69,6 +72,7 @@ class BrainSelectionTests(unittest.TestCase):
             validate_review(consultation, template)
 
     def test_unknown_or_disabled_boards_are_refused(self):
+        # OGK-ROUTE-001, OGK-ROUTE-004
         profile = self.profile(boards=["product", "design"])
         with self.assertRaisesRegex(ValueError, "not enabled"):
             select_boards(profile, self.catalog, self.task, self.answers, {"add": ["finance"], "reason": "x"})

@@ -214,6 +214,7 @@ class StuckApprovalTests(ApprovalCase):
         self.approve("vb", verification_blocker=True)
 
     def test_a_waiver_refused_by_the_policy_names_only_steps_an_approved_task_can_take(self):
+        # OGK-TASK-032
         _, error = self.run_cli("task", "waive", "vb", "security:1", "--by", "Camille", "--reason", "Pilot",
                                 "--scope", "Internal", "--until", "2099-01-01", code=1, typed="vb")
         self.assertIn("allows no waiver", error)
@@ -229,6 +230,7 @@ class StuckApprovalTests(ApprovalCase):
         self.assertIn("openguildkit task revoke vb --by INITIALS --reason TEXT", row["next"])
 
     def test_the_person_withdraws_the_approval_at_a_terminal_and_the_guard_stops_counting_it(self):
+        # OGK-TASK-062
         self.assertEqual(self.covered(), ["vb"])
         revoke = ["task", "revoke", "vb", "--by", "Camille", "--reason", "The test account cannot be created."]
         with patch("sys.stdin.isatty", return_value=False):
@@ -275,6 +277,7 @@ class StuckApprovalTests(ApprovalCase):
         self.assertEqual(self.follow("vb", [after]), [])
 
     def test_a_completed_task_keeps_its_approval(self):
+        # OGK-TASK-054
         task = self.task("vb")
         write_json(self.state / "tasks" / "vb.json", {**task, "status": "done", "completed_at": task["decision"]["at"],
                                                        "result": {"checks": [], "closing": {"open_points": []}}})
@@ -321,6 +324,7 @@ class WaiverExpiryTests(ApprovalCase):
             self.assertIn("[waived by Camille]", self.run_cli("task", "blockers", "vb")[0])
 
     def test_an_expired_waiver_the_approval_rested_on_leads_to_the_withdrawal(self):
+        # OGK-TASK-029
         self.init(waivers={"allowed_by": ["Camille"], "max_days": 30})
         self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "ab")
         write_json(self.root / "answers.json", json.loads((EXAMPLE / "answers.json").read_text(encoding="utf-8")))
@@ -597,6 +601,7 @@ class WorkflowTests(CapturedCli, unittest.TestCase):
         self.assertFalse(any(item.startswith("rule:django/") for item in ids))
 
     def test_review_from_an_earlier_consultation_is_rejected(self):
+        # OGK-BOARD-011
         self.init()
         self.run_cli("task", "new", "Export request status.", "--id", self.task_id)
         old_consultation = self.consult()

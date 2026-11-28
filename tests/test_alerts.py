@@ -391,6 +391,7 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertNotIn(reminder, self.cli("task", "alerts", "upgrade", "--import", FIXTURES / "npm-audit-critical.json"))
 
     def test_a_confirmed_critical_alert_blocks_approval_and_completion(self):
+        # OGK-TASK-038
         write_json(self.root / "p.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"], "packs": ["python"]})
         self.cli("init", "--answers", self.root / "p.json")
         self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")

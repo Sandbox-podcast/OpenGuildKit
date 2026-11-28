@@ -217,6 +217,7 @@ class DeliberationTests(unittest.TestCase):
         self.assertIn("security-to-product", record_deliberation(task, payload)["deliberation"]["agreed"])
 
     def test_boards_that_all_give_the_same_verdict_have_no_objection(self):
+        # OGK-TASK-086
         for verdict in ("revise", "block", "proceed"):
             with self.subTest(verdict=verdict):
                 verdicts = {board: verdict for board in self.consultation["boards"]}

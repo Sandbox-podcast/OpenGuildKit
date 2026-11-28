@@ -120,6 +120,7 @@ class OffByDefaultTests(ProjectCase):
         self.assertEqual(set(record["decision"]["payload"]), PAYLOAD_KEYS)
 
     def test_a_requester_is_one_line_of_text(self):
+        # OGK-TASK-017
         for name in ("", "   ", "Ann\nLee"):
             with self.subTest(name=name):
                 _, error = self.run_cli("task", "new", "Add a retry", "--id", "retry", "--requested-by", name, code=1)
@@ -211,12 +212,14 @@ class SeparationTests(ProjectCase):
     profile_answers = {"separate_requester": True}
 
     def test_task_new_needs_the_requester_and_says_so(self):
+        # OGK-TASK-016
         _, error = self.run_cli("task", "new", "Add a retry", "--id", "retry", code=1)
         self.assertIn("--requested-by NAME", error)
         self.assertIn("Nothing was written.", error)
         self.assertFalse((self.root / ".openguildkit" / "tasks" / "retry.json").exists())
 
     def test_the_requester_cannot_approve_whatever_the_case_and_the_spaces(self):
+        # OGK-TASK-072
         self.reviewed("retry", "Ann Lee")
         for name in ("Ann Lee", " ann  LEE ", "ANN LEE", "AnnLee"):
             with self.subTest(name=name):
@@ -244,6 +247,7 @@ class SeparationTests(ProjectCase):
         self.assertEqual(self.task()["status"], "changes-requested")
 
     def test_a_task_opened_before_the_option_has_no_requester_and_another_task_is_opened(self):
+        # OGK-TASK-065
         self.run_cli("profile", "set", "separate-requester", "off", "--by", "Sam", "--reason", "x", typed="off")
         self.reviewed("retry")
         self.turn_on()
@@ -380,6 +384,7 @@ class SignedTests(ProjectCase):
                      "ann@example.org", "--by", "Sam", "--reason", "Signed", typed="signed")
         self.turn_on()
         _, error = self.run_cli("task", "new", "Add a retry", "--id", "retry", "--requested-by", "Ann Lee", code=1)
+        # OGK-TASK-018
         self.assertIn("Ann Lee is not a principal of allowed_signers", error)
         self.assertIn("(ann@example.org, *@ops.example.org)", error)
         self.assertFalse((self.root / ".openguildkit" / "tasks" / "retry.json").exists())

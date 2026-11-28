@@ -176,6 +176,7 @@ class StorybookIndexTests(unittest.TestCase):
 
 class StorybookConsultationTests(unittest.TestCase):
     def test_the_design_brain_cites_a_recorded_story_and_its_state(self):
+        # OGK-BOARD-007
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
 
