@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import mcp_mock, project, rule_checks, tasks_decide_cli
+from openguildkit import market, mcp_mock, project, rule_checks, tasks_decide_cli
 from openguildkit.catalog import load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
@@ -24,7 +24,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 234
+UNCODED_CEILING = 213
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -249,6 +249,48 @@ class RuleCheckErrorTests(CodedRefusals):
             ("OGK-RULE-025", lambda: rule_checks.validate_check([], "check", allow_command=False)),
             ("OGK-RULE-026", check({"kind": "command"}, allow_command=True, command=" ")),
             ("OGK-RULE-027", lambda: rule_checks.parse_fields(b"name = ", "pyproject.toml")),
+        ])
+
+
+class MarketErrorTests(CodedRefusals):
+    """Issue #487: each part of a market dossier that is wrong is refused with its own code."""
+
+    def test_issue_487_each_wrong_part_of_a_dossier_has_its_code(self):
+        rival = {"id": "rival", "name": "Rival", "kind": "direct"}
+        dossier = market.new_dossier("crm", {"market": "CRM", "audience": "Teams", "feature": "Notes"})
+        known = market.add_competitor(dossier, rival)
+        source = {"competitor": "rival", "url": "https://rival.example.com/", "kind": "pricing"}
+        watched = market.watch_source(known, source)
+        observation = {"id": "o1", "competitor": "rival", "claim": "Cheap.", "source": {"ref": "Notes.", "date": "2026-01-02"}}
+
+        def check(**fields):
+            return lambda: market.validate_dossier({**known, **fields}, "crm")
+
+        def watch(**fields):
+            return check(watch={"sources": [], "every_days": 30, **fields})
+
+        self.assertCodes([
+            ("OGK-MARKET-014", lambda: market.dossier_path(Path("state"), "CRM")),
+            ("OGK-MARKET-015", check(market=" ")),
+            ("OGK-MARKET-016", check(observations=[{**observation, "source": {"ref": "Notes."}}])),
+            ("OGK-MARKET-017", lambda: market.validate_dossier({"id": "crm"}, "crm")),
+            ("OGK-MARKET-018", lambda: market.validate_dossier(known, "erp")),
+            ("OGK-MARKET-019", check(competitors=[{"id": "rival"}])),
+            ("OGK-MARKET-020", check(competitors=[rival, rival])),
+            ("OGK-MARKET-021", check(competitors=[{**rival, "kind": "friend"}])),
+            ("OGK-MARKET-022", check(observations=[{"id": "o1"}])),
+            ("OGK-MARKET-023", check(observations=[observation, observation])),
+            ("OGK-MARKET-024", check(watch={"sources": []})),
+            ("OGK-MARKET-025", watch(every_days=0)),
+            ("OGK-MARKET-026", watch(sources=[{"competitor": "rival"}])),
+            ("OGK-MARKET-027", watch(sources=[{**source, "provided_by": "Sam"}])),
+            ("OGK-MARKET-028", watch(changes=[{"competitor": "rival"}])),
+            ("OGK-MARKET-029", lambda: market.describe(known, {"title": None})),
+            ("OGK-MARKET-030", lambda: market.add_competitor(known, rival)),
+            ("OGK-MARKET-031", lambda: market.set_unknown(known, "Price.", remove=True)),
+            ("OGK-MARKET-032", lambda: market.mark_checked(known, source["url"])),
+            ("OGK-MARKET-033", lambda: market.watch_source(watched, source)),
+            ("OGK-MARKET-034", lambda: market.mark_checked(watched, "https://other.example.com/")),
         ])
 
 

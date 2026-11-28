@@ -38,13 +38,13 @@ _COMMON_WORDS = frozenset({
 
 def dossier_path(state: Path, dossier_id: str) -> Path:
     if not _ID.fullmatch(dossier_id) or len(dossier_id) > 64:
-        raise ValueError("Use a dossier ID of lowercase letters, digits and hyphens.")
+        raise OgkError("OGK-MARKET-014", "Use a dossier ID of lowercase letters, digits and hyphens.")
     return state / MARKET_DIR / f"{dossier_id}.json"
 
 
 def _one_text_line(value, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or len(value.strip().splitlines()) != 1:
-        raise ValueError(f"{field} must be a single line of text.")
+        raise OgkError("OGK-MARKET-015", f"{field} must be a single line of text.")
     return value.strip()
 
 
@@ -84,7 +84,7 @@ def _cited(text: str, field: str) -> str:
 
 def _source(value, field: str) -> dict:
     if not isinstance(value, dict) or not {"ref", "date"} <= value.keys() <= {"ref", "date", "title"}:
-        raise ValueError(f"{field} needs ref and date, and can add title.")
+        raise OgkError("OGK-MARKET-016", f"{field} needs ref and date, and can add title.")
     source = {"ref": _cited(_one_text_line(value["ref"], f"{field}.ref"), f"{field}.ref"), "date": _day(value["date"], f"{field}.date")}
     if "title" in value:
         source["title"] = _one_text_line(value["title"], f"{field}.title")
@@ -95,9 +95,9 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
     """Check a dossier's shape: competitors, dated observations, an optional watch."""
     allowed = {"id", "title", "market", "audience", "feature", "competitors", "observations", "unknowns", "watch"}
     if not isinstance(dossier, dict) or not {"id", "market", "audience", "feature", "competitors"} <= dossier.keys() <= allowed:
-        raise ValueError("A dossier needs id, market, audience, feature and competitors.")
+        raise OgkError("OGK-MARKET-017", "A dossier needs id, market, audience, feature and competitors.")
     if dossier["id"] != dossier_id:
-        raise ValueError(f"The dossier's id must be {dossier_id}.")
+        raise OgkError("OGK-MARKET-018", f"The dossier's id must be {dossier_id}.")
     result = {"id": dossier_id}
     for field in ("title", "market", "audience", "feature"):
         if field in dossier:
@@ -105,18 +105,18 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
     competitors = {}
     for item in dossier["competitors"] if isinstance(dossier["competitors"], list) else [None]:
         if not isinstance(item, dict) or not {"id", "name", "kind"} <= item.keys() <= {"id", "name", "kind", "url", "segment"}:
-            raise ValueError("Each competitor needs id, name and kind (direct or substitute), and can add url and segment.")
+            raise OgkError("OGK-MARKET-019", "Each competitor needs id, name and kind (direct or substitute), and can add url and segment.")
         if not _ID.fullmatch(str(item["id"])) or item["id"] in competitors:
-            raise ValueError(f"Competitor IDs are unique lowercase slugs: {item['id']!r}.")
+            raise OgkError("OGK-MARKET-020", f"Competitor IDs are unique lowercase slugs: {item['id']!r}.")
         if item["kind"] not in KINDS:
-            raise ValueError("A competitor's kind is direct or substitute.")
+            raise OgkError("OGK-MARKET-021", "A competitor's kind is direct or substitute.")
         competitors[item["id"]] = {key: (_one_text_line(item[key], key) if key != "kind" else item[key])
                                    for key in COMPETITOR_FIELDS if key in item}
     result["competitors"] = list(competitors.values())
     observations = []
     for index, item in enumerate(_list(dossier, "observations", "observations"), start=1):
         if not isinstance(item, dict) or not {"id", "competitor", "claim", "source"} <= item.keys() <= {"id", "competitor", "claim", "source", "feature"}:
-            raise ValueError("Each observation needs id, competitor, claim and source, and can add feature.")
+            raise OgkError("OGK-MARKET-022", "Each observation needs id, competitor, claim and source, and can add feature.")
         observation = {
             "id": _one_text_line(item["id"], "observation id"),
             "competitor": _competitor(item, competitors, f"Observation {index}"),
@@ -127,7 +127,7 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
         observation["source"] = _source(item["source"], f"observation {index} source")
         observations.append(observation)
     if len({item["id"] for item in observations}) != len(observations):
-        raise ValueError("Observation IDs must be unique.")
+        raise OgkError("OGK-MARKET-023", "Observation IDs must be unique.")
     result["observations"] = observations
     result["unknowns"] = [_one_text_line(item, "unknown") for item in _list(dossier, "unknowns", "unknowns")]
     if "watch" in dossier:
@@ -137,15 +137,15 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
 
 def validate_watch(watch: dict, competitors: dict) -> dict:
     if not isinstance(watch, dict) or not {"sources", "every_days"} <= watch.keys() <= {"sources", "every_days", "paused", "changes"}:
-        raise ValueError("A watch needs sources and every_days, and can add paused and changes.")
+        raise OgkError("OGK-MARKET-024", "A watch needs sources and every_days, and can add paused and changes.")
     every = watch["every_days"]
     if type(every) is not int or not 1 <= every <= 366:
-        raise ValueError("every_days is a whole number of days between 1 and 366.")
+        raise OgkError("OGK-MARKET-025", "every_days is a whole number of days between 1 and 366.")
     sources = []
     for item in _list(watch, "sources", "watch.sources"):
         if not isinstance(item, dict) or not {"competitor", "url", "kind"} <= item.keys() <= {
                 "competitor", "url", "kind", "last_checked", "provided_by"}:
-            raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked and provided_by.")
+            raise OgkError("OGK-MARKET-026", "Each watched source needs competitor, url and kind, and can add last_checked and provided_by.")
         competitor = _competitor(item, competitors, "A watched source")
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
             raise OgkError("OGK-MARKET-006", "Watched sources are public https pages.")
@@ -155,13 +155,13 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
             source["last_checked"] = _day(item["last_checked"], "last_checked")
         if "provided_by" in item:
             if "last_checked" not in item:
-                raise ValueError("A source provided by a person also has last_checked, the day it was provided.")
+                raise OgkError("OGK-MARKET-027", "A source provided by a person also has last_checked, the day it was provided.")
             source["provided_by"] = _one_text_line(item["provided_by"], "provided_by")
         sources.append(source)
     changes = []
     for item in _list(watch, "changes", "watch.changes"):
         if not isinstance(item, dict) or not {"competitor", "what", "date", "source", "verified_by"} <= item.keys():
-            raise ValueError("Each change needs competitor, what, date, source and verified_by.")
+            raise OgkError("OGK-MARKET-028", "Each change needs competitor, what, date, source and verified_by.")
         changes.append({
             "competitor": _competitor(item, competitors, "A change"), "what": _one_text_line(item["what"], "what"), "date": _day(item["date"], "date"),
             "source": _cited(_one_text_line(item["source"], "source"), "source"), "verified_by": _one_text_line(item["verified_by"], "verified_by"),
@@ -290,13 +290,13 @@ def describe(dossier: dict, fields: dict) -> dict:
     """Change the title, market, audience or feature of a dossier."""
     given = {key: value for key, value in fields.items() if value is not None}
     if not given:
-        raise ValueError("Give --title, --market, --audience or --feature.")
+        raise OgkError("OGK-MARKET-029", "Give --title, --market, --audience or --feature.")
     return validate_dossier({**dossier, **given}, dossier["id"])
 
 
 def add_competitor(dossier: dict, competitor: dict) -> dict:
     if any(item["id"] == competitor["id"] for item in dossier["competitors"]):
-        raise ValueError(f"Competitor {competitor['id']} is already in the dossier.")
+        raise OgkError("OGK-MARKET-030", f"Competitor {competitor['id']} is already in the dossier.")
     entry = {key: value for key, value in competitor.items() if value is not None}
     return validate_dossier({**dossier, "competitors": [*dossier["competitors"], entry]}, dossier["id"])
 
@@ -316,7 +316,7 @@ def set_unknown(dossier: dict, text: str, remove: bool = False) -> dict:
     unknowns = list(dossier["unknowns"])
     if remove:
         if text not in unknowns:
-            raise ValueError(f"The dossier has no unknown {text!r}. Run market check to list them.")
+            raise OgkError("OGK-MARKET-031", f"The dossier has no unknown {text!r}. Run market check to list them.")
         unknowns.remove(text)
     elif text not in unknowns:
         unknowns.append(text)
@@ -325,7 +325,7 @@ def set_unknown(dossier: dict, text: str, remove: bool = False) -> dict:
 
 def _watch(dossier: dict) -> dict:
     if "watch" not in dossier:
-        raise ValueError("The dossier watches no source yet: add one with market watch.")
+        raise OgkError("OGK-MARKET-032", "The dossier watches no source yet: add one with market watch.")
     return dossier["watch"]
 
 
@@ -335,7 +335,7 @@ def watch_source(dossier: dict, source: dict, every_days: int | None = None) -> 
     if every_days is not None:
         watch = {**watch, "every_days": every_days}
     if any(item["url"] == source["url"] for item in watch["sources"]):
-        raise ValueError(f"{source['url']} is already watched.")
+        raise OgkError("OGK-MARKET-033", f"{source['url']} is already watched.")
     watch = {**watch, "sources": [*watch["sources"], source]}
     return validate_dossier({**dossier, "watch": watch}, dossier["id"])
 
@@ -348,7 +348,7 @@ def mark_checked(dossier: dict, url: str, day: str | None = None) -> dict:
     """Record that a watched source was reviewed, with no change to keep."""
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
-        raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
+        raise OgkError("OGK-MARKET-034", f"{url} is not a watched source of the dossier. Run market due to list them.")
     day = _day(day or clock.real_today().isoformat(), "date")
     return validate_dossier({**dossier, "watch": {**watch, "sources": _checked(watch["sources"], url, day)}}, dossier["id"])
 
