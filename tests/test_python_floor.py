@@ -4,10 +4,13 @@ Python 3.12 accepts f-strings that 3.11 refuses: a backslash, a comment or the e
 quote inside a replacement field. A contributor on a recent Python would not see the error.
 """
 
+import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import tokenize
 import tomllib
 import unittest
@@ -113,6 +116,45 @@ class FloorMessageTests(unittest.TestCase):
         self.assertIsNotNone(checked, "__main__.py checks sys.version_info before its first annotation")
         self.assertEqual(tuple(map(int, checked.groups())), self.FLOOR)
         self.assertLess(checked.start(), text.index("def "), "the check comes before any annotation is evaluated")
+
+    def test_issue_520_the_scripts_give_the_same_line_to_an_older_python(self):
+        """Issue #520: scripts/check_fast.py ended on a TypeError at its first annotation with Python 3.9."""
+        for script in ("check_fast", "run_tests", "build_map", "doctor"):
+            with self.subTest(script=script):
+                code = ("import runpy, sys; sys.version_info = (3, 9, 6, 'final', 0); "
+                        f"runpy.run_path({str(ROOT / 'scripts' / (script + '.py'))!r}, run_name='__main__')")
+                self.assert_one_line_naming_the_floor(self.run_cli(sys.executable, "-c", code), "Python 3.9")
+        for candidate in ("/usr/bin/python3",):
+            probe = subprocess.run([candidate, "-c", "import sys; print(*sys.version_info[:2])"],
+                                   capture_output=True, text=True, check=False) if Path(candidate).exists() else None
+            if probe and probe.returncode == 0 and tuple(map(int, probe.stdout.split())) < self.FLOOR:
+                self.assert_one_line_naming_the_floor(
+                    self.run_cli(candidate, str(ROOT / "scripts" / "check_fast.py"), "--plan"),
+                    "Python " + ".".join(probe.stdout.split()))
+
+    def test_issue_520_doctor_names_each_missing_tool_in_one_line(self):
+        """Issue #520: nothing told a new workstation which tool or version it lacked."""
+        spec = importlib.util.spec_from_file_location("doctor", ROOT / "scripts" / "doctor.py")
+        doctor = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(doctor)
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            shutil.copy(ROOT / "pyproject.toml", root / "pyproject.toml")
+            shutil.copy(ROOT / ".nvmrc", root / ".nvmrc")
+            node = (ROOT / ".nvmrc").read_text(encoding="utf-8").strip()
+            good = {"python": "3.15", "git": "git version 2.50.0", "node": f"v{node}.1.0", "npm": "11.0.0",
+                    "origin/main": "0" * 40}
+            (root / "web" / "node_modules").mkdir(parents=True)
+            self.assertEqual(doctor.problems(good, root), [])
+            missing = doctor.problems({"python": "3.9", "git": "git version 2.50.0", "node": "v18.0.0", "npm": None,
+                                       "origin/main": None}, root)
+            self.assertEqual([line.split(" ", 1)[0] for line in missing], ["Python", "Node", "npm", "origin/main"])
+            self.assertIn("Python 3.11 or later", missing[0])
+            self.assertIn("--base HEAD", missing[3])
+            (root / "web" / "node_modules").rmdir()
+            self.assertEqual(doctor.problems({**good, "node": None}, root),
+                             [f"node is not on PATH: install Node {node} (.nvmrc) for web/ and integrations/ci/.",
+                              "web/node_modules is missing: run cd web && npm ci --ignore-scripts."])
 
     def test_the_python_with_the_check_still_starts_the_cli(self):
         result = self.run_cli(sys.executable, "-m", "openguildkit", "--version")
