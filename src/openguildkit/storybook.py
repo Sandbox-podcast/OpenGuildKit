@@ -173,7 +173,7 @@ def compare(project: list[dict], company: list[dict]) -> dict:
 # Dependencies of the company library against the project's.
 
 
-def _project_dependencies(package: dict) -> dict:
+def project_dependencies(package: dict) -> dict:
     merged = {}
     for field in ("dependencies", "devDependencies", "peerDependencies"):
         for name, spec in (package.get(field) or {}).items():
@@ -192,7 +192,7 @@ def _installed_version(root: Path, name: str) -> str | None:
 
 def dependency_conflicts(library: dict, package: dict, root: Path) -> list[dict]:
     """The company library's peer dependencies and shared dependencies against the project's versions."""
-    project = _project_dependencies(package)
+    project = project_dependencies(package)
     optional = {name for name, meta in (library.get("peerDependenciesMeta") or {}).items()
                 if isinstance(meta, dict) and meta.get("optional")}
     rows = []
@@ -491,7 +491,7 @@ def _screen(component: dict) -> bool:
         or component["name"].endswith(("Page", "Screen", "View"))
 
 
-def _story_name(name: str, component: str, props: dict, basis: str | None) -> str:
+def story_name(name: str, component: str, props: dict, basis: str | None) -> str:
     """A story is named for the state it shows; one named like its component is its default state."""
     if name.casefold() != component.casefold():
         return name
@@ -602,7 +602,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
         } for item in inventory["components"]],
         "variants": [{
             "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
-            "name": _story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
+            "name": story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
             "props": item["props"], "status": "proposed",
             "confidence": item["confidence"], "basis": item["basis"], "occurrences": item["occurrences"],
             "origins": item["origins"],
@@ -754,7 +754,7 @@ def _story_file(component: dict, variants: list[dict], args: dict, out: Path, ro
         {"name": "Default", "props": {}, "origins": [], "confidence": component["confidence"], "basis": "usage"}]
     for variant in stories:
         parameters = {"origins": variant["origins"], "confidence": variant["confidence"], "basis": variant.get("basis")}
-        story = _story_name(variant["name"], name, variant["props"], variant.get("basis"))
+        story = story_name(variant["name"], name, variant["props"], variant.get("basis"))
         lines.extend([
             "",
             f"export const {_identifier(story, taken)}: Story = {{",
@@ -773,7 +773,7 @@ REACT_FRAMEWORKS = ("@storybook/nextjs-vite", "@storybook/nextjs", "@storybook/r
 def detect_framework(root: Path) -> str:
     """The Storybook framework package the stories import: the one package.json lists, else one for its stack."""
     package = root / "package.json"
-    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
+    dependencies = project_dependencies(read_json(package)) if package.is_file() else {}
     listed = [name for name in REACT_FRAMEWORKS if name in dependencies]
     if listed:
         return listed[0]
@@ -783,7 +783,7 @@ def detect_framework(root: Path) -> str:
 def _setup_warnings(root: Path, framework: str) -> list[str]:
     warnings = []
     package = root / "package.json"
-    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
+    dependencies = project_dependencies(read_json(package)) if package.is_file() else {}
     missing = sorted({"storybook", framework} - dependencies.keys())
     if missing:
         warnings.append(f"Missing Storybook dependencies in package.json: {', '.join(missing)}.")
