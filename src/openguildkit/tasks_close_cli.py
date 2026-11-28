@@ -37,6 +37,7 @@ from .storage import print_json, project_lock, read_json
 from .tasks import read_task, task_path, waiting_for, waits_line, write_task
 from .tasks_blockers import verification_blocker_problems
 from .tasks_closing import SENSITIVE_GROUP, complete_task, defer_evidence, points_left_open, record_result
+from .tasks_command import TaskCommand
 from .tasks_consult_cli import input_file, warn_inputs
 from .tasks_list_cli import unshared_evidence
 from .tasks_record import timestamp
@@ -254,8 +255,9 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     return 1 if args.action == "verify" and failed else 0
 
 
-def run_checks(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_checks(command: TaskCommand) -> int | None:
     """The checks the approved task must report, and their outcomes so far."""
+    args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
         raise TaskStateError("Checks belong to an approved task.")
     relevance = _relevance(root, task, profile, catalog, args.all)
@@ -267,8 +269,9 @@ def run_checks(args, root: Path, state: Path, profile: dict, catalog: dict, task
         _print_checks(checks, reported, task["id"])
 
 
-def run_result_template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_result_template(command: TaskCommand) -> int | None:
     """A result file to fill in."""
+    args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] != "approved":
         raise TaskStateError("Results belong to an approved task that is not done yet.")
     relevance = _relevance(root, task, profile, catalog, args.all)
@@ -278,8 +281,10 @@ def run_result_template(args, root: Path, state: Path, profile: dict, catalog: d
         print(decision_revision_message(changed), file=sys.stderr)
 
 
-def run_outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_outcome(command: TaskCommand) -> int | None:
     """Run the checks, record a result file, or close the task; then what is left before it is done."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     action = args.action
     if task["status"] != "approved":
         raise TaskStateError("Run checks for an approved task that is not done yet." if action == "verify"
@@ -365,8 +370,9 @@ def run_outcome(args, root: Path, state: Path, profile: dict, catalog: dict, tas
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 
-def run_runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_runs(command: TaskCommand) -> int | None:
     """The scenarios whose outcome changed between the last two ChaosFolk replays."""
+    args, task = command.args, command.task
     comparison = compare_runs(task)
     if comparison is None:
         raise TaskStateError("The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
@@ -379,8 +385,9 @@ def run_runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         print(f"{plural(len(comparison['unchanged']), 'scenario')} unchanged")
 
 
-def run_export(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_export(command: TaskCommand) -> int | None:
     """Write the shareable decision record, or the withdrawal of its approval into it."""
+    args, root, state, profile, task = command.args, command.root, command.state, command.profile, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
         path = export_withdrawal(root, state, task, args.output).resolve()
         print(path.relative_to(root).as_posix() if root in path.parents else str(path))
@@ -403,8 +410,10 @@ def run_export(args, root: Path, state: Path, profile: dict, catalog: dict, task
     print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
-def run_handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_handoff(command: TaskCommand) -> int | None:
     """The approved implementation handoff, or the decision record of a decision task."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     evidence, checks = [], None
     if task.get("status") in ("approved", *DONE_STATUSES):
         checks = expected_checks(task, profile, _relevance(root, task, profile, catalog))

@@ -51,6 +51,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `tasks_decide_cli.py` | The task actions a person decides at a terminal: decide, revoke, decision-payload, authorize, blockers, clear, waive, alerts. |
 | `tasks_close_cli.py` | The task actions after the approval: checks, verify, result, complete, runs, export, handoff, and the declarations that a check cannot run. |
 | `tasks_list_cli.py` | The task actions that read the tasks: list, show and retro, with a teammate's exported records and what the team does not share. |
+| `tasks_command.py` | The one argument of every task action that acts on a task: the command line, the project, its profile and catalog, and the task record. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
 | `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |

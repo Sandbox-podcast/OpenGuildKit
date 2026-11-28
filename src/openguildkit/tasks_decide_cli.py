@@ -26,6 +26,7 @@ from .tasks import last_approval, read_task, task_path, write_task
 from .tasks_approval import approval_problem, decided_message, require_approval, require_current_scope
 from .tasks_blockers import expired_on, require_blocker_status, resolve_blocker
 from .tasks_closing import record_authorization, record_decision, revoke_approval
+from .tasks_command import TaskCommand
 from .tasks_review import decision_text, previous_round_line
 from .terminal import interactive, typed
 from .workflow import (
@@ -49,8 +50,10 @@ def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> No
         write_task(task_path(state, task["id"]), result)
 
 
-def run_revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_revoke(command: TaskCommand) -> None:
     """The person withdraws an approval at their terminal, as they gave it: never an agent."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     result = revoke_approval(task, args.by, args.reason)
     refusal = ("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own terminal, "
                "as they approved.")
@@ -85,7 +88,9 @@ def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> 
             *verdict_lines(review, task.get("deliberation"), is_decision_task(task))]
 
 
-def run_decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_decide(command: TaskCommand) -> None:
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     if task["status"] == "approved":
         raise ValueError(decided_message(task, approval_problem(task, profile, catalog, root)))
     if args.approve and (lane := light_lane.lane_problem(task, profile)):
@@ -153,8 +158,9 @@ def run_decide(args, root: Path, state: Path, profile: dict, catalog: dict, task
           else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 
 
-def run_blockers(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_blockers(command: TaskCommand) -> int | None:
     """The review's blockers and how each was resolved."""
+    args, root, state, task = command.args, command.root, command.state, command.task
     items = blocker_list(task)
     for item in items:
         resolution = item["resolution"]
@@ -192,8 +198,10 @@ EVIDENCE_WORDS = {"unchanged": "fingerprint: unchanged since it was cleared",
                   "no fingerprint": "no fingerprint: cleared before OpenGuildKit recorded one"}
 
 
-def run_resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_resolve(command: TaskCommand) -> int | None:
     """The person clears a blocker with evidence, or waives it within the project's policy."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     action = args.action
     require_approval(task, profile, catalog, root)
     require_blocker_status(task)
@@ -230,15 +238,18 @@ def run_resolve(args, root: Path, state: Path, profile: dict, catalog: dict, tas
     print(details["kind"])
 
 
-def run_alerts(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_alerts(command: TaskCommand) -> int | None:
     """The task's dependency alerts: import, link and review them."""
+    args, state, task = command.args, command.state, command.task
     from .alerts_cli import task_command  # Not imported by the other task commands (#539).
 
     task_command(args, state, task)
 
 
-def run_decision_payload(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_decision_payload(command: TaskCommand) -> int | None:
     """The exact decision an approver signs, after the text they read before approving."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     if task["status"] != "reviewed":
         decided = decided_message(task, approval_problem(task, profile, catalog, root))
         if decided:
@@ -261,8 +272,9 @@ def run_decision_payload(args, root: Path, state: Path, profile: dict, catalog: 
         print(text, end="")
 
 
-def run_authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_authorize(command: TaskCommand) -> int | None:
     """A person allows or refuses an external action outside the authorized scope."""
+    args, root, state, task = command.args, command.root, command.state, command.task
     refusal = "Allowing an external action requires a person at an interactive terminal."
     if args.allow and not interactive():
         raise ValueError(refusal)

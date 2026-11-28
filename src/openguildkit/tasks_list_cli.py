@@ -24,6 +24,7 @@ from .retro import (
 )
 from .storage import print_json, read_json
 from .tasks import list_tasks, read_task, task_path
+from .tasks_command import TaskCommand
 from .tasks_review import cited_evidence
 from .tasks_status import decision_words, next_step, state_refusal
 from .wording import plural
@@ -292,8 +293,9 @@ def _summary(task: dict, profile: dict) -> str:
     return "\n".join(lines)
 
 
-def run_show(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
+def run_show(command: TaskCommand) -> None:
     """The task record as JSON, only the open points its closing left, or a summary."""
+    args, profile, task = command.args, command.profile, command.task
     if args.summary and args.json:
         raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
     if args.summary:

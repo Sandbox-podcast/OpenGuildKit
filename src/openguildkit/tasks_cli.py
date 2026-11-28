@@ -23,6 +23,7 @@ from .tasks import create_task, read_task, task_path, waiting_for, waits_line
 from .tasks_approval import approval_problem
 from .tasks_close_cli import run_checks, run_export, run_handoff, run_outcome, run_result_template, run_runs
 from .tasks_closing import ACTIONS
+from .tasks_command import TaskCommand
 from .tasks_consult_cli import (
     run_brief,
     run_challenge,
@@ -390,7 +391,7 @@ HANDLERS = {
     "consult": run_consult, "review": run_review, "pass": run_pass, "submit": run_pass, "progress": run_progress,
     "decide": run_decide, "revoke": run_revoke, "decision-payload": run_decision_payload, "authorize": run_authorize,
     "handoff": run_handoff,
-    "diff-review": lambda args, root, state, profile, catalog, task: delivered_review.run(args, root, state, task),
+    "diff-review": lambda command: delivered_review.run(command.args, command.root, command.state, command.task),
 }
 # The actions that read an approval: an approval that no longer holds stops them, or is shown with show and checks.
 READ_APPROVAL = ("show", "checks", "handoff", "export", "verify", "result", "complete", "diff-review")
@@ -437,4 +438,4 @@ def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | N
         elif problem:
             raise ValueError(problem["message"])
     handler = run_result_template if action == "result" and args.template else HANDLERS[action]
-    return handler(args, root, state, profile, catalog, task)
+    return handler(TaskCommand(args, root, state, profile, catalog, task))

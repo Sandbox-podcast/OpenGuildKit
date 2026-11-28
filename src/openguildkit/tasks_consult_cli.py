@@ -23,6 +23,7 @@ from .shell import shell_word
 from .storage import print_json, project_lock, read_json
 from .tasks import last_approval, read_task, task_path, write_task
 from .tasks_closing import record_deliberation
+from .tasks_command import TaskCommand
 from .tasks_record import board_brief_problem
 from .tasks_review import (
     assemble_review,
@@ -142,8 +143,9 @@ def warn_inputs(original: object, recorded: object, label: str) -> None:
         print(warning, file=sys.stderr)
 
 
-def run_questions(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_questions(command: TaskCommand) -> int | None:
     """The questionnaire as JSON, with the follow-ups and open points the answers leave."""
+    args, task = command.args, command.task
     if light_lane.is_light(task):
         raise ValueError(light_lane.no_questions_message(args.id))
     # One shape with or without answers: the follow-ups carry their prompt, so they can be asked as they are.
@@ -171,8 +173,9 @@ def run_questions(args, root: Path, state: Path, profile: dict, catalog: dict, t
     })
 
 
-def run_brief(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_brief(command: TaskCommand) -> int | None:
     """The saved consultation, a board's pass, the whole scope or the rules of one pack."""
+    args, task = command.args, command.task
     consultation = _read_consultation(task)
     if args.scope:
         print_json(consultation["scope"])
@@ -185,21 +188,24 @@ def run_brief(args, root: Path, state: Path, profile: dict, catalog: dict, task:
         print(consultation["markdown"])
 
 
-def run_template(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_template(command: TaskCommand) -> int | None:
     """The review template as JSON."""
+    task = command.task
     print_json(_read_consultation(task)["review_template"])
 
 
-def run_deliberate(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_deliberate(command: TaskCommand) -> int | None:
     """The objections between boards and the response template; without objection, that there is nothing to answer."""
+    task = command.task
     request = deliberation_request(task)
     print_json(request)
     if not request["objections"]:
         print(f"OpenGuildKit: {nothing_to_deliberate(task['id'])}", file=sys.stderr)
 
 
-def run_respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_respond(command: TaskCommand) -> int | None:
     """Record the boards' answers to each other's objections."""
+    args, state, task = command.args, command.state, command.task
     payload = read_json(args.file)
     with project_lock(state):
         current_task = read_task(state, args.id)
@@ -213,8 +219,9 @@ def run_respond(args, root: Path, state: Path, profile: dict, catalog: dict, tas
     print(RESOLUTION_RULE, file=sys.stderr)
 
 
-def run_challenge(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_challenge(command: TaskCommand) -> int | None:
     """The decision brief and each board's challenge."""
+    root, state, profile, task = command.root, command.state, command.profile, command.task
     recall = previous_round_line(task)
     if recall:
         print(recall)
@@ -223,8 +230,9 @@ def run_challenge(args, root: Path, state: Path, profile: dict, catalog: dict, t
     print(challenge_report(task, lines, root), end="")
 
 
-def run_route(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_route(command: TaskCommand) -> int | None:
     """Preview the boards a consultation would select, and why."""
+    args, state, profile, catalog, task = command.args, command.state, command.profile, command.catalog, command.task
     if light_lane.is_light(task):
         raise ValueError(light_lane.no_route_message(args.id))
     if args.answers is None and "answers" not in task:
@@ -246,8 +254,10 @@ def run_route(args, root: Path, state: Path, profile: dict, catalog: dict, task:
         _print_route(state, task, answers, profile, selected, _selection(args), args.answers)
 
 
-def run_consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_consult(command: TaskCommand) -> int | None:
     """Record the answers and prepare the consultation of the boards, under the project lock."""
+    args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
+                                                 command.catalog, command.task)
     # Only a consultation reads the reference library and the Storybook record: the other commands start without.
     from .alerts_cli import consultation_task
     from .references import load_references, with_pattern_references
@@ -349,8 +359,9 @@ def _reused_answers(args, task: dict) -> dict:
     return answers
 
 
-def run_review(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_review(command: TaskCommand) -> int | None:
     """Record the completed board reviews."""
+    args, root, state, task = command.args, command.root, command.state, command.task
     review = read_json(args.file) if args.file else None
     with project_lock(state):
         current_task = read_task(state, args.id)
@@ -373,8 +384,9 @@ def run_review(args, root: Path, state: Path, profile: dict, catalog: dict, task
           "person.", file=sys.stderr)
 
 
-def run_pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_pass(command: TaskCommand) -> int | None:
     """Start one board's pass, or record its entry."""
+    args, root, state = command.args, command.root, command.state
     action = args.action
     entry = read_json(args.file) if action == "submit" else None
     with project_lock(state):
@@ -407,8 +419,9 @@ def run_pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         print(passes_left(result), file=sys.stderr)
 
 
-def run_progress(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
+def run_progress(command: TaskCommand) -> int | None:
     """Which board passes are done, failed, started or missing."""
+    args, task = command.args, command.task
     _read_consultation(task)
     progress = pass_progress(task)
     if args.json:
