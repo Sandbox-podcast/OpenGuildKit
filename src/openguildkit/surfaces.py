@@ -209,7 +209,7 @@ def _load(real: Path, spent: int) -> tuple[str | None, str | None]:
     return data.decode("utf-8", errors="replace"), None
 
 
-def _visible(text: str) -> str:
+def visible_text(text: str) -> str:
     """The text with each control or invisible character written <U+XXXX>; a long run is shown by its first one."""
     parts = [(f"<U+{ord(char):04X}>", True) if unicodedata.category(char) in ESCAPED_CATEGORIES or HIDDEN.match(char)
              else (" " if char == "\t" else char, False) for char in text]
@@ -226,11 +226,11 @@ def _excerpt(line: str, start: int) -> str:
     if looks_like_credential(line[max(0, start - CREDENTIAL_REACH):start + CREDENTIAL_REACH]):
         return "[redacted]"
     begin, end = max(0, start - EXCERPT_BEFORE), start + EXCERPT_AFTER
-    shown = _visible(line[begin:end]).strip()
+    shown = visible_text(line[begin:end]).strip()
     return ("..." if begin else "") + shown[:EXCERPT_MAX] + ("..." if end < len(line) or len(shown) > EXCERPT_MAX else "")
 
 
-def _finding(code: str, level: str, message: str, path: str, line: int | None, excerpt: str | None = None) -> dict:
+def scan_finding(code: str, level: str, message: str, path: str, line: int | None, excerpt: str | None = None) -> dict:
     found = {"code": code, "level": level, "message": message, "path": path, "line": line}
     if excerpt is not None:
         found["excerpt"] = excerpt
@@ -307,7 +307,7 @@ def _hidden_in_line(line: str, number: int, relative: str) -> dict | None:
     listed = [f"U+{point:04X} {_hidden_name(point)}" + (f" x{n}" if n > 1 else "")
               for point, n in list(counts.items())[:5]]
     more = f" and {len(counts) - 5} more kinds" if len(counts) > 5 else ""
-    return _finding("hidden-character", level, f"Hidden character in this line: {'; '.join(listed)}{more}.",
+    return scan_finding("hidden-character", level, f"Hidden character in this line: {'; '.join(listed)}{more}.",
                     relative, number, _excerpt(line, start))
 
 
@@ -412,12 +412,12 @@ def _cap(findings: list[dict], relative: str) -> list[dict]:
         kept += same[:MAX_PER_CODE]
         if len(same) > MAX_PER_CODE:
             level = min((item["level"] for item in same), key=LEVELS.index)
-            kept.append(_finding(code, level, f"{len(same) - MAX_PER_CODE} more lines of this file have this finding; "
+            kept.append(scan_finding(code, level, f"{len(same) - MAX_PER_CODE} more lines of this file have this finding; "
                                               f"the first {MAX_PER_CODE} are listed.", relative, None))
     return kept
 
 
-def _analyse(relative: str, text: str, config: bool) -> list[dict]:
+def analyse_text(relative: str, text: str, config: bool) -> list[dict]:
     block = managed_block_lines(text) if relative in MANAGED_FILES else None
     found = []
     for number, raw in enumerate(text.split("\n"), start=1):
@@ -426,12 +426,12 @@ def _analyse(relative: str, text: str, config: bool) -> list[dict]:
             if hidden := _hidden_in_line(line, number, relative):
                 found.append(hidden)
             if not (block and block[0] <= number <= block[1]) and (start := _override_start(line)) is not None:
-                found.append(_finding(
+                found.append(scan_finding(
                     "instruction-override", "warning",
                     "This line asks the agent to drop its rules or to hide an action from the person.",
                     relative, number, _excerpt(line, start)))
         if (remote := _remote_execution(line)) is not None:
-            found.append(_finding("remote-execution", "warning", f"This line runs code as it arrives ({remote[1]}).",
+            found.append(scan_finding("remote-execution", "warning", f"This line runs code as it arrives ({remote[1]}).",
                                   relative, number, _excerpt(line, remote[0])))
     return _cap(found, relative)
 
@@ -460,7 +460,7 @@ def scan(root: Path) -> dict:
             continue
         spent += len(text)
         read += 1
-        findings += _analyse(relative, text, config)
+        findings += analyse_text(relative, text, config)
     return {"findings": sorted(findings, key=_order), "scanned": {"files": read, "skipped": collector.skipped}}
 
 
@@ -688,7 +688,7 @@ def _address(url: str) -> str:
     return url.split("#", 1)[0].split("?", 1)[0].rstrip("/").lower()
 
 
-def _registry_index(tools: dict) -> list[tuple[str, dict, list]]:
+def registry_index(tools: dict) -> list[tuple[str, dict, list]]:
     """Each server of the registry with the ways a configuration can name it: package, address, command line."""
     index = []
     for tool_id in sorted(tools):
@@ -754,7 +754,7 @@ def _show_address(url: str) -> str:
     except ValueError:
         return "[unreadable address]"
     host = f"[{host}]" if ":" in host else host
-    return _visible(f"{parts.scheme}://{host}{f':{port}' if port else ''}{parts.path}" + ("?..." if parts.query else ""))
+    return visible_text(f"{parts.scheme}://{host}{f':{port}' if port else ''}{parts.path}" + ("?..." if parts.query else ""))
 
 
 def _jsonc(text: str) -> str:
@@ -828,14 +828,14 @@ def _json_or_jsonc(text: str):
         return json.loads(_jsonc(text))
 
 
-def _line_of(text: str, *needles: str) -> int | None:
+def line_of(text: str, *needles: str) -> int | None:
     for number, line in enumerate(text.split("\n"), start=1):
         if any(needle in line for needle in needles):
             return number
     return None
 
 
-def _server(name: str, spec: dict, relative: str, host: str, text: str, index: list,
+def configured_server(name: str, spec: dict, relative: str, host: str, text: str, index: list,
             allow: dict | None = None) -> tuple[dict, list[dict]]:
     """One configured MCP server as the inventory shows it, and the findings about it. allow is the allow list, if any."""
     command = spec["command"] if isinstance(spec.get("command"), str) else ""
@@ -846,26 +846,26 @@ def _server(name: str, spec: dict, relative: str, host: str, text: str, index: l
                  or ("remote" if url else "stdio" if command else "unknown"))
     package = _package_of(command, args) if command and not url else None
     pinned, why = _pin(*package) if package else (None, "")
-    entry = {"name": _visible(name), "file": relative, "host": host, "transport": transport,
-             "launch": _show_address(url) if url else _visible(" ".join([redact_credentials(command), *_mask(args)]).strip()),
+    entry = {"name": visible_text(name), "file": relative, "host": host, "transport": transport,
+             "launch": _show_address(url) if url else visible_text(" ".join([redact_credentials(command), *_mask(args)]).strip()),
              "pinned": pinned}
-    line = _line_of(text, f"[mcp_servers.{name}]", f'[mcp_servers."{name}"]') if relative.endswith(".toml") \
-        else _line_of(text, json.dumps(name))
+    line = line_of(text, f"[mcp_servers.{name}]", f'[mcp_servers."{name}"]') if relative.endswith(".toml") \
+        else line_of(text, json.dumps(name))
     lookup = {"package": (package[0], _canonical(*package)) if package else None, "args": args,
               "program": _program(command), "address": _address(url) if url and len(url) < MAX_MATCHED else ""}
     entry["registry"] = None if len(" ".join(args)) > MAX_MATCHED else _registry_match(lookup, index)
     findings = []
     if allow is not None and "mcp_servers" in allow and not mcp_allowed(
             allow["mcp_servers"], (*package, _canonical(*package)) if package else None, url, _program(command)):
-        what = (f"the {package[0]} package {_visible(package[1])[:80]}" if package else _show_address(url) if url
-                else f"the command {_visible(_program(command))[:60] or 'of no name'}")
-        findings.append(_finding(
-            "mcp-not-allowed", "error", f'MCP server "{_visible(name)[:60]}" runs {what}, which the allow list does not name.',
+        what = (f"the {package[0]} package {visible_text(package[1])[:80]}" if package else _show_address(url) if url
+                else f"the command {visible_text(_program(command))[:60] or 'of no name'}")
+        findings.append(scan_finding(
+            "mcp-not-allowed", "error", f'MCP server "{visible_text(name)[:60]}" runs {what}, which the allow list does not name.',
             relative, line))
     if pinned is False:
         what = {"npm": "npm package", "pypi": "Python package", "docker": "Docker image"}[package[0]]
-        findings.append(_finding(
-            "mcp-unpinned", "warning", f'MCP server "{_visible(name)[:60]}" runs the {what} {_visible(package[1])[:80]} '
+        findings.append(scan_finding(
+            "mcp-unpinned", "warning", f'MCP server "{visible_text(name)[:60]}" runs the {what} {visible_text(package[1])[:80]} '
             f"with {why}: pin one exact version, or an image digest, so that what runs is what was reviewed.",
             relative, line))
     if url:
@@ -874,8 +874,8 @@ def _server(name: str, spec: dict, relative: str, host: str, text: str, index: l
         except ValueError:
             scheme, host_name = "", None
         if scheme == "http" and host_name is not None and host_name not in LOCAL_HOSTS:
-            findings.append(_finding(
-                "mcp-insecure-transport", "error", f'MCP server "{_visible(name)[:60]}" connects to {_show_address(url)}: an http '
+            findings.append(scan_finding(
+                "mcp-insecure-transport", "error", f'MCP server "{visible_text(name)[:60]}" connects to {_show_address(url)}: an http '
                 "address is not encrypted. Use https, or a server on localhost.", relative, line))
     return entry, findings
 
@@ -890,8 +890,8 @@ def _outside_allow_list(configs: _Configs, allow: dict) -> list[dict]:
             continue
         model = data.get("model")
         if "models" in allow and isinstance(model, str) and model not in allow["models"]:
-            found.append(_finding("model-not-allowed", "error", f'{relative} sets the model "{_visible(model)[:60]}", '
-                                  "which the allow list does not name.", relative, _line_of(text, '"model"', "model =")))
+            found.append(scan_finding("model-not-allowed", "error", f'{relative} sets the model "{visible_text(model)[:60]}", '
+                                  "which the allow list does not name.", relative, line_of(text, '"model"', "model =")))
         if "endpoints" not in allow:
             continue
         raw = data.get(group_key)
@@ -899,7 +899,7 @@ def _outside_allow_list(configs: _Configs, allow: dict) -> list[dict]:
         if group_key == "env":
             addresses = [("env.ANTHROPIC_BASE_URL", "ANTHROPIC_BASE_URL", group.get("ANTHROPIC_BASE_URL"))]
         else:
-            addresses = [(f"model_providers.{_visible(str(name))[:40]}.base_url", "base_url", spec.get("base_url"))
+            addresses = [(f"model_providers.{visible_text(str(name))[:40]}.base_url", "base_url", spec.get("base_url"))
                          for name, spec in sorted(group.items(), key=lambda item: str(item[0])) if isinstance(spec, dict)]
         for label, needle, value in addresses:
             if isinstance(value, str) and not address_allowed(allow["endpoints"], value):
@@ -907,14 +907,14 @@ def _outside_allow_list(configs: _Configs, allow: dict) -> list[dict]:
                     host_name = urlsplit(value).hostname or "[no host]"
                 except ValueError:
                     host_name = "[unreadable address]"
-                found.append(_finding("endpoint-not-allowed", "error", f"{relative} sets {label} to an address on "
-                                      f"{_visible(host_name)[:80]}, which the allow list does not name.", relative,
-                                      _line_of(text, needle)))
+                found.append(scan_finding("endpoint-not-allowed", "error", f"{relative} sets {label} to an address on "
+                                      f"{visible_text(host_name)[:80]}, which the allow list does not name.", relative,
+                                      line_of(text, needle)))
     return found
 
 
 def _setting(relative: str, text: str, needle: str, message: str) -> dict:
-    return _finding("permissive-setting", "warning", f"Permissive setting: {message}.", relative, _line_of(text, needle))
+    return scan_finding("permissive-setting", "warning", f"Permissive setting: {message}.", relative, line_of(text, needle))
 
 
 def _permissive(configs: _Configs) -> list[dict]:
@@ -950,8 +950,8 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None,
         data, text = configs.get(relative)
         listed = data.get(key) if data and isinstance(data.get(key), dict) else {}
         for name, spec in sorted((str(name), spec) for name, spec in listed.items() if isinstance(spec, dict)):
-            index = _registry_index(load_tools() if tools is None else tools) if index is None else index
-            entry, findings = _server(name, spec, relative, host, text, index, allow)
+            index = registry_index(load_tools() if tools is None else tools) if index is None else index
+            entry, findings = configured_server(name, spec, relative, host, text, index, allow)
             servers.append(entry)
             found += findings
     found += _permissive(configs) + (_outside_allow_list(configs, allow) if allow is not None else [])
@@ -965,7 +965,7 @@ def discover(root: Path, profile: dict | None = None, tools: dict | None = None,
         present.append({"id": tool["id"], "name": tool["name"], "files": files, "reads_agents_md": tool["reads_agents_md"],
                         "agents_md": reads, "agents_md_text": sentence, "coverage": coverage})
         if coverage["status"] != "enforced":
-            found.append(_finding(
+            found.append(scan_finding(
                 "surface-uncovered", "warning" if profile.get("guard") == "enforce" else "note",
                 f"{tool['id']}: {', '.join(files)} present, and {coverage['detail'].rstrip('.')}.", files[0], None))
     return {"surfaces": present, "mcp_servers": sorted(servers, key=lambda item: (item["file"], item["name"])),
@@ -1001,7 +1001,7 @@ def _server_lines(servers: list[dict]) -> list[str]:
         registry = f"registry: {item['registry']['server']}" if item["registry"] else "not in the registry"
         pin = {True: "version fixed", False: "version not fixed", None: ""}[item["pinned"]]
         launch = item["launch"] if len(item["launch"]) <= 70 else item["launch"][:67] + "..."
-        lines.append(f"  {item['name']} ({_visible(item['file'])}): {launch}; {registry}" + (f"; {pin}" if pin else ""))
+        lines.append(f"  {item['name']} ({visible_text(item['file'])}): {launch}; {registry}" + (f"; {pin}" if pin else ""))
     if len(servers) > MAX_SERVER_LINES:
         lines.append(f"  ... and {len(servers) - MAX_SERVER_LINES} more")
     return lines
@@ -1025,12 +1025,12 @@ def render_scan(result: dict) -> str:
         items = [item for item in findings if item["code"] == code]
         worst = min((item["level"] for item in items), key=LEVELS.index)
         first = next(item for item in items if item["level"] == worst)
-        where = _visible((first["path"] or "") + (f":{first['line']}" if first["line"] else ""))
+        where = visible_text((first["path"] or "") + (f":{first['line']}" if first["line"] else ""))
         lines.append(f"  {worst:<7} {code} x{len(items)}  {where}")
     if scanned["skipped"]:
         first = scanned["skipped"][0]
         lines.append(f"Not read: {plural(len(scanned['skipped']), 'file')} "
-                     f"(first: {_visible(first['path'])}, {_visible(first['reason'])}).")
+                     f"(first: {visible_text(first['path'])}, {visible_text(first['reason'])}).")
     lines.append("Run openguildkit host scan --json for every finding with its line and excerpt, and the whole inventory.")
     return "\n".join(lines)
 
