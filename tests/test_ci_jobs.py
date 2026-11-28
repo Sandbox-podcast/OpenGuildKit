@@ -72,6 +72,17 @@ class ServeSampleTest(unittest.TestCase):
         self.assertEqual(text.count("gracefulShutdown"), text.count("node scripts/serve-sample.mjs"))
         self.assertIn("SIGTERM", text)
 
+    def test_issue_518_each_copy_of_the_repository_draws_its_own_default_ports(self):
+        """Issue #518: the default ports 5201 and 7322 were fixed, so two copies could not run the journeys at once."""
+        draw = "createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8), 16) % 1000"
+        for name, variable in (("playwright.config.ts", "PW_PORT"), ("playwright.project.config.ts", "PW_PROJECT_PORT")):
+            with self.subTest(config=name):
+                text = (ROOT / "web" / name).read_text(encoding="utf-8")
+                self.assertIn(draw, text)
+                self.assertNotRegex(text, rf"process\.env\.{variable} \?\? \d")
+        project = (ROOT / "web" / "playwright.project.config.ts").read_text(encoding="utf-8")
+        self.assertIn("process.env.PW_PROJECT_PORT ??= String(ownPort)", project, "the workers read the same port")
+
 
 class PythonMatrixTest(unittest.TestCase):
     """Issue #474: on a pull request, two of the six cells had never found a failure that no other cell found."""
