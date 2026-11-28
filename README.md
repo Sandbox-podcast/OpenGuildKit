@@ -43,7 +43,7 @@ For every change, OpenGuildKit convenes the brains it concerns. Each one reviews
 
 ## Set up your project
 
-From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps, except the required question on personal data, which waits for an answer. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
+From your own repository, launch the interactive questionnaire. It asks your stack, sector, roles and personal data, then each norm they imply (GDPR, DORA, NIS 2...) with the reason it is proposed, for you to keep or decline one by one; then the other patterns, extra rule packs (added to the recommended ones), boards, the tools the company works with, the agent host and the board guard. Every prompt shows what Enter keeps, except the required question on personal data, which waits for an answer. The two long lists, patterns and packs, print only what Enter keeps: type `list` to see the others. In an existing repository, `openguildkit detect` proposes your components and versions first, and each pattern applies to the component where its technologies are used.
 
 ```bash
 openguildkit detect
@@ -53,7 +53,7 @@ openguildkit host apply
 openguildkit check
 ```
 
-With Claude Code, Codex or Gemini CLI as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question.
+With Claude Code, Codex or Gemini CLI as the agent host, `check` fails until `host apply` has installed the host settings and hooks: run it first. With another agent, skip it; it writes nothing for that host. Without a terminal, as in a script or from your agent, `openguildkit init --questions` prints the questionnaire as JSON and `openguildkit init --answers answers.json` reads the answers from a file. The file must answer `personal_data` (`yes`, `no` or `unsure`, which proposes the laws on personal data): without it, `init` writes nothing and names the question. With `yes` or `unsure`, it must also answer `norms`, one entry for each norm the project meets, such as `"norms": {"gdpr-personal-data": "yes"}`: the first refusal prints the line to paste.
 
 To set up a second repository like the first, run `openguildkit profile export > answers.json` in the first and `openguildkit init --answers answers.json` in the second: the same patterns, packs, boards, guard and conventions. People's names, the history of changes, the signers file, component paths and check commands stay behind, and a setting that names a person or lowers a protection is typed again by the person at a terminal there; the export prints each one ([reuse the profile](docs/workflow.md#reuse-the-profile-in-another-repository)).
 
@@ -162,7 +162,7 @@ git add .openguildkit/decisions && git commit -m "Decision record of request-sta
 - `task handoff` gives the agent the implementation brief: the approved scope and the rules in force. The agent delivers that scope only.
 - `task verify` runs the project's checks and records their results. Before any `task result`, it counts the rules to report rather than listing them: the template lists them.
 - `task result --template` asks only the rules that concern the task. The others are listed as not concerned, with the reason. A criterion is `met` or `not-met`; a rule is `passed`, `failed`, `skipped` or `not-applicable`.
-- `task result --file` records the result the agent filled in. The owner of each named evidence (record of processing activities, DPIA decision) provides it: the result names the document and who provided it. When the result declares not applicable a data protection, security or AI rule that the task's answers select (the GDPR rules for personal data), `task complete` lists each one and the person who closes the task confirms them at a terminal (`--by`, then retyping the task ID). One evidence cited for the passed rules of three packs or more is flagged, and the task then closes with reservations.
+- `task result --file` records the result the agent filled in. A malformed result is refused with the list of all its problems, each under its entry (`criteria[1]`, `checks[2]`). The owner of each named evidence (record of processing activities, DPIA decision) provides it: the result names the document and who provided it. When the result declares not applicable a data protection, security or AI rule that the task's answers select (the GDPR rules for personal data), `task complete` lists each one and the person who closes the task confirms them at a terminal (`--by`, then retyping the task ID). One evidence cited for the passed rules of three packs or more is flagged, and the task then closes with reservations.
 - `task complete` closes the task as `done` when nothing is left open, or as `done-with-reservations` with the open points, the most serious first. `task show --closing` prints them again, and `task new --follows` opens a linked task to take them up.
 - Commit the work before `task export`: the record lists the files Git tracks that changed since the approval, and the pull request check requires each changed file in it. `task export` names the new files Git does not track yet, which no record covers.
 - `task export` writes the decision record; commit it in the same pull request. After `task revoke`, `task export` writes the withdrawal into the record, and the check then refuses it.
@@ -175,15 +175,17 @@ openguildkit references
 openguildkit patterns --role project-management
 openguildkit patterns --role hr
 openguildkit patterns --id python-fastapi-postgresql
+openguildkit brains --id product
 ```
 
 `catalog` lists the packs, boards and sectors you can use in a project, with the packs each sector preselects (financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure). The [reference index](docs/references.md) provides summaries and source links. Rule packs contain the instructions and checks that `AGENTS.md` names by rule ID and a task prints in full.
 
-`openguildkit recommend` suggests relevant project rule packs. `openguildkit ci-check` checks a project in CI.
+`openguildkit recommend` suggests relevant project rule packs. `openguildkit guard --ci` and `openguildkit check` check a pull request in CI ([the board before every change](integrations/README.md#the-board-before-every-change)). `openguildkit ci-check` is the example of a central rule: it evaluates one rule, `export-link-expiry`, read from a policy repository ([example](examples/export-expiry/README.md)).
 
 ## Documentation
 
 - [Install a GitHub release](docs/install.md) and [changelog](CHANGELOG.md)
+- [Exit codes of the commands, for a CI job or a script](docs/exit-codes.md)
 
 - [Run an executable catalog rule in CI](examples/export-expiry/README.md)
 - [Coordinate pull request checks across GitHub Actions and Jenkins](integrations/ci/README.md)

@@ -211,10 +211,13 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(inventory["previews"][0]["path"], "list.png")
         self.assertIn("hypotheses", run_cli(self.root, "storybook", "propose").stdout)
         self.decide({"component:Button": "validated", 'variant:Button:variant="secondary"': "validated"})
-        generated = run_cli(self.root, "storybook", "generate").stdout
-        self.assertIn("Written: src/design-system/Button.stories.tsx", generated)
-        self.assertIn("Missing Storybook dependencies in package.json: @storybook/react-vite, storybook", generated)
-        self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js)", generated)
+        generation = run_cli(self.root, "storybook", "generate")
+        self.assertIn("Written: src/design-system/Button.stories.tsx", generation.stdout)
+        # The warnings are notes, not the result: they go to the error stream (issue #528).
+        self.assertNotIn("Warning:", generation.stdout)
+        self.assertIn("Warning: Missing Storybook dependencies in package.json: @storybook/react-vite, storybook",
+                      generation.stderr)
+        self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js)", generation.stderr)
         warnings = json.loads(run_cli(self.root, "storybook", "generate", "--json").stdout)["warnings"]
         self.assertIn("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js).", warnings)
         write_files(self.root, {".storybook/main.ts": "export default {};"})

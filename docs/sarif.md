@@ -1,5 +1,7 @@
 # SARIF output
 
+For: the developer who sends the findings of `check` and `guard --ci` to code scanning.
+
 `openguildkit check` and `openguildkit guard --ci` print their problems in text. With `--format sarif` they print the same problems as a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) document, the format that code scanning dashboards read, so that a problem of the project's governance (an approval that no longer holds, instructions that no longer match the profile) can appear next to the other alerts of a pull request.
 
 ```bash
@@ -82,7 +84,7 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 #### `catalog-org-replaced`
 
-`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by NAME --reason WHY` at a terminal.
+`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal.
 
 #### `approvals-not-signed`
 

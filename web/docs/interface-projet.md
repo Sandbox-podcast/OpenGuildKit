@@ -83,7 +83,7 @@ Tout programme du poste peut ouvrir une connexion vers 127.0.0.1 : ceux d'un aut
 
 Chaque refus du serveur porte un code stable dans le champ `reason`, à côté du message anglais (`error`) et, quand une personne peut taper la commande dans son terminal, de cette commande (`command`) : `{"error", "command", "reason"}`. Le résultat d'une commande que la CLI refuse faute de terminal, seul ou dans un lot (`batch`), porte les mêmes champs `command` et `reason`. La page traduit le code ; le message anglais reste le détail. La liste vit dans `REFUSALS`, dans `src/openguildkit/webui.py`, et un test vérifie que chaque code y figure ici.
 
-La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme une (par exemple `task complete ID --by NAME` pour clore par-dessus des points sensibles), et sinon celle que la page a envoyée.
+La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme une (par exemple `task complete ID --by INITIALS` pour clore par-dessus des points sensibles), et sinon celle que la page a envoyée.
 
 | Code | Sens |
 |---|---|
@@ -91,7 +91,7 @@ La commande rendue est celle que la CLI nomme dans son refus quand elle en nomme
 | `withdraw-at-terminal` | Retirer une approbation : la personne au terminal. |
 | `cannot-run-at-terminal` | Déclarer qu'une commande de vérification ne peut pas tourner ici, ou retirer cette déclaration. |
 | `clear-at-terminal` | Lever un blocage sans signature. |
-| `complete-at-terminal` | Clore une quête par-dessus des points sensibles (`task complete ID --by NAME`). |
+| `complete-at-terminal` | Clore une quête par-dessus des points sensibles (`task complete ID --by INITIALS`). |
 | `live-plan-at-terminal` | Appliquer un plan MCP réel, hors simulation. |
 | `waiver-at-terminal` | Déroger à un blocage : la personne nommée, au terminal. |
 | `external-action-at-terminal` | Autoriser une action externe. |

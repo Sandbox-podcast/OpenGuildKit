@@ -91,6 +91,28 @@ class JourneyTests(unittest.TestCase):
         english = self._journey_actions(README_EN, "A task from request to closing")
         self.assertEqual(french, english)
 
+    def test_both_readmes_list_the_same_commands_to_browse_the_catalog(self):
+        """Issue #497: the French section had 6 commands, the English one 5, and the parity test read the journey only."""
+        french = _commands(_section(_text(README_FR), "Parcourir le catalogue"))
+        english = _commands(_section(_text(README_EN), "Browse the catalog"))
+        self.assertGreaterEqual(len(english), 5)
+        self.assertEqual(french, english)
+
+    def test_the_readmes_name_the_ci_commands_of_a_project_and_ci_check_as_a_central_rule(self):
+        """Issue #497: the README said ci-check checks a project in CI; it evaluates one rule from a central policy repository."""
+        for page in (README_EN, README_FR):
+            with self.subTest(page=page.name):
+                text = _text(page)
+                self.assertNotIn("`openguildkit ci-check` checks a project in CI", text)
+                self.assertRegex(text, r"`openguildkit guard --ci` (and|et) `openguildkit check`")
+                self.assertRegex(text, r"`(openguildkit )?ci-check`[^\n]*(central|centrale)")
+
+    def test_the_root_help_groups_the_two_central_policy_options(self):
+        help_text = command_parser().format_help()
+        group = help_text.split("central policy:", 1)[1]
+        self.assertLess(group.index("--policy-repo"), group.index("--policy-commit"))
+        self.assertNotIn("options:", group.split("--policy-commit", 1)[0])
+
     def test_the_french_page_says_what_is_in_english_and_that_briefs_can_be_french(self):
         text = _text(README_FR)
         top = text[:text.index("\n## ")]

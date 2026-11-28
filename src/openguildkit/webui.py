@@ -161,7 +161,7 @@ def terminal_command(root: Path, argv: list[str]) -> str:
 
 
 def named_command(message: str) -> list[str] | None:
-    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by NAME, at a terminal."),
+    """The words of the command a CLI refusal names ("... openguildkit task complete t1 --by INITIALS, at a terminal."),
     up to the end of its clause, or None when it names none."""
     match = re.search(r"\bopenguildkit (.+)", message)
     if match is None:
@@ -534,7 +534,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, status: int, data) -> None:
         extra = {"Cache-Control": "no-store"}
-        body = self._compressed(json.dumps(data, ensure_ascii=False).encode("utf-8"), extra)
+        try:
+            text = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:  # A lone surrogate, from a file name an error repeats: escaped, never a 500 (#528).
+            text = json.dumps(data).encode("ascii")
+        body = self._compressed(text, extra)
         self._send(status, body, "application/json; charset=utf-8", extra)
 
     def _refuse(self, refusal: Refused) -> None:

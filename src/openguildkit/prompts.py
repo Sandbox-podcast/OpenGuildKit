@@ -5,6 +5,18 @@ import sys
 from .project import unsure_answers
 from .terminal import interactive
 
+# A list this long is read by no one and its answer is almost always Enter: only the choices the default keeps are printed.
+LONG_LIST = 50
+
+
+def _printed(question: dict) -> list[tuple[int, dict]]:
+    """The choices to print with their number: all of them, or past LONG_LIST only those the default keeps."""
+    numbered = list(enumerate(question.get("choices", []), start=1))
+    if len(numbered) <= LONG_LIST:
+        return numbered
+    default = question.get("default")
+    return [(number, choice) for number, choice in numbered if choice["id"] in (default if isinstance(default, list) else [default])]
+
 
 def prompt_choices(question: dict, value: str):
     """The choice IDs an answer names, by ID or by number; several, separated by commas, for a multi-select."""
@@ -31,8 +43,12 @@ def prompt_questions(questions: list[dict], command: str) -> dict:
         print(f"\n{question['prompt']}", file=sys.stderr)
         if question.get("help"):
             print(f"  ({question['help']})", file=sys.stderr)
-        for index, choice in enumerate(question.get("choices", []), start=1):
+        shown = _printed(question)
+        for index, choice in shown:
             print(f"  {index}. {choice['label']} [{choice['id']}]", file=sys.stderr)
+        hidden = len(question.get("choices", [])) - len(shown)
+        if hidden:
+            print(f"  Type list to show the {hidden} others, or type an ID or a number.", file=sys.stderr)
         kind = question.get("type", "select")
         if kind in {"list", "multi-select"}:
             print("  Separate multiple entries with commas.", file=sys.stderr)
@@ -45,8 +61,8 @@ def prompt_questions(questions: list[dict], command: str) -> dict:
             print(f"  Default: {question['default_label']}", file=sys.stderr)
         elif "default" in question:
             default = question["default"]
-            shown = ", ".join(map(str, default)) if isinstance(default, list) else default
-            print(f"  Default: {shown or 'none'}", file=sys.stderr)
+            default_text = ", ".join(map(str, default)) if isinstance(default, list) else default
+            print(f"  Default: {default_text or 'none'}", file=sys.stderr)
         else:
             print("  No default: choose an answer.", file=sys.stderr)
         if "unsure" in question:
@@ -54,6 +70,10 @@ def prompt_questions(questions: list[dict], command: str) -> dict:
         while True:
             print("> ", end="", file=sys.stderr, flush=True)
             value = input().strip()
+            if hidden and value.casefold() == "list":
+                for index, choice in enumerate(question["choices"], start=1):
+                    print(f"  {index}. {choice['label']} [{choice['id']}]", file=sys.stderr)
+                continue
             if "unsure" in question and value.casefold() in ("?", "unsure", "i don't know", "je ne sais pas"):
                 if any(choice["id"] == "unsure" for choice in question.get("choices", [])):
                     # A task question offers unsure as an answer of its own, which the task records.

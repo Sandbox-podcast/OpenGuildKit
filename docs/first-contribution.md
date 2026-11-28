@@ -1,5 +1,7 @@
 # Your first contribution
 
+For: a developer who makes a first contribution: a lens, a reference or a pattern.
+
 This walk-through adds one specialist lens to a brain, then shows the same steps for a reference entry and a pattern. You need a GitHub account, Git and Python 3.11 or later; no other tool.
 
 ## 1. Agree on the scope
@@ -52,7 +54,7 @@ openguildkit brains --id hr
 python -m unittest discover -s tests
 ```
 
-Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gap(s).`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
+Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gaps.`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
 
 If you changed triggers, add a brief that must and one that must not select the brain to `tests/routing_cases.json`.
 

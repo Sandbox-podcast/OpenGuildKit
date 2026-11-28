@@ -306,6 +306,22 @@ def decision_task(**changes) -> dict:
     return task
 
 
+class WordsOfTheBriefTests(unittest.TestCase):
+    def test_a_brief_says_board_and_never_committee(self):
+        """Issue #527: the brief of a deliverable said "committee", a word the glossary does not have."""
+        from openguildkit import deliverables
+
+        review = {"boards": [{"id": "qa", "recommendation": "Go.", "challenge": {"verdict": "proceed", "blockers": []}}]}
+        task = {"id": "t", "brief": "b", "status": "approved", "review": {**review, "summary": "Fine."},
+                "decision": {"by": "CM", "reason": "r", "at": "2026-11-20T00:00:00+00:00"}}
+        lines = [*deliverables._advice_lines({}), *deliverables._advice_lines({"review": review}),
+                 *deliverables._advice_lines({"review": review, "deliberation": {"agreed": [], "open": []}}),
+                 *deliverables._condition_lines({"id": "t"}),
+                 *(line for section in deliverables.decision_sections(task).values() for line in section)]
+        self.assertIn("No board review is recorded.", lines)
+        self.assertEqual([line for line in lines if "ommittee" in line], [])
+
+
 class ArchitectureDecisionRecordTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -341,7 +357,7 @@ class ArchitectureDecisionRecordTests(unittest.TestCase):
         self.assertNotIn("No disagreement", draft)
         problems = draft_problems(self.template, draft)
         self.assertEqual([problem for problem in problems if "Section" in problem], [])
-        self.assertIn("1 placeholder(s) still say TODO.", problems)
+        self.assertIn("1 placeholder still says TODO.", problems)
         consequences = draft.split("## Consequences", 1)[1].split("## ", 1)[0]
         self.assertIn("TODO", consequences)
 

@@ -17,6 +17,7 @@ from .consultation import (
 from .questionnaire import ASSUMPTIONS
 from .routing import normalize_text, trigger_matches
 from .sensitive import credential_problems, public_evidence_url, redact_credentials
+from .wording import plural
 
 
 class TaskStateError(ValueError):
@@ -881,7 +882,8 @@ def decision_summary(task: dict) -> list[str]:
     lines += [f"Review warning: {warning}" for warning in review.get("warnings", [])]
     synthetic = mock_evidence(task)
     if synthetic:
-        lines.append(f"Mock data: {len(synthetic)} evidence item(s) come from mock tools, synthetic sample data and not "
+        lines.append(f"Mock data: {plural(len(synthetic), 'evidence item')} {'comes' if len(synthetic) == 1 else 'come'} from mock "
+                     "tools, synthetic sample data and not "
                      f"the real systems: {', '.join(synthetic)}.")
     lines += _board_change_lines(task)
     lines += [f"Open point: {point}" for point in task["consultation"]["scope"].get("open_points", [])]
@@ -1065,7 +1067,7 @@ def _checks_section(task: dict) -> list[str]:
     if not commands:
         return ["## Checks task verify will run", "",
                 "None: the profile lists no check command, so no test runs before the task closes. The person can "
-                "add one for the next tasks: openguildkit profile add check \"COMMAND\" --by NAME --reason WHY.", ""]
+                "add one for the next tasks: openguildkit profile add check \"COMMAND\" --by INITIALS --reason WHY.", ""]
     if task.get("status") in ("done", "done-with-reservations"):
         lines = ["## Checks task verify ran", "",
                  "Each one had to pass, or be recorded by a person as unable to run here, before the task was closed. "
@@ -1075,7 +1077,7 @@ def _checks_section(task: dict) -> list[str]:
                  "Each one must pass before the task is done. Install the project's dependencies and the tools these "
                  "commands call first: a command that cannot run fails with its cause and its log. When one cannot "
                  f"run in this environment, the person records it with `openguildkit task verify {task['id']} "
-                 "--cannot-run command:N --by NAME --reason TEXT`, and the task closes with that reservation.", ""]
+                 "--cannot-run command:N --by INITIALS --reason TEXT`, and the task closes with that reservation.", ""]
     lines += [f"- `command:{index}`: `{command}`" for index, command in enumerate(commands, start=1)]
     return [*lines, ""]
 
@@ -1164,7 +1166,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
                 ["## Conditions of the approval, to meet before the task completes", "",
                  "The person approved with these blockers open: only the finished work can clear them. Build the "
                  "evidence each one names, show it to the person, and let them clear it in their terminal with "
-                 f"openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by NAME. "
+                 f"openguildkit task clear {task['id']} BLOCKER --evidence PATH --supports TEXT --by INITIALS. "
                  "task complete refuses the task while one is open.", "",
                  *(f"- {item['id']} ({item['owner']}): {item['finding']} Clears when: {item['clears_when']}"
                    for item in pending_verification), ""]

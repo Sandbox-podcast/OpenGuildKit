@@ -217,15 +217,15 @@ class StuckApprovalTests(ApprovalCase):
                                 "--scope", "Internal", "--until", "2099-01-01", code=1, typed="vb")
         self.assertIn("allows no waiver", error)
         self.assertIn("openguildkit task clear vb security:1", error)
-        self.assertIn("openguildkit task revoke vb --by NAME --reason TEXT", error)
+        self.assertIn("openguildkit task revoke vb --by INITIALS --reason TEXT", error)
         self.assertNotIn("request changes", error.casefold())
         self.assertNotIn("--request-changes", error)
 
     def test_task_list_names_the_withdrawal_for_an_approval_that_cannot_complete_otherwise(self):
         row, = json.loads(self.run_cli("task", "list", "--json")[0])
-        self.assertIn("Condition(s) of approval still open: security:1", row["next"])
+        self.assertIn("Condition of approval still open: security:1", row["next"])
         self.assertIn("the task cannot complete while one is open", row["next"])
-        self.assertIn("openguildkit task revoke vb --by NAME --reason TEXT", row["next"])
+        self.assertIn("openguildkit task revoke vb --by INITIALS --reason TEXT", row["next"])
 
     def test_the_person_withdraws_the_approval_at_a_terminal_and_the_guard_stops_counting_it(self):
         self.assertEqual(self.covered(), ["vb"])
@@ -308,7 +308,7 @@ class WaiverExpiryTests(ApprovalCase):
             row, = json.loads(self.run_cli("task", "list", "--json")[0])
             self.assertIn(f"The waiver of security:1 expired on {self.until}, so the blocker is open again", row["next"])
             for step in ("openguildkit task clear vb security:1", "openguildkit task waive vb security:1",
-                         "openguildkit task revoke vb --by NAME --reason TEXT"):
+                         "openguildkit task revoke vb --by INITIALS --reason TEXT"):
                 self.assertIn(step, row["next"])
             _, error = self.run_cli("task", "complete", "vb", code=1)
             self.assertIn(f"Verification blocker security:1: The waiver of security:1 expired on {self.until}", error)
@@ -336,7 +336,7 @@ class WaiverExpiryTests(ApprovalCase):
         with self.expired():
             row, = json.loads(self.run_cli("task", "list", "--json")[0])
             self.assertIn("and the approval rested on it: the person withdraws the approval "
-                          "(openguildkit task revoke ab --by NAME --reason TEXT)", row["next"])
+                          "(openguildkit task revoke ab --by INITIALS --reason TEXT)", row["next"])
             _, error = self.run_cli("task", "complete", "ab", code=1)
             self.assertIn(f"Blocker security:1: The waiver of security:1 expired on {self.until}", error)
             _, error = self.run_cli("task", "waive", "ab", "security:1", "--by", "Camille", "--reason", "Again",

@@ -9,6 +9,7 @@ from . import light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
+from .doc_links import doc_link
 from .patterns import (
     check_pattern_choices,
     condition_reasons,
@@ -21,6 +22,7 @@ from .patterns import (
 )
 from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
+from .wording import plural
 
 STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
@@ -207,7 +209,8 @@ def _checks_question(proposed: list[dict]) -> dict:
         "prompt": (
             "Which project checks should the agent or CI run? task verify runs each one in the project root, and the "
             "task cannot be done while one fails: keep commands that pass once the project's dependencies are "
-            "installed, and leave to CI a check that needs the network or a service (docs/workflow.md#project-checks)."
+            "installed, and leave to CI a check that needs the network or a service "
+            f"({doc_link('docs/workflow.md', 'project-checks')})."
         ),
         "default": [],
     }
@@ -899,7 +902,9 @@ def setup_profile(answers: object, catalog: dict, questions: list[dict]) -> tupl
         listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
         raise ValueError(
             f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
-            'Write "yes", or {"answer": "no", "by": "NAME", "reason": "WHY"}. Nothing was written.'
+            'Add this line to the answers file, "yes" for a norm that applies, or {"answer": "no", "by": "NAME", '
+            f'"reason": "WHY"}} to decline it: "norms": {json.dumps({entry["id"]: "yes" for entry in missing})}. '
+            "Nothing was written."
         )
     replace = completed.pop("replace_default_packs", False)
     if not isinstance(replace, bool):
@@ -1119,7 +1124,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
         "rule_warning": (
             f"{count} rules in force. A task is asked only the rules that concern it, but each pattern adds rules "
             f"to read and to answer: above {RULE_WARNING}, check that each pattern below concerns the project and "
-            "decline the others (openguildkit profile decline PATTERN --by NAME --reason WHY)."
+            "decline the others (openguildkit profile decline PATTERN --by INITIALS --reason WHY)."
             if count > RULE_WARNING else None
         ),
         "patterns": [
@@ -1661,7 +1666,7 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     edited = hand_edits(current, generated)
     if edited:
         raise RuleError(
-            f"The OpenGuildKit block of AGENTS.md was edited by hand ({len(edited)} line(s), first: {edited[0][:80]}). "
+            f"The OpenGuildKit block of AGENTS.md was edited by hand ({plural(len(edited), 'line')}, first: {edited[0][:80]}). "
             "openguildkit sync replaces the block: move your own text outside the markers first.",
             "instructions-edited", ["AGENTS.md"],
         )

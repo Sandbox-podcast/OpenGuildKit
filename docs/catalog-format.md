@@ -1,5 +1,7 @@
 # Catalog format
 
+For: a contributor who adds or changes catalog records, and a team that adds its own.
+
 The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
 
 The catalog has four collections of records, one JSON file per record, and five folders of material that the records and the commands use:
@@ -182,7 +184,7 @@ To add a sector of your own, put its record in the project catalog and a pattern
 
 The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`. A pattern that names a sector absent from the catalog is refused when the catalog loads.
 
-`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog. Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included. Once the sector is known again, change it with `openguildkit profile set sector ID --by NAME --reason WHY`.
+`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog. Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included. Once the sector is known again, change it with `openguildkit profile set sector ID --by INITIALS --reason WHY`.
 
 ## References
 
@@ -281,16 +283,16 @@ OpenGuildKit never fetches. The person keeps the copy up to date (`git -C ../org
 
 ```bash
 openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA              # what the commit adds, removes and changes
-openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA --by NAME --reason WHY   # pin it, at a terminal
-openguildkit profile add pack ORG_PACK --by NAME --reason WHY                     # use one of its packs
+openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA --by INITIALS --reason WHY   # pin it, at a terminal
+openguildkit profile add pack ORG_PACK --by INITIALS --reason WHY                     # use one of its packs
 openguildkit org-catalog show                                                     # what the project follows and replaces
 ```
 
 - **The pin.** `set` with `--by` and `--reason` asks the person to type the first 12 characters of the commit, then writes the instructions and, in `.openguildkit/catalog.lock.json`, an `organization` entry: the path of the copy (relative to the project root when it can be), the full commit, the `sha256:` fingerprint of the files read, who pinned it, when and why. Changing the commit is the same command: it lists the records added, removed and changed, with the version of each pack, and the tasks consulted under the previous rules. A commit that drops a record the profile uses is refused. `update --apply` and `sync` keep the pin. A new repository can be pinned before `init`, so that `init --answers` reads the organization's packs; `profile export` names the commit to pin there.
 - **Order.** The bundled catalog, then the organization's records, then the project's own `.openguildkit/catalog/`. The catalog lock does not copy the organization's records: the commit and the fingerprint already fix them.
-- **A local replacement.** A project record with the ID of an organization record replaces it (a project board completes it, as it completes a bundled one). `check` says so, as a warning with the SARIF code `catalog-org-replaced`, and `org-catalog show` lists it, until a person runs `openguildkit org-catalog accept COLLECTION/ID --by NAME --reason WHY` at a terminal. The acceptance holds for that edition of the organization record: when a new commit changes it, `check` says so again.
+- **A local replacement.** A project record with the ID of an organization record replaces it (a project board completes it, as it completes a bundled one). `check` says so, as a warning with the SARIF code `catalog-org-replaced`, and `org-catalog show` lists it, until a person runs `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal. The acceptance holds for that edition of the organization record: when a new commit changes it, `check` says so again.
 - **When it cannot be read.** If the copy is missing, the commit is not in it, or the files no longer match the fingerprint, every command that reads the catalog stops, `check` included, with the command that fixes it: `git -C PATH fetch`, or `org-catalog set` with the right path or commit. `guard --ci` reads the base revision in a temporary folder, so a relative path of the copy does not resolve there: give `set` an absolute path on a CI runner, or leave the option off there.
-- **Off.** `openguildkit org-catalog off --by NAME --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records.
+- **Off.** `openguildkit org-catalog off --by INITIALS --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records.
 
 ## Source dates
 

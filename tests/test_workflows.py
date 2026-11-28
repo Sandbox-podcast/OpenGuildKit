@@ -252,7 +252,7 @@ esac
         return calls, body, result.stdout
 
     RULE = {"kind": "rule", "label": "pack:gdpr skipped", "count": 3, "tasks": ["a", "b", "c"],
-            "command": "openguildkit profile remove pack gdpr --by NAME --reason WHY", "needs_terminal": True,
+            "command": "openguildkit profile remove pack gdpr --by INITIALS --reason WHY", "needs_terminal": True,
             "also_drops": []}
     COMMITTEE = {"kind": "committee", "label": "design @someone", "count": 4, "tasks": ["a", "b", "c", "d"],
                  "command": None, "needs_terminal": False, "also_drops": []}
@@ -270,7 +270,7 @@ esac
         self.assertEqual([call.split(" --")[0] for call in calls], ["issue list", "issue create"])
         self.assertIn(f"--title OpenGuildKit retrospective {month}", calls[1])
         self.assertIn("pack:gdpr skipped", body)
-        self.assertIn("`openguildkit profile remove pack gdpr --by NAME --reason WHY`", body)
+        self.assertIn("`openguildkit profile remove pack gdpr --by INITIALS --reason WHY`", body)
         self.assertIn("interactive terminal", body)
         self.assertIn("3 tasks", body)
         self.assertNotIn("@someone", body, "a name typed in a finding must not notify anyone")

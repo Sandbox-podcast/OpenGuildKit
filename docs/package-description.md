@@ -1,5 +1,7 @@
 # OpenGuildKit
 
+For: anyone who finds the package and decides whether to install it.
+
 OpenGuildKit is an open source framework for teams that build with AI agents. Choose the rules your agents should follow and get reviews from the disciplines affected by a change before you approve it.
 
 This is the description of the Python package. The [project on GitHub](https://github.com/Sandbox-podcast/OpenGuildKit) has the documentation, the releases and the issues.

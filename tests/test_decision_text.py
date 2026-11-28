@@ -119,7 +119,10 @@ class SignedDecisionTests(ApprovalCase):
         output, prompt = self.run_cli("task", "decide", "sx", "--approve", "--by", "Camille Martin", "--reason",
                                       "Agreed", "--signature", signature, "--signer", PRINCIPAL)
         self.assertEqual(output, "approved\n")
-        self.assertEqual(prompt, shown)
+        # decide adds its next step to the prompt the payload showed (issue #529).
+        next_step = "Next: openguildkit task handoff sx gives the agent the implementation brief."
+        self.assertIn(next_step, prompt.splitlines())
+        self.assertEqual([line for line in prompt.splitlines() if line != next_step], shown.splitlines())
 
     def test_an_approval_signed_over_the_earlier_payload_still_verifies(self):
         task = self.task("sx")

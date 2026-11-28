@@ -1,5 +1,7 @@
 # Architecture
 
+For: a developer or a security architect who reads how the catalog, the CLI and the host agent fit together.
+
 OpenGuildKit has three parts: a **knowledge catalog** (JSON data), a **CLI** that turns the catalog and a project profile into instructions, consultation requests and handoffs for a host agent, and a **local web interface** over the same CLI. None of them does AI work itself.
 
 ## Components
@@ -40,6 +42,10 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `__init__.py` | Marks the package; it holds nothing else. |
 | `__main__.py` | Starts `python -m openguildkit` and the installed command; sends a plain `guard --hook` call straight to the guard without importing the rest of the CLI. |
 | `cli.py` | Parses commands, runs setup, sync, check, catalog and the other project commands, and hands each command group to its module. |
+| `cli_surface.py` | What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed. |
+| `cli_errors.py` | What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file. |
+| `completion_cli.py` | The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh. |
+| `wording.py` | The words of the outputs: a count with its noun, in the singular when the count is one. |
 | `tasks_cli.py` | The `task` command, from `task new` to `task export`, including the approval a person types at a terminal. |
 | `profile_cli.py` | The `profile` commands: change the profile after setup, with who, when and why; the page saves through the same path. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
@@ -88,6 +94,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `check_findings.py` | Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output. |
 | `sensitive.py` | Recognizes credentials and personal data in what people and agents give the CLI. |
 | `clock.py` | The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with. |
+| `doc_links.py` | The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout). |
+| `errors.py` | The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them. |
 | `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |

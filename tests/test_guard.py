@@ -476,7 +476,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.commit_record(f"{TASK}.json", record)
         result = self.ci(code=1)
         self.assertFalse(result["ok"])
-        self.assertIn("1 changed file(s) are in no decision record of this change: src/app.py", result["problems"][0])
+        self.assertIn("1 changed file is in no decision record of this change: src/app.py", result["problems"][0])
         self.assertNotIn("Covered by", self.run_cli("guard", "--ci", "--base", "main", code=1)[0])
 
     def merge_records(self, record, numbers):

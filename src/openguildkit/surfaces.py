@@ -26,6 +26,7 @@ from .hosts import HOOK_HOSTS, UNHOOKED_TOOLS, board_control, unhooked_detail, u
 from .project import managed_block_lines
 from .sensitive import looks_like_credential, redact_credentials
 from .tools import load_tools
+from .wording import plural
 
 MAX_FILES = 200
 MAX_FILE_BYTES = 1_000_000
@@ -913,10 +914,6 @@ def scan_report(root: Path, profile: dict | None = None, tools: dict | None = No
             "scanned": {"files": content["scanned"]["files"], "skipped": list(skipped.values())}}
 
 
-def _plural(count: int, word: str) -> str:
-    return f"{count} {word}" + ("" if count == 1 else "s")
-
-
 def _tool_lines(tools: list[dict]) -> list[str]:
     width = max(len(item["id"]) for item in tools)
     return [f"Agent tools present (AGENTS.md reading from the agents.md list, read {AGENTS_MD_SOURCE['read']}):"] + [
@@ -947,7 +944,7 @@ def render_scan(result: dict) -> str:
     findings, scanned = result["findings"], result["scanned"]
     detail = ", ".join(f"{count} {level}{'' if count == 1 else 's'}" for level in LEVELS
                        if (count := sum(item["level"] == level for item in findings)))
-    lines = [f"host scan read {_plural(scanned['files'], 'file')} and found {_plural(len(findings), 'finding')}"
+    lines = [f"host scan read {plural(scanned['files'], 'file')} and found {plural(len(findings), 'finding')}"
              + (f" ({detail})." if findings else ".")]
     if result["surfaces"]:
         lines += _tool_lines(result["surfaces"])
@@ -963,7 +960,7 @@ def render_scan(result: dict) -> str:
         lines.append(f"  {worst:<7} {code} x{len(items)}  {where}")
     if scanned["skipped"]:
         first = scanned["skipped"][0]
-        lines.append(f"Not read: {_plural(len(scanned['skipped']), 'file')} "
+        lines.append(f"Not read: {plural(len(scanned['skipped']), 'file')} "
                      f"(first: {_visible(first['path'])}, {_visible(first['reason'])}).")
     lines.append("Run openguildkit host scan --json for every finding with its line and excerpt, and the whole inventory.")
     return "\n".join(lines)

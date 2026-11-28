@@ -15,6 +15,7 @@ from urllib.parse import parse_qsl, urlsplit
 from . import clock
 from .rule_checks import validate_check
 from .storage import file_signature
+from .wording import plural
 
 
 COLLECTION_FIELDS = {
@@ -556,7 +557,7 @@ def replaced_boards(catalog: dict) -> dict[str, str]:
                     for item in after.get("review", {}).get("specialists", [])
                     if item["id"] in earlier and item != earlier[item["id"]]]
         if replaced:
-            changes.append(f"specialist(s) replaced: {', '.join(replaced)}")
+            changes.append(f"{plural(len(replaced), 'specialist')} replaced: {', '.join(replaced)}")
         if changes:
             lines[board_id] = (f"the project catalog replaces parts of the bundled brain {board_id} "
                                f"(.openguildkit/catalog/boards/{board_id}.json): {'; '.join(changes)}. Check that the "

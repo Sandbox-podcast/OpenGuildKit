@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from .catalog import load_catalog
+from .cli_surface import add_by
 from .clock import today
 from .lock import (
     COLLECTIONS, used_ids, apply_lock, build_lock, central_policy, installed_catalog, package_version, project_catalog,
@@ -25,7 +26,7 @@ from .terminal import interactive
 
 __all__ = ["add_parser", "run", "unaccepted_replacements"]
 
-PERSON = "--by NAME --reason WHY"
+PERSON = "--by INITIALS --reason WHY"
 
 
 def add_parser(commands) -> None:
@@ -40,7 +41,7 @@ def add_parser(commands) -> None:
                     "--reason, a person pins it at a terminal.")
     setter.add_argument("--repo", type=Path, required=True, help="The local Git copy of the organization catalog.")
     setter.add_argument("--commit", required=True, help="The full SHA of the commit to follow.")
-    setter.add_argument("--by", help="The person who pins it.")
+    add_by(setter)
     setter.add_argument("--reason", help="Why, in one line.")
     setter.add_argument("--json", action="store_true", help="Print the changes as JSON.")
     accept = actions.add_parser(
@@ -48,7 +49,7 @@ def add_parser(commands) -> None:
     accept.add_argument("record", metavar="COLLECTION/ID", help="The replaced record, such as packs/review.")
     off = actions.add_parser("off", help="Stop following the organization catalog, at a terminal.")
     for command in (accept, off):
-        command.add_argument("--by", required=True, help="The person who decides.")
+        add_by(command, required=True)
         command.add_argument("--reason", required=True, help="Why, in one line.")
 
 

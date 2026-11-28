@@ -140,6 +140,26 @@ class StateRefusalTests(Project):
                 self.assertIn("Every pass is done: write the summary and run openguildkit task review open --summary",
                               error)
 
+    def test_review_decide_and_export_say_what_comes_next(self):
+        """Issue #529: task review, task decide and task export printed "reviewed", "approved" and a path, no next step."""
+        self.cli("task", "new", "Fix the export", "--id", "open")
+        self.cli("task", "consult", "open", "--answers", "answers.json")
+        boards = json.loads(self.cli("task", "show", "open")[1])["consultation"]["boards"]
+        template = {entry["id"]: entry for entry in json.loads(self.cli("task", "template", "open")[1])["boards"]}
+        for board in boards:
+            self.cli("task", "pass", "open", board)
+            write_json(self.root / f"{board}.json", filled(template[board]))
+            self.cli("task", "submit", "open", "--file", f"{board}.json")
+        _, output, error = self.cli("task", "review", "open", "--summary", "The boards agree.")
+        self.assertEqual(output, "reviewed\n")
+        self.assertIn("Next: openguildkit task deliberate open", error)
+        self.assertIn("openguildkit task challenge open", error)
+        decided = run_cli(self.root, "task", "decide", "open", "--approve", "--by", "A", "--reason", "Agreed", typed="open")
+        self.assertEqual(decided.stdout, "approved\n")
+        self.assertIn("Next: openguildkit task handoff open", decided.stderr)
+        _, output, error = self.cli("task", "export", "open")
+        self.assertIn("Next: git add .openguildkit/decisions", error)
+
     def test_the_list_does_not_count_a_started_pass_as_pending(self):
         self.cli("task", "new", "Fix the export", "--id", "open")
         self.cli("task", "consult", "open", "--answers", "answers.json")
@@ -209,8 +229,8 @@ class ApprovalWarningTests(Project):
         warning = approval_warning({"guard": "enforce"})
         self.assertNotIn('"approval": {', warning)
         start = warning.index("openguildkit profile set")
-        command = warning[start:warning.index(" (docs/", start)]
-        self.assertEqual(command, "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME "
+        command = warning[start:warning.index(" (https://", start)]
+        self.assertEqual(command, "openguildkit profile set approval signed --signers PATH --approver NAME --by INITIALS "
                                   "--reason WHY")
         values = {"PATH": ".openguildkit/allowed_signers", "NAME": "camille@example.test", "WHY": "The guard enforces"}
         words = [values.get(word, word) for word in command.split()[1:]]

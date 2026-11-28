@@ -158,6 +158,6 @@ jobs:
             echo "Tasks opened for confirmed alerts:"
             jq -r '.[] | "- `" + .task + "` for `" + .alert + "`"' opened.json
             echo
-            echo "Review each new alert on this branch before merging: \`openguildkit alerts set ALERT --status confirmed --by NAME\`, or \`--status dismissed --by NAME --reason WHY\` (dismissing a critical alert needs the person at a terminal), then commit \`.openguildkit/alerts.json\`. The next run opens a task for each confirmed alert."
+            echo "Review each new alert on this branch before merging: \`openguildkit alerts set ALERT --status confirmed --by INITIALS\`, or \`--status dismissed --by INITIALS --reason WHY\` (dismissing a critical alert needs the person at a terminal), then commit \`.openguildkit/alerts.json\`. The next run opens a task for each confirmed alert."
           } > body.md
           gh pr create --head "$branch" --base "$BASE" --title "Dependency alerts: review the register" --body-file body.md

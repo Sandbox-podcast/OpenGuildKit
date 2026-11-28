@@ -16,7 +16,7 @@ Once `task verify` or `task result` recorded the delivered revision, and before 
 ## A check that fails or cannot run
 
 When a check command fails, show the user the cause, last lines and log path that `task verify` prints; when dependencies or the network are missing, ask the user to install them or to run the check, and never record it as passed.
-If it cannot run here, the user records it in their terminal with `openguildkit task verify ID --cannot-run command:N --by NAME --reason TEXT`.
+If it cannot run here, the user records it in their terminal with `openguildkit task verify ID --cannot-run command:N --by INITIALS --reason TEXT`.
 That declaration is theirs: never withdraw it, and run `task verify` again only to check whether the command now passes.
 
 ## A task that closes with reservations
