@@ -120,6 +120,14 @@ def run(paths: list[str], jobs: int, *, deadline: float | None = None, stop_on_f
     return result
 
 
+def tolerant_stdout() -> None:
+    """Print what the console's encoding cannot write as escapes: the output of a file is decoded with errors="replace",
+    and the cp1252 of a Windows console has no U+FFFD for the bytes it replaced (#451)."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(errors="backslashreplace")
+
+
 def print_failures(result: dict) -> None:
     for path, output in result["failed"]:
         print(f"===== {path} failed\n{output.rstrip()}\n", flush=True)
@@ -130,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jobs", type=int, default=default_jobs(), help="processes at once (default: half the processors)")
     parser.add_argument("files", nargs="*", help="test files (default: every file discover finds)")
     args = parser.parse_args(argv)
+    tolerant_stdout()
     paths = args.files or largest_first(test_files())
     result = run(paths, args.jobs)
     print_failures(result)
