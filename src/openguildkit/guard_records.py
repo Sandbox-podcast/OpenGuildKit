@@ -77,23 +77,10 @@ def _rules_hold(fingerprint: "str | Fingerprints", recorded: str) -> bool:
     return fingerprint.holds(recorded) if isinstance(fingerprint, Fingerprints) else recorded == fingerprint
 
 
-def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path, earlier: dict,
-                  *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
-    """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which record_check writes
-    for the codes decision-stale, decision-record-unverified and decision-withdrawn; None when it holds.
-
-    Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
-    the approval, and record_sha256 the whole record. A record that has neither was exported by an earlier release.
-    """
+def _payload_fault(record: dict, relative: str, payload: dict | None, export_again: str) -> tuple[str, str] | None:
+    """A record whose approval payload is missing, or whose seal, file name, lane, requester or shown review does not
+    match what was approved."""
     decision = record["decision"]
-    payload = decision.get("payload")
-    export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
-    if _earlier_withdrawal(earlier, record["task"]) and _same_approval(earlier[record["task"]], record):
-        return "decision-withdrawn", ""
-    if record["task"] in earlier and not _same_approval(earlier[record["task"]], record):
-        return "decision-superseded", (
-            f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
-            "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
     if payload is None:
         return "decision-record-invalid", f"{relative} carries no approval payload. {export_again}"
     expected = {"task": record["task"], "outcome": "approved", "profile_fingerprint": record["profile_fingerprint"],
@@ -115,6 +102,49 @@ def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints"
         return "decision-record-invalid", (
             f"{relative}: what the record shows (brief, summary, board verdicts and recommendations, earlier "
             f"rounds) does not match what was approved. {export_again}")
+    return None
+
+
+def _signature_fault(record: dict, relative: str, payload: dict, policy: dict, base_root: Path, earlier: dict,
+                     extracted: bool, history: Path | None) -> tuple[str, str] | None:
+    """Under signed approvals: a decision with no signature, or one the allowed signers do not verify."""
+    decision = record["decision"]
+    if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
+        return "decision-unsigned", f"{relative}: the project requires signed approvals and this decision is not signed."
+    try:
+        # An approval the base revision already carries may come from an approver who has left since; a new one
+        # must come from a current approver.
+        if record["task"] in earlier or not extracted:
+            verify_recorded_signature(base_root, policy, payload, decision["signature"], decision["signer"],
+                                      committed=not extracted, history=history)
+        else:
+            verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False,
+                             at_signing=True)
+    except ValueError as error:
+        return "decision-signature-invalid", f"{relative}: {error}"
+    return None
+
+
+def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints", policy: dict, base_root: Path, earlier: dict,
+                  *, extracted: bool = False, history: Path | None = None) -> tuple[str, str] | None:
+    """What is wrong with a record: the code of its rule (docs/sarif.md) and a message, which record_check writes
+    for the codes decision-stale, decision-record-unverified and decision-withdrawn; None when it holds.
+
+    Records written from RECORD_VERSION on carry two digests: the approval's seal covers what the record shows of
+    the approval, and record_sha256 the whole record. A record that has neither was exported by an earlier release.
+    """
+    decision = record["decision"]
+    payload = decision.get("payload")
+    export_again = f"Export it again with openguildkit task export {record['task']}, or restore the file from git."
+    if _earlier_withdrawal(earlier, record["task"]) and _same_approval(earlier[record["task"]], record):
+        return "decision-withdrawn", ""
+    if record["task"] in earlier and not _same_approval(earlier[record["task"]], record):
+        return "decision-superseded", (
+            f"{relative}: task {record['task']} already had another approval on the base revision; open a new task "
+            "for new work. A record of the same approval (same seal, same consultation) may add its completion.")
+    fault = _payload_fault(record, relative, payload, export_again)
+    if fault:
+        return fault
     current = record.get("schema_version", 1) >= RECORD_VERSION or "shared_sha256" in payload or "record_sha256" in record
     if current and record.get("record_sha256") != export_digest(record):
         return "decision-record-invalid", f"{relative} was changed after it was exported. {export_again}"
@@ -136,19 +166,7 @@ def _record_fault(record: dict, relative: str, fingerprint: "str | Fingerprints"
             and not in_history(history, commit):
         return "decision-outside-history", f"{relative}: {outside_history_message(record['task'], str(commit))}"
     if policy["mode"] == "signed":
-        if not isinstance(decision.get("signature"), str) or not isinstance(decision.get("signer"), str):
-            return "decision-unsigned", f"{relative}: the project requires signed approvals and this decision is not signed."
-        try:
-            # An approval the base revision already carries may come from an approver who has left since; a new one
-            # must come from a current approver.
-            if record["task"] in earlier or not extracted:
-                verify_recorded_signature(base_root, policy, payload, decision["signature"], decision["signer"],
-                                          committed=not extracted, history=history)
-            else:
-                verify_signature(base_root, policy, payload, decision["signature"], decision["signer"], committed=False,
-                                 at_signing=True)
-        except ValueError as error:
-            return "decision-signature-invalid", f"{relative}: {error}"
+        return _signature_fault(record, relative, payload, policy, base_root, earlier, extracted, history)
     return None
 
 
