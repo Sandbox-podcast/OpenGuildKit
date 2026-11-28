@@ -701,6 +701,22 @@ A folder where agents work without a profile, and a project that cannot be read,
 A cell is empty when its option was not given (`--surfaces` fills `host` to `permissive`, `--policy` fills `drift`, where `none` says that no gap was found), `tools` and `tasks` hold `;`-separated values, and a text that starts with `=`, `+`, `-` or `@` gets a quote before it, so that a spreadsheet shows a project name instead of running it. It does not go with `--json` or `--search`.
 None of this writes in a project: the folders are read as before, and a policy file may sit anywhere.
 
+### A fleet without clones
+
+[`integrations/github/openguildkit-status.yml`](../integrations/github/openguildkit-status.yml), copied to `.github/workflows/` of each repository, runs `openguildkit projects . --surfaces --json` on each push to the default branch, with a read-only token, and keeps the result, with the name of the repository and the revision, as the artifact `openguildkit-status` for 90 days.
+A repository without a profile can carry it too: its status says which agent tools work there.
+The security officer then gathers the latest status of each repository with `gh`, without cloning any, and reads them with `jq`:
+
+```bash
+for repo in $(gh repo list ORGANIZATION --limit 500 --json nameWithOwner --jq '.[].nameWithOwner'); do
+  run=$(gh run list -R "$repo" --workflow openguildkit-status.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+  [ -n "$run" ] && gh run download "$run" -R "$repo" -n openguildkit-status -D "fleet/$repo"
+done
+jq -r '.repository as $r | .projects[] | [$r, .state, .guard // "", (.tools // [] | join(";"))] | @csv' fleet/*/*/openguildkit-status.json
+```
+
+A repository that has not pushed since the template was added, or whose artifact expired, has no status: the loop skips it.
+
 ## Inspecting a task
 
 `task show ID` prints the full task record as JSON: status, answers, consultation, review, decision, fingerprint and previous rounds. For a task that exists here only as an exported record, it prints that record and says so on stderr. `task show ID --closing` prints only what a completed task left open (its status, who closed it and the open points, grouped), which `task list` names for a task done with reservations: a few hundred bytes, where the whole record of a task with five boards passes 100 KB.
