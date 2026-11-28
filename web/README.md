@@ -34,7 +34,7 @@ npm run build:demo   # build de la démonstration seule dans dist-demo/, servie 
 
 `npm run bundle` refuse une construction qui contient la démo ou qui dépasse 1 263 Ko (`BUDGET_KB` dans `scripts/bundle.mjs` : 1 148 Ko mesurés le 27 novembre 2026, plus 10 %). Ce jour-là la construction pèse 1 148 Ko, avec 115 Ko (9 %) de marge ; elle pesait 1 252 Ko avant la réduction du logo de l'en-tête et des décors (images : `node scripts/export-rooms.mjs`). Relève ce budget seulement avec la mesure qui le justifie.
 
-Les préférences de la page (style, mouvement, raccourcis, nom du décideur) sont gardées par le navigateur pour une origine, et le nom d'hôte change à chaque lancement de `openguildkit ui` : sans réglage, chaque lancement les remet à zéro. `openguildkit ui --stable-address` fixe le nom d'après le chemin du projet pour les garder ; l'origine ne reste la même qu'au même port, et un processus local qui connaît le chemin peut calculer le nom ([détails](docs/interface-projet.md#lancer)).
+Les préférences de la page (style, mouvement, raccourcis, noms du décideur et du signataire) sont gardées par le projet, dans `.openguildkit/work/ui-prefs.json` (hors de Git) : chaque lancement de `openguildkit ui` les retrouve, bien que le nom d'hôte change à chaque fois ([détails](docs/interface-projet.md#lancer)).
 
 Pour travailler sur le mode réel : `openguildkit ui --no-browser` dans un projet, puis `OGK_API=http://ogk-….localhost:7311 npm run dev` avec l'origine de l'adresse imprimée, et ouvre une fois `http://localhost:5199/api/session?key=…` avec la clé de cette adresse avant `http://localhost:5199/`. `python scripts/sample-project.py DOSSIER` crée un projet d'exemple avec une quête dans chaque état.
 

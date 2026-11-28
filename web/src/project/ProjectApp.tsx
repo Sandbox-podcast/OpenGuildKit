@@ -36,6 +36,8 @@ const BY_ROUTE: Record<string, Place[]> = {
   documentation: [Docs], chroniques: [Chronicles], intendance: [Stewardship], arsenal: [Arsenal], installation: [Setup],
 };
 
+export { adoptServerPrefs } from './prefs';
+
 /** Loads the place of the address being opened, before the first render: the first screen then never waits. */
 export function preloadRoute(initialized: boolean) {
   const first = window.location.hash.replace(/^#\/?/, '').split(/[/?]/)[0] || 'royaume';

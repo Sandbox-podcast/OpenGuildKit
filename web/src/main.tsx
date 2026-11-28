@@ -44,6 +44,7 @@ async function start() {
   let App: ComponentType;
   if (session) {
     const project = await import('./project/ProjectApp');
+    project.adoptServerPrefs(session.prefs ?? {});
     await project.preloadRoute(session.project.initialized);
     App = project.ProjectApp;
   } else if (__OGK_DEMO__) {

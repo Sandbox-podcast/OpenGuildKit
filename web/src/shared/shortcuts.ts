@@ -1,7 +1,7 @@
 /**
  * Keyboard shortcuts of both shells (the demo and a project): Ctrl+K or Cmd+K opens the search; the single-key
  * shortcuts (/ search, g then a letter to change place, m to change style, ? help) can be turned off, as WCAG 2.1.4
- * asks, and the choice is kept in this browser.
+ * asks, and the choice is kept in this browser (and by the project, for the project interface).
  */
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { PLACES } from './places';
@@ -11,10 +11,18 @@ const read = () => { try { return localStorage.getItem(KEY) !== 'off'; } catch {
 let enabled = read();
 const listeners = new Set<() => void>();
 
+let persist: ((on: boolean) => void) | null = null;
+
+/** Where a person's choice also goes: the project interface keeps it on the server (#463). */
+export function persistSingleKeyShortcuts(save: (on: boolean) => void) {
+  persist = save;
+}
+
 export function setSingleKeyShortcuts(on: boolean) {
   enabled = on;
   try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch { /* private mode: kept for this visit */ }
   listeners.forEach((l) => l());
+  persist?.(on);
 }
 export const useSingleKeyShortcuts = () => useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => enabled);
 

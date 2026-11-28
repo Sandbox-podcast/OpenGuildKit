@@ -117,6 +117,48 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertTrue(session["project"]["initialized"])
         self.assertEqual(headers["Cache-Control"], "no-store")
 
+    def test_the_preferences_saved_by_one_launch_open_the_next_one(self):
+        """Issue #463: each launch opened a new origin, so the page lost its style, reduced motion and shortcut choice."""
+        self.assertEqual(json.loads(self.request("/api/session")[2])["prefs"], {})
+        chosen = {"mode": "focus", "motion": "reduced", "shortcuts": "off", "decider": "Camille Martin"}
+        status, _, body = self.request("/api/prefs", {"prefs": chosen})
+        self.assertEqual((status, json.loads(body)), (200, {"prefs": chosen}))
+        status, _, body = self.request("/api/prefs", {"prefs": {"signer": "CM"}})
+        self.assertEqual(json.loads(body)["prefs"], {**chosen, "signer": "CM"})
+        self.server.shutdown()
+        self.server.server_close()
+        # A second launch: a new key, a new host name and token, the same project.
+        server, app = make_server(self.root, 0, self.app.front)
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.assertNotEqual(app.host, self.app.host)
+        self.server, self.app, self.base = server, app, f"http://127.0.0.1:{app.port}"
+        self.assertEqual(json.loads(self.request("/api/session")[2])["prefs"], {**chosen, "signer": "CM"})
+        self.assertIn("work/", (self.root / ".openguildkit" / ".gitignore").read_text(encoding="utf-8").splitlines())
+        self.assertTrue((self.root / ".openguildkit" / "work" / "ui-prefs.json").is_file())
+
+    def test_the_preferences_endpoint_refuses_unknown_keys_and_values_out_of_bounds(self):
+        """Issue #463: the page writes a file of the project; only a closed list of keys and bounded values pass."""
+        for prefs in ({"theme": "dark"}, {"mode": "rpg"}, {"motion": True}, {"shortcuts": "maybe"},
+                      {"decider": "x" * 81}, {"signer": "two\nlines"}, {"decider": 3}, [], "focus"):
+            with self.subTest(prefs=prefs):
+                status, _, body = self.request("/api/prefs", {"prefs": prefs})
+                self.assertEqual((status, json.loads(body)["reason"]), (400, "bad-request"))
+        self.assertFalse((self.root / ".openguildkit" / "work" / "ui-prefs.json").exists())
+        # A file edited by hand keeps only what the endpoint would accept.
+        write_json(self.root / ".openguildkit" / "work" / "ui-prefs.json", {"mode": "focus", "motion": "fast", "x": 1})
+        self.assertEqual(json.loads(self.request("/api/session")[2])["prefs"], {"mode": "focus"})
+
+    def test_the_preferences_are_not_written_through_a_linked_folder(self):
+        """Issue #463: a work folder that links out of the project must not let the page write there."""
+        outside = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: [p.unlink() for p in outside.iterdir()] and None or outside.rmdir())
+        (self.root / ".openguildkit" / "work").symlink_to(outside, target_is_directory=True)
+        status, _, body = self.request("/api/prefs", {"prefs": {"mode": "focus"}})
+        self.assertEqual((status, json.loads(body)["reason"]), (400, "outside-project"))
+        self.assertEqual(list(outside.iterdir()), [])
+
     def test_only_the_printed_address_opens_the_session(self):
         port, name = self.app.port, self.app.host.rpartition(":")[0]
         self.assertRegex(name, r"^ogk-[0-9a-f]{24}\.localhost$")

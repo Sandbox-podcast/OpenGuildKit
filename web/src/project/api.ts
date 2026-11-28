@@ -7,7 +7,18 @@ export interface Session {
   version: string;
   token: string;
   project: { root: string; name: string; initialized: boolean };
+  /** What the project keeps for the page (#463); absent from a server older than this page. */
+  prefs?: ServerPrefs;
   human_only: string[];
+}
+
+/** The preferences `POST /api/prefs` accepts: these keys only, a name on one line of at most 80 characters. */
+export interface ServerPrefs {
+  mode?: 'explorer' | 'focus';
+  motion?: 'system' | 'reduced';
+  shortcuts?: 'on' | 'off';
+  decider?: string;
+  signer?: string;
 }
 
 /** reason: the code of a refusal, next to the command to type (a refused batch entry, a CLI refusal at a terminal). */
@@ -114,6 +125,7 @@ const parseOrNull = <T,>(text: string | null) => (text === null ? null : JSON.pa
 export const readJson = async <T,>(path: string) => parseOrNull<T>(await readFile(path));
 export const writeFile = (path: string, text: string) => post<{ written: boolean }>('./api/files/write', { path, text });
 export const saveProfile = (text: string) => post<CliResult>('./api/profile/save', { text });
+export const savePrefs = (prefs: ServerPrefs) => post<{ prefs: ServerPrefs }>('./api/prefs', { prefs });
 
 // Words each shell reads as typed, as src/openguildkit/shell.py lists them (letters and digits are Unicode ones).
 // Quoted anyway: a leading = (zsh reads a command path), a leading @ or a comma in PowerShell (splatting, a list), and
