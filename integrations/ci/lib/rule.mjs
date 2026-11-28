@@ -1,3 +1,5 @@
+// The export-link rule and its evaluation, used by the commands (check, agent) and by the legacy watcher. Run on its own
+// by the legacy demo workflow (prototype/README.md), the last block of this file writes the outputs of that workflow.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

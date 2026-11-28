@@ -81,7 +81,7 @@ class CatalogBundleTests(unittest.TestCase):
         )
         environment = {**os.environ, "PYTHONPATH": str(REPO / "src")}
         done = subprocess.run([sys.executable, "-c", script, str(self.registry)], capture_output=True, text=True,
-                              encoding="utf-8", env=environment, timeout=60)
+                              encoding="utf-8", env=environment, timeout=60, check=False)
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(json.loads(done.stdout), [str(self.bundle)])
 

@@ -6,12 +6,17 @@ only the tools the script uses. install.ps1 runs only where PowerShell (pwsh) is
 structure is checked.
 """
 
+import contextlib
+import functools
 import hashlib
+import http.server
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -20,7 +25,7 @@ from tests.test_workflows import parse, run_text, steps
 ROOT = Path(__file__).resolve().parents[1]
 SH = ROOT / "scripts" / "install.sh"
 PS1 = ROOT / "scripts" / "install.ps1"
-LINE = "curl -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh"
+LINE = "curl --proto '=https' --tlsv1.2 -fsSL https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.sh | sh"
 PS_LINE = "irm https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.ps1 | iex"
 TOOLS = ("curl", "grep", "head", "cut", "tr", "sed", "mktemp", "rm", "cat", "sha256sum", "shasum", "openssl", "perl")
 FAKE = """#!/bin/sh
@@ -64,6 +69,67 @@ class FakeRelease:
     @property
     def url(self) -> str:
         return self.root.as_uri()
+
+
+@contextlib.contextmanager
+def local_servers(directory: Path, temp: Path):
+    """An https server for `directory` and a plain http one, with the certificate the first presents.
+
+    A path under /redirect/ answers 302 to the plain server, which counts its requests. Skips the test when
+    openssl cannot make a certificate or curl does not trust it."""
+    certificate = temp / "cert.pem"
+    try:
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(temp / "key.pem"),
+                        "-out", str(certificate), "-days", "1", "-subj", "/CN=localhost",
+                        "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"],
+                       check=True, capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        raise unittest.SkipTest("openssl cannot make a certificate here") from None
+    hits = []
+
+    class Plain(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"served over http")
+
+        def log_message(self, *arguments):
+            pass
+
+    plain = http.server.HTTPServer(("127.0.0.1", 0), Plain)
+
+    class Secure(http.server.SimpleHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/redirect/"):
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{plain.server_port}{self.path}")
+                self.end_headers()
+            else:
+                super().do_GET()
+
+        def log_message(self, *arguments):
+            pass
+
+    secure = http.server.HTTPServer(("127.0.0.1", 0), functools.partial(Secure, directory=str(directory)))
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certificate, temp / "key.pem")
+    secure.socket = context.wrap_socket(secure.socket, server_side=True)
+    threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in (plain, secure)]
+    for thread in threads:
+        thread.start()
+    try:
+        env = {"CURL_CA_BUNDLE": str(certificate)}
+        base = f"https://127.0.0.1:{secure.server_port}"
+        probe = subprocess.run(["curl", "-fsS", "-o", os.devnull, f"{base}/releases/latest/download/SHA256SUMS.txt"],
+                               env={**os.environ, **env}, capture_output=True, timeout=60, check=False)
+        if probe.returncode != 0:
+            raise unittest.SkipTest("curl does not trust the local certificate here")
+        yield base, hits, env
+    finally:
+        for server in (plain, secure):
+            server.shutdown()
+            server.server_close()
 
 
 class InstallerRun:
@@ -188,6 +254,48 @@ class PosixShellTest(InstallerRun, unittest.TestCase):
                 self.assertIn("openguildkit install:", result.stderr)
         self.assertEqual(self.installed(), "")
 
+    def test_downloads_over_https_and_refuses_a_redirect_to_http(self):
+        """Issue #503: curl followed a redirect from https to http, so the hash file and the wheel could be swapped."""
+        self.fake("pipx")
+        release = FakeRelease(self.temp, "0.18.0")
+        with local_servers(release.root.parent, self.temp) as (base, hits, env):
+            fine = self.install(release, env={**env, "OPENGUILDKIT_RELEASES_URL": f"{base}/releases"})
+            self.assertEqual(fine.returncode, 0, fine.stderr)
+            self.assertIn("Installed with pipx", fine.stdout)
+            self.assertEqual(hits, [])
+            self.log.unlink()
+            redirected = self.install(release, env={**env, "OPENGUILDKIT_RELEASES_URL": f"{base}/redirect/releases"})
+        self.assertNotEqual(redirected.returncode, 0)
+        self.assertIn("could not download SHA256SUMS.txt", redirected.stderr)
+        self.assertIn('Protocol "http" disabled', redirected.stderr, "the reason curl gives is shown")
+        self.assertEqual(hits, [], "nothing was requested over http")
+        self.assertEqual(self.installed(), "")
+
+    def test_an_address_in_http_is_refused_before_any_connection(self):
+        """Issue #503: the script took any scheme curl knows."""
+        self.fake("pipx")
+        hits = []
+
+        class Plain(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.path)
+                self.send_response(404)
+                self.end_headers()
+
+            def log_message(self, *arguments):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Plain)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        result = self.install(FakeRelease(self.temp, "0.18.0"),
+                              env={"OPENGUILDKIT_RELEASES_URL": f"http://127.0.0.1:{server.server_port}/releases"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("could not download SHA256SUMS.txt", result.stderr)
+        self.assertEqual(hits, [])
+        self.assertEqual(self.installed(), "")
+
 
 @unittest.skipIf(os.name == "nt", "the POSIX installer runs on Linux and macOS")
 @unittest.skipUnless(shutil.which("dash"), "dash is not installed")
@@ -216,6 +324,18 @@ class ScriptStructureTest(unittest.TestCase):
                 self.assertIn("uv tool install --force", text)
                 self.assertIn("https://pipx.pypa.io/stable/how-to/install-pipx.html", text)
                 self.assertIn("https://docs.astral.sh/uv/getting-started/installation/", text)
+
+    def test_both_scripts_download_over_https_only_with_tls_1_2(self):
+        """Issue #503: the three curl calls of the line and the script took http and any TLS version."""
+        text = SH.read_text(encoding="utf-8")
+        calls = [line for line in text.splitlines() if re.match(r"\s*curl\s", line) and "-o " in line]
+        self.assertTrue(calls)
+        for line in calls:
+            self.assertIn('--proto "$PROTO" --tlsv1.2', line)
+        self.assertIn("PROTO='=https'", text)
+        ps = PS1.read_text(encoding="utf-8")
+        self.assertIn("Tls12", ps)
+        self.assertRegex(ps, r'-notlike "https://\*"|StartsWith\("https://"\)')
 
     def test_the_shell_script_is_posix(self):
         text = SH.read_text(encoding="utf-8")

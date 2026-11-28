@@ -3,6 +3,9 @@
 #   irm https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.ps1 | iex
 #   & ([scriptblock]::Create((irm https://github.com/Sandbox-podcast/OpenGuildKit/releases/latest/download/install.ps1))) -Version 0.18.0
 #
+# Its own downloads use https addresses only and TLS 1.2 (what install.sh asks of curl with
+# --proto '=https' --tlsv1.2). It does not check the scheme of a redirect that PowerShell follows.
+#
 # It downloads SHA256SUMS.txt and the wheel of the release, checks the wheel's SHA-256 against that file and
 # only then installs it with pipx, or with uv when pipx is missing. Without a version it takes the latest release,
 # which GitHub never sets to a pre-release; a pre-release is installed only when named with -Version.
@@ -20,12 +23,21 @@ function Stop-Install([string]$Message) {
     throw "openguildkit install: $Message"
 }
 
-# Invoke-WebRequest reads http and https only: a file:// address, which the tests give, is copied from disk.
+# A file:// address, which the tests give, is copied from disk. Any other address must be https, fetched with
+# TLS 1.2 for this download only: the setting of the person's session comes back after it.
 function Save-Url([string]$Url, [string]$OutFile) {
     if ($Url.StartsWith("file://")) {
         Copy-Item -LiteralPath ([System.Uri]$Url).LocalPath -Destination $OutFile -ErrorAction Stop
+    } elseif ($Url.StartsWith("https://")) {
+        $Saved = [Net.ServicePointManager]::SecurityProtocol
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        } finally {
+            [Net.ServicePointManager]::SecurityProtocol = $Saved
+        }
     } else {
-        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        throw "$Url is not an https address."
     }
 }
 

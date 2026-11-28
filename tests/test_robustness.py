@@ -119,7 +119,7 @@ class FuzzTestCase(unittest.TestCase):
                 code = main(["--project", str(self.root), *map(str, arguments)])
             except SystemExit as exit_:
                 code = exit_.code
-            except Exception as error:  # noqa: BLE001 - any escape is the defect under test
+            except Exception as error:  # noqa: BLE001 - INTENTIONAL(#522): any escape is the defect under test
                 raise Crash(self.signature(error)) from error
         return code, stdout.getvalue(), stderr.getvalue()
 

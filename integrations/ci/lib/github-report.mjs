@@ -1,34 +1,17 @@
-import { execFileSync } from 'node:child_process';
-import { gitSha, sha256 } from './check.mjs';
-import { gh, latestStatus, sameStatus } from './github.mjs';
+import { sha256 } from './check.mjs';
+import { archiveFile, gh, headStillIs, sameStatus, ticketNumbers } from './github.mjs';
 
-function archive(entry, branch, markdown) {
-  const { project, pullRequest, work } = entry;
-  const path = `openguildkit/pr-${pullRequest}/${work}/${sha256(markdown)}.md`;
-  const endpoint = `repos/${project}/contents/${path}`;
-  let saved;
-  try {
-    saved = JSON.parse(gh('api', `${endpoint}?ref=${encodeURIComponent(branch)}`));
-  } catch (error) {
-    if (!String(error.stderr).includes('HTTP 404')) throw error;
-  }
-  let commit;
-  if (saved) {
-    if (Buffer.from(saved.content, 'base64').toString('utf8') !== markdown) {
-      throw new Error('The existing report differs from the expected report.');
-    }
-    commit = gh('api', '--method', 'GET', `repos/${project}/commits`,
-      '-f', `sha=${branch}`, '-f', `path=${path}`, '-F', 'per_page=1', '--jq', '.[0].sha');
-  } else {
-    const response = JSON.parse(execFileSync('gh', ['api', endpoint, '--method', 'PUT', '--input', '-'], {
-      encoding: 'utf8', timeout: 30_000,
-      input: JSON.stringify({
-        branch, message: 'Archive OpenGuildKit CI report', content: Buffer.from(markdown).toString('base64'),
-      }),
-    }));
-    commit = response.commit.sha;
-  }
-  if (!gitSha.test(commit)) throw new Error('GitHub did not confirm the commit of the report.');
+const archivePath = ({ pullRequest, work }, markdown) => `openguildkit/pr-${pullRequest}/${work}/${sha256(markdown)}.md`;
+const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// The status of a report already published names the commit of the archive that holds this very content: the path
+// carries the hash of the report. Such a status needs no look at the archive.
+const archivedAt = (url, project, path) =>
+  new RegExp(`^https://github\\.com/${escape(project)}/blob/[0-9a-f]{40}/${escape(path)}$`).test(url ?? '');
+
+function archive({ project }, branch, markdown, path) {
+  const commit = archiveFile({ project, branch, path, bytes: Buffer.from(markdown), subject: 'report',
+    message: 'Archive OpenGuildKit CI report' });
   return `https://github.com/${project}/blob/${commit}/${path}`;
 }
 
@@ -73,15 +56,23 @@ export function watchReportStatus({ work, policyCommit, actions, decision }) {
   return { verified, state, description: `${label} (info) | rule ${policyCommit.slice(0, 12)} | ${work.slice(0, 12)}` };
 }
 
-export function publishWatchReport(entry, branch) {
+// `pulls(project)` reads the open PRs of a repository once per cycle (openPullReader of github.mjs).
+export function publishWatchReport(entry, branch, pulls) {
   const { project, pullRequest, commit, work } = entry;
-  const pr = JSON.parse(gh('api', `repos/${project}/pulls/${pullRequest}`));
-  if (pr.state !== 'open' || pr.head?.sha !== commit) return { work, posted: false };
-  const tickets = [...(pr.body ?? '').matchAll(/^OpenGuildKit-Ticket:[ \t]*#([1-9]\d*)[ \t]*\r?$/gm)];
+  const pr = pulls(project).get(pullRequest);
+  if (pr?.state !== 'open' || pr.head !== commit) return { work, posted: false };
+  const tickets = ticketNumbers(pr.body);
   const { verified, state, description } = watchReportStatus(entry);
-  const url = verified ? archive(entry, branch, renderWatchReport(entry, tickets.length === 1 ? tickets[0][1] : null)) : undefined;
   const context = `openguildkit/report-pr-${pullRequest}`;
-  if (sameStatus(latestStatus(project, commit, context), { state, description, url })) {
+  const published = pr.statuses?.find(item => item.context === context);
+  const markdown = verified ? renderWatchReport(entry, tickets.length === 1 ? tickets[0] : null) : undefined;
+  const path = verified ? archivePath(entry, markdown) : undefined;
+  if (published?.state === state && published.description === description &&
+      (verified ? archivedAt(published.target_url, project, path) : !published.target_url)) {
+    return { work, posted: false, url: published.target_url || undefined };
+  }
+  const url = verified ? archive(entry, branch, markdown, path) : undefined;
+  if (sameStatus(published, { state, description, url }) || !headStillIs(project, pullRequest, commit)) {
     return { work, posted: false, url };
   }
   const link = url ? ['-f', `target_url=${url}`] : [];

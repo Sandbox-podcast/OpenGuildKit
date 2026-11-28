@@ -1,11 +1,15 @@
 """The module map, the fast check, the pass budget and a local transcript total."""
 
+import importlib
 import importlib.util
 import inspect
 import io
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -35,6 +39,42 @@ def _load(name: str):
 
 check_fast = _load("check_fast")
 agent_cost = _load("agent_cost")
+
+
+def _git(root, *args):
+    command = ["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+               "-c", "commit.gpgsign=false", *args]
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout
+
+
+def _commit(root, files, message):
+    """Write the files (None deletes one) in a repository under root, commit them and return the commit."""
+    for name, text in files.items():
+        if text is None:
+            (root / name).unlink()
+            continue
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text(text, encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", message)
+    return _git(root, "rev-parse", "HEAD").strip()
+
+
+def _repository(case):
+    """A temporary repository whose first commit is `main`, with a copy of each script under scripts/."""
+    temporary = tempfile.TemporaryDirectory()
+    case.addCleanup(temporary.cleanup)
+    root = Path(temporary.name)
+    _git(root, "init", "-q", "-b", "main")
+    return root
+
+
+def _run_script(root, name, *args, env=None):
+    """Run a copy of scripts/NAME.py placed in root, so that the script reads the repository under root."""
+    (root / "scripts").mkdir(exist_ok=True)
+    shutil.copy(REPO / "scripts" / f"{name}.py", root / "scripts" / f"{name}.py")
+    return subprocess.run([sys.executable, str(root / "scripts" / f"{name}.py"), *args], cwd=root, check=False,
+                          capture_output=True, text=True, env={**os.environ, "PR_BODY": "", "PR_TITLE": "", **(env or {})})
 
 
 def _roles() -> dict[str, str]:
@@ -215,6 +255,230 @@ class RootInstructionsTests(unittest.TestCase):
                 self.assertRegex(section, r"#\d+")
 
 
+class SuppressionTests(unittest.TestCase):
+    """A suppression of a check says on its line that it is intended, and why (intent-markers-on-suppressions)."""
+
+    # Written in pieces so that this file does not match its own search.
+    SUPPRESSIONS = re.compile("|".join(("no" + "qa", "type: " + "ignore", "eslint-" + "disable",
+                                        "@ts-" + "ignore", "@ts-" + "expect-error")))
+    MARKER = re.compile(r"INTENTIONAL\(#\d+\): \S")
+    FOLDERS = ("src", "tests", "scripts", "web/src", "web/tests", "web/scripts", "integrations/ci")
+    SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+    SKIPPED = {"node_modules", "__pycache__", "dist", "web_dist"}
+
+    def test_every_suppression_carries_an_intent_marker_with_its_reason(self):
+        found = 0
+        missing = []
+        for folder in self.FOLDERS:
+            for path in sorted((REPO / folder).rglob("*")):
+                if path.suffix not in self.SUFFIXES or self.SKIPPED & set(path.parts) or not path.is_file():
+                    continue
+                for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+                    if self.SUPPRESSIONS.search(line):
+                        found += 1
+                        if not self.MARKER.search(line):
+                            missing.append(f"{path.relative_to(REPO).as_posix()}:{number}")
+        self.assertGreaterEqual(found, 24)
+        self.assertEqual(missing, [])
+
+
+class OracleTests(unittest.TestCase):
+    """protected-oracle-diff: an assertion a branch removes while it changes src/ is listed in the pull request."""
+
+    TEST_BEFORE = (
+        "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+        "        self.assertEqual(f(), 2)\n        self.assertTrue(g())\n"
+    )
+    TEST_AFTER = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(g())\n"
+
+    def setUp(self):
+        self.root = _repository(self)
+        _commit(self.root, {"src/mod.py": "def f():\n    return 2\n", "tests/test_mod.py": self.TEST_BEFORE,
+                            "web/tests/page.test.ts": "expect(a).toBe(1);\nexpect(b).toBe(2);\n"}, "base")
+        _git(self.root, "branch", "base")
+
+    def test_a_removed_assertion_next_to_a_change_of_src_must_be_listed(self):
+        _commit(self.root, {"src/mod.py": "def f():\n    return 3\n", "tests/test_mod.py": self.TEST_AFTER}, "weaken")
+        result = _run_script(self.root, "check_oracle", "--base", "base")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("tests/test_mod.py: self.assertEqual(f(), 2)", result.stdout)
+        self.assertNotIn("assertTrue", result.stdout)
+        listed = "## What\n\nx\n\n## Assertions changed\n\n- `self.assertEqual(f(),   2)` became 3.\n\n## Not verified\n\nnothing\n"
+        result = _run_script(self.root, "check_oracle", "--base", "base", env={"PR_BODY": listed})
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_an_assertion_of_a_web_test_is_read_as_well(self):
+        _commit(self.root, {"src/mod.py": "def f():\n    return 3\n", "web/tests/page.test.ts": "expect(a).toBe(1);\n"}, "weaken")
+        result = _run_script(self.root, "check_oracle", "--base", "base")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("web/tests/page.test.ts: expect(b).toBe(2);", result.stdout)
+
+    def test_nothing_is_asked_without_a_change_of_src_or_for_a_moved_or_added_assertion(self):
+        _commit(self.root, {"tests/test_mod.py": self.TEST_AFTER}, "tests only")
+        self.assertEqual(_run_script(self.root, "check_oracle", "--base", "base").returncode, 0)
+        _git(self.root, "checkout", "-q", "-B", "second", "base")
+        moved = self.TEST_AFTER + "    def test_b(self):\n        self.assertEqual(f(),    2)\n"
+        _commit(self.root, {"src/mod.py": "def f():\n    return 2  # x\n", "tests/test_mod.py": moved}, "move")
+        self.assertEqual(_run_script(self.root, "check_oracle", "--base", "base").returncode, 0)
+
+
+class PullRequestTextTests(unittest.TestCase):
+    """not-verified-section: the pull request says what was not run, or `nothing`."""
+
+    def test_the_not_verified_section_must_exist_and_say_something(self):
+        check = _load("check_pr_text")
+        template = (REPO / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        self.assertIn("## Not verified", template)
+        self.assertTrue(check.problems("Title", template), "the empty template must be refused")
+        ok = "## What changes\n\nx\n\n## Not verified\n\nThe Windows run.\n\n## Assertions changed\n\nnone\n"
+        self.assertEqual(check.problems("Title", ok), [])
+        self.assertEqual(check.problems("Title", "## Not verified\n\nnothing"), [])
+        for body in ("", "## What changes\n\nx", "## Not verified\n\n<!-- say it -->\n\n## Other\n\ntext",
+                     "## Not verified\n   \n"):
+            with self.subTest(body=body):
+                self.assertEqual(len(check.problems("Title", body)), 1)
+                self.assertIn("Not verified", check.problems("Title", body)[0])
+        for variable, expected in (("", 1), ("## Not verified\n\nnothing", 0)):
+            result = _run_script(_repository(self), "check_pr_text", env={"PR_BODY": variable})
+            self.assertEqual(result.returncode, expected, result.stdout)
+
+    def test_a_title_or_a_subject_names_no_range_and_no_list_of_issues(self):
+        check = _load("check_pr_text")
+        notes = "\n\n## Not verified\n\nnothing"
+        for title in ("Fix the fifth audit findings (#377 to #407) (#409)", "Fix the page (#12, #13)",
+                      "Close #12, #13 and more"):
+            with self.subTest(title=title):
+                found = check.problems(title, notes)
+                self.assertEqual(len(found), 1, found)
+                self.assertIn("range", found[0])
+        for title in ("Fix the page (#12)", "Add 3 to 4 retries (#7)", "Fix #12 and #13 apart"):
+            with self.subTest(title=title):
+                self.assertEqual(check.problems(title, notes), [])
+        self.assertEqual(len(check.problems("Fix it (#1)", notes, ["Fix a (#1 to #4)", "Fix b (#5)"])), 1)
+        root = _repository(self)
+        _commit(root, {"a.txt": "1"}, "base")
+        _git(root, "branch", "base")
+        _commit(root, {"a.txt": "2"}, "Fix many things (#377 to #407)")
+        _commit(root, {"a.txt": "3"}, "Fix one thing (#5)")
+        result = _run_script(root, "check_pr_text", "--base", "base", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("Fix many things (#377 to #407)", result.stdout)
+        self.assertNotIn("Fix one thing", result.stdout)
+
+    def test_commits_a_squash_brought_to_the_base_and_merge_commits_are_not_asked_again(self):
+        """Issue #483: once the pull request below was squashed into main, its commits came back in the range of the
+        next one, retargeted to main, with subjects written before the check existed."""
+        notes = "\n\n## Not verified\n\nnothing"
+        root = _repository(self)
+        _commit(root, {"a.txt": "1"}, "start")
+        _git(root, "checkout", "-q", "-b", "lower")
+        _commit(root, {"a.txt": "2"}, "Speed things up (#1, #2)")
+        _git(root, "checkout", "-q", "-b", "upper")
+        _commit(root, {"b.txt": "1"}, "Add a check (#3)")
+        _git(root, "checkout", "-q", "main")
+        _commit(root, {"a.txt": "2"}, "Lower lot (#4)\n\n* Speed things up (#1, #2)\n")
+        _git(root, "checkout", "-q", "upper")
+        _git(root, "merge", "-q", "-s", "ours", "main", "-m", "Merge main after the squash (#1, #2)")
+        result = _run_script(root, "check_pr_text", "--base", "main", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 0, result.stdout)
+        _commit(root, {"b.txt": "2"}, "Fix more (#5, #6)")
+        result = _run_script(root, "check_pr_text", "--base", "main", env={"PR_BODY": notes})
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("Fix more (#5, #6)", result.stdout)
+        self.assertNotIn("Speed things up", result.stdout)
+
+    def test_the_body_has_one_line_for_each_issue_it_closes(self):
+        check = _load("check_pr_text")
+        notes = "\n\n## Not verified\n\nnothing"
+        body = "Closes #12\nFixes #13" + notes
+        found = check.problems("Fix it (#12)", body)
+        self.assertEqual(len(found), 2)
+        self.assertIn("#12", found[0])
+        self.assertIn("#13", found[1])
+        lines = "Closes #12\nFixes #13\n\n#12 the page says 500 (src/mod.py:render)\n- #13 it hangs (src/mod.py:wait)" + notes
+        self.assertEqual(check.problems("Fix it (#12)", lines), [])
+        self.assertEqual(check.problems("Fix it", "Part of #12" + notes), [])
+        self.assertEqual(len(check.problems("Fix it", "Closes #12\n#12\n" + notes)), 1)
+
+
+class FixTraceTests(unittest.TestCase):
+    """regression-test-names-issue: a branch that closes a bug has a test that names it and a line in the ledger."""
+
+    def setUp(self):
+        self.root = _repository(self)
+        _commit(self.root, {"src/mod.py": "x = 1\n", "tests/test_mod.py": "import unittest\n",
+                            "docs/agents/fixes.jsonl": ""}, "base")
+        _git(self.root, "branch", "base")
+        self.test = 'import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        """Issue #7: the page says 500."""\n'
+        self.line = json.dumps({"issue": 7, "symptom": "the page says 500", "cause": "src/mod.py:x",
+                                "test": "tests.test_mod.T.test_a", "commit": "abcdef0"}) + "\n"
+
+    def run_check(self, *args, body=""):
+        return _run_script(self.root, "check_fix_trace", "--base", "base", *args, env={"PR_BODY": body})
+
+    def test_a_bug_closed_without_a_test_that_names_it_and_a_ledger_line_fails(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Fix the page (#7)\n\nCloses #7")
+        result = self.run_check("--bugs", "7")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('#7: no test under tests/ names "Issue #7"', result.stdout)
+        self.assertIn("#7: no line in docs/agents/fixes.jsonl", result.stdout)
+
+    def test_the_test_and_the_line_make_it_pass_and_another_number_does_not_count(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n", "tests/test_mod.py": self.test.replace("#7:", "#70:")},
+                "Fix the page (#7)\n\nCloses #7")
+        self.assertIn('no test under tests/ names "Issue #7"', self.run_check("--bugs", "7").stdout)
+        _commit(self.root, {"tests/test_mod.py": self.test, "docs/agents/fixes.jsonl": self.line}, "Test it")
+        result = self.run_check("--bugs", "7")
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_only_a_bug_is_asked_and_the_body_of_the_pull_request_counts(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Add a thing (#8)\n\nCloses #8")
+        self.assertEqual(self.run_check("--bugs", "7").returncode, 0)
+        self.assertEqual(self.run_check("--bugs", "7", body="Fixes #7 and\nresolves: #8").returncode, 1)
+        self.assertEqual(self.run_check("--bugs", "8", body="x").returncode, 1)
+        self.assertEqual(self.run_check("--bugs", "").returncode, 0)
+        self.assertEqual(self.run_check("--bugs", "7", body='<!-- Use "Closes #7"\nif it resolves it -->').returncode, 0)
+
+    def test_without_a_closing_keyword_nothing_is_asked(self):
+        _commit(self.root, {"src/mod.py": "x = 2\n"}, "Part of #7\n\nSee #7, it is not fixed yet")
+        self.assertEqual(self.run_check("--bugs", "7").returncode, 0)
+
+
+class FixLedgerTests(unittest.TestCase):
+    """fix-ledger: one line per fixed bug, with the cause and the test that can be found."""
+
+    FIELDS = {"issue": int, "symptom": str, "cause": str, "test": str, "commit": str}
+
+    def setUp(self):
+        text = (REPO / "docs" / "agents" / "fixes.jsonl").read_text(encoding="utf-8")
+        self.entries = [json.loads(line) for line in text.splitlines()]
+
+    def test_each_line_has_its_five_fields_and_the_fifth_audit_is_all_there(self):
+        for entry in self.entries:
+            with self.subTest(issue=entry.get("issue")):
+                self.assertEqual({name: type(entry.get(name)) for name in self.FIELDS}, self.FIELDS)
+                self.assertEqual(set(entry), set(self.FIELDS))
+                self.assertTrue(all(entry[name] for name in self.FIELDS))
+                self.assertRegex(entry["commit"], r"^[0-9a-f]{7,40}$")
+                self.assertRegex(entry["cause"], r"^[\w./-]+:[\w.]+$")
+        issues = [entry["issue"] for entry in self.entries]
+        self.assertEqual(len(issues), len(set(issues)))
+        self.assertEqual(sorted(set(range(377, 408)) - set(issues)), [])
+
+    def test_the_file_of_each_cause_names_the_function_and_each_test_loads(self):
+        for entry in self.entries:
+            with self.subTest(issue=entry["issue"]):
+                path, function = entry["cause"].split(":")
+                source = (REPO / path).read_text(encoding="utf-8")
+                self.assertRegex(source, rf"\b{re.escape(function.rsplit('.', 1)[-1])}\b", entry["cause"])
+                if "::" in entry["test"]:
+                    file, title = entry["test"].split("::", 1)
+                    self.assertIn(title, (REPO / file).read_text(encoding="utf-8"), entry["test"])
+                else:
+                    module, owner, name = entry["test"].rsplit(".", 2)
+                    self.assertTrue(callable(getattr(getattr(importlib.import_module(module), owner), name)), entry["test"])
+
+
 class BudgetTests(CapturedCli, unittest.TestCase):
     cli_output = "stdout"
 
@@ -238,43 +502,53 @@ class BudgetTests(CapturedCli, unittest.TestCase):
             self.assertIn(BUDGET, copy.read_text(encoding="utf-8"))
 
 
+def _assistant(message_id, model, usage, *, when="2026-11-24T10:00:00.000Z", pieces=None):
+    """One transcript line the way Claude Code writes it: one line per content block of a message."""
+    return {"type": "assistant", "timestamp": when, "message": {
+        "id": message_id, "role": "assistant", "model": model,
+        "content": pieces or [{"type": "text", "text": "x"}],
+        "usage": {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0,
+                  "cache_creation_input_tokens": 0, **usage},
+    }}
+
+
+def _write_lines(path, lines):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(line) + "\n" for line in lines), encoding="utf-8")
+
+
 class AgentCostTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+
     def test_totals_leave_the_transcript_text_out(self):
         secret = "secret-transcript-phrase"
         lines = [
             {"type": "assistant", "message": {
-                "role": "assistant",
+                "id": "msg_1", "role": "assistant", "model": "claude-sonnet-x",
                 "content": [{"type": "text", "text": secret}],
                 "usage": {"input_tokens": 100, "output_tokens": 40, "cache_read_input_tokens": 10,
                           "cache_creation_input_tokens": 5},
             }},
-            {"type": "assistant", "isSidechain": True, "message": {
-                "role": "assistant",
-                "usage": {"input_tokens": 20, "output_tokens": 8, "cache_read_input_tokens": 0,
-                          "cache_creation_input_tokens": 0},
-            }},
-            {"type": "user", "message": {"role": "user", "content": [
-                {"type": "tool_result", "content": secret, "duration_ms": 2500},
+            _assistant("msg_2", "claude-sonnet-x", {"input_tokens": 20, "output_tokens": 8},
+                       pieces=[{"type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {}}]),
+            {"type": "user", "timestamp": "2026-11-24T10:00:02.500Z", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "toolu_1", "content": secret},
             ]}},
         ]
-        temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(temporary.cleanup)
-        path = Path(temporary.name) / "transcript.jsonl"
-        path.write_text("".join(json.dumps(line) + "\n" for line in lines), encoding="utf-8")
-        report = agent_cost.summarise(path)
+        path = self.root / "transcript.jsonl"
+        _write_lines(path, lines)
+        report = agent_cost.summarise(path, rates={"claude-sonnet": (3.0, 15.0, 0.30, 3.75)})
         self.assertEqual(report["input_tokens"], 120)
         self.assertEqual(report["output_tokens"], 48)
         self.assertEqual(report["cache_read_input_tokens"], 10)
         self.assertEqual(report["cache_creation_input_tokens"], 5)
-        self.assertEqual(report["turns"], 1)
-        self.assertEqual(report["subagents"], 1)
+        self.assertEqual(report["turns"], 2)
+        self.assertEqual(report["subagents"], 0)
         self.assertEqual(report["command_wait_seconds"], 2.5)
-        expected = (
-            120 * agent_cost.INPUT_USD_PER_MILLION
-            + 48 * agent_cost.OUTPUT_USD_PER_MILLION
-            + 10 * agent_cost.CACHE_READ_USD_PER_MILLION
-            + 5 * agent_cost.CACHE_CREATION_USD_PER_MILLION
-        ) / 1_000_000
+        expected = (120 * 3.0 + 48 * 15.0 + 10 * 0.30 + 5 * 3.75) / 1_000_000
         self.assertEqual(report["cost_usd"], expected)
         buffer = io.StringIO()
         with redirect_stdout(buffer):
@@ -283,12 +557,92 @@ class AgentCostTests(unittest.TestCase):
         self.assertNotIn(secret, text)
         self.assertIn("input_tokens: 120", text)
         self.assertIn("cost_usd:", text)
-        broken = Path(temporary.name) / "broken.jsonl"
-        broken.write_text(json.dumps(lines[0]) + "\n" + secret + "\n", encoding="utf-8")
-        with self.assertRaises(ValueError) as caught:
-            agent_cost.summarise(broken)
-        self.assertNotIn(secret, str(caught.exception))
-        self.assertRegex(str(caught.exception), re.compile(r"line 2"))
+
+    def test_issue_485_a_message_written_on_three_lines_counts_once(self):
+        """Issue #485: a message that fills three lines of the transcript is counted three times."""
+        usage = {"input_tokens": 100, "output_tokens": 40, "cache_read_input_tokens": 10,
+                 "cache_creation_input_tokens": 5}
+        once = self.root / "once.jsonl"
+        three = self.root / "three.jsonl"
+        _write_lines(once, [_assistant("msg_1", "claude-sonnet-x", usage)])
+        pieces = [[{"type": "thinking", "thinking": "a"}], [{"type": "text", "text": "b"}],
+                  [{"type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {}}]]
+        _write_lines(three, [_assistant("msg_1", "claude-sonnet-x", usage, pieces=piece) for piece in pieces])
+        names = (*agent_cost._USAGE, "turns", "cost_usd")
+        self.assertEqual({name: agent_cost.summarise(three)[name] for name in names},
+                         {name: agent_cost.summarise(once)[name] for name in names})
+        self.assertEqual(agent_cost.summarise(three)["turns"], 1)
+        # The last line of a message holds its final usage.
+        _write_lines(three, [_assistant("msg_1", "claude-sonnet-x", {**usage, "output_tokens": 3}),
+                             _assistant("msg_1", "claude-sonnet-x", usage)])
+        self.assertEqual(agent_cost.summarise(three)["output_tokens"], 40)
+
+    def test_issue_485_a_session_folder_adds_the_subagent_files(self):
+        """Issue #485: the files of subagents/*.jsonl are not read, so `subagents` stays 0."""
+        usage = {"input_tokens": 10, "output_tokens": 4}
+        for layout in ("sibling", "inside"):
+            with self.subTest(layout=layout):
+                session = self.root / layout / "session-1"
+                main = session.parent / "session-1.jsonl" if layout == "sibling" else session / "main.jsonl"
+                _write_lines(main, [_assistant("msg_1", "claude-sonnet-x", usage)])
+                _write_lines(session / "subagents" / "agent-a.jsonl", [_assistant("msg_2", "claude-sonnet-x", usage)])
+                _write_lines(session / "subagents" / "agent-b.jsonl", [
+                    _assistant("msg_3", "claude-sonnet-x", usage), _assistant("msg_4", "claude-sonnet-x", usage)])
+                (session / "subagents" / "agent-a.meta.json").write_text("{}", encoding="utf-8")
+                report = agent_cost.summarise(session)
+                self.assertEqual(report["input_tokens"], 40)
+                self.assertEqual(report["turns"], 1)
+                self.assertEqual(report["subagents"], 2)
+                self.assertEqual(len(report["files"]), 3)
+                self.assertEqual(report["files"]["subagents/agent-b.jsonl"]["turns"], 2)
+        with self.assertRaises(ValueError):
+            agent_cost.summarise(self.root / "absent")
+
+    def test_issue_485_each_model_has_its_rate_and_a_model_without_rate_is_named(self):
+        """Issue #485: one rate applies whatever model a line names."""
+        rates = {"model-a": (1.0, 2.0, 0.0, 0.0), "model-b": (10.0, 20.0, 0.0, 0.0)}
+        path = self.root / "transcript.jsonl"
+        _write_lines(path, [
+            _assistant("msg_1", "model-a-1", {"input_tokens": 1_000_000}),
+            _assistant("msg_2", "model-b-2", {"input_tokens": 1_000_000, "output_tokens": 1_000_000}),
+            _assistant("msg_3", "model-c", {"input_tokens": 500}),
+            _assistant("msg_4", "<synthetic>", {}),
+        ])
+        report = agent_cost.summarise(path, rates=rates)
+        self.assertEqual(report["cost_usd"], 1.0 + 10.0 + 20.0)
+        self.assertEqual(report["unpriced_models"], ["model-c"])
+        self.assertEqual(report["models"]["model-a-1"]["cost_usd"], 1.0)
+        self.assertIsNone(report["models"]["model-c"]["cost_usd"])
+        self.assertEqual(report["input_tokens"], 2_000_500)
+
+    def test_issue_485_the_wait_is_the_gap_between_a_tool_call_and_its_result(self):
+        """Issue #485: command_wait_seconds reads a duration_ms that no transcript holds and stays 0."""
+        path = self.root / "transcript.jsonl"
+        call = [{"type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {}}]
+        _write_lines(path, [
+            _assistant("msg_1", "model-a", {}, when="2026-11-24T10:00:00.000Z", pieces=call),
+            {"type": "user", "timestamp": "2026-11-24T10:00:03.250Z", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "toolu_1", "content": "ok"},
+                {"type": "tool_result", "tool_use_id": "toolu_unknown", "content": "ok"}]}},
+        ])
+        self.assertEqual(agent_cost.summarise(path)["command_wait_seconds"], 3.25)
+
+    def test_issue_485_an_unreadable_line_is_skipped_and_counted(self):
+        """Issue #485: one line that is not an object refuses the whole transcript."""
+        secret = "secret-transcript-phrase"
+        path = self.root / "transcript.jsonl"
+        _write_lines(path, [_assistant("msg_1", "model-a", {"input_tokens": 7})])
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(secret + "\n[1, 2]\n")
+        report = agent_cost.summarise(path)
+        self.assertEqual(report["skipped_lines"], 2)
+        self.assertEqual(report["input_tokens"], 7)
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            self.assertEqual(agent_cost.main([str(path), "--json"]), 0)
+        printed = json.loads(buffer.getvalue())
+        self.assertEqual(printed["skipped_lines"], 2)
+        self.assertNotIn(secret, buffer.getvalue())
 
 
 if __name__ == "__main__":

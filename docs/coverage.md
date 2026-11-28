@@ -14,8 +14,8 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | data | 64 | 19 | 45 | 6 | 3 | 10 | 53 |
 | design | 26 | 6 | 20 | 11 | 8 | 21 | 92 |
 | developer-relations-and-docs | 10 | 6 | 4 | 1 | 0 | 1 | 4 |
-| devops | 69 | 22 | 47 | 10 | 7 | 17 | 99 |
-| engineering | 221 | 42 | 179 | 15 | 39 | 60 | 340 |
+| devops | 69 | 22 | 47 | 10 | 7 | 17 | 100 |
+| engineering | 221 | 42 | 179 | 15 | 39 | 60 | 341 |
 | finance | 23 | 14 | 9 | 12 | 1 | 14 | 57 |
 | frontend | 8 | 3 | 5 | 3 | 0 | 5 | 27 |
 | hr | 10 | 7 | 3 | 6 | 0 | 6 | 21 |
@@ -30,7 +30,7 @@ A reference is *applied* when at least one pack names it, and *documentary* othe
 | procurement | 8 | 6 | 2 | 1 | 0 | 1 | 5 |
 | product | 23 | 7 | 16 | 19 | 0 | 19 | 71 |
 | project-management | 17 | 7 | 10 | 10 | 0 | 11 | 25 |
-| qa | 51 | 10 | 41 | 10 | 31 | 49 | 278 |
+| qa | 51 | 10 | 41 | 10 | 31 | 49 | 279 |
 | sales | 13 | 9 | 4 | 11 | 0 | 12 | 33 |
 | security | 106 | 31 | 75 | 24 | 27 | 63 | 392 |
 | support | 10 | 4 | 6 | 5 | 0 | 5 | 21 |
@@ -101,12 +101,12 @@ Patterns that a sector preselects at `init` and in `recommend`, for the person t
 
 ## Machine checks by pack
 
-57 of 660 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
+61 of 661 rules carry a machine check that `task verify` evaluates. A rule without one either says in `manual` why only a person can verify it, such as a record kept outside the repository, or is answered in the task result.
 
 | Pack | Rules | Machine checks | Verified by a person, reason given |
 |---|---:|---:|---:|
 | account-health-review | 4 | 0 | 0 |
-| agent-native-engineering | 8 | 1 | 0 |
+| agent-native-engineering | 9 | 5 | 4 |
 | agent-workflow | 4 | 0 | 0 |
 | agentic-application-security | 16 | 1 | 0 |
 | airborne-software-assurance | 10 | 0 | 10 |

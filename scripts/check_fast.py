@@ -27,6 +27,11 @@ MAP = ROOT / "docs" / "agents" / "map.json"
 EXTRA = {
     "scripts/check_fast.py": ["tests/test_agent_native.py"],
     "scripts/agent_cost.py": ["tests/test_agent_native.py"],
+    "scripts/check_fix_trace.py": ["tests/test_agent_native.py"],
+    "scripts/check_oracle.py": ["tests/test_agent_native.py"],
+    "docs/agents/fixes.jsonl": ["tests/test_agent_native.py"],
+    "docs/agents/changelog-shape-base.json": ["tests/test_release.py"],
+    "scripts/check_pr_text.py": ["tests/test_agent_native.py"],
     "AGENTS.md": ["tests/test_agent_native.py"],
     "CLAUDE.md": ["tests/test_agent_native.py"],
     "docs/agents/conventions.md": ["tests/test_agent_native.py"],
@@ -34,10 +39,16 @@ EXTRA = {
     "scripts/build_catalog_bundle.py": ["tests/test_catalog_bundle.py"],
     ".gitignore": ["tests/test_catalog_bundle.py"],
     "scripts/check_links.py": ["tests/test_check_links.py"],
+    "scripts/lint_ratchet.py": ["tests/test_lint_ratchet.py"],
+    "scripts/lint-baseline.json": ["tests/test_lint_ratchet.py"],
     "scripts/coverage.py": ["tests/test_coverage.py"],
     "scripts/install.sh": ["tests/test_install_script.py"],
     "scripts/install.ps1": ["tests/test_install_script.py"],
+    "scripts/make_sbom.py": ["tests/test_release.py"],
     ".gitattributes": ["tests/test_install_script.py"],
+    ".python-version": ["tests/test_ci_jobs.py"],
+    ".nvmrc": ["tests/test_ci_jobs.py"],
+    "tests/__init__.py": ["tests/test_agent_native.py"],
     "scripts/edition-watch.json": ["tests/test_edition_watch.py"],
     "scripts/watch_editions.py": ["tests/test_edition_watch.py"],
     "docs/agents/map.json": ["tests/test_agent_native.py"],
@@ -54,7 +65,7 @@ EXTRA = {
 }
 # Folders this repository checks outside the module map: a path takes the tests of the first folder it is under.
 EXTRA_FOLDERS = (
-    (".github/", ["tests/test_release.py", "tests/test_workflows.py"]),
+    (".github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_ci_jobs.py"]),
     ("integrations/github/", ["tests/test_release.py", "tests/test_workflows.py", "tests/test_install_script.py"]),
     ("docs/", ["tests/test_doc_examples.py", "tests/test_product_docs.py"]),
     ("examples/field-tests/", ["tests/e2e/test_field_kit.py"]),
