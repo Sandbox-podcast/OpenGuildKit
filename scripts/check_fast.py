@@ -19,8 +19,8 @@ a command, and runs nothing.
 import sys
 
 if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets
-    raise SystemExit("OpenGuildKit needs Python 3.11 or later; this is Python %d.%d. Run it with python3.11 or newer."
-                     % sys.version_info[:2])
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
 
 import argparse
 import json
@@ -31,7 +31,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import run_tests  # noqa: E402 - INTENTIONAL(#456): the runner next to this script, after its folder is on the path
+import run_tests  # The runner next to this script, once its folder is on the path (#456).
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "docs" / "agents" / "map.json"

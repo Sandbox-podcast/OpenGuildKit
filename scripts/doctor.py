@@ -9,8 +9,8 @@ scripts/check_fast.py compares with, and web/node_modules. Exits 0 when nothing 
 import sys
 
 if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets
-    raise SystemExit("OpenGuildKit needs Python 3.11 or later; this is Python %d.%d. Run it with python3.11 or newer."
-                     % sys.version_info[:2])
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
 
 import re
 import shutil
@@ -35,7 +35,7 @@ def _output(command: list[str], cwd: Path) -> str | None:
 def probe(root: Path = ROOT) -> dict:
     """The versions and revisions this machine has: None for what is missing."""
     return {
-        "python": "%d.%d" % sys.version_info[:2],
+        "python": f"{sys.version_info[0]}.{sys.version_info[1]}",
         "git": _output(["git", "--version"], root),
         "node": _output(["node", "--version"], root),
         "npm": _output(["npm", "--version"], root),

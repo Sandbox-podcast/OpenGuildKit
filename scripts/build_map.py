@@ -17,8 +17,8 @@ line, so `grep -n '"src/openguildkit/results.py"' docs/agents/map.json` prints a
 import sys
 
 if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets
-    raise SystemExit("OpenGuildKit needs Python 3.11 or later; this is Python %d.%d. Run it with python3.11 or newer."
-                     % sys.version_info[:2])
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
 
 import argparse
 import ast
@@ -137,7 +137,7 @@ class Module:
                 return (*found, 0) if found else (self.path.name, function, statement.lineno)
         for statement in self.tree.body:
             if isinstance(statement, ast.Assign) and isinstance(statement.value, ast.Dict):
-                for key, value in zip(statement.value.keys, statement.value.values):
+                for key, value in zip(statement.value.keys, statement.value.values, strict=True):
                     if isinstance(key, ast.Constant) and key.value == word:
                         found = self.delegate([ast.Expr(value)], word) if isinstance(value, ast.Lambda) else (
                             (self.path.name, value.id) if isinstance(value, ast.Name) and value.id in self.functions
@@ -182,7 +182,7 @@ def terminal_commands() -> list[list[str]]:
     return list(walk(command_parser(), []))
 
 
-def command_entries(root: Path) -> list[dict]:
+def command_entries() -> list[dict]:
     modules: dict[str, Module] = {}
 
     def module(name: str) -> Module:
@@ -220,7 +220,7 @@ def build(current: dict, root: Path = ROOT) -> dict:
     paths = [{**item, "tests": [test for test in item["tests"] if (root / test).is_file()]}
              for item in current.get("paths", []) if item.get("generated") != "fixture"]
     paths = sorted([*paths, *fixture_entries(root)], key=lambda item: item["path"])
-    return {"modules": modules, "paths": paths, "commands": command_entries(root)}
+    return {"modules": modules, "paths": paths, "commands": command_entries()}
 
 
 def dumps(module_map: dict) -> str:

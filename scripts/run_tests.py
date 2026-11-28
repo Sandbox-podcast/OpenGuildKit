@@ -12,8 +12,8 @@ scripts/check_fast.py uses the same runner for the tests it selects.
 import sys
 
 if sys.version_info < (3, 11):  # noqa: UP036 - INTENTIONAL(#520): the one line an older Python gets
-    raise SystemExit("OpenGuildKit needs Python 3.11 or later; this is Python %d.%d. Run it with python3.11 or newer."
-                     % sys.version_info[:2])
+    raise SystemExit(f"OpenGuildKit needs Python 3.11 or later; this is Python {sys.version_info[0]}.{sys.version_info[1]}. "
+                     "Run it with python3.11 or newer.")
 
 import argparse
 import os
