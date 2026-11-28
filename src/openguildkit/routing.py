@@ -711,7 +711,7 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
         else:
             missing.append(board_id)
     if missing:
-        raise OgkError("OGK-ROUTE-002", 
+        raise OgkError("OGK-ROUTE-002",
             f"Required reviews are unavailable: {', '.join(missing)} not enabled in the profile. Enable them, "
             "or name the person who will review with --delegate BOARD=NAME."
         )

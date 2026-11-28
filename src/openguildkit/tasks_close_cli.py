@@ -115,7 +115,7 @@ def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, r
     closed = complete_task(current, profile, root, relevance, args.by, changed=changed)
     set_aside = set_aside_rules(current, profile, relevance)
     if set_aside and not (args.by or "").strip():
-        raise OgkError("OGK-TASK-040", 
+        raise OgkError("OGK-TASK-040",
             f"{plural(len(set_aside), 'data protection, security or AI rule')} "
             f"{'is' if len(set_aside) == 1 else 'are'} declared not applicable:\n- "
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "

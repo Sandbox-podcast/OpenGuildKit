@@ -63,7 +63,7 @@ def _project_path(ref: str, field: str, root: Path) -> None:
     project = root.resolve()
     path = (project / _LOCATION.sub("", ref)).resolve()
     if not path.exists() or (path != project and project not in path.parents):
-        raise ValueError(
+        raise OgkError("OGK-BOARD-015",
             f"{field}: {ref} is not a file or folder of the project. Cite a path relative to the project root, "
             "optionally followed by :LINE."
         )
@@ -137,7 +137,7 @@ def _check_reference(
         tool_id, separator, record = ref.partition(":")
         if not separator or not record.strip() or tool_id not in tool_ids:
             connected = ", ".join(sorted(tool_ids)) or "none"
-            raise OgkError("OGK-BOARD-008", 
+            raise OgkError("OGK-BOARD-008",
                 f"{field}: a tool source is written TOOL:RECORD (for example jira:SUP-142) for a tool connected to the "
                 f"project. Connected: {connected}."
             )

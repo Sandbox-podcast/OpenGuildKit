@@ -358,7 +358,7 @@ def _norm_answers(value, catalog: Catalog) -> dict[str, dict | None]:
             answers[pattern_id] = {"id": pattern_id, **decision_record({**answer, "on": today().isoformat()},
                                                                  f"norm {pattern_id}")}
         elif answer in ("no", False) or isinstance(answer, dict):
-            raise OgkError("OGK-PROJECT-036", 
+            raise OgkError("OGK-PROJECT-036",
                 f'Declining norm {pattern_id} records who and why: write {{"answer": "no", "by": "NAME", '
                 '"reason": "WHY"}, with the name of the person who decided.'
             )
@@ -424,7 +424,7 @@ def setup_profile(answers: object, catalog: Catalog, questions: list[dict]) -> t
     missing = unanswered_norms(completed, catalog, {pattern_id: True for pattern_id in kept_norms})
     if missing:
         listed = "; ".join(f"{entry['id']} ({', '.join(entry['reasons'])})" for entry in missing)
-        raise OgkError("OGK-PROJECT-038", 
+        raise OgkError("OGK-PROJECT-038",
             f"Ask the person about each norm the project meets, then record the answers under norms: {listed}. "
             'Add this line to the answers file, "yes" for a norm that applies, or {"answer": "no", "by": "NAME", '
             f'"reason": "WHY"}} to decline it: "norms": {json.dumps({entry["id"]: "yes" for entry in missing})}. '

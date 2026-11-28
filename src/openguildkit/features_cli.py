@@ -78,7 +78,7 @@ def _edit(args, features: list[dict], tools: dict):
             uses = [feature["id"] for feature in features
                     if any(option["tool"] == tool_id for option in feature["options"])]
             if not enable and len(uses) > 1:
-                raise OgkError("OGK-FEATURE-003", 
+                raise OgkError("OGK-FEATURE-003",
                     f"{tools[tool_id]['title']} serves several features: {', '.join(uses)}. "
                     "Nothing was written. Use profile remove tool to remove it from the whole profile.")
             names = [*names, tools[tool_id]["title"]] if enable else [name for name in names if name not in present]

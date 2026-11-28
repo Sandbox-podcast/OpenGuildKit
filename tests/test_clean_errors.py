@@ -234,6 +234,7 @@ class CleanErrorTests(unittest.TestCase):
         for change, message in (({"source": "measurement", "date": "2026-99-99"}, "not a real date"),
                                 ({"source": "measurement", "date": later}, "in the future"),
                                 ({"source": "project-file", "ref": "nowhere/does-not-exist.txt"}, "not a file or folder"),
+                                # OGK-BOARD-015
                                 ({"source": "test", "ref": "tests/missing.py::test_x"}, "not a file or folder")):
             broken = json.loads(json.dumps(review))
             broken["boards"][0]["evidence"][0].update(change)

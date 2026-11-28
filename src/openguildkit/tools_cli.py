@@ -118,7 +118,7 @@ def _pairs(values: list[str], separator: str, label: str) -> dict:
 def _host(args, profile: Profile) -> str:
     host = args.host or profile.get("host")
     if host not in HOSTS:
-        raise OgkError("OGK-TOOLS-013", 
+        raise OgkError("OGK-TOOLS-013",
             f"OpenGuildKit writes MCP settings for {' and '.join(HOSTS)}, and the project's host is {host or 'not set'}. "
             f"Add --host {HOSTS[0]} or --host {HOSTS[1]} to this command to write them for that agent, "
             "or change the project's host with openguildkit profile set host. For another agent, "

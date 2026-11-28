@@ -262,7 +262,7 @@ def submit_pass(task: Task, entry: dict, mode: str | None = None, root: Path | N
     board_id = raw_id.strip() if isinstance(raw_id, str) else None
     current = passes["boards"].get(board_id, {}) if isinstance(board_id, str) else {}
     if isinstance(board_id, str) and board_id in task["consultation"]["boards"] and not current:
-        raise OgkError("OGK-TASK-085", 
+        raise OgkError("OGK-TASK-085",
             f"The {board_id} pass was not started on the current consultation. Run openguildkit task pass "
             f"{task['id']} {board_id}, review through that brief, then submit the entry."
         )

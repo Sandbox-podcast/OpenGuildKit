@@ -150,7 +150,7 @@ def validate_check(check: object, label: str, *, allow_command: bool) -> None:
         _validate_size(check, label)
     else:
         if not allow_command:
-            raise OgkError("OGK-RULE-014", 
+            raise OgkError("OGK-RULE-014",
                 f"{label} runs a command: only a pack in .openguildkit/catalog/packs/ may declare one"
             )
         _fields(check, label, {"command"}, set())

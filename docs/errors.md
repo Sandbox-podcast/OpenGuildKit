@@ -37,6 +37,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-BOARD-012` | `board_entries.py:validate_review` |
 | `OGK-BOARD-013` | `board_entries.py:validate_review` |
 | `OGK-BOARD-014` | `brains.py:write_brain_skeleton` |
+| `OGK-BOARD-015` | `board_entries.py:_project_path` |
 | `OGK-CATALOG-001` | `catalog_cli.py:print_patterns` |
 | `OGK-CATALOG-002` | `catalog_cli.py:print_brains` |
 | `OGK-CATALOG-003` | `catalog_queries.py:recorded_value` |
@@ -84,6 +85,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-CORE-011` | `storage.py:write_text` |
 | `OGK-CORE-012` | `storage.py:_held_lock` |
 | `OGK-CORE-013` | `terminal.py:typed` |
+| `OGK-CORE-014` | `storage.py:lock_timeout` |
 | `OGK-DECISION-001` | `decisions.py:signing_time` |
 | `OGK-DECISION-002` | `decisions.py:signing_time` |
 | `OGK-DECISION-003` | `decisions.py:verify_time` |
@@ -96,6 +98,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-DOCS-002` | `docs_cli.py:deliverable` |
 | `OGK-DOCS-003` | `references.py:find_references` |
 | `OGK-DOCS-004` | `references.py:find_references` |
+| `OGK-DOCS-005` | `docs_cli.py:_share_verify` |
 | `OGK-EVIDENCE-001` | `evidence_cli.py:run` |
 | `OGK-EVIDENCE-002` | `evidence_cli.py:_day` |
 | `OGK-EVIDENCE-003` | `evidence_cli.py:_verify` |
@@ -175,6 +178,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-PORTAL-001` | `portal_verification.py:redirect_request` |
 | `OGK-PORTAL-002` | `portal_verification.py:verify_portal` |
 | `OGK-PORTAL-003` | `portal_verification.py:verify_portal` |
+| `OGK-PORTAL-004` | `portal_verification.py:_origin` |
 | `OGK-PROFILE-001` | `profile_edits.py:_decline` |
 | `OGK-PROFILE-002` | `profile_edits.py:_known_rule` |
 | `OGK-PROFILE-003` | `profile_edits.py:_known_rule` |
@@ -254,6 +258,7 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-PUBLISH-012` | `publishing.py:_check_dedication` |
 | `OGK-PUBLISH-013` | `publishing.py:_share_end` |
 | `OGK-PUBLISH-014` | `publishing.py:_share_end` |
+| `OGK-PUBLISH-015` | `publishing.py:_share_end` |
 | `OGK-RESULT-001` | `deliverables.py:project_path` |
 | `OGK-RESULT-002` | `deliverables.py:project_path` |
 | `OGK-RESULT-003` | `deliverables.py:utm_link` |

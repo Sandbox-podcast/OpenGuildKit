@@ -360,14 +360,13 @@ class PublishingTests(CapturedCli, unittest.TestCase):
                 link.rmdir()
 
     def test_share_dates_portal_and_revocation_are_checked(self):
-        # OGK-PUBLISH-013
         self.deliverable()
         common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]
         later = clock.real_today() + timedelta(days=30)
         for until in (later.strftime("%Y%m%d"), later.strftime("%G-W%V-%u"), "9999-12-31", "2026-02-30"):
             _, error = self.run_cli(*common, *portal, "--until", until, code=1)
-            self.assertRegex(error, r"^OpenGuildKit(?: \[OGK-PUBLISH-\d{3}\])?: ")
+            self.assertRegex(error, r"^OpenGuildKit \[OGK-PUBLISH-01[35]\]: ")  # OGK-PUBLISH-013, OGK-PUBLISH-015
         self.run_cli(*common, "--portal", "https://", "--until", later.isoformat(), code=1)
         self.run_cli(*common, *portal, "--until", later.isoformat())
         share_id = json.loads(self.run_cli("docs", "share", "list", "--json")[0])[0]["id"]

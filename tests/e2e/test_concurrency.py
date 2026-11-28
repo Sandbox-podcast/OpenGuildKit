@@ -138,6 +138,7 @@ class LockTests(ConcurrencyTestCase):
         )
         self.assertEqual(result.returncode, 1)
         self.assertIn("OPENGUILDKIT_LOCK_TIMEOUT", result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-CORE-014]: "), result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_read_commands_never_wait_for_the_lock(self):

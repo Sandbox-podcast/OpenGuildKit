@@ -82,7 +82,7 @@ def _clearing_evidence(value: str, root: Path) -> str:
     path = (project / value).resolve()
     if path.exists() and (path == project or project in path.parents):
         return path.relative_to(project).as_posix() or "."
-    raise OgkError("OGK-TASK-025", 
+    raise OgkError("OGK-TASK-025",
         f"Clearing evidence must be an existing file or folder of the project, or an https link: {value}."
     )
 

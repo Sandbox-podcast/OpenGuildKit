@@ -109,7 +109,7 @@ def run_decide(command: TaskCommand) -> None:
     signed_at = signing_time(args.signed_at)
     if args.approve and policy["mode"] == "signed":
         if not args.signature or not args.signer:
-            raise OgkError("OGK-TASK-067", 
+            raise OgkError("OGK-TASK-067",
                 "This project requires a signed approval: run task decision-payload, sign it with ssh-keygen -Y sign "
                 f"-n {NAMESPACE}, then pass --signature FILE --signer PRINCIPAL."
             )

@@ -586,7 +586,7 @@ def load_profile(state: Path, catalog: Catalog) -> Profile:
     answers = read_json(path)
     sector = answers.get("sector", "general")
     if isinstance(sector, str) and sector not in catalog["sectors"]:
-        raise OgkError("OGK-PROJECT-027", 
+        raise OgkError("OGK-PROJECT-027",
             f".openguildkit/project.json names the sector {sector!r}, which neither this release nor the catalog "
             "lock provides: choose one listed by openguildkit catalog, set it in .openguildkit/project.json, "
             "then run openguildkit sync."
@@ -594,7 +594,7 @@ def load_profile(state: Path, catalog: Catalog) -> Profile:
     missing = _missing_records(answers, catalog)
     if missing:
         entries = ", ".join(f'"{record_id}" from "{field}"' for field, record_id in missing)
-        raise OgkError("OGK-PROJECT-028", 
+        raise OgkError("OGK-PROJECT-028",
             f".openguildkit/project.json uses records that neither this release nor the catalog lock provides: "
             f"remove {entries}, then run openguildkit sync."
         )

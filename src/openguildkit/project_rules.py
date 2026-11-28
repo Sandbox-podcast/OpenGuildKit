@@ -201,7 +201,7 @@ def require_resolved_conflicts(profile: Profile, catalog: Catalog) -> None:
     if open_conflicts:
         names = "; ".join(" and ".join(conflict["packs"]) for conflict in open_conflicts)
         # During init the profile is still the answers file: .openguildkit/project.json does not exist yet.
-        raise OgkError("OGK-RULE-001", 
+        raise OgkError("OGK-RULE-001",
             f"Conflicting rule packs: {names}. Keep only one of them, or record which apply in \"resolutions\" of "
             "the profile (the file passed to init --answers, or .openguildkit/project.json once the project is set "
             'up), for example {"packs": ["first", "second"], "keep": ["second"], "reason": "Why"}. '

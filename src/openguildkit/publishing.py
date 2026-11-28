@@ -442,7 +442,7 @@ def _share_end(until: str) -> date:
     if end <= today:
         raise OgkError("OGK-PUBLISH-014", "A share ends after today.")
     if end > today + timedelta(days=MAX_SHARE_DAYS):
-        raise ValueError(f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
+        raise OgkError("OGK-PUBLISH-015", f"A share lasts at most {MAX_SHARE_DAYS} days. Record a new share when it ends to extend it.")
     return end
 
 

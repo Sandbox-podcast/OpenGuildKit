@@ -383,10 +383,12 @@ class PortalVerificationTests(CapturedCli, unittest.TestCase):
         self.assertEqual((prompt.call_count, Portal.calls), (0, []))
         _, error = self.run_cli("docs", "share", "verify", "--portal", self.portal, code=1)
         self.assertIn("docs share verify needs --portal and --user", error)
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-DOCS-005]: "), error)
         _, error = self.run_cli("docs", "share", "verify", "--portal",
                                 self.portal.replace("http://", f"http://editor:{PASSWORD}@"), "--user", "e@example.test",
                                 code=1)
         self.assertIn("Remove credentials from --portal", error)
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-PORTAL-004]: "), error)
 
     def test_http_is_refused_off_this_machine_and_https_is_required_to_trust_the_server(self):
         # OGK-PUBLISH-008

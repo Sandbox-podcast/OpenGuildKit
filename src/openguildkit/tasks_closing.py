@@ -92,7 +92,7 @@ def record_result(task: Task, profile: Profile, payload: dict, source: str = "re
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated, source)
     if source == "report" and task.get("answers", {}).get("outcome") and not result["criteria"]:
-        raise OgkError("OGK-TASK-049", 
+        raise OgkError("OGK-TASK-049",
             "The task has an expected outcome: report at least one acceptance criterion. Run task result ID --template."
         )
     updated: Task = {**task, "result": result}
@@ -151,7 +151,7 @@ def complete_task(task: Task, profile: Profile, root: Path | None = None, releva
     groups = points_left_open(task, profile, relevance, root)
     sensitive = next((group for group in groups if group["group"] == SENSITIVE_GROUP), None)
     if sensitive and not (by or "").strip():
-        raise OgkError("OGK-TASK-051", 
+        raise OgkError("OGK-TASK-051",
             f"{plural(len(sensitive['points']), 'data protection, security or AI point')} "
             f"{'is' if len(sensitive['points']) == 1 else 'are'} skipped, failed or declared not "
             "applicable as a pack. A person "
@@ -281,7 +281,7 @@ def record_decision(
         )
     open_blockers = unresolved_blockers(task)
     if approve and open_blockers:
-        raise OgkError("OGK-TASK-053", 
+        raise OgkError("OGK-TASK-053",
             f"Resolve each blocker before approving: {', '.join(open_blockers)}. Clear it with evidence "
             "(task clear), waive it if the project allows (task waive), or request changes."
         )

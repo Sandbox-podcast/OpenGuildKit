@@ -31,7 +31,7 @@ def _evidence_reference(value: str, check_id: str) -> str:
     try:
         validate_path(value, f"{check_id} evidence", pattern=False)
     except ValueError:
-        raise OgkError("OGK-RESULT-021", 
+        raise OgkError("OGK-RESULT-021",
             f"{check_id} evidence must be a project path such as docs/privacy/record.md or an https link."
         ) from None
     return value

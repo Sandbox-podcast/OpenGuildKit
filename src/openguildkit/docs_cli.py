@@ -145,7 +145,7 @@ def _share_revoke(args, state: Path) -> int:
 def _share_verify(args, state: Path) -> int:
     """docs share verify: compare the register with the accesses the portal reports."""
     if not args.portal or not args.user:
-        raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
+        raise OgkError("OGK-DOCS-005", "docs share verify needs --portal and --user; the password is requested at the terminal.")
     from .portal_verification import verify_portal
     report = verify_portal(state, args.portal, args.user)
     if args.json:

@@ -662,7 +662,7 @@ def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> l
     elif config.get("web_search") == "disabled":
         updated = _codex_lift_web_search(path, current, config)
         if updated is None:
-            raise OgkError("OGK-HOST-008", 
+            raise OgkError("OGK-HOST-008",
                 f'{path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. '
                 "Remove it yourself, or set research to local-only."
             )

@@ -298,7 +298,7 @@ def declare(lane: str | None, paths: list[str] | None, profile: Profile) -> dict
         return {}
     light = profile.get("light_paths") or []
     if not light:
-        raise OgkError("OGK-LANE-006", 
+        raise OgkError("OGK-LANE-006",
             "the short lane is off in this project: its profile names no paths it may cover (light_paths). A person "
             f"turns it on at their terminal: {activation_command(_usable(paths))}; a task opened without --lane takes the "
             "full path.")
@@ -310,7 +310,7 @@ def declare(lane: str | None, paths: list[str] | None, profile: Profile) -> dict
         raise OgkError("OGK-LANE-008", f"{error} Open the task on the full path: {FULL_PATH}.") from None
     outside = outside_light_paths(entries, light)
     if outside:
-        raise OgkError("OGK-LANE-009", 
+        raise OgkError("OGK-LANE-009",
             f"the short lane of this project covers only {', '.join(light)}; these paths are outside it: "
             f"{', '.join(outside)}. Open the task on the full path ({FULL_PATH}, without --lane), or have a person "
             f"widen the lane at their terminal: {activation_command(sorted({*light, *outside}))}.")
@@ -359,7 +359,7 @@ def proposed_routing(task: Task, profile: Profile, catalog: Catalog) -> dict | N
         return None
     board, reason = board_for(task["paths"])
     if board not in set(profile.get("boards") or catalog["boards"]):
-        raise OgkError("OGK-LANE-010", 
+        raise OgkError("OGK-LANE-010",
             f"The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not "
             f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS "
             f"--reason WHY), or the work takes the full path ({FULL_PATH}).")

@@ -121,7 +121,7 @@ def _validated_task(state: Path, path: Path, task_id: str) -> Task:
     problem = task_record_problem(task)
     if problem:
         # Task records are not under version control (.openguildkit/.gitignore lists tasks/).
-        raise OgkError("OGK-TASK-023", 
+        raise OgkError("OGK-TASK-023",
             f"Task record {task_id} is damaged: {problem}. Restore {path.relative_to(state.parent).as_posix()} from a "
             "backup, or delete that file and open a new task with openguildkit task new."
         )

@@ -229,7 +229,7 @@ def lock_timeout() -> float:
     except ValueError:
         seconds = -1.0
     if not 0 <= seconds <= 3600:
-        raise ValueError(f"Set {LOCK_TIMEOUT_VARIABLE} to a number of seconds between 0 and 3600, or unset it.")
+        raise OgkError("OGK-CORE-014", f"Set {LOCK_TIMEOUT_VARIABLE} to a number of seconds between 0 and 3600, or unset it.")
     return seconds
 
 
