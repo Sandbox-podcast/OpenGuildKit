@@ -109,7 +109,7 @@ def _closing(args, state: Path, task: Task, profile: Profile, relevance: dict, r
     for item in args.defer:
         check_id, _, follow_up = item.rpartition("=")
         if not check_id or not follow_up:
-            raise ValueError("Write --defer EVIDENCE=TASK, for example --defer evidence:gdpr/x/y=privacy-record.")
+            raise OgkError("OGK-TASK-119", "Write --defer EVIDENCE=TASK, for example --defer evidence:gdpr/x/y=privacy-record.")
         deferrals.append((check_id, read_task(state, follow_up)))
     current = defer_evidence(task, profile, deferrals, args.by.strip(), relevance) if deferrals else task
     closed = complete_task(current, profile, root, relevance, args.by, changed=changed)
@@ -179,7 +179,7 @@ def _declaration_checks(args, task: Task, profile: Profile, check_id: str) -> di
     if check_id not in commands:
         raise OgkError("OGK-TASK-042", f"{check_id} is not a check command of the task: {', '.join(commands) or 'none'}.")
     if not (args.by or "").strip():
-        raise ValueError("Name the person with --by INITIALS.")
+        raise OgkError("OGK-TASK-120", "Name the person with --by INITIALS.")
     if not interactive():
         raise OgkError("OGK-TASK-043", DECLARATION_REFUSAL)
     return commands
@@ -209,12 +209,12 @@ def _withdraw(args, root: Path, state: Path, task: Task, profile: Profile, relev
     _declaration_checks(args, task, profile, args.withdraw)
     declaration = declared_cannot_run(task).get(args.withdraw)
     if declaration is None:
-        raise ValueError(f"No declaration that {args.withdraw} cannot run is recorded.")
+        raise OgkError("OGK-TASK-121", f"No declaration that {args.withdraw} cannot run is recorded.")
     if declaration["owner"].casefold() != args.by.strip().casefold():
         raise OgkError("OGK-TASK-046", f"{declaration['owner']} declared it: only they withdraw it.")
     ran = run_command_checks(root, state, task, profile, relevance=relevance, only={args.withdraw})
     if not ran:
-        raise ValueError(f"{args.withdraw} does not concern the task any more.")
+        raise OgkError("OGK-TASK-122", f"{args.withdraw} does not concern the task any more.")
     return ran[0]
 
 
@@ -265,7 +265,7 @@ def run_checks(command: TaskCommand) -> None:
     """The checks the approved task must report, and their outcomes so far."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
-        raise TaskStateError("Checks belong to an approved task.")
+        raise TaskStateError("OGK-TASK-098", "Checks belong to an approved task.")
     relevance = _relevance(root, task, profile, catalog, args.all)
     checks = expected_checks(task, profile, relevance)
     reported = outcomes(task, profile, relevance)
@@ -279,7 +279,7 @@ def run_result_template(command: TaskCommand) -> None:
     """A result file to fill in."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] != "approved":
-        raise TaskStateError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("OGK-TASK-099", "Results belong to an approved task that is not done yet.")
     relevance = _relevance(root, task, profile, catalog, args.all)
     changed = decision_changes(root, task)
     print_json(result_template(task, profile, relevance, changed=changed))
@@ -297,7 +297,7 @@ def _verify_payload(args, root: Path, state: Path, task: Task, profile: Profile,
         revision = git_revision(root)
         payload["revision"] = revision["commit"] if revision else "working tree"
     if decision and args.chaosfolk:
-        raise ValueError("ChaosFolk replays are for implementation tasks.")
+        raise OgkError("OGK-TASK-123", "ChaosFolk replays are for implementation tasks.")
     if args.chaosfolk and (args.cannot_run or args.withdraw):
         raise OgkError("OGK-TASK-047", "--cannot-run and --withdraw concern a check command: run them without --chaosfolk.")
     if args.cannot_run:
@@ -359,7 +359,7 @@ def run_outcome(command: TaskCommand) -> int | None:
                                                  command.catalog, command.task)
     action = args.action
     if task["status"] != "approved":
-        raise TaskStateError("Run checks for an approved task that is not done yet." if action == "verify"
+        raise TaskStateError("OGK-TASK-100", "Run checks for an approved task that is not done yet." if action == "verify"
                              else "Results belong to an approved task that is not done yet.")
     decision = is_decision_task(task)
     changed = decision_changes(root, task)
@@ -372,7 +372,7 @@ def run_outcome(command: TaskCommand) -> int | None:
     with project_lock(state):
         current_task = read_task(state, args.id)
         if current_task != task:
-            raise ValueError("The task changed meanwhile. Retry.")
+            raise OgkError("OGK-TASK-124", "The task changed meanwhile. Retry.")
         if action == "verify":
             result = record_result(current_task, profile, payload, "verify", relevance, root)
         elif action == "result":
@@ -401,7 +401,7 @@ def run_runs(command: TaskCommand) -> None:
     args, task = command.args, command.task
     comparison = compare_runs(task)
     if comparison is None:
-        raise TaskStateError("The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
+        raise TaskStateError("OGK-TASK-101", "The task has fewer than two ChaosFolk replays to compare: task verify --chaosfolk "
                              "records them on an approved task.")
     if args.json:
         print_json(comparison)
@@ -482,7 +482,7 @@ def run_diff_review(command: TaskCommand) -> None:
         payload = read_json(args.submit)
         with project_lock(state):
             if read_task(state, args.id) != task:
-                raise ValueError("The task changed meanwhile. Retry.")
+                raise OgkError("OGK-TASK-125", "The task changed meanwhile. Retry.")
             try:
                 updated, board = delivered_review.record_findings(task, change, payload)
             except ValueError as error:

@@ -197,8 +197,8 @@ def _waivers(blockers: list) -> list[dict]:
     return sorted(found, key=lambda waiver: (waiver["until"], waiver["blocker"]))
 
 
-def _refusal(task_id: object, status: object) -> ValueError:
-    return ValueError(f"Task {task_id} is not closed (status {status}): only a task that is done or done with "
+def _refusal(task_id: object, status: object) -> OgkError:
+    return OgkError("OGK-RESULT-034", f"Task {task_id} is not closed (status {status}): only a task that is done or done with "
                       "reservations has a retrospective.")
 
 

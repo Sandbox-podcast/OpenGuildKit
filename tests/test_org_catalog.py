@@ -187,6 +187,7 @@ class OrgCatalogTests(unittest.TestCase):
         self.assertIn("catalog-org-replaced", rules)
 
     def test_organization_records_pass_the_project_checks_and_never_run_commands(self):
+        # OGK-CATALOG-008, OGK-CATALOG-060, OGK-CATALOG-064
         cases = {
             "command": pack("org-run", rules=[{"id": "run", "check": {"kind": "command", "command": "true"}}]),
             "bundled": pack("secure-sdlc"),

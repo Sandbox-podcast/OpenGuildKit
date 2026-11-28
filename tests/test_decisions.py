@@ -273,6 +273,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
 
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_ci_refuses_a_record_of_a_departed_approver_that_the_base_revision_does_not_carry(self):
+        # OGK-DECISION-009
         self.signed_by_two()
         self.camille_leaves()
         self.git("branch", "-M", "main")
@@ -400,6 +401,7 @@ class DecisionTests(CapturedCli, unittest.TestCase):
     @unittest.skipIf(shutil.which("ssh-keygen") is None or shutil.which("git") is None, "needs ssh-keygen and git")
     def test_issue_478_a_certificate_of_the_authority_signs_an_approval(self):
         """Issue #478: a certificate signed by an authority (cert-authority) verified, and no test or page said so."""
+        # OGK-DECISION-010, OGK-TASK-091
         keys = self.authority()
         self.signed_project()
         self.decide_signed(keys, "camille-cert.pub")

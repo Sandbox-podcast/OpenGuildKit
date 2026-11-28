@@ -2,8 +2,11 @@
 with the command that lists them, and the stable code of an error (`OpenGuildKit [OGK-TASK-004]: ...`).
 
 docs/errors.md lists each code with its module, function and test (scripts/build_errors.py writes it).
+A code names its module's zone (OGK-TASK-, OGK-WEB-), except the FILE codes: a file the system could not open, one
+code per kind of failure, shared by every command. They are the only codes built in one function (file_error) for
+many callers.
 
-Entry: os_error_message, unknown, OgkError, InternalError, error_line, named_command
+Entry: os_error_message, file_error, unknown, OgkError, InternalError, error_line, named_command
 Tests: tests/test_error_forms.py, tests/test_error_codes.py
 """
 
@@ -44,6 +47,18 @@ def os_error_message(error: OSError) -> str:
     if isinstance(error, IsADirectoryError):
         return f"Cannot open {name}: it is a folder, not a file."
     return f"Cannot open {name}: {(error.strerror or 'it cannot be read').rstrip('.').lower()}."
+
+
+def file_error(error: OSError, text: str) -> OgkError:
+    """The error a person reads for a file the system could not open, with the code of its kind: missing, permission
+    denied, a folder given as a file, or any other failure. `text` is its line, os_error_message or a longer form."""
+    if isinstance(error, FileNotFoundError):
+        return OgkError("OGK-FILE-001", text)
+    if isinstance(error, PermissionError):
+        return OgkError("OGK-FILE-002", text)
+    if isinstance(error, IsADirectoryError):
+        return OgkError("OGK-FILE-003", text)
+    return OgkError("OGK-FILE-004", text)
 
 
 def unknown(kind: str, value: object, command: str) -> str:

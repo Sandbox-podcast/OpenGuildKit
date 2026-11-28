@@ -104,7 +104,7 @@ def _project(state: Path) -> tuple[Profile, Catalog]:
         for path in directory.glob("*.json"):
             _check_path(path, state)
             if not path.is_file():
-                raise ValueError("Catalog entries must be files.")
+                raise OgkError("OGK-PROJECT-080", "Catalog entries must be files.")
     catalog = project_catalog(None, state)
     return load_profile(state, catalog), catalog
 

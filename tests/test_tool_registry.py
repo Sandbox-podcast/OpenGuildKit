@@ -103,6 +103,7 @@ class StandInCommandTests(unittest.TestCase):
     """A command copied with the publisher's stand-in for a path starts nothing: the registry asks for the value."""
 
     def test_a_stand_in_path_or_angle_brackets_in_a_command_or_an_argument_is_refused(self):
+        # OGK-CATALOG-086
         for change in ({"command": "path/to/bundled-lens-cli"}, {"args": ["path/to/mcp-quickbooks-online/dist/index.js"]},
                        {"args": ["/FULL/PATH/TO/YOUR/docker-hub-mcp-server/dist/index.js", "--transport=stdio"]},
                        {"command": "<lens-cli>"}, {"args": ["--site=<your-site>"]}):
@@ -110,6 +111,7 @@ class StandInCommandTests(unittest.TestCase):
                 _validate_tool(local_tool(**change), "testing")
 
     def test_a_command_takes_a_declared_placeholder_like_its_arguments(self):
+        # OGK-CATALOG-078
         setting = [{"name": "cli_path", "description": "Acme: the path of the Acme CLI"}]
         self.assertIsNone(_validate_tool(local_tool(command="{cli_path}", settings=setting), "testing"))
         with self.assertRaisesRegex(CatalogError, "declare exactly the placeholders used: cli_path"):

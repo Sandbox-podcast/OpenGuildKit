@@ -93,7 +93,7 @@ def _person(args) -> dict:
     for name in ("by", "reason"):
         value = getattr(args, name)
         if not value.strip() or "\n" in value or "\r" in value:
-            raise ValueError(f"--{name} must be a non-empty single line.")
+            raise OgkError("OGK-ORG-017", f"--{name} must be a non-empty single line.")
     return {"by": args.by.strip(), "reason": args.reason.strip(), "on": today().isoformat()}
 
 
@@ -176,7 +176,7 @@ def _print_changes(found: dict, commit: str) -> None:
 
 def _set(args, root: Path, state: Path) -> int:
     if (args.by is None) != (args.reason is None):
-        raise ValueError("Supply --by and --reason together to pin the commit, or neither to see what it brings.")
+        raise OgkError("OGK-ORG-018", "Supply --by and --reason together to pin the commit, or neither to see what it brings.")
     if args.name is not None and not NAME.fullmatch(args.name):
         raise OgkError("OGK-ORG-007", "--name is lowercase letters, digits, - and _, such as acme. Nothing was written.")
     folder = args.repo.resolve()
@@ -263,12 +263,12 @@ def _accept(args, state: Path) -> int:
     person = _person(args)
     lock = read_lock(state)
     if not (lock or {}).get("organization"):
-        raise ValueError("The project follows no organization catalog: openguildkit org-catalog show.")
+        raise OgkError("OGK-ORG-019", "The project follows no organization catalog: openguildkit org-catalog show.")
     catalog = installed_catalog(args, state)[0]
     replaced = catalog["organization"]["replaced"]
     if args.record not in replaced:
         listed = ", ".join(replaced) or "none"
-        raise ValueError(f"{args.record} is not a project record that replaces an organization record (replaced now: "
+        raise OgkError("OGK-ORG-020", f"{args.record} is not a project record that replaces an organization record (replaced now: "
                          f"{listed}). openguildkit org-catalog show lists them.")
     _confirm(args.record, "accept this replacement")
     with project_lock(state):

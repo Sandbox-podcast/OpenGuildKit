@@ -78,6 +78,7 @@ class RevisionAndClosingTests(ResultCase):
         self.assertEqual(self.record()["result"]["revision"], head)
 
     def test_a_result_without_a_revision_is_still_refused_before_any_is_recorded(self):
+        # OGK-RESULT-033
         self.approved()
         write_json(self.root / "result.json", {"criteria": [], "checks": self.rule_outcomes()})
         _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
@@ -120,6 +121,7 @@ class RevisionAndClosingTests(ResultCase):
     def test_an_open_task_has_no_closing_to_show(self):
         self.approved()
         _, error = self.run_cli("task", "show", TASK, "--closing", code=1)
+        # OGK-TASK-108
         self.assertIn("Only a completed task has a closing with its open points.", error)
         self.assertIn(f"Next: openguildkit task handoff {TASK}", error)
 

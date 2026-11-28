@@ -118,7 +118,7 @@ def _evidence_outcome(result: dict | None, found: list[str], problems: list[str]
     if not found:
         return result
     if problems is None:
-        raise ValueError(found[0])
+        raise OgkError("OGK-BOARD-019", found[0])
     problems.extend(found)
     return None
 
@@ -143,7 +143,7 @@ def _check_reference(
             )
     if source == "public" and not ref.startswith("market:"):
         if not ref.startswith("https://"):
-            raise ValueError(f"{field}: a public source needs an https link in ref.")
+            raise OgkError("OGK-BOARD-020", f"{field}: a public source needs an https link in ref.")
         if root is not None:
             public_evidence_url(ref, field)
     if root is not None and source in ("project-file", "test"):
@@ -156,13 +156,13 @@ def received_value(value: object) -> str:
     return text if len(text) <= 60 else text[:57] + "..."
 
 
-class EntryProblems(ValueError):
+class EntryProblems(OgkError):
     """Every problem of one board's entry, each with its key path, the value received and the accepted values."""
 
-    def __init__(self, board_id: str, problems: list[str]):
+    def __init__(self, code: str, board_id: str, problems: list[str]):
         self.problems = problems
         heading = f"{board_id} entry has {len(problems)} problem{'s' if len(problems) > 1 else ''}"
-        super().__init__(heading + ":\n- " + "\n- ".join(problems))
+        super().__init__(code, heading + ":\n- " + "\n- ".join(problems))
 
 
 # A key the entry lacks: its absence is reported once by _keys, and its own check is skipped.
@@ -399,7 +399,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     """
     selected = consultation["boards"]
     if not isinstance(entry, dict):
-        raise ValueError("A board review must be a JSON object, as printed under Entry to return.")
+        raise OgkError("OGK-BOARD-021", "A board review must be a JSON object, as printed under Entry to return.")
     board_id = entry.get("id")
     if not isinstance(board_id, str) or not board_id.strip():
         raise OgkError("OGK-BOARD-009", f"id: got {received_value(board_id)}; write the board's ID, one of {', '.join(selected)}.")
@@ -442,7 +442,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
     reported = {problem.split(": ", 1)[0] for problem in problems}
     problems.extend(problem for problem in credentials if problem.split(": ", 1)[0] not in reported)
     if problems:
-        raise EntryProblems(board_id, problems)
+        raise EntryProblems("OGK-BOARD-016", board_id, problems)
     return result
 
 
@@ -452,15 +452,15 @@ def validate_review(consultation: dict, review: dict, root: Path | None = None) 
     allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item", "kept"}
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
             or not review.keys() <= allowed:
-        raise ValueError("A review must contain consultation_id, summary and boards. Run task template.")
+        raise OgkError("OGK-BOARD-022", "A review must contain consultation_id, summary and boards. Run task template.")
     execution = review.get("execution", "unspecified")
     if execution not in EXECUTION_MODES:
-        raise ValueError(f"Review execution must be one of {', '.join(EXECUTION_MODES)}.")
+        raise OgkError("OGK-BOARD-023", f"Review execution must be one of {', '.join(EXECUTION_MODES)}.")
     if review["consultation_id"] != consultation["id"]:
         raise OgkError("OGK-BOARD-011", "This review belongs to another consultation. Run task template again.")
     summary = required_text(review["summary"], "Review summary")
     if not isinstance(review["boards"], list):
-        raise ValueError("Review boards must be a list.")
+        raise OgkError("OGK-BOARD-024", "Review boards must be a list.")
 
     selected = consultation["boards"]
     found, problems = {}, []

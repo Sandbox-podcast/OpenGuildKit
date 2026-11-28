@@ -33,7 +33,7 @@ def typed(expected: str, prompt: str, *, refusal: str | Exception, cancelled: st
     """The person types `expected` at this terminal, or the act stops: ValueError(refusal) without a terminal (or the
     exception given), ValueError(cancelled) when they type anything else. The prompt goes to standard error."""
     if not interactive():
-        raise refusal if isinstance(refusal, Exception) else ValueError(refusal)
+        raise refusal if isinstance(refusal, Exception) else OgkError("OGK-CORE-025", refusal)
     print(prompt, end="", file=sys.stderr, flush=True)
     if input().strip() != expected:
         raise OgkError("OGK-CORE-013", cancelled)

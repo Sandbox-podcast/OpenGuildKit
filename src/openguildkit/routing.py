@@ -727,7 +727,7 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
             adjustments.append({"action": "add", "board": board_id, "reason": reason})
     for board_id in selection.get("remove") or []:
         if board_id not in routing:
-            raise ValueError(f"Board {board_id!r} was not proposed for this task.")
+            raise OgkError("OGK-ROUTE-006", f"Board {board_id!r} was not proposed for this task.")
         if board_id in required:
             raise OgkError("OGK-ROUTE-005", f"The project requires the {board_id} review; it cannot be removed.")
         adjustment = {"action": "remove", "board": board_id, "reason": reason}
@@ -737,7 +737,7 @@ def select_boards(profile: Profile, catalog: Catalog, task: Task, answers: dict,
         del routing[board_id]
         adjustments.append(adjustment)
     if not routing:
-        raise ValueError("Keep at least one board for the consultation.")
+        raise OgkError("OGK-ROUTE-007", "Keep at least one board for the consultation.")
     _, negated = _text_reasons(boards, task, answers, enabled)
     excluded = {board_id: passages for board_id, passages in sorted(negated.items()) if board_id not in routing}
     removed = {item["board"] for item in adjustments if item["action"] == "remove"}

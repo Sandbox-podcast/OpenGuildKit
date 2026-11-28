@@ -188,7 +188,7 @@ def _source_line(source: dict) -> str:
 def print_patterns(args, patterns: dict) -> None:
     roles = role_choices(patterns)
     if args.role and args.role not in roles:
-        raise ValueError(f"Unknown role: {args.role}. Available roles: {', '.join(roles)}.")
+        raise OgkError("OGK-CATALOG-110", f"Unknown role: {args.role}. Available roles: {', '.join(roles)}.")
     matches = [
         pattern for pattern in patterns.values()
         if (not args.role or args.role in pattern["roles"]) and (not args.id or args.id == pattern["id"])

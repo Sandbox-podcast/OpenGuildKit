@@ -64,6 +64,7 @@ class RegistryPinTests(unittest.TestCase):
         self.assertNotIn("read in the package registry", review_facts(floating, floating["servers"][0])["version"])
 
     def test_pin_read_is_a_day_that_is_not_in_the_future(self):
+        # OGK-CATALOG-014, OGK-CATALOG-085
         tool = local_tool(command="npx", args=["-y", "acme-mcp@1.2.3"], package={"registry": "npm", "name": "acme-mcp"},
                           pin_read="2999-01-01")
         with self.assertRaises(CatalogError) as caught:

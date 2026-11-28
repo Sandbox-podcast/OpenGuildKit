@@ -60,7 +60,7 @@ def project_file(root: Path, path: Path) -> str:
         raise OgkError("OGK-AUDIT-006", f"{path} is outside the project {root.as_posix()}. Name a file inside it, or run the command "
                          "with --project set to the project that holds the file.") from None
     if not relative.parts:
-        raise ValueError("Name a file of the project, not its root folder.")
+        raise OgkError("OGK-AUDIT-009", "Name a file of the project, not its root folder.")
     return relative.as_posix()
 
 

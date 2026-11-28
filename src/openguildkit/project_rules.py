@@ -246,7 +246,7 @@ def task_scope_profile(profile: Profile, catalog: Catalog, component_ids: list[s
     components = [component for component in resolved.get("components", []) if component["id"] in selected]
     available = {component["id"] for component in resolved.get("components", [])}
     if unknown := selected - available:
-        raise ValueError(f"Unknown task components: {', '.join(sorted(unknown))}. "
+        raise OgkError("OGK-RULE-028", f"Unknown task components: {', '.join(sorted(unknown))}. "
                          f"Use project component IDs: {', '.join(sorted(available)) or 'none'}.")
     scopes = pack_scopes(profile, catalog)
     resolved["packs"] = [

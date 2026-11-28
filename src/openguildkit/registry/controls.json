@@ -398,12 +398,12 @@
         {
           "file": "src/openguildkit/profile_changes.py",
           "symbol": "write_change",
-          "line": 292
+          "line": 293
         },
         {
           "file": "src/openguildkit/profile_changes.py",
           "symbol": "weakening_changes",
-          "line": 73
+          "line": 74
         },
         {
           "file": "src/openguildkit/project.py",

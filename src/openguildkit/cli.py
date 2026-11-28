@@ -21,7 +21,7 @@ from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
 from .cli_errors import command_words, error_message, json_error, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .command import Command
-from .errors import error_line
+from .errors import OgkError, error_line, file_error
 from .hosts import HOSTS
 from .storage import answering, json_text
 from .terminal import reader_closed, utf8_streams, warn
@@ -207,12 +207,12 @@ def _run(args) -> int | None:
     return import_module(f"{__package__}.{module}").run(command)
 
 
-def _failed(args, answer: str | None, error: BaseException | None, text: str) -> int:
+def _failed(args, answer: str | None, error: BaseException, text: str) -> int:
     """End on an error: its line on standard error and, under --json, the same error as JSON on standard output (#484),
     with the exit code of an error, 2 for ci-check."""
     if answer is not None:
         print(json_text(json_error(error, text)), end="")
-    print(error_line(error, text) if error is not None else f"OpenGuildKit: {text}", file=sys.stderr)
+    print(error_line(error, text), file=sys.stderr)
     return 2 if args.command == "ci-check" else 1
 
 
@@ -229,9 +229,10 @@ def main(argv: list[str] | None = None) -> int:
     by_warning = take_by_warning()
     answer = command_words(parser, args) if getattr(args, "json", False) else None
     if getattr(args, "project", None) is not None and not args.project.is_dir():
-        what = "is not a folder" if args.project.exists() else "does not exist"
-        return _failed(args, answer, None, f"The project folder {args.project.as_posix()} {what}. Check --project, or "
-                                           "create the folder and run openguildkit init in it.")
+        exists = args.project.exists()
+        text = (f"The project folder {args.project.as_posix()} {'is not a folder' if exists else 'does not exist'}. "
+                "Check --project, or create the folder and run openguildkit init in it.")
+        return _failed(args, answer, OgkError("OGK-CLI-002", text) if exists else OgkError("OGK-CLI-001", text), text)
     try:
         with answering(answer):
             code = _run(args) or 0
@@ -243,7 +244,8 @@ def main(argv: list[str] | None = None) -> int:
         return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        return _failed(args, answer, error, error_message(error, parser, args))
+        text = error_message(error, parser, args)
+        return _failed(args, answer, file_error(error, text) if isinstance(error, OSError) else error, text)
     except KeyboardInterrupt:
         print(file=sys.stderr)
         warn("Cancelled.")

@@ -87,7 +87,7 @@ def record_result(task: Task, profile: Profile, payload: dict, source: str = "re
     drop) and the rest is recorded: the task then waits for that evidence from its owner.
     """
     if task["status"] != "approved":
-        raise TaskStateError("Results belong to an approved task that is not done yet.")
+        raise TaskStateError("OGK-TASK-105", "Results belong to an approved task that is not done yet.")
     validated = validate_result(task, profile, payload, source, relevance, root, changed=changed)
     held = validated.pop("_held", [])
     result = merge_results(task.get("result"), validated, source)
@@ -124,9 +124,9 @@ def defer_evidence(task: Task, profile: Profile, deferrals: list[tuple[str, Task
     for check_id, follow_up in deferrals:
         if check_id not in waiting:
             listed = ", ".join(waiting) or "none"
-            raise ValueError(f"{check_id} is not a named evidence this task waits for. Awaited: {listed}.")
+            raise OgkError("OGK-TASK-126", f"{check_id} is not a named evidence this task waits for. Awaited: {listed}.")
         if follow_up.get("follows", {}).get("task") != task["id"]:
-            raise ValueError(f"Task {follow_up['id']} does not follow {task['id']}: open it with "
+            raise OgkError("OGK-TASK-127", f"Task {follow_up['id']} does not follow {task['id']}: open it with "
                              f'openguildkit task new "BRIEF" --follows {task["id"]}.')
         entries.append({"check": check_id, "task": follow_up["id"], "owner": waiting[check_id]["owner"],
                         "by": by, "at": timestamp()})
@@ -272,10 +272,10 @@ def record_decision(
         decided = decided_message(task)
         if decided:
             raise OgkError("OGK-TASK-052", decided)
-        raise TaskStateError("Record the boards' review before deciding.")
+        raise TaskStateError("OGK-TASK-106", "Record the boards' review before deciding.")
     unconfirmed = [board for board in pending_removals(task) if board not in (confirmed_removals or [])]
     if approve and unconfirmed:
-        raise ValueError(
+        raise OgkError("OGK-TASK-128",
             f"Approval cancelled: the removal of the {', '.join(unconfirmed)} board was not confirmed. Type its name "
             "at the approval prompt, or request changes and consult again with it."
         )
@@ -286,7 +286,7 @@ def record_decision(
             "(task clear), waive it if the project allows (task waive), or request changes."
         )
     if not by.strip() or not reason.strip():
-        raise ValueError("Supply the decision owner and a reason.")
+        raise OgkError("OGK-TASK-129", "Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     at = clock.real_timestamp()
@@ -315,9 +315,9 @@ def revoke_approval(task: Task, by: str, reason: str) -> Task:
     if status in DONE_STATUSES:
         raise OgkError("OGK-TASK-054", decided_message(task))
     if status != "approved":
-        raise TaskStateError("Only an approved task has an approval to withdraw.")
+        raise TaskStateError("OGK-TASK-107", "Only an approved task has an approval to withdraw.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Name the person who withdraws the approval with --by and say why with --reason.")
+        raise OgkError("OGK-TASK-130", "Name the person who withdraws the approval with --by and say why with --reason.")
     at = clock.real_timestamp()
     archived = {**archived_round(task), "revoked": {"by": by.strip(), "reason": reason.strip(), "at": at}}
     decision = {"outcome": "changes-requested", "by": by.strip(), "reason": f"Approval withdrawn: {reason.strip()}",
@@ -335,11 +335,11 @@ _TARGET = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}")
 def record_authorization(task: Task, action: str, target: str, allow: bool, by: str, reason: str) -> Task:
     """Record a person's decision on an external action outside the authorized scope."""
     if action not in ACTIONS:
-        raise ValueError(f"Choose the action from {', '.join(ACTIONS)}.")
+        raise OgkError("OGK-TASK-131", f"Choose the action from {', '.join(ACTIONS)}.")
     if not _TARGET.fullmatch(target) or "?" in target or "@" in target:
         raise OgkError("OGK-TASK-055", "Name the target as a host or tool name, without a query, an address or private details.")
     if not by.strip() or not reason.strip():
-        raise ValueError("Supply the decision owner and a reason.")
+        raise OgkError("OGK-TASK-132", "Supply the decision owner and a reason.")
     entry = {
         "action": action, "target": target, "decision": "allow" if allow else "deny",
         "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp(),

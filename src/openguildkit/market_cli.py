@@ -124,7 +124,7 @@ LOCAL_ONLY_DUE = ("Research is local-only: a person reviews each page, then reco
 
 def _due(args, state: Path, research: str) -> None:
     if args.all == bool(args.dossier):
-        raise ValueError("Name one dossier, or pass --all for every dossier of the project.")
+        raise OgkError("OGK-MARKET-035", "Name one dossier, or pass --all for every dossier of the project.")
     folder = state / MARKET_DIR
     ids = sorted(path.stem for path in folder.glob("*.json")) if args.all and folder.is_dir() else [args.dossier] if args.dossier else []
     results = []
@@ -170,7 +170,7 @@ def run(command: Command) -> None:
     if args.mode == "due":
         return _due(args, state, profile.get("research", "local-only"))
     if not args.dossier:
-        raise ValueError(f"Name the dossier: openguildkit market {args.mode} ID.")
+        raise OgkError("OGK-MARKET-036", f"Name the dossier: openguildkit market {args.mode} ID.")
     if args.mode == "check":
         dossier = load_dossier(state, args.dossier)
         result = {"dossier": args.dossier, "gaps": dossier_gaps(dossier, profile.get("research", "local-only"))}

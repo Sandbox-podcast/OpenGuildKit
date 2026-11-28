@@ -14,6 +14,7 @@ from typing import Any
 
 from . import audit_log, incident, org_policy, requester
 from .clock import today
+from .errors import OgkError
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, write_lock
 from .patterns import pattern_selection
 from .profile_edits import RULE_WORD, changed_profile, lifted_paths
@@ -267,16 +268,16 @@ def check_proposal(profile: Profile, catalog: Catalog, action: str, field: str |
     return updated, [text for text, _ in weakening_changes(profile, updated, catalog)]
 
 
-class Weakening(ValueError):
+class Weakening(OgkError):
     """A change that weakens a protection, refused without a person at a terminal. `changes` holds each
     protection with the profile command a person types for it."""
 
-    def __init__(self, message: str, changes: list[tuple[str, list[str]]]):
-        super().__init__(message)
+    def __init__(self, code: str, message: str, changes: list[tuple[str, list[str]]]):
+        super().__init__(code, message)
         self.changes = changes
 
 
-class InvalidProfile(ValueError):
+class InvalidProfile(OgkError):
     """A profile edited in the page that cannot be used, or that rewrites the history of profile changes."""
 
 
@@ -447,22 +448,22 @@ def save_edited(root: Path, state: Path, edited: dict, by: str, reason: str) -> 
         try:
             candidate = validate_profile(edited, catalog)
         except ValueError as error:
-            raise InvalidProfile(str(error)) from None
+            raise InvalidProfile("OGK-PROFILE-032", str(error)) from None
         # The history sent must be the saved one: the server adds the entry of this change itself. A page that
         # read the profile before another command changed it sends an older history and would undo that change.
         if candidate.get("changes", []) != profile.get("changes", []):
-            raise InvalidProfile("The history of profile changes (changes) differs from the saved one: the profile "
+            raise InvalidProfile("OGK-PROFILE-033", "The history of profile changes (changes) differs from the saved one: the profile "
                                  "changed since the page read it, or the page edited its history. Reload the profile "
                                  "and make the change again. Nothing was written.")
         fields = sorted(key for key in {*profile, *candidate} - {"changes"} if profile.get(key) != candidate.get(key))
         if not fields:
-            raise ValueError("The profile is unchanged. Nothing was written.")
+            raise OgkError("OGK-PROFILE-036", "The profile is unchanged. Nothing was written.")
         changed.extend(fields)
         return candidate, f"edit {', '.join(fields)} from the web page"
 
     def refuse(change: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
         what = "; ".join(text for text, _ in weakened)
-        raise Weakening(f"{what}: this weakens a protection, which is the person's decision at an interactive "
+        raise Weakening("OGK-PROFILE-034", f"{what}: this weakens a protection, which is the person's decision at an interactive "
                         f"terminal.{voided_note(voided)} Nothing was written.", weakened)
 
     updated, record, catalog = write_change(root, state, None, edit, by, reason, refuse)

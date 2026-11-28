@@ -56,6 +56,7 @@ class CoreMethodTests(unittest.TestCase):
         self.assertLess(plan["rule_count"], 100)
 
     def test_the_catalog_marks_one_or_two_core_methods_per_role_and_validates_the_field(self):
+        # OGK-CATALOG-035, OGK-CATALOG-036
         counts = Counter(role for pattern in self.catalog["patterns"].values() for role in pattern.get("core_for", []))
         self.assertTrue(counts and max(counts.values()) <= 2, counts)
         for pattern in self.catalog["patterns"].values():
@@ -249,6 +250,7 @@ class LensTests(unittest.TestCase):
 
     def test_the_catalog_validates_applies_to(self):
         board = copy.deepcopy(self.catalog["boards"]["engineering"])
+        # OGK-CATALOG-047
         lens = board["review"]["specialists"][0]
         for value in (["browser"], ["customer", "customer"], ["unsure"]):
             lens["applies_to"] = value

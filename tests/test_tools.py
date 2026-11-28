@@ -72,6 +72,7 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(TOOLS["jira"]["servers"][0]["url"], TOOLS["confluence"]["servers"][0]["url"])
 
     def test_entries_with_credentials_or_undeclared_placeholders_are_refused(self):
+        # OGK-CATALOG-072, OGK-CATALOG-073, OGK-CATALOG-074, OGK-CATALOG-077, OGK-CATALOG-084
         cases = {
             "credential in its query": {"url": "https://mcp.acme.example/mcp?api_key=abc"},
             "https URL": {"url": "http://mcp.acme.example/mcp"},
@@ -126,6 +127,7 @@ class RegistryTests(unittest.TestCase):
                 with self.subTest(changed=changed):
                     record = {"id": "issue-tracking", "title": "Ours", "tools": [{**tracker, **changed}]}
                     (extra / "issue-tracking.json").write_text(json.dumps(record), encoding="utf-8")
+                    # OGK-CATALOG-102
                     with self.assertRaisesRegex(CatalogError, r"is the bundled tool jira \(Jira\)"):
                         load_tools(extra)
             code, out, err = run("--project", root, "tools", "plan", "Jira", "--host", "claude-code")
@@ -363,6 +365,7 @@ class PlanTests(unittest.TestCase):
             plan_connections(TOOLS, ["jira"], "codex", mock=True, mocks=mock_ids(), read_only=True)
 
     def test_a_read_only_environment_holds_plain_values_for_a_local_server_only(self):
+        # OGK-CATALOG-088, OGK-CATALOG-092
         local = {**REMOTE, "id": "acme-local", "transport": "stdio", "command": "uvx", "args": ["acme-mcp"],
                  "package": {"registry": "pypi", "name": "acme-mcp"}, "env": ["ACME_KEY"]}
         local.pop("url")
@@ -835,6 +838,7 @@ class ReviewPlanTests(unittest.TestCase):
     """What a security officer needs to accept a real server, from the publisher or marked missing."""
 
     def test_every_docker_server_forwards_each_variable_it_declares(self):
+        # OGK-CATALOG-087
         for tool in TOOLS.values():
             for server in tool["servers"]:
                 if server.get("command") == "docker":
@@ -898,6 +902,7 @@ class ReviewPlanTests(unittest.TestCase):
         self.assertTrue(any("recorded in the registry yet" in warning for warning in warned))
 
     def test_read_only_mode_is_shown_and_selected_when_the_publisher_documents_one(self):
+        # OGK-CATALOG-090
         azure = plan_connections(TOOLS, ["azure-devops"], "claude-code", settings={"azure-devops": {"organization": "acme"}},
                                  read_only=True)[0]
         self.assertEqual(azure["entry"]["headers"], {"X-MCP-Readonly": "true"})
@@ -1172,6 +1177,7 @@ class ToolDateTests(unittest.TestCase):
         self.assertIsNone(_validate_tool(tool, "testing"))
 
     def test_a_project_tool_with_an_impossible_date_is_refused_at_load(self):
+        # OGK-CATALOG-108
         with tempfile.TemporaryDirectory() as directory:
             extra = Path(directory)
             server = {**REMOTE, "verified": "2026-13-45"}

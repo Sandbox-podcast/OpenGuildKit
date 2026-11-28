@@ -391,7 +391,7 @@ def complete_answers(answers: object, questions: list[dict], catalog: Catalog) -
     Returns the answers, the detected components left aside and the norms answered yes.
     """
     if not isinstance(answers, dict):
-        raise ValueError("Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
+        raise OgkError("OGK-PROJECT-081", "Setup answers must be a JSON object, such as {} or {\"name\": \"Portal\"}.")
     completed = unsure_answers(answers, questions)[0]
     defaults = {question["id"]: question["default"] for question in questions if "default" in question}
     detected = defaults.pop("components", [])

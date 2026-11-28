@@ -14,7 +14,7 @@ from . import host_coverage, managed, org_policy_cli
 from .catalog_queries import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
-from .errors import OgkError
+from .errors import OgkError, error_line
 from .guard import NO_TASK, approval_text, covering_approvals, guard_mode, hook_command, scope_note
 from .guard_ci import ci_guard
 from .guard_records import exported_decisions
@@ -257,7 +257,7 @@ def check(args, root: Path, state: Path, profile: Profile, catalog: Catalog, rea
         if not report.active:
             raise
         report.blocked(problem)
-        print(f"OpenGuildKit: {problem}", file=sys.stderr)
+        print(error_line(problem, str(problem)), file=sys.stderr)
         code = 1
     if as_json:
         print_json({"passes": code == 0 and not any(item["level"] == "error" for item in report.items),
@@ -313,12 +313,12 @@ def _check_project(args, root: Path, state: Path, profile: Profile, catalog: Cat
     missing = [control for control in host_controls(root, profile) if control["status"] == "missing"]
     settings = [control["title"] for control in missing if control.get("cause") != "path"]
     if missing:
-        raise RuleError(" ".join(
+        raise RuleError("OGK-CHECK-013", " ".join(
             ([f"The host settings do not enforce: {'; '.join(settings)}. Run openguildkit host check for the cause, "
               "then openguildkit host apply."] if settings else [])
             + ([OFF_PATH] if len(settings) < len(missing) else [])), "host-settings-missing")
     if not lock_is_current(lock, profile, catalog, bundled):
-        raise RuleError("The catalog lock does not match the profile. Run openguildkit sync.", "catalog-lock-stale",
+        raise RuleError("OGK-CHECK-014", "The catalog lock does not match the profile. Run openguildkit sync.", "catalog-lock-stale",
                         [f"{STATE_DIR}/{LOCK_FILE}"])
     if not failing and not report.active:
         print("OpenGuildKit instructions match the project profile.")
@@ -342,7 +342,7 @@ def _check_project(args, root: Path, state: Path, profile: Profile, catalog: Cat
     report.sharing(issues)
     org_policy_cli.check_policy(state, profile, catalog, report)
     if failing:
-        raise RuleError(f"The instructions match the project profile, but {len(failing)} "
+        raise RuleError("OGK-CHECK-015", f"The instructions match the project profile, but {len(failing)} "
                         f"{'approval no longer holds' if len(failing) == 1 else 'approvals no longer hold'}: "
                         "each line above gives the command to run.", None)
 

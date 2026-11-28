@@ -43,7 +43,7 @@ def parse(data: bytes, commit: str) -> dict:
     try:
         policy = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
-        raise ValueError(f"{where} is not valid JSON. Fix it in the organization catalog.") from None
+        raise OgkError("OGK-ORG-021", f"{where} is not valid JSON. Fix it in the organization catalog.") from None
 
     def refuse(problem: str) -> NoReturn:
         raise OgkError("OGK-ORG-009", f"{where}: {problem}. Fix it in the organization catalog, then pin the new commit.")
@@ -85,7 +85,7 @@ def given(path: str, commit: str, root: Path) -> dict:
     folder = Path(path).resolve()
     policy = from_read(read_files(path, commit, root, folder))
     if policy is None:
-        raise ValueError(f"Commit {commit[:12]} of {path} has no {POLICY_FILE}: give the commit of the organization "
+        raise OgkError("OGK-ORG-022", f"Commit {commit[:12]} of {path} has no {POLICY_FILE}: give the commit of the organization "
                          "policy to --org-commit.")
     return policy
 

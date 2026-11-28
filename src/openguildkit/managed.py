@@ -209,7 +209,7 @@ def run(args) -> int:
     if args.json:
         raise OgkError("OGK-CORE-006", "host managed prints the file as it is deployed, so --json is not an option of it.")
     if args.block_on_failure and args.host != "claude-code":
-        raise ValueError("--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
+        raise OgkError("OGK-CORE-023", "--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
     allow = allowlist.load_allow(args.allow) if args.allow else None
     text, left = _content(args.host, args.hook_command, args.block_on_failure, allow)
     if args.output is None:

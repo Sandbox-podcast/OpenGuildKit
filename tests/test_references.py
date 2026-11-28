@@ -115,6 +115,7 @@ class ReferenceTests(unittest.TestCase):
                 self.assertEqual(find_references(self.index, record_id=former)[0]["id"], current)
 
     def test_ids_and_aliases_are_validated_and_unique(self):
+        # OGK-DOCS-006, OGK-DOCS-011, OGK-DOCS-014
         cases = [
             (team_record(id="team_change_record"), "Use lowercase letters, digits and hyphens"),
             (team_record(aliases=["Team Change"]), "aliases must list former IDs"),
@@ -128,6 +129,7 @@ class ReferenceTests(unittest.TestCase):
                     load_references(write_family(directory, [record]))
 
     def test_kind_uses_the_closed_vocabulary(self):
+        # OGK-DOCS-012, OGK-DOCS-016
         kinds = {record["kind"] for family in self.families.values() for record in family["references"]}
         self.assertLessEqual(kinds, set(KINDS))
         self.assertLessEqual(len(KINDS), 15)
@@ -144,6 +146,7 @@ class ReferenceTests(unittest.TestCase):
                 self.assertTrue(set(record["packs"]) <= set(self.catalog["packs"]))
         broken = json.loads(json.dumps(self.catalog))
         broken["patterns"]["scrum"]["references"] = ["definition-of-done"]
+        # OGK-DOCS-019
         with self.assertRaisesRegex(CatalogError, "must list reference 'scrum'"):
             check_reference_links(self.families, broken)
         with tempfile.TemporaryDirectory() as directory:
@@ -163,10 +166,12 @@ class ReferenceTests(unittest.TestCase):
         self.assertEqual(titles.count("Scrum"), 1)
         with tempfile.TemporaryDirectory() as directory:
             local = load_references(write_family(directory, [team_record(pattern="no-such-pattern")]))
+            # OGK-DOCS-023
             with self.assertRaisesRegex(CatalogError, "presents unknown pattern"):
                 with_pattern_references(local, self.catalog["patterns"])
 
     def test_every_reference_names_the_brains_it_serves(self):
+        # OGK-DOCS-008, OGK-DOCS-018
         for family in self.families.values():
             for record in family["references"]:
                 with self.subTest(reference=record["id"]):
@@ -234,6 +239,7 @@ class ReferenceTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 self.assertEqual(main(["--project", directory, "references", "--id", "iso-9001"]), 0)
             self.assertIn("Status: documentary reference", output.getvalue())
+        # OGK-CATALOG-009
         with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(CatalogError, "edition must be a non-empty string"):
             load_references(write_family(directory, [team_record(edition="")]))
 

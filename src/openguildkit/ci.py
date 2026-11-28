@@ -67,7 +67,7 @@ def check_export(profile: Profile, catalog: Catalog, target: Path, commit: str) 
         raise OgkError("OGK-CI-005", f"Select the {EXPORT_EXPIRY_ID} pack in the trusted project profile.")
     pack = catalog["packs"][EXPORT_EXPIRY_ID]
     if "policy_commit" not in pack:
-        raise ValueError("Supply the central policy repository and its commit.")
+        raise OgkError("OGK-CI-006", "Supply the central policy repository and its commit.")
     rule = pack["rules"][0]
     check = rule_check(rule)
     instruction, _ = rule_text(rule)

@@ -442,6 +442,7 @@ class ArchitectureDecisionRecordCommandTests(CapturedCli, unittest.TestCase):
         self.assertIn("record-linked", problems)
 
     def test_deliverable_new_refuses_a_task_that_is_not_a_decision(self):
+        # OGK-RESULT-035
         self.approve("feature", "feature")
         _, error = self.run_cli("deliverable", "new", ADR, "--task", "feature", "--output", "adr.md", code=1)
         self.assertIn("feature is a feature task", error)

@@ -116,7 +116,7 @@ def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
     listing = git.required(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE, needs=_NEEDS_GIT,
                            offline=True)
     if listing.returncode:
-        raise ValueError(f"Git could not list the files of {commit[:12]} in {repo}.")
+        raise OgkError("OGK-ORG-013", f"Git could not list the files of {commit[:12]} in {repo}.")
     files = []
     for item in listing.stdout.split(b"\0"):
         if not item:
@@ -140,7 +140,7 @@ def _contents(repo: Path, objects: list[str]) -> list[bytes]:
     result = git.required(repo, "cat-file", "--batch", stdin="".join(f"{obj}\n" for obj in objects).encode("ascii"),
                           needs=_NEEDS_GIT, offline=True)
     if result.returncode:
-        raise ValueError(f"Git could not read the organization catalog in {repo}.")
+        raise OgkError("OGK-ORG-014", f"Git could not read the organization catalog in {repo}.")
     output, position, contents = result.stdout, 0, []
     for _ in objects:
         end = output.index(b"\n", position)
@@ -197,7 +197,7 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
 def validate_pin(pin: object, where: str) -> None:
     """The "organization" entry of a catalog lock."""
     def refuse(problem: str) -> NoReturn:
-        raise ValueError(f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
+        raise OgkError("OGK-ORG-015", f"{where}: organization {problem}. Restore the file from Git, or pin the organization "
                          f"catalog again at a terminal: {SET_COMMAND}.")
 
     if not isinstance(pin, dict) or not {"commit", "fingerprint", "pinned"} <= pin.keys() <= PIN_FIELDS \
@@ -225,7 +225,7 @@ def validate_history(history: object, where: str) -> None:
     if not isinstance(history, list) or not all(
             isinstance(item, dict) and item.keys() == HISTORY_FIELDS and item["action"] in ("pinned", "stopped")
             and all(isinstance(item[key], str) for key in HISTORY_FIELDS) for item in history):
-        raise ValueError(f"{where}: organization_history must list pinned and stopped entries with action, commit, "
+        raise OgkError("OGK-ORG-016", f"{where}: organization_history must list pinned and stopped entries with action, commit, "
                          f"by, reason and on. Restore the file from Git.")
 
 

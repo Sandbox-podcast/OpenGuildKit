@@ -51,7 +51,7 @@ def _clean_path(path) -> str:
         raise OgkError("OGK-CHECK-007", f"A finding's path must be relative to the project root, without '..': {path!r}.")
     clean = PurePosixPath(posix).as_posix()
     if clean == ".":
-        raise ValueError(f"A finding's path must be relative to the project root and name a file: {path!r}.")
+        raise OgkError("OGK-CHECK-016", f"A finding's path must be relative to the project root and name a file: {path!r}.")
     return clean
 
 
@@ -125,7 +125,7 @@ def _rule(code: str, rule: dict) -> dict:
         if not isinstance(rule.get(key), str) or not rule[key].strip():
             raise OgkError("OGK-CHECK-012", f"The rule {code} lacks its {key}.")
     if "#" not in rule["help"]:
-        raise ValueError(f"The help of the rule {code} must name a page and an anchor, as PAGE.md#anchor.")
+        raise OgkError("OGK-CHECK-017", f"The help of the rule {code} must name a page and an anchor, as PAGE.md#anchor.")
     return {"id": code, "name": rule["name"], "shortDescription": {"text": rule["description"]},
             "helpUri": DOCS_URI + rule["help"]}
 
@@ -140,7 +140,7 @@ def to_sarif(findings: list[dict], *, rules: dict[str, dict], tool_version: str,
     folder, taken out of the messages.
     """
     if not isinstance(tool_version, str) or not tool_version.strip():
-        raise ValueError("The SARIF document needs the version of the tool.")
+        raise OgkError("OGK-CHECK-018", "The SARIF document needs the version of the tool.")
     prepared = [_prepared(item, rules, root) for item in findings]
     unique = {(item["code"], item["path"], item["line"], item["message"], item["level"]): item for item in prepared}
     ordered = sorted(unique.values(), key=lambda item: (item["path"], item["line"] or 0, item["code"], item["message"],

@@ -57,7 +57,7 @@ def run(command: Command) -> int:
         return _verify(args.dossier if args.dossier.is_absolute() else root / args.dossier)
     since, until = _day(args.since, "--since"), _day(args.until, "--until")
     if since and until and since > until:
-        raise ValueError("--since is after --until: the period holds no day.")
+        raise OgkError("OGK-EVIDENCE-004", "--since is after --until: the period holds no day.")
     from .deliverables import project_path  # Only this command writes a folder the team may share.
 
     target = project_path(root, state, args.output, "--output")
@@ -167,7 +167,7 @@ def _signature(root: Path, policy: dict, decision: dict) -> dict:
                 "detail": "the project does not require signed approvals now, so no signers file is read"}
     try:
         if not isinstance(payload, dict):
-            raise ValueError("the record carries no approval payload")
+            raise OgkError("OGK-EVIDENCE-005", "the record carries no approval payload")
         earlier = verify_recorded_signature(root, policy, payload, signature, signer)
     except ValueError as error:
         return {"required": True, "state": "not-verified", "signer": signer, "detail": str(error)}
@@ -241,7 +241,7 @@ def _verify(dossier: Path) -> int:
     manifest = read_json(path)
     files = manifest.get("files") if isinstance(manifest, dict) else None
     if not isinstance(files, dict):
-        raise ValueError(f"{path.as_posix()} is not the manifest of a dossier: it lists no files.")
+        raise OgkError("OGK-EVIDENCE-006", f"{path.as_posix()} is not the manifest of a dossier: it lists no files.")
     problems = []
     for name, entry in sorted(files.items()):
         target = dossier / name

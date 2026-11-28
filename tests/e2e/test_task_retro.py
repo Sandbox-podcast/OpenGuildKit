@@ -563,7 +563,7 @@ class RefusalTests(unittest.TestCase):
         self.assertIn("openguildkit task review second --summary TEXT", error)
 
     def test_an_exported_record_written_before_the_task_was_completed_is_refused_with_the_command(self):
-        # OGK-TASK-074
+        # OGK-RESULT-034, OGK-TASK-074
         close_task(self.root, {"id": "done-one"})
         cli(self.root, "task", "export", "done-one")
         path = self.root / ".openguildkit" / "decisions" / "done-one.json"

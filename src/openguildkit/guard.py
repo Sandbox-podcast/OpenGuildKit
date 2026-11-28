@@ -377,7 +377,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
         root, state, profile, catalog = load()
         mode = guard_mode(profile)
         if raw is None:
-            raise ValueError("the hook input could not be read")
+            raise OgkError("OGK-GUARD-019", "the hook input could not be read")
         try:
             hook_input = json.loads(raw) if raw.strip() or event == "pre-edit" else {}
         except ValueError as error:

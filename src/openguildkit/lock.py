@@ -127,7 +127,7 @@ def require_instructions(args, root: Path, state: Path, profile: Profile, catalo
     except ValueError as error:
         lock = read_lock(state)
         if lock is not None and _instructions_match(root, profile, update_target(installed_catalog(args, state)[0], lock)):
-            raise RuleError(LOCK_OLDER, "instructions-ahead-of-lock", getattr(error, "files", ())) from None
+            raise RuleError("OGK-CORE-022", LOCK_OLDER, "instructions-ahead-of-lock", getattr(error, "files", ())) from None
         raise
 
 

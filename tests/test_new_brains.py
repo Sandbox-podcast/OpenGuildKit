@@ -191,6 +191,7 @@ class ProjectBrainTests(unittest.TestCase):
         self.assertEqual(board_replacements(load_catalog(self.root)), [])
 
     def test_a_project_brain_without_review_is_refused(self):
+        # OGK-CATALOG-052, OGK-CATALOG-057
         self.write_board({"id": "risk-office", "title": "Risk", "description": "Review risk.", "expertises": ["Risk"],
                           "triggers": ["risk office"], "questions": ["Which risk?"], "sources": []})
         with self.assertRaisesRegex(CatalogError, "needs a review block.*brains --new"):

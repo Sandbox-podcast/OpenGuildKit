@@ -59,6 +59,7 @@ class LensScopeTests(unittest.TestCase):
                     self.assertTrue(fewer)
 
     def test_the_catalog_validates_the_concerns_of_a_lens(self):
+        # OGK-CATALOG-048, OGK-CATALOG-049
         board = copy.deepcopy(self.catalog["boards"]["hr"])
         lens = board["review"]["specialists"][0]
         for value in (["payroll"], ["money", "money"], ["none"], []):

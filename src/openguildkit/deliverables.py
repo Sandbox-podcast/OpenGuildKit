@@ -76,29 +76,29 @@ def _validate(record: dict, catalog: Catalog, bundled: bool = False) -> None:
     validate_fields(record, "deliverable", {"id", "title", "description", "brains", "inputs", "tool_actions", "sections", "checks", "sources"}, {"method", "market", "requires_tool", "decision"})
     for flag in ("market", "requires_tool", "decision"):
         if flag in record and not isinstance(record[flag], bool):
-            raise CatalogError(f"{flag} must be true or false")
+            raise CatalogError("OGK-RESULT-036", f"{flag} must be true or false")
     validate_id(record["id"], "id")
     for field in ("title", "description"):
         validate_text(record[field], field)
     validate_sources(record["sources"], require_checked=bundled)
     if "method" in record and record["method"] not in catalog["patterns"]:
-        raise CatalogError(f"Unknown method pattern {record['method']!r}")
+        raise CatalogError("OGK-RESULT-037", f"Unknown method pattern {record['method']!r}")
     validate_list(record["brains"], "brains")
     unknown = sorted(set(record["brains"]) - catalog["boards"].keys())
     if unknown:
-        raise CatalogError(f"Unknown brains: {', '.join(unknown)}")
+        raise CatalogError("OGK-RESULT-038", f"Unknown brains: {', '.join(unknown)}")
     validate_list(record["inputs"], "inputs")
     for item in record["inputs"]:
         validate_fields(item, "input", {"id", "label", "data"})
         validate_id(item["id"], "input id")
         validate_text(item["label"], "input label")
         if item["data"] not in DATA_CLASSES:
-            raise CatalogError(f"input data must be one of {', '.join(DATA_CLASSES)}")
+            raise CatalogError("OGK-RESULT-039", f"input data must be one of {', '.join(DATA_CLASSES)}")
     validate_list(record["tool_actions"], "tool_actions", allow_empty=True)
     for item in record["tool_actions"]:
         validate_fields(item, "tool action", {"action", "description"})
         if item["action"] not in ACTIONS:
-            raise CatalogError(f"tool action must be one of {', '.join(ACTIONS)}")
+            raise CatalogError("OGK-RESULT-040", f"tool action must be one of {', '.join(ACTIONS)}")
         validate_text(item["description"], "tool action description")
     for field in ("sections", "checks"):
         validate_list(record[field], field)
@@ -120,9 +120,9 @@ def load_deliverables(catalog: Catalog, extra_dir: Path | None = None) -> dict[s
             try:
                 _validate(record, catalog, root == roots[0])
                 if path.name != f"{record['id']}.json" or record["id"] in found:
-                    raise CatalogError(f"name the file {record['id']}.json and keep IDs unique")
+                    raise CatalogError("OGK-RESULT-041", f"name the file {record['id']}.json and keep IDs unique")
             except (OSError, ValueError) as error:
-                raise CatalogError(f"{path}: {error}") from error
+                raise CatalogError("OGK-RESULT-042", f"{path}: {error}") from error
             found[record["id"]] = record
     return dict(sorted(found.items()))
 
@@ -285,9 +285,9 @@ def decision_sections(task: Task) -> dict[str, list[str]]:
                          f"`.openguildkit/decisions/{task_id}.json`"]}
 
 
-def _decision_refusal(deliverable: dict, task: Task) -> ValueError:
+def _decision_refusal(deliverable: dict, task: Task) -> OgkError:
     kind = task.get("answers", {}).get("kind") or "unanswered"
-    return ValueError(f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
+    return OgkError("OGK-RESULT-035", f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
                       "Open a decision task (answer kind decision at task consult) for the choice to record, or pick "
                       "another template: openguildkit deliverable list.")
 
@@ -299,13 +299,13 @@ def new_draft(deliverable: dict, task: Task, tool: str | None, approved_tools: l
     if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise OgkError("OGK-RESULT-007", "Start a deliverable from an approved or completed task.")
     if deliverable.get("requires_tool") and not tool:
-        raise ValueError("This template needs --tool, one of the project's approved tools.")
+        raise OgkError("OGK-RESULT-043", "This template needs --tool, one of the project's approved tools.")
     if tool is not None and approved_tools and tool not in approved_tools:
         raise OgkError("OGK-RESULT-008", f"{tool} is not an approved tool for this project. Approved: {', '.join(approved_tools)}.")
     if deliverable.get("decision") and not is_decision_task(task):
         raise _decision_refusal(deliverable, task)
     if output.exists():
-        raise ValueError(f"{output.as_posix()} already exists.")
+        raise OgkError("OGK-RESULT-044", f"{output.as_posix()} already exists.")
     market_fields, market_inputs = _market_lines(deliverable, task)
     filled = decision_sections(task) if deliverable.get("decision") else {}
     inputs = filled.get("_inputs")

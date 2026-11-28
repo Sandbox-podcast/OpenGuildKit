@@ -164,6 +164,7 @@ class CatalogTests(CliTestCase):
                       self.run_cli("task", "brief", TASK_ID, "--pack", "house-style").stdout)
 
     def test_invalid_project_pack_is_rejected_with_its_path(self):
+        # OGK-CATALOG-020
         packs = self.project / ".openguildkit" / "catalog" / "packs"
         packs.mkdir(parents=True)
         (packs / "broken.json").write_text(
@@ -174,6 +175,7 @@ class CatalogTests(CliTestCase):
         self.assertIn("broken.json", result.stderr)
 
     def test_project_pack_cannot_shadow_a_bundled_pack(self):
+        # OGK-CATALOG-051
         packs = self.project / ".openguildkit" / "catalog" / "packs"
         packs.mkdir(parents=True)
         bundled = REPO / "src" / "openguildkit" / "registry" / "packs" / "python.json"
@@ -321,6 +323,7 @@ class ProjectSetupTests(CliTestCase):
         self.assertNotIn("Sector: Outdated", repaired)
 
     def test_task_new_refuses_stale_instructions(self):
+        # OGK-PROJECT-076
         self.init_example()
         agents_path = self.project / "AGENTS.md"
         agents_path.write_text(agents_path.read_text(encoding="utf-8").replace("Stack:", "Stack: COBOL,"), encoding="utf-8")

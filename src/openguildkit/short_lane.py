@@ -56,7 +56,7 @@ _MANIFEST_TEXT = re.compile(r"(?:requirements|constraints)[\w.-]*\.txt")
 NEVER = "rules, dependencies, the profile and the instructions of agents"
 
 
-class ExcludedPath(ValueError):
+class ExcludedPath(OgkError):
     """A path the lane never covers, named with what it is."""
 
 
@@ -146,7 +146,7 @@ def normalize_entries(values: object, label: str) -> list[str]:
     for entry in entries:
         reason = declared_excluded(entry)
         if reason:
-            raise ExcludedPath(f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
+            raise ExcludedPath("OGK-LANE-011", f"{label}: {entry} reaches {reason}. The short lane never covers {NEVER} "
                                f"({doc_link('docs/workflow.md', 'short-lane')}).")
     return entries
 

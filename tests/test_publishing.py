@@ -360,6 +360,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
                 link.rmdir()
 
     def test_share_dates_portal_and_revocation_are_checked(self):
+        # OGK-PUBLISH-018, OGK-PUBLISH-020
         self.deliverable()
         common = ["docs", "share", "add", "--deliverable", "d", "--recipient", "reader@example.test", "--by", "Camille"]
         portal = ["--portal", "https://docs.example.test/p/portal"]

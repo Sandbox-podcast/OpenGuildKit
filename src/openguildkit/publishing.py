@@ -230,7 +230,7 @@ def export_docs(state: Path, task_ids: list[str], output: Path, version: str,
     """Write the selected completed tasks, and the project page when given, as documentation pages."""
     unknown = sorted(set(sections) - set(SECTIONS))
     if unknown or not sections:
-        raise ValueError(f"Choose sections among {', '.join(SECTIONS)}.")
+        raise OgkError("OGK-PUBLISH-016", f"Choose sections among {', '.join(SECTIONS)}.")
     tasks = [read_task(state, task_id) for task_id in task_ids]
     not_done = [task["id"] for task in tasks if task["status"] not in ("done", "done-with-reservations")]
     if not_done:
@@ -360,7 +360,7 @@ def add_share(state: Path, deliverable: str, recipients: list[str], until: str, 
     the same deliverable through a dedicated space is dedicated as well.
     """
     if not deliverable.strip() or not by.strip():
-        raise ValueError("Name the deliverable and the owner of the share.")
+        raise OgkError("OGK-PUBLISH-017", "Name the deliverable and the owner of the share.")
     shared = _shared_item(state, deliverable.strip())
     bad = [item for item in recipients if not _EMAIL.fullmatch(item)]
     if not recipients or bad:
@@ -465,14 +465,14 @@ def same_access(state: Path, share: dict, running: bool = False) -> list[dict]:
 def revoke_share(state: Path, share_id: str, by: str) -> dict:
     """Record that the access was removed in Documentalist; the first revocation stays. Returns it with its space."""
     if not by.strip():
-        raise ValueError("Name the person who removed the access with --by.")
+        raise OgkError("OGK-PUBLISH-018", "Name the person who removed the access with --by.")
     with project_lock(state):
         shares = load_shares(state)
         share = next((item for item in shares if item["id"] == share_id), None)
         if share is None:
-            raise ValueError(unknown("share", share_id, "docs share list"))
+            raise OgkError("OGK-PUBLISH-019", unknown("share", share_id, "docs share list"))
         if share["revoked_at"]:
-            raise ValueError(f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
+            raise OgkError("OGK-PUBLISH-020", f"Share {share_id} was already revoked by {share.get('revoked_by') or 'someone'} on {share['revoked_at'][:10]}.")
         share["revoked_at"] = clock.real_timestamp()
         share["revoked_by"] = by.strip()
         write_json(_shares_path(state), {"shares": shares})

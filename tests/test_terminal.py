@@ -55,7 +55,7 @@ class InteractiveTests(unittest.TestCase):
 
     def test_typed_refuses_without_a_terminal_and_compares_what_the_person_types(self):
         """Issue #461: the act a person types is written once, and it reads nothing without a terminal."""
-        # OGK-CORE-013
+        # OGK-CORE-013, OGK-CORE-025
         with patch("sys.stdin", io.StringIO("")), patch("builtins.input") as asked:
             with self.assertRaisesRegex(ValueError, "^Run it at a terminal.$"):
                 terminal.typed("t1", "Type t1: ", refusal="Run it at a terminal.", cancelled="Cancelled.")

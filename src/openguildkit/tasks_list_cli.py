@@ -51,7 +51,7 @@ def show_exported(root: Path, state: Path, profile: Profile, catalog: Catalog, t
         print(f"OpenGuildKit: {row['problem']['message']}", file=sys.stderr)
     record = read_json(root / row["path"])
     if closing and not isinstance((record.get("result") or {}).get("closing"), dict):
-        raise ValueError(f"The exported record of {task_id} has no closing: the task was not completed when it was "
+        raise OgkError("OGK-TASK-144", f"The exported record of {task_id} has no closing: the task was not completed when it was "
                          "exported.")
     print_json(_closing_points(record, task_id) if closing else record)
 
@@ -61,7 +61,7 @@ def _closing_points(task: Mapping[str, Any], task_id: str) -> dict:
     reservations, whose whole record can weigh a hundred kilobytes."""
     closing = (task.get("result") or {}).get("closing")
     if not isinstance(closing, dict):
-        raise TaskStateError("Only a completed task has a closing with its open points.")
+        raise TaskStateError("OGK-TASK-108", "Only a completed task has a closing with its open points.")
     return {"id": task_id, "status": task.get("status"),
             **{key: closing[key] for key in ("by", "verification", "open_points") if key in closing}}
 
@@ -207,7 +207,7 @@ def _retro_record(root: Path, state: Path, task_id: str) -> dict:
     record = read_json(path)
     where = path.relative_to(root).as_posix()
     if not isinstance(record, dict) or record.get("record_sha256") != export_digest(record):
-        raise ValueError(f"The exported record {where} does not match its digest: it was changed after it was "
+        raise OgkError("OGK-TASK-145", f"The exported record {where} does not match its digest: it was changed after it was "
                          "exported. Restore it from git, or run openguildkit check to see what it reports.")
     try:
         return facts_of_record(record)
@@ -308,7 +308,7 @@ def run_show(command: TaskCommand) -> None:
     """A summary by default; the task record as JSON with --full or --json; only the open points its closing left."""
     args, profile, task = command.args, command.profile, command.task
     if args.summary and args.json:
-        raise ValueError("--summary and --json exclude each other: one is a screen, the other the whole record.")
+        raise OgkError("OGK-TASK-146", "--summary and --json exclude each other: one is a screen, the other the whole record.")
     if args.closing:
         print_json(_closing_points(task, args.id))
     elif args.full or args.json:

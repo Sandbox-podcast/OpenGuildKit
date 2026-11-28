@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.cli_errors import json_error
 from openguildkit.storage import ENVELOPE_VARIABLE
 from tests.support import run_cli
 from tests.test_approval_lifecycle import ApprovalCase
@@ -82,9 +83,11 @@ class JsonErrorTests(ApprovalCase):
         self.assertEqual(error["error"]["code"], "OGK-TASK-021")
         self.assertTrue(error["error"]["message"].startswith("Unknown task: nope."), error)
         self.assertEqual(result.stderr, f"OpenGuildKit [OGK-TASK-021]: {error['error']['message']}\n")
-        uncoded = run_cli(self.root, "recommend", "--answers", self.root / "missing.json", "--json", expect=1)
-        self.assertEqual(json.loads(uncoded.stdout)["error"]["code"], None)
-        self.assertEqual(uncoded.stderr, f"OpenGuildKit: {json.loads(uncoded.stdout)['error']['message']}\n")
+        missing = run_cli(self.root, "recommend", "--answers", self.root / "missing.json", "--json", expect=1)
+        self.assertEqual(json.loads(missing.stdout)["error"]["code"], "OGK-FILE-001")
+        self.assertEqual(missing.stderr, f"OpenGuildKit [OGK-FILE-001]: {json.loads(missing.stdout)['error']['message']}\n")
+        # An error without a code yet is answered with code null.
+        self.assertIsNone(json_error(ValueError("Uncoded."), "Uncoded.")["error"]["code"])
         coded = json.loads(run_cli(self.root, "task", "list", "--since", "2026-02-30", "--json", expect=1).stdout)
         self.assertEqual(coded["error"]["code"], "OGK-TASK-006")
         self.assertEqual(run_cli(self.root, "task", "list", "--since", "2026-02-30", expect=1).stdout, "")

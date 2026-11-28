@@ -207,7 +207,7 @@ def record_review(task: Task, review: dict, root: Path | None = None, kept: list
     again; a review file cannot claim it.
     """
     if task["status"] != "consulting":
-        raise TaskStateError("A review is recorded while the task is being consulted.")
+        raise TaskStateError("OGK-TASK-095", "A review is recorded while the task is being consulted.")
     review = validate_review(task["consultation"], {key: value for key, value in review.items() if key != "kept"}
                              if isinstance(review, dict) else review, root)
     if kept:
@@ -219,7 +219,7 @@ def record_review(task: Task, review: dict, root: Path | None = None, kept: list
 
 def _passes(task: Task) -> dict:
     if task["status"] != "consulting":
-        raise TaskStateError("Board passes can only run while the task is being consulted.")
+        raise TaskStateError("OGK-TASK-096", "Board passes can only run while the task is being consulted.")
     passes = task.get("passes")
     if not passes or passes.get("consultation_id") != task["consultation"]["id"]:
         return {"consultation_id": task["consultation"]["id"], "boards": {}}
@@ -231,9 +231,9 @@ def start_pass(task: Task, board_id: str, mode: str, again: bool = False) -> Tas
     after a failed or done pass counts a new attempt, printing a pass that is already started does not."""
     passes = _passes(task)
     if board_id not in task["consultation"]["boards"]:
-        raise ValueError(f"Board {board_id!r} is not part of this consultation.")
+        raise OgkError("OGK-TASK-147", f"Board {board_id!r} is not part of this consultation.")
     if mode not in ("subagent", "sequential"):
-        raise ValueError("A pass runs as a subagent or in sequence.")
+        raise OgkError("OGK-TASK-148", "A pass runs as a subagent or in sequence.")
     previous = passes["boards"].get(board_id, {})
     if previous.get("status") == "done" and not again:
         return {**task, "passes": passes, "_submitted": True}
@@ -314,7 +314,7 @@ def assemble_review(task: Task, summary: str) -> Task:
     progress = pass_progress({**task, "passes": passes})
     waiting = [item["board"] for item in progress if item["status"] != "done"]
     if waiting:
-        raise TaskStateError(f"The review assembles every board's pass, and {', '.join(waiting)} "
+        raise TaskStateError("OGK-TASK-097", f"The review assembles every board's pass, and {', '.join(waiting)} "
                              f"{'is' if len(waiting) == 1 else 'are'} not done.")
     modes = {passes["boards"][board_id]["mode"] for board_id in task["consultation"]["boards"]}
     execution = "subagents" if modes == {"subagent"} else "sequential" if modes == {"sequential"} else "mixed"

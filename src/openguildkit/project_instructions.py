@@ -251,7 +251,7 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     """Replace the managed block in an instructions file, or append it, keeping the rest unchanged."""
     newline = "\r\n" if "\r\n" in current else "\n"
     if any(_MARKER_LINE.fullmatch(line.strip()) for line in generated.splitlines()):
-        raise ValueError("Project instructions contain a reserved OpenGuildKit marker.")
+        raise OgkError("OGK-PROJECT-078", "Project instructions contain a reserved OpenGuildKit marker.")
     matches, open_fence = _scan_markers(current)
     block = newline.join([BEGIN, generated.replace("\n", newline), END])
     if not matches:
@@ -374,21 +374,22 @@ def sync_instructions(root: Path, profile: Profile, catalog: Catalog) -> list[st
 def initialize(root: Path, state: Path, profile: Profile, catalog: Catalog) -> None:
     path = state / "project.json"
     if path.exists():
-        raise ValueError(ALREADY_INITIALIZED)
+        raise OgkError("OGK-PROJECT-079", ALREADY_INITIALIZED)
     sync_instructions(root, profile, catalog)
     write_json(path, profile)
 
 
-class RuleError(ValueError):
+class RuleError(OgkError):
     """A problem `check` reports under a rule of docs/sarif.md.
 
-    `code` is the rule's stable code, None when the findings were already reported one by one; `files` are the files
-    the problem concerns, relative to the project root. The message is the one the command prints.
+    `code` is the error's stable code (#487); `rule` is the finding ID of the rule, None when the findings were already
+    reported one by one; `files` are the files the problem concerns, relative to the project root. The message is the
+    one the command prints.
     """
 
-    def __init__(self, message: str, code: str | None, files: tuple[str, ...] | list[str] = ()):
-        super().__init__(message)
-        self.code = code
+    def __init__(self, code: str, message: str, rule: str | None, files: tuple[str, ...] | list[str] = ()):
+        super().__init__(code, message)
+        self.rule = rule
         self.files = tuple(files)
 
 
@@ -421,7 +422,7 @@ def check_instructions(root: Path, profile: Profile, catalog: Catalog) -> None:
     generated = render_instructions(profile, catalog)
     edited = hand_edits(current, generated)
     if edited:
-        raise RuleError(
+        raise RuleError("OGK-PROJECT-076",
             f"The OpenGuildKit block of AGENTS.md was edited by hand ({plural(len(edited), 'line')}, first: {edited[0][:80]}). "
             "openguildkit sync replaces the block: move your own text outside the markers first.",
             "instructions-edited", ["AGENTS.md"],
@@ -432,5 +433,5 @@ def check_instructions(root: Path, profile: Profile, catalog: Catalog) -> None:
         or (gemini is not None and gemini != _gemini_instructions(gemini))
         or not set(PROJECT_IGNORE.splitlines()).issubset(ignore.splitlines())
     ):
-        raise RuleError("OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
+        raise RuleError("OGK-PROJECT-077", "OpenGuildKit instructions are out of date. Run openguildkit sync.", "instructions-drift",
                         _outdated_files(generated, current, claude, linked, ignore, gemini))

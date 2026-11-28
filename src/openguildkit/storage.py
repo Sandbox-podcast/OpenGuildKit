@@ -39,7 +39,7 @@ def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-class NestedTooDeeply(ValueError):
+class NestedTooDeeply(OgkError):
     """JSON nested deeper than the parser can follow: refused even where invalid JSON is left aside."""
 
 
@@ -49,7 +49,7 @@ def _loads(content: bytes, pairs: Callable | None) -> Any:
     try:
         return json.loads(content.decode("utf-8-sig"), object_pairs_hook=pairs)
     except RecursionError as error:
-        raise NestedTooDeeply("JSON nested too deeply") from error
+        raise NestedTooDeeply("OGK-CORE-021", "JSON nested too deeply") from error
 
 
 def load_json(path: Any, *, pairs: Callable | None = None) -> Any:
@@ -200,7 +200,7 @@ def project_lock(directory: Path):
     directory.mkdir(parents=True, exist_ok=True)
     lock_file = directory / ".lock"
     if lock_file.is_symlink():
-        raise ValueError(f"Refusing a symbolic link as project lock: {lock_file}")
+        raise OgkError("OGK-CORE-024", f"Refusing a symbolic link as project lock: {lock_file}")
     try:
         with _held_lock(lock_file):
             yield

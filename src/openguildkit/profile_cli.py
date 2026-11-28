@@ -75,7 +75,7 @@ def add_parser(commands) -> None:
 def _confirm(change: str, target: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
     what = "; ".join(text for text, _ in weakened)
-    refusal = Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
+    refusal = Weakening("OGK-PROFILE-035", f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
                         f"same command at an interactive terminal.{voided_note(voided)} Nothing was written.", weakened)
     typed(target, f"'{change}' weakens a protection of the project ({what}).{voided_note(voided)} Type {target} to "
           "confirm: ", refusal=refusal, cancelled="Profile change cancelled. Nothing was written.")
