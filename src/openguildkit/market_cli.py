@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .cli_surface import add_by
 from .command import Command
+from .errors import OgkError
 from .market import (
     KINDS,
     MARKET_DIR,
@@ -87,7 +88,7 @@ def _require(args) -> None:
     missing = [name for name in _REQUIRED.get(args.mode, ()) if not getattr(args, name)]
     if missing:
         options = ", ".join("--" + name.replace("_", "-") for name in missing)
-        raise ValueError(f"market {args.mode} needs {options}.")
+        raise OgkError("OGK-MARKET-010", f"market {args.mode} needs {options}.")
 
 
 def _changed(args, dossier: dict) -> dict:
@@ -97,7 +98,7 @@ def _changed(args, dossier: dict) -> dict:
         return describe(dossier, {name: getattr(args, name) for name in ("title", "market", "audience", "feature")})
     if mode == "competitor":
         if args.kind not in KINDS:
-            raise ValueError("A competitor's --kind is direct or substitute.")
+            raise OgkError("OGK-MARKET-011", "A competitor's --kind is direct or substitute.")
         return add_competitor(dossier, {"id": args.competitor, "name": args.name, "kind": args.kind,
                                         "url": args.url, "segment": args.segment})
     if mode == "observe":
@@ -160,7 +161,7 @@ def _person_reviews(args, dossier: dict, research: str) -> None:
     if watched is None or (args.mode == "change" and watched.get("provided_by")):
         return
     then = " first, then record the change" if args.mode == "change" else ""
-    raise ValueError(f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
+    raise OgkError("OGK-MARKET-012", f"Research is local-only: no agent opens {url}. A person reviews it and records it with "
                      f"openguildkit market provided {args.dossier} --url {url} --by INITIALS{then}.")
 
 
@@ -183,7 +184,7 @@ def run(command: Command) -> None:
         if args.mode == "new":
             path = dossier_path(state, args.dossier)
             if path.exists():
-                raise ValueError(f"Market dossier {args.dossier} already exists. Update it with the other market commands.")
+                raise OgkError("OGK-MARKET-013", f"Market dossier {args.dossier} already exists. Update it with the other market commands.")
             dossier = new_dossier(args.dossier, {name: getattr(args, name) for name in ("title", "market", "audience", "feature")})
         else:
             dossier = load_dossier(state, args.dossier)

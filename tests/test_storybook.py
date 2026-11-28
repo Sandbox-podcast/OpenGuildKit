@@ -57,6 +57,7 @@ class StorybookIndexTests(unittest.TestCase):
         self.assertNotIn("warnings", import_indexes(self.root, state))
 
     def test_storybook_10_and_7_indexes_are_read_and_older_formats_refused(self):
+        # OGK-STORY-001, OGK-STORY-002
         project = read_index(FIXTURES / "project-index.json")
         self.assertIn({"id": "example-button--primary", "title": "Example/Button", "name": "Primary", "type": "story",
                        "tags": ["dev", "test", "manifest", "autodocs"], "importPath": "./src/stories/Button.stories.ts"},
@@ -100,6 +101,7 @@ class StorybookIndexTests(unittest.TestCase):
         self.assertEqual([item.get("export") or item.get("title") for item in themes], ["./theme.css", "./tokens", "Theme/Colors"])
 
     def test_compose_manages_its_own_refs_file_and_leaves_main_to_the_team(self):
+        # OGK-STORY-004, OGK-STORY-005, OGK-STORY-007
         storybook = self.root / ".storybook"
         storybook.mkdir()
         main_file = storybook / "main.ts"
@@ -123,6 +125,7 @@ class StorybookIndexTests(unittest.TestCase):
             compose(self.root, "company", "https://design.example.com")
 
     def test_compose_refuses_a_url_with_a_user_name_or_a_password(self):
+        # OGK-STORY-003
         (self.root / ".storybook").mkdir()
         for url in ("https://user:secret@design.example.com", "https://user@design.example.com",
                     "https://:secret@design.example.com", "http://user:secret@localhost:6006"):

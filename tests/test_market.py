@@ -59,6 +59,7 @@ class MarketDossierTests(unittest.TestCase):
         self.assertEqual(due_sources(dossier, today=date(2026, 12, 20)), [])
 
     def test_invalid_dossiers_are_refused(self):
+        # OGK-MARKET-001, OGK-MARKET-006
         broken = copy.deepcopy(DOSSIER)
         broken["observations"][0]["source"]["date"] = "last week"
         with self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
@@ -104,6 +105,7 @@ class MalformedDossierTests(unittest.TestCase):
         return dossier
 
     def test_wrongly_typed_fields_get_a_one_line_error(self):
+        # OGK-MARKET-002, OGK-MARKET-004, OGK-MARKET-005, OGK-MARKET-007
         cases = {
             "observations must be a JSON list": lambda d: d.update(observations=None),
             "unknown competitor \\['vendor-a'\\]": lambda d: d["observations"][0].update(competitor=["vendor-a"]),
@@ -119,6 +121,7 @@ class MalformedDossierTests(unittest.TestCase):
                 validate_dossier(self.broken(change), "support-portals")
 
     def test_dates_after_tomorrow_are_refused(self):
+        # OGK-MARKET-003
         later = (clock.real_today() + timedelta(days=2)).isoformat()
         tomorrow = (clock.real_today() + timedelta(days=1)).isoformat()
         for change in (lambda d: d["observations"][0]["source"].update(date=later),
@@ -150,6 +153,7 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
         return json.loads((self.root / ".openguildkit" / "market" / f"{dossier_id}.json").read_text(encoding="utf-8"))
 
     def test_market_new_creates_a_dossier_that_market_check_accepts(self):
+        # OGK-MARKET-008, OGK-MARKET-013
         self.assertIn("market new nope", self.cli("market", "check", "nope", code=1))
         self.cli("market", "new", "nope")
         gaps = json.loads(self.cli("market", "check", "nope", "--json"))["gaps"]
@@ -189,6 +193,7 @@ class MarketCommandTests(CapturedCli, unittest.TestCase):
                  "--source", "Notes of the sales call", "--date", "2026-11-03")
 
     def test_commands_record_observations_changes_and_last_checked(self):
+        # OGK-MARKET-011
         today = clock.real_today().isoformat()
         self.cli("market", "new", "portals", "--market", "B2B help desks", "--audience", "Support leads", "--feature", "Status")
         self.cli("market", "competitor", "portals", "--competitor", "vendor-a", "--name", "Vendor A", "--kind", "direct")
@@ -382,6 +387,7 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         before = self.path.read_bytes()
         refused = self.cli("market", "checked", "support-portals", "--url", self.URL, code=1)
         self.assertIn("Research is local-only", refused)
+        # OGK-MARKET-012
         self.assertIn(f"openguildkit market provided support-portals --url {self.URL} --by INITIALS", refused)
         change = ("market", "change", "support-portals", "--competitor", "vendor-a", "--what", "Added labels.",
                   "--source", self.URL, "--date", "2026-11-10", "--verified-by", "Camille Martin")
@@ -403,6 +409,7 @@ class MarketLayoutAndRelevanceTests(CapturedCli, unittest.TestCase):
         self.assertEqual([item["what"] for item in changes][-2:], ["Shared in a meeting.", "Added labels."])
 
     def test_under_local_only_a_person_records_a_page_they_provided(self):
+        # OGK-MARKET-009, OGK-MARKET-010
         due = self.cli("market", "due", "support-portals")
         self.assertIn(self.URL, due)
         self.assertIn("market provided", due)

@@ -191,8 +191,10 @@ class WaiverCommandTests(ReviewedTaskTestCase):
 
 class StorybookComposeCommandTests(CliTestCase):
     def test_compose_adds_updates_and_removes_a_ref(self):
+        # OGK-STORY-008
         self.init_example()
         missing = self.run_cli("storybook", "compose", "company", "--url", "https://design.example.test", expect=1)
+        # OGK-STORY-006
         self.assertIn("No Storybook configuration in .storybook", missing.stderr)
         (self.project / ".storybook").mkdir()
         (self.project / ".storybook" / "main.ts").write_text("export default {};\n", encoding="utf-8")

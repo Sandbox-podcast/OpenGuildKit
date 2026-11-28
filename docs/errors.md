@@ -7,6 +7,15 @@ A code is raised from one place and keeps its meaning when its words change: sea
 
 | Code | Raised by | Message | Tests |
 |---|---|---|---|
+| `OGK-ALERTS-001` | `alerts.py:check_scope` | Invalid scope {scope!r}: use 1 to 64 lowercase letters, digits, hyphens, slashes or dots, starting and ending with a letter or a digit, such as front or services/api. | tests/test_alerts.py |
+| `OGK-ALERTS-002` | `alerts.py:_report_text` | {label} is not valid {'UTF-16' if utf16 else 'UTF-8'} text: {error}. Save the scanner's report as UTF-8. | tests/test_alerts.py |
+| `OGK-ALERTS-003` | `alerts.py:read_report` | {label} holds several JSON documents; only Dependabot pages can be concatenated. | tests/test_alerts.py |
+| `OGK-ALERTS-004` | `alerts.py:read_report` | {label} is not an npm audit, pip-audit, OSV-Scanner or Dependabot JSON report. | tests/test_alerts.py |
+| `OGK-ALERTS-005` | `alerts.py:find_alert` | {unknown('alert', alert_id, 'alerts list')} | tests/test_alert_resolution.py |
+| `OGK-ALERTS-006` | `alerts.py:set_status` | Choose the status from {', '.join(REVIEW_STATUSES)}; an import marks alerts resolved. | tests/test_alerts.py |
+| `OGK-ALERTS-007` | `alerts.py:set_status` | Give the reason for dismissing the alert with --reason. | tests/test_alerts.py |
+| `OGK-ALERTS-008` | `alerts.py:set_status` | Name the person who reviewed the alert with --by. | tests/test_alerts.py |
+| `OGK-ALERTS-009` | `alerts.py:accept_alert` | Name the person with --by and say why the risk is accepted with --reason. | tests/test_alerts.py |
 | `OGK-BOARD-001` | `board_entries.py:required_text` | {field} must contain text. | tests/e2e/test_board_passes.py |
 | `OGK-BOARD-002` | `board_entries.py:_text_list` | {field} must be a list of strings. | tests/test_robustness.py |
 | `OGK-BOARD-003` | `board_entries.py:_evidence_day` | {field}: got {received_value(value)}; write the date YYYY-MM-DD. | tests/e2e/test_board_passes.py |
@@ -92,6 +101,19 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-LANE-008` | `short_lane.py:declare` | {error} Open the task on the full path: {FULL_PATH}. | tests/test_short_lane.py |
 | `OGK-LANE-009` | `short_lane.py:declare` | the short lane of this project covers only {', '.join(light)}; these paths are outside it: {', '.join(outside)}. Open the task on the full path ({FULL_PATH}, without --lane), or have a person widen the lane at their terminal: {activation_command(sorted({*light, *outside}))}. | tests/test_short_lane.py |
 | `OGK-LANE-010` | `short_lane.py:proposed_routing` | The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS --reason WHY), or the work takes the full path ({FULL_PATH}). | tests/test_short_lane.py |
+| `OGK-MARKET-001` | `market.py:_day` | {field} must be a date written YYYY-MM-DD. | tests/test_market.py |
+| `OGK-MARKET-002` | `market.py:_day` | {field} must be a real date written YYYY-MM-DD: {value}. | tests/test_market.py |
+| `OGK-MARKET-003` | `market.py:_day` | {field} is in the future ({value}): write the date the information dates from. | tests/test_market.py |
+| `OGK-MARKET-004` | `market.py:_list` | {field} must be a JSON list. | tests/test_market.py |
+| `OGK-MARKET-005` | `market.py:_competitor` | {label} names an unknown competitor {value!r}: add it first with market competitor. | tests/test_market.py |
+| `OGK-MARKET-006` | `market.py:validate_watch` | Watched sources are public https pages. | tests/test_market.py |
+| `OGK-MARKET-007` | `market.py:validate_watch` | paused is true or false, without quotes. | tests/test_market.py |
+| `OGK-MARKET-008` | `market.py:load_dossier` | Unknown market dossier {dossier_id}. Create it with openguildkit market new {dossier_id}. | tests/test_market.py |
+| `OGK-MARKET-009` | `market.py:mark_provided` | {url} is not a watched source of the dossier. Run market due to list them. | tests/test_market.py |
+| `OGK-MARKET-010` | `market_cli.py:_require` | market {args.mode} needs {options}. | tests/test_market.py |
+| `OGK-MARKET-011` | `market_cli.py:_changed` | A competitor's --kind is direct or substitute. | tests/test_market.py |
+| `OGK-MARKET-012` | `market_cli.py:_person_reviews` | Research is local-only: no agent opens {url}. A person reviews it and records it with openguildkit market provided {args.dossier} --url {url} --by INITIALS{then}. | tests/test_market.py |
+| `OGK-MARKET-013` | `market_cli.py:run` | Market dossier {args.dossier} already exists. Update it with the other market commands. | tests/test_market.py |
 | `OGK-MCP-001` | `mcp_mock.py:_validate_records` | {label}: every item needs a unique {collection['key']}. | tests/test_tools.py |
 | `OGK-MCP-002` | `mcp_mock.py:validate_mock` | Mock {tool_id}: {problems[0]} | tests/test_tools.py |
 | `OGK-MCP-003` | `mcp_mock.py:check_synthetic` | {label}: {match.group(0)} is not a test address. Use a reserved domain such as example.test. | tests/test_tools.py |
@@ -239,6 +261,19 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-RULE-012` | `rule_checks.py:_validate_field` | {label}.integer must be true; omit it otherwise | tests/e2e/test_export_ci.py |
 | `OGK-RULE-013` | `rule_checks.py:validate_check` | {label}.kind must be one of {', '.join(CHECK_KINDS)} | tests/test_rule_checks.py |
 | `OGK-RULE-014` | `rule_checks.py:validate_check` | {label} runs a command: only a pack in .openguildkit/catalog/packs/ may declare one | tests/test_rule_checks.py |
+| `OGK-STORY-001` | `storybook.py:read_index` | {path} is a Storybook 6 stories.json. Build the Storybook with version 7 or later. | tests/test_storybook.py |
+| `OGK-STORY-002` | `storybook.py:read_index` | {path}: unexpected Storybook entry {key!r}. | tests/test_storybook.py |
+| `OGK-STORY-003` | `storybook.py:_check_ref_url` | Remove the user name and password from the URL: the refs file is committed. Let the Storybook host handle authentication, with its own sign-in. | tests/test_storybook.py |
+| `OGK-STORY-004` | `storybook.py:_check_ref_url` | The composed Storybook needs an https URL, or http://localhost while testing. | tests/test_storybook.py |
+| `OGK-STORY-005` | `storybook.py:compose` | {PROJECT_REF} is reserved for the project's own Storybook. | tests/test_storybook.py |
+| `OGK-STORY-006` | `storybook.py:compose` | No Storybook configuration in {config_dir}. Create the project Storybook first, with npm create storybook@{STORYBOOK_VERSION}, or create the {config_dir} folder and run this command again: it prints a minimal main.ts. | tests/e2e/test_more_commands.py |
+| `OGK-STORY-007` | `storybook.py:compose` | {path.name} is managed by openguildkit storybook compose and holds refs only. | tests/test_storybook.py |
+| `OGK-STORY-008` | `storybook.py:compose` | No composed Storybook named {ref} in {path.name}. | tests/e2e/test_more_commands.py |
+| `OGK-STORY-009` | `storybook.py:_check_proposal_items` | {item['key']}: status must be proposed, validated or rejected. | tests/test_storybook_extract.py |
+| `OGK-STORY-010` | `storybook.py:_check_proposed_component` | {item['key']}: export is named or default, and public is the JavaScript name the component is exported under. | tests/test_storybook_extract.py |
+| `OGK-STORY-011` | `storybook.py:_check_proposed_tokens` | {item['key']}: a token name is a dotted path whose parts do not start with $ and contain no braces. | tests/test_storybook_extract.py |
+| `OGK-STORY-012` | `storybook.py:_check_proposed_tokens` | Validated token {name} is used twice or is also a group. | tests/test_storybook_extract.py |
+| `OGK-STORY-013` | `storybook_stories.py:generate` | Generate the design system inside the project. | tests/test_storybook_extract.py |
 | `OGK-TASK-001` | `tasks.py:dependencies` | A task cannot wait for itself: {task_id}. | tests/test_error_codes.py |
 | `OGK-TASK-002` | `tasks.py:dependencies` | Task {task_id} cannot wait for {cycle[1]}: that would close a cycle ({' -> '.join(cycle)}). Remove that --after. | tests/test_error_codes.py |
 | `OGK-TASK-003` | `tasks.py:create_task` | The task ID is empty. Omit --id to generate one. | tests/test_error_codes.py |

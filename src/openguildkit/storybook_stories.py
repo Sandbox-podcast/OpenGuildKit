@@ -11,6 +11,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+from .errors import OgkError
 from .stack_versions import STORYBOOK_VERSION
 from .storage import file_sha256, json_text, project_lock, read_json, write_json, write_text
 from .storybook import (
@@ -258,7 +259,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
     framework = framework or detect_framework(root)
     out = (out or root / "src" / "design-system").resolve()
     if root not in (out, *out.parents):
-        raise ValueError("Generate the design system inside the project.")
+        raise OgkError("OGK-STORY-013", "Generate the design system inside the project.")
     components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
     files: dict[Path, str] = {}
     skipped: list[dict] = []

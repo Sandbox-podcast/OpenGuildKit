@@ -266,7 +266,7 @@
     {"command": "alerts severity", "function": "run", "module": "src/openguildkit/alerts_cli.py", "line": 197},
     {"command": "alerts link", "function": "run", "module": "src/openguildkit/alerts_cli.py", "line": 172},
     {"command": "alerts tasks", "function": "_alert_tasks", "module": "src/openguildkit/alerts_cli.py", "line": 146},
-    {"command": "market", "function": "run", "module": "src/openguildkit/market_cli.py", "line": 167},
+    {"command": "market", "function": "run", "module": "src/openguildkit/market_cli.py", "line": 168},
     {"command": "storybook compose", "function": "run", "module": "src/openguildkit/storybook_cli.py", "line": 125},
     {"command": "storybook import", "function": "run", "module": "src/openguildkit/storybook_cli.py", "line": 128},
     {"command": "storybook extract", "function": "run", "module": "src/openguildkit/storybook_cli.py", "line": 131},

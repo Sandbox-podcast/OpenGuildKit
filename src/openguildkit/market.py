@@ -17,6 +17,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from . import clock
+from .errors import OgkError
 from .sensitive import public_evidence_url
 from .storage import parse_json, read_bytes, read_json, write_text
 
@@ -50,27 +51,27 @@ def _one_text_line(value, field: str) -> str:
 def _day(value, field: str) -> str:
     """A YYYY-MM-DD date that is not in the future (one day of margin for time zones)."""
     if not isinstance(value, str) or not _DAY.fullmatch(value):
-        raise ValueError(f"{field} must be a date written YYYY-MM-DD.")
+        raise OgkError("OGK-MARKET-001", f"{field} must be a date written YYYY-MM-DD.")
     try:
         day = date.fromisoformat(value)
     except ValueError as error:
-        raise ValueError(f"{field} must be a real date written YYYY-MM-DD: {value}.") from error
+        raise OgkError("OGK-MARKET-002", f"{field} must be a real date written YYYY-MM-DD: {value}.") from error
     if day > clock.real_today() + timedelta(days=1):
-        raise ValueError(f"{field} is in the future ({value}): write the date the information dates from.")
+        raise OgkError("OGK-MARKET-003", f"{field} is in the future ({value}): write the date the information dates from.")
     return value
 
 
 def _list(container: dict, key: str, field: str) -> list:
     value = container.get(key, [])
     if not isinstance(value, list):
-        raise ValueError(f"{field} must be a JSON list.")
+        raise OgkError("OGK-MARKET-004", f"{field} must be a JSON list.")
     return value
 
 
 def _competitor(item: dict, competitors: dict, label: str) -> str:
     value = item.get("competitor")
     if not isinstance(value, str) or value not in competitors:
-        raise ValueError(f"{label} names an unknown competitor {value!r}: add it first with market competitor.")
+        raise OgkError("OGK-MARKET-005", f"{label} names an unknown competitor {value!r}: add it first with market competitor.")
     return value
 
 
@@ -147,7 +148,7 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
             raise ValueError("Each watched source needs competitor, url and kind, and can add last_checked and provided_by.")
         competitor = _competitor(item, competitors, "A watched source")
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
-            raise ValueError("Watched sources are public https pages.")
+            raise OgkError("OGK-MARKET-006", "Watched sources are public https pages.")
         public_evidence_url(item["url"].strip(), "url")
         source = {"competitor": competitor, "url": _one_text_line(item["url"], "url"), "kind": _one_text_line(item["kind"], "kind")}
         if "last_checked" in item:
@@ -167,14 +168,14 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
         })
     paused = watch.get("paused", False)
     if type(paused) is not bool:
-        raise ValueError("paused is true or false, without quotes.")
+        raise OgkError("OGK-MARKET-007", "paused is true or false, without quotes.")
     return {"every_days": every, "paused": paused, "sources": sources, "changes": changes}
 
 
 def load_dossier(state: Path, dossier_id: str) -> dict:
     path = dossier_path(state, dossier_id)
     if not path.is_file():
-        raise ValueError(f"Unknown market dossier {dossier_id}. Create it with openguildkit market new {dossier_id}.")
+        raise OgkError("OGK-MARKET-008", f"Unknown market dossier {dossier_id}. Create it with openguildkit market new {dossier_id}.")
     return validate_dossier(read_json(path), dossier_id)
 
 
@@ -356,7 +357,7 @@ def mark_provided(dossier: dict, url: str, by: str, day: str | None = None) -> d
     """Record that a person reviewed a watched page and provided what it says, for a project under local-only."""
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
-        raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
+        raise OgkError("OGK-MARKET-009", f"{url} is not a watched source of the dossier. Run market due to list them.")
     by = _one_text_line(by, "--by")
     day = _day(day or clock.real_today().isoformat(), "date")
     sources = [{**item, "provided_by": by} if item["url"] == url else item for item in _checked(watch["sources"], url, day)]

@@ -193,6 +193,7 @@ class ScopeTests(unittest.TestCase):
         self.assertEqual(find_alert(register, f"{SEMVER}@front")["scope"], "front")
 
     def test_an_alert_of_a_scope_is_found_by_any_of_its_advisory_ids(self):
+        # OGK-ALERTS-005
         register, _ = import_report(empty(), FIXTURES / "pip-audit.json", scope="api", today="2026-11-21")
         self.assertEqual(find_alert(register, "pypi:jinja2:cve-2024-22195@api")["id"], f"{JINJA}@api")
         with self.assertRaisesRegex(ValueError, "Unknown alert"):
