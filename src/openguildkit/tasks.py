@@ -1,16 +1,22 @@
 """Track task consultations and decisions in the project."""
 
 import difflib
+import hashlib
+import json
+import os
 import re
+import time
 import uuid
+from collections.abc import Iterable
 from datetime import date, datetime, timezone
+from functools import cache
 from pathlib import Path
 
-from . import clock, delivered_review, light_lane, requester
+from . import clock, delivered_review, light_lane, requester, task_index
 from .decisions import (
-    EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload, history_message,
-    reconsult_command, revisions_outside_history, seal, signature_or_history_problem, stale_approval_message,
-    verify_signature,
+    DECISIONS_DIR, EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload,
+    history_message, reconsult_command, revisions_outside_history, seal, signature_or_history_problem,
+    stale_approval_message, verify_signature,
 )
 from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .relevance import sensitive_area
@@ -19,7 +25,7 @@ from .results import (
     DONE_STATUSES, asked_checks, completion_problems, evidence_fingerprint, evidence_state, merge_results,
     not_concerned, outcomes, result_warnings, validate_result, waiting_evidence,
 )
-from .storage import read_json, write_json
+from .storage import file_signature, read_json, write_text
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_not_found, consult, profile_settings
 from .questionnaire import validate_answers
@@ -36,6 +42,13 @@ WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
 
 def timestamp() -> str:
     return clock.timestamp()
+
+
+def write_task(path: Path, task: dict) -> None:
+    """Write a task record without indentation, which made 29 % of a closed task's weight: git ignores the records
+    and only the commands read them. Nothing compares their bytes (seals and digests hash the parsed fields), and any
+    JSON reader, an earlier release's included, reads the same fields."""
+    write_text(path, json.dumps(task, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n")
 
 
 def task_path(state: Path, task_id: str) -> Path:
@@ -332,7 +345,7 @@ def create_task(state: Path, brief: str, task_id: str | None, follows: str | Non
             "status": previous["status"],
             "decision": {key: previous["decision"][key] for key in ("outcome", "by", "reason", "at")},
         }
-    write_json(path, record)
+    write_task(path, record)
     return task_id
 
 
@@ -598,82 +611,172 @@ def _period_day(value: str | None, option: str) -> str | None:
 
 def list_tasks(state: Path, status: str | None = None, owner: str | None = None,
                since: str | None = None, until: str | None = None, *, profile: dict | None = None,
-               catalog: dict | None = None, root: Path | None = None, read: dict | None = None) -> list[dict]:
+               catalog: dict | None = None, root: Path | None = None, read: dict | None = None,
+               skip: Iterable[str] = (), indexed: bool = False) -> list[dict]:
     """Every task of the project with its status, decision owner and next open point.
 
     With the profile and the catalog, each approval is judged by approval_problem, and with the project root its
     signature and revision too (one git call for every approval). A dict given as read receives every task record
-    read, by ID, so that a caller that needs them too does not read them again.
+    read, by ID, so that a caller that needs them too does not read them again; a record it already holds is not
+    read again either. skip leaves out tasks of those statuses, as status leaves out the others.
+
+    indexed reads the status index first (task_index.py) and writes back what the reads taught it: a record read
+    whole at its current signature is not read again when its status is left out, nor when it is a closed task whose
+    line the index keeps (_kept_line), which read then does not receive. The index only saves reads: missing, stale
+    or corrupt, it gives the same list.
     """
     since, until = _period_day(since, "--since"), _period_day(until, "--until")
     directory = state / "tasks"
     rows = []
     if not directory.is_dir():
         return rows
-    entries, statuses = [], {}
+    judged = profile is not None and catalog is not None
+    fingerprints = Fingerprints(profile, catalog) if judged else None
+    skip = {*skip, *(set(STATUSES) - {status} if status else ())}
+    index = task_index.entries(state) if indexed else {}
+    entries, statuses, learnt = [], {}, False
+
+    def in_period(day: str) -> bool:
+        return not ((since and day < since) or (until and day > until))
+
     for path in sorted(directory.glob("*.json")):
-        try:
-            task = read_task(state, path.stem)
-        except ValueError as error:
-            entries.append({"id": path.stem, "status": "unreadable", "next": str(error)})
+        known = index.get(path.name, {})
+        if known.get("checked") is True and known.get("status") in skip:
+            statuses[path.stem] = known["status"]
             continue
+        line = _kept_line(state, known, path.stem, fingerprints)
+        if line:
+            statuses[path.stem] = known["status"]
+            if in_period(line["row"]["created"]):
+                entries.append((None, dict(line["row"])))
+            continue
+        try:
+            task = (read or {}).get(path.stem) or read_task(state, path.stem)
+        except ValueError as error:
+            entries.append((None, {"id": path.stem, "status": "unreadable", "next": str(error)}))
+            continue
+        if "stamp" in known and (known.get("checked"), known.get("status")) != (True, task["status"]):
+            index[path.name], learnt = {"status": task["status"], "stamp": known["stamp"], "checked": True}, True
         statuses[task["id"]] = task["status"]
         if read is not None:
             read[task["id"]] = task
-        day = task["created_at"][:10]
-        if status and task["status"] != status:
-            continue
-        if (since and day < since) or (until and day > until):
-            continue
-        entries.append(task)
-    judged = profile is not None and catalog is not None
-    fingerprints = Fingerprints(profile, catalog) if judged else None
-    approved = [base_commit(task) for task in entries if task["status"] == "approved"]
+        if task["status"] not in skip and in_period(task["created_at"][:10]):
+            entries.append((task, None))
+    approved = [base_commit(task) for task, _ in entries if task and task["status"] == "approved"]
     outside = revisions_outside_history(root, approved) if judged and root is not None else None
-    for task in entries:
-        if task["status"] == "unreadable":
-            rows.append(task)
+    for task, row in entries:
+        if task is not None:
+            problem = (approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside)
+                       if judged else None)
+            row = _task_row(task, problem, profile, fingerprints, root)
+            name = f"{task['id']}.json"
+            if index.get(name, {}).get("checked") is True:
+                line = _line_to_keep(state, task, row, problem, fingerprints)
+                if line and index[name].get("line") != line:
+                    index[name], learnt = {**index[name], "line": line}, True
+        elif row["status"] == "unreadable":
+            rows.append(row)
             continue
-        day = task["created_at"][:10]
-        problem = (approval_problem(task, profile, catalog, root, fingerprints=fingerprints, outside=outside)
-                   if judged else None)
         # owner is who took the task's current decision: the approval, the change request or the withdrawal.
-        decided_by = task.get("decision", {}).get("by")
-        if problem and problem["kind"] == "invalid-seal":
-            decided_by = None
-        if owner and (decided_by or "").casefold() != owner.casefold():
+        if owner and (row["owner"] or "").casefold() != owner.casefold():
             continue
-        # An approval that holds through the signers of the revision it was signed at keeps its next step.
-        note = problem if problem and problem["kind"] == EARLIER_SIGNERS else None
-        row = {"id": task["id"], "status": task["status"], "created": day, "owner": decided_by,
-               "brief": task["brief"].splitlines()[0][:80],
-               "next": problem["message"] if problem and not note else next_step(task, profile)}
-        if judged and task["status"] == "reviewed" and not fingerprints.holds(task.get("profile_fingerprint")):
-            row["next"] = stale_review_message(task["id"])
-        decided = decision_words(task, problem)
-        if decided:
-            row["decided"] = decided
-        if note:
-            row["note"] = note["message"]
-        if problem:
-            row.update(approval_problem=problem["kind"], severity=problem["severity"])
-        closed_by = task.get("result", {}).get("closing", {}).get("by")
-        if closed_by:
-            row["closed_by"] = closed_by
-        if task.get("follows"):
-            row["follows"] = task["follows"]["task"]
-        if light_lane.is_light(task):
-            row.update(lane=task["lane"], paths=task["paths"])
-        changed = changed_evidence(task, root) if root is not None else []
-        if changed:
-            row["evidence_changed"] = changed
-        if task.get("after"):
-            row["after"] = task["after"]
-            waiting = waiting_for(task, statuses)
-            if waiting:
-                row["waiting_for"] = waiting
+        waiting = waiting_for(row, statuses)
+        if waiting:
+            row["waiting_for"] = waiting
         rows.append(row)
+    if learnt:
+        task_index.save(state, index)
     return rows
+
+
+def _task_row(task: dict, problem: dict | None, profile: dict | None, fingerprints: Fingerprints | None,
+              root: Path | None) -> dict:
+    """A task's line of task list, but for the tasks it waits for, which depend on the others; problem is its
+    approval_problem, fingerprints those of the profile when the approval is judged."""
+    # An approval that holds through the signers of the revision it was signed at keeps its next step.
+    note = problem if problem and problem["kind"] == EARLIER_SIGNERS else None
+    row = {"id": task["id"], "status": task["status"], "created": task["created_at"][:10],
+           "owner": None if problem and problem["kind"] == "invalid-seal" else task.get("decision", {}).get("by"),
+           "brief": task["brief"].splitlines()[0][:80],
+           "next": problem["message"] if problem and not note else next_step(task, profile)}
+    if fingerprints is not None and task["status"] == "reviewed" and \
+            not fingerprints.holds(task.get("profile_fingerprint")):
+        row["next"] = stale_review_message(task["id"])
+    decided = decision_words(task, problem)
+    if decided:
+        row["decided"] = decided
+    if note:
+        row["note"] = note["message"]
+    if problem:
+        row.update(approval_problem=problem["kind"], severity=problem["severity"])
+    closed_by = task.get("result", {}).get("closing", {}).get("by")
+    if closed_by:
+        row["closed_by"] = closed_by
+    if task.get("follows"):
+        row["follows"] = task["follows"]["task"]
+    if light_lane.is_light(task):
+        row.update(lane=task["lane"], paths=task["paths"])
+    changed = changed_evidence(task, root) if root is not None else []
+    if changed:
+        row["evidence_changed"] = changed
+    if task.get("after"):
+        row["after"] = task["after"]
+    return row
+
+
+# The line of a closed task the status index keeps (_line_to_keep), checked again when it is read back (_kept_line).
+_LINE_ROW = {"id": str, "status": str, "created": str, "owner": (str, type(None)), "brief": str, "next": str,
+             "decided?": str, "closed_by?": str, "follows?": str, "lane?": str, "paths?": [str], "after?": [str]}
+_LINE_FIELDS = {key.rstrip("?") for key in _LINE_ROW}
+_LINE = {"code": str, "fingerprint": str, "row": _LINE_ROW, "export": ([int], type(None))}
+
+
+@cache
+def _code_stamp() -> str | None:
+    """What changes with the code that writes the lines the status index keeps: the name, size and modification time
+    of each module of the package, so that another release or an edited checkout reads the records again."""
+    try:
+        modules = sorted((item.name, item.stat().st_size, item.stat().st_mtime_ns)
+                         for item in os.scandir(Path(__file__).parent) if item.name.endswith(".py"))
+    except OSError:
+        return None
+    return hashlib.sha256(repr(modules).encode()).hexdigest()
+
+
+def _line_to_keep(state: Path, task: dict, row: dict, problem: dict | None,
+                  fingerprints: Fingerprints | None) -> dict | None:
+    """What the status index keeps of a closed task's line: the row, the fingerprint of the rules it was approved
+    under and the signature of its exported record (None without one). None when the line depends on more than the
+    record and the rules: an approval that does not hold, evidence whose file may change, an exported record of
+    another task under its ID, which task list names at each run."""
+    from .guard import record_of_another_task  # The guard reads task records: it is loaded once this module is.
+
+    code = _code_stamp()
+    if task["status"] not in DONE_STATUSES or problem or fingerprints is None or code is None or \
+            any(fingerprint for _, _, fingerprint in _accepted_evidence(task)):
+        return None
+    # Taken before the record is read, and not trusted just after a write: as for the index, a second write within
+    # the same clock tick could keep the signature.
+    export = file_signature(state / DECISIONS_DIR / f"{task['id']}.json")
+    if (export and export[1] + task_index.RACY_NANOSECONDS >= time.time_ns()) or record_of_another_task(state, task):
+        return None
+    return {"code": code, "fingerprint": task["profile_fingerprint"], "row": dict(row),
+            "export": list(export) if export else None}
+
+
+def _kept_line(state: Path, entry: dict, task_id: str, fingerprints: Fingerprints | None) -> dict | None:
+    """The line the status index keeps for a closed task while its record, its exported record, the code that wrote
+    the line and the rules it was approved under all hold; None otherwise, and the record is read."""
+    line = entry.get("line")
+    if entry.get("checked") is not True or fingerprints is None or not isinstance(line, dict) or \
+            _shape_problem(line, _LINE, "line"):
+        return None
+    row, export = line["row"], file_signature(state / DECISIONS_DIR / f"{task_id}.json")
+    if (line["code"], row["id"], row["status"], line["export"]) != \
+            (_code_stamp(), task_id, entry.get("status"), list(export) if export else None) or \
+            row["status"] not in DONE_STATUSES or not set(row) <= _LINE_FIELDS:
+        return None
+    return line if fingerprints.holds(line["fingerprint"]) else None
 
 
 def decision_words(task: dict, problem: dict | None = None) -> str | None:
@@ -1246,13 +1349,20 @@ def verification_blocker_problems(task: dict, profile: dict, root: Path | None =
 CHANGED_EVIDENCE_GROUP = "Evidence changed since it was accepted"
 
 
+def _accepted_evidence(task: dict) -> list[tuple[str, str, str | None]]:
+    """Each evidence a clearance or a passed named evidence cites: the evidence, what it was accepted for and its
+    fingerprint, None for one recorded before fingerprints."""
+    cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
+             for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "cleared"]
+    return cited + [(item["evidence"], item["check"], item.get("fingerprint"))
+                    for item in task.get("result", {}).get("checks", [])
+                    if item["check"].startswith("evidence:") and item["status"] == "passed" and "evidence" in item]
+
+
 def evidence_states(task: dict, root: Path) -> list[dict]:
     """Each evidence a clearance or a passed named evidence cites, with its state now, once one has a fingerprint:
     a task recorded before fingerprints lists none."""
-    cited = [(item["resolution"]["evidence"], f"blocker {item['id']}", item["resolution"].get("fingerprint"))
-             for item in blocker_list(task) if item["resolution"] and item["resolution"]["kind"] == "cleared"]
-    cited += [(item["evidence"], item["check"], item.get("fingerprint")) for item in task.get("result", {}).get("checks", [])
-              if item["check"].startswith("evidence:") and item["status"] == "passed" and "evidence" in item]
+    cited = _accepted_evidence(task)
     if not any(fingerprint for _, _, fingerprint in cited):
         return []
     return [{"evidence": value, "for": name, "state": evidence_state(root, value, fingerprint)}

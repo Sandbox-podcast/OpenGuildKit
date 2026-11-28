@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from .catalog import (
-    CatalogError, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
+    CatalogError, bundled_ids, json_copy, latest_checked, load_catalog, overlaid_boards, validate_dependencies,
     validate_entry,
 )
 from .ci import read_policy_pack
@@ -94,19 +94,22 @@ def central_policy(args) -> tuple[str, dict] | None:
     return None if repo is None else (commit, read_policy_pack(repo, commit))
 
 
-def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
+def _live_catalog(args, state: Path, lock: dict | None) -> dict:
     """The installed catalog with the organization's records, if the lock pins an organization catalog, and the
-    project's additions; and the IDs that ship with OpenGuildKit."""
-    organization = organization_in(read_lock(state), state)
-    live = load_catalog(state / "catalog", central_policy=central_policy(args), organization=organization)
-    bundled = {collection: set(entries) for collection, entries in load_catalog().items()}
-    return live, bundled
+    project's additions."""
+    organization = organization_in(lock, state)
+    return load_catalog(state / "catalog", central_policy=central_policy(args), organization=organization)
+
+
+def installed_catalog(args, state: Path) -> tuple[dict, dict[str, set[str]]]:
+    """The installed catalog (_live_catalog) and the IDs that ship with OpenGuildKit."""
+    return _live_catalog(args, state, read_lock(state)), bundled_ids()
 
 
 def project_catalog(args, state: Path) -> dict:
     """The catalog in force for the project: locked records take precedence over installed ones."""
-    live, _ = installed_catalog(args, state)
-    return apply_lock(live, read_lock(state))
+    lock = read_lock(state)
+    return apply_lock(_live_catalog(args, state, lock), lock)
 
 
 LOCK_OLDER = (
@@ -136,7 +139,8 @@ def _instructions_match(root: Path, profile: dict, catalog: dict) -> bool:
 
 
 def apply_lock(catalog: dict, lock: dict | None) -> dict:
-    """Return the catalog with the project's locked records in place of the bundled ones."""
+    """Return the catalog with the project's locked records in place of the bundled ones. It holds the lock's records,
+    not copies: pass a lock read for this call (read_lock gives each call its own copy)."""
     if not lock:
         return catalog
     effective = {collection: dict(entries) for collection, entries in catalog.items()}
@@ -145,7 +149,7 @@ def apply_lock(catalog: dict, lock: dict | None) -> dict:
         for record_id, record in entries.items():
             if collection == "boards" and record_id in overlaid:
                 continue
-            effective[collection][record_id] = json_copy(record)
+            effective[collection][record_id] = record
         effective[collection] = dict(sorted(effective[collection].items()))
     try:
         validate_dependencies(effective["packs"])

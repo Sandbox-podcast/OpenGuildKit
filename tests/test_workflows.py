@@ -342,6 +342,15 @@ class PackageJobTest(unittest.TestCase):
         self.assertIn("pip install dist/*.whl", script)
 
 
+class PerformanceJobTest(unittest.TestCase):
+    def test_the_benchmarks_time_the_catalog_bundle_the_wheel_ships(self):
+        """Issue #533: the performance job timed the 289 catalog record files, which an installed wheel does not read."""
+        job = parse(ROOT / ".github" / "workflows" / "ci.yml")["jobs"]["performance"]
+        commands = [step.get("run", "") for step in steps(job)]
+        measured = next(index for index, command in enumerate(commands) if "tests.test_performance" in command)
+        self.assertIn("python scripts/build_catalog_bundle.py", commands[:measured])
+
+
 def matrix_jobs(job: dict) -> list[dict]:
     """The combinations a job's matrix runs: the product of its lists, less its excludes (no include is used)."""
     matrix = dict(job["strategy"]["matrix"])

@@ -45,7 +45,7 @@ from .results import (
 from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word
-from .storage import print_json, project_lock, read_json, write_json
+from .storage import print_json, project_lock, read_json
 from .tasks import (
     ACTIONS, SENSITIVE_GROUP, approval_problem, assemble_review, board_brief_problem, cited_evidence, complete_task,
     create_task, decided_message, decision_text, defer_evidence, earlier_sequential_pass, expired_on, last_approval,
@@ -53,7 +53,7 @@ from .tasks import (
     next_command, pass_progress, passes_left, points_left_open, previous_round_line, read_task, record_authorization,
     record_consultation, record_decision, record_deliberation, record_result, record_review, require_approval,
     require_blocker_status, require_current_scope, resolve_blocker, revoke_approval, start_pass, state_refusal,
-    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line,
+    submit_pass, task_path, timestamp, verification_blocker_problems, waiting_for, waits_line, write_task,
 )
 from .terminal import interactive
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
@@ -416,7 +416,8 @@ def sharing_issues(root: Path, state: Path, records: list[dict], tasks: dict | N
             "task; if the tasks folder was deleted, these records are what remains (openguildkit task list --decisions).",
             None,
         ))
-    issues += [("task-id-clash", _clash_message(task_id, path), path) for task_id, path in _id_clashes(root, state).items()]
+    issues += [("task-id-clash", _clash_message(task_id, path), path)
+               for task_id, path in _id_clashes(root, state, tasks).items()]
     cited = {}
     if tasks is not None:
         cited = {task_id: cited_evidence(task) for task_id, task in sorted(tasks.items())}
@@ -429,21 +430,23 @@ def sharing_issues(root: Path, state: Path, records: list[dict], tasks: dict | N
     return issues + _unshared_evidence(root, cited)
 
 
-def _id_clashes(root: Path, state: Path) -> dict[str, str]:
+def _id_clashes(root: Path, state: Path, tasks: dict | None = None) -> dict[str, str]:
     """Local tasks whose ID an exported record of another task uses, such as a teammate's taken in a merge.
 
     Only the tasks that share an ID with an exported record are read, so a project with many tasks and few
-    records lists its tasks as fast as before.
+    records lists its tasks as fast as before. tasks holds the task records the caller already read, by ID: then
+    only those are compared, and none is read again.
     """
     clashes = {}
     for record in sorted((state / DECISIONS_DIR).glob("*.json")):
-        try:
-            if not task_path(state, record.stem).is_file():
-                continue
-            task = read_task(state, record.stem)
-        except ValueError:
-            continue
-        path = record_of_another_task(state, task)
+        if tasks is not None:
+            task = tasks.get(record.stem)
+        else:
+            try:
+                task = read_task(state, record.stem) if task_path(state, record.stem).is_file() else None
+            except ValueError:
+                task = None
+        path = record_of_another_task(state, task) if task is not None else None
         if path is not None:
             clashes[record.stem] = path.relative_to(root).as_posix()
     return clashes
@@ -515,7 +518,7 @@ def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
     with project_lock(state):
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     print(result["status"])
     print(f"The guard no longer counts {args.id}. Next: {reconsult_command(args.id)}, or close the work in a linked "
           f'task: openguildkit task new "BRIEF" --follows {args.id}', file=sys.stderr)
@@ -591,7 +594,7 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
             profile = load_profile(state, catalog)
             require_current_scope(task, profile, catalog)
             require_instructions(args, root, state, profile, catalog)
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     print(result["status"])
 
 
@@ -995,7 +998,7 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     with project_lock(state):
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     print(details["kind"])
 
 
@@ -1068,7 +1071,7 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         else:
             result = closing
         held = result.pop("_held", [])
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     for warning in _unshared_evidence(root, {args.id: cited_evidence(result)}):
         print(f"OpenGuildKit: {warning}", file=sys.stderr)
     if action == "complete":
@@ -1168,7 +1171,7 @@ def _respond(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
             raise ValueError("The task changed while you were deliberating. Run task deliberate again.")
         with _input_file(args.file):
             result = record_deliberation(current_task, payload)
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     deliberation = result["deliberation"]
     print(f"{len(deliberation['agreed'])} resolved, {len(deliberation['open'])} open")
     print(RESOLUTION_RULE, file=sys.stderr)
@@ -1265,7 +1268,7 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         result.pop("dependency_alerts")
         if "dependency_alerts" in current_task:
             result["dependency_alerts"] = current_task["dependency_alerts"]
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     if args.revised_brief is not None:
         _warn_inputs(args.revised_brief.strip(), result["brief"], "revised brief")
     _warn_inputs(answers, redact_data(answers), "task answers")
@@ -1325,7 +1328,7 @@ def _review(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
                 result = record_review(current_task, review, root)
         else:
             result = assemble_review(current_task, args.summary)
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     print(result["status"])
     for warning in result["review"].get("warnings", []):
         print(f"Warning: {warning}", file=sys.stderr)
@@ -1349,7 +1352,7 @@ def _pass(args, root: Path, state: Path, profile: dict, catalog: dict, task: dic
                 result = submit_pass(current_task, entry, args.mode, root)
         error = result.pop("_error", None)
         copied = result.pop("_warnings", [])
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     if action == "pass":
         print(board_brief(result["consultation"], args.board, earlier_sequential_pass(result, args.board)))
         if submitted:
@@ -1417,7 +1420,7 @@ def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task
     with project_lock(state):
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_json(task_path(state, args.id), result)
+        write_task(task_path(state, args.id), result)
     print(result["authorizations"][-1]["decision"])
 
 
@@ -1486,11 +1489,14 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
         else:
             _print_decision_rows(rows)
         return
+    read = {}
     rows = list_tasks(state, args.status, args.owner, args.since, args.until, profile=profile, catalog=catalog,
-                      root=root)
+                      root=root, read=read, skip=DONE_STATUSES if args.ready else (), indexed=True)
     if args.ready:
         rows = [row for row in rows if row["status"] not in (*DONE_STATUSES, "unreadable") and not row.get("waiting_for")]
-    clashes = _id_clashes(root, state)
+    # A task listed from the line the index keeps is not in read: that line holds only while the exported record of
+    # its ID is its own, or there is none (tasks._kept_line).
+    clashes = _id_clashes(root, state, read)
     for row in rows:
         if row["id"] in clashes:
             row["id_used_by_record"] = clashes[row["id"]]

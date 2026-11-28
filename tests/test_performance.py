@@ -23,12 +23,14 @@ import time
 import tomllib
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from openguildkit import catalog, lock, tasks, webui
 from openguildkit.__main__ import hook_call
 from openguildkit.cli import main
 from openguildkit.storage import write_json
+
+from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "scripts" / "bench.py"
@@ -44,6 +46,11 @@ BUDGETS = {
     "task consult, bug, with node_modules": 18,
     f"task list ({bench.TASKS} tasks)": 13,
     f"check ({bench.TASKS} tasks)": 29,
+    # Issue #534: three times the highest ratio seen, as the rule above says: 1.5 to 2.9 for task list, which read every
+    # record at 16 times the start before; 10 to 17 for check, at 24 before. Counting the reads of a record catches the
+    # return to two or three reads (ClosedTaskReadTests); the time only catches an order of magnitude.
+    f"task list ({bench.TASKS} closed tasks)": 9,
+    f"check ({bench.TASKS} closed tasks)": 51,
     "references search": 6,
     f"guard --hook pre-edit ({bench.TASKS} tasks)": 5,
     f"guard --hook pre-edit (Git, {bench.APPROVED} approvals)": 13,
@@ -51,6 +58,8 @@ BUDGETS = {
     f"guard --hook prompt ({bench.TASKS} tasks)": 5,
     f"detect (monorepo, {bench.PACKAGES} packages)": 11,
     f"init (monorepo, {bench.PACKAGES} packages)": 11,
+    # Three times the highest ratio measured (3.0 to 4.1); 34 with one git show per record on the base (issue #532).
+    f"guard --ci ({bench.MERGED} records on the base)": 13,
 }
 START_BUDGET = 25  # times a bare interpreter start
 CEILING_SECONDS = 60
@@ -90,6 +99,18 @@ class PerformanceTests(unittest.TestCase):
                                 f"{item['x_start']:.1f} times the start; budget {budget}")
 
 
+class BenchReportTests(unittest.TestCase):
+    def test_the_report_says_whether_the_commands_read_the_catalog_bundle(self):
+        """Issue #533: a benchmark of a checkout timed the catalog record files, not the bundle the wheel ships,
+        without saying so."""
+        results = {"start (--version)": {"median": 0.1, "x_start": 1.0}}
+        for bundle, read in ((None, False), ({}, True)):
+            with self.subTest(read=read), patch("openguildkit.catalog._read_bundle", return_value=bundle):
+                self.assertIs(bench.report(results)["catalog_bundle"], read)
+                last = bench.table(results).splitlines()[-1]
+                self.assertEqual(last.startswith("Bundled catalog read from registry/catalog.bundle.json"), read, last)
+
+
 class RoutingSpeedTests(unittest.TestCase):
     """Reading a brief compiles each trigger once per process, not once per brief."""
 
@@ -124,11 +145,8 @@ class CatalogLoadTests(unittest.TestCase):
     def bundled_reads(self, *arguments, stdin="", code=0):
         """How many times one command read the bundled catalog, starting as a fresh process does."""
         catalog._BUNDLED.clear()
-        with patch("openguildkit.catalog._read_bundled", wraps=catalog._read_bundled) as reader, \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error, \
-                patch("sys.stdin", io.StringIO(stdin)):
-            result = main(["--project", str(self.root), *map(str, arguments)])
-        self.assertEqual(result, code, error.getvalue())
+        with patch("openguildkit.catalog._read_bundled", wraps=catalog._read_bundled) as reader:
+            run_cli(self.root, *arguments, expect=code, stdin=stdin)
         return reader.call_count
 
     def test_each_command_validates_the_bundled_catalog_once(self):
@@ -165,6 +183,40 @@ class CatalogLoadTests(unittest.TestCase):
             self.bundled_reads("task", "consult", "status", "--answers", bench.EXAMPLE / "answers.json")
         project = [call for call in merged.call_args_list if call.args[1] is not None]
         self.assertEqual((len(project), locks.call_count), (1, 1))
+
+    def test_task_list_loads_the_catalog_once_and_reads_the_lock_once(self):
+        """Issue #533: task list loaded the catalog twice and read the lock twice, a deep copy each time."""
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        self.bundled_reads("task", "new", "A brief.", "--id", "one")
+        counters = {}
+        with contextlib.ExitStack() as stack:
+            for module, name in ((catalog, "load_catalog"), (lock, "read_lock")):
+                function = getattr(module, name)
+                counters[name] = MagicMock(wraps=function)
+                holders = [item for key, item in list(sys.modules.items())
+                           if key.startswith("openguildkit") and getattr(item, name, None) is function]
+                for holder in holders:
+                    stack.enter_context(patch.object(holder, name, counters[name]))
+            self.bundled_reads("task", "list")
+        self.assertEqual({name: counter.call_count for name, counter in counters.items()},
+                         {"load_catalog": 1, "read_lock": 1})
+
+    def test_task_list_copies_the_catalog_at_most_25_times(self):
+        """Issue #533: task list deep-copied each locked record once more, 46 copies for a lock of 41 records."""
+        self.bundled_reads("init", "--answers", self.root / "profile.json")
+        original, depth, copies = catalog.json_copy, [0], [0]
+
+        def counted(value):
+            copies[0] += depth[0] == 0  # json_copy calls itself for each nested value: count the outer call only
+            depth[0] += 1
+            try:
+                return original(value)
+            finally:
+                depth[0] -= 1
+
+        with patch.object(catalog, "json_copy", counted), patch.object(lock, "json_copy", counted):
+            self.bundled_reads("task", "list")
+        self.assertLessEqual(copies[0], 25)
 
     def rewrite_in_place(self, path: Path, old: bytes, new: bytes) -> None:
         """Rewrite a file in place with the same size and give it back its modification time, as an editor that
@@ -241,6 +293,84 @@ class CheckReadTests(unittest.TestCase):
                 self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())
         self.assertEqual(sorted(set(reads)), [f"task-{index}" for index in range(6)])
         self.assertEqual(max(reads.count(task_id) for task_id in set(reads)), 1)
+
+
+def close_and_export(root: Path, task_id: str) -> None:
+    """Take the example task the whole way, as the normal path does: consulted, approved, closed and exported. The
+    project's profile names no check command, so verify runs none."""
+    run_cli(root, "task", "new", "--file", bench.EXAMPLE / "brief.md", "--id", task_id)
+    run_cli(root, "task", "consult", task_id, "--answers", bench.EXAMPLE / "answers.json")
+    template = json.loads(run_cli(root, "task", "template", task_id).stdout)
+    write_json(root / "review.json", {"consultation_id": template["consultation_id"],
+                                      **json.loads((bench.EXAMPLE / "review.json").read_text(encoding="utf-8"))})
+    run_cli(root, "task", "review", task_id, "--file", root / "review.json")
+    run_cli(root, "task", "decide", task_id, "--approve", "--by", "Camille", "--reason", "Agreed", typed=task_id)
+    run_cli(root, "task", "verify", task_id)
+    listed = json.loads(run_cli(root, "task", "checks", task_id, "--json").stdout)
+    checks = [{"check": item["id"], "status": "not-applicable", "reason": "Out of scope.", "owner": "Camille"}
+              for item in listed if item["kind"] == "rule"]
+    write_json(root / "result.json", {"pull_request": "https://github.com/example/portal/pull/7", "checks": checks,
+                                      "criteria": [{"criterion": "Users only see their own requests.", "status": "met",
+                                                    "evidence": "tests/test_access.py"}]})
+    run_cli(root, "task", "result", task_id, "--file", root / "result.json")
+    run_cli(root, "task", "complete", task_id, "--by", "Camille", typed=task_id)
+    run_cli(root, "task", "export", task_id)
+
+
+class ClosedTaskReadTests(unittest.TestCase):
+    """task list, check and projects on closed and exported tasks, the records the normal path leaves."""
+
+    @classmethod
+    def setUpClass(cls):
+        temporary = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(temporary.cleanup)
+        cls.root = Path(temporary.name).resolve()
+        profile = {**json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")), "checks": []}
+        write_json(cls.root / "profile.json", profile)
+        run_cli(cls.root, "init", "--answers", cls.root / "profile.json")
+        cls.ids = [f"task-{index}" for index in range(6)]
+        for task_id in cls.ids:
+            close_and_export(cls.root, task_id)
+
+    def reads(self, *arguments) -> list[str]:
+        """The task records one command read, an ID per read, wherever the command reads them from."""
+        reads, original = [], tasks.read_task
+
+        def counting(state, task_id):
+            reads.append(task_id)
+            return original(state, task_id)
+
+        holders = [module for name, module in sorted(sys.modules.items())
+                   if name.startswith("openguildkit") and getattr(module, "read_task", None) is original]
+        with contextlib.ExitStack() as stack:
+            for module in holders:
+                stack.enter_context(patch.object(module, "read_task", counting))
+            run_cli(self.root, *arguments)
+        return reads
+
+    def test_check_reads_each_closed_and_exported_task_once(self):
+        """Issue #534: check read each closed and exported task three times (7.4 s at 1,000 tasks)."""
+        self.assertEqual(sorted(self.reads("check")), self.ids)
+
+    def test_task_list_reads_each_closed_and_exported_task_at_most_once(self):
+        """Issue #534: task list read each closed and exported task twice (4.9 s at 1,000 tasks)."""
+        reads = self.reads("task", "list")
+        self.assertLessEqual(set(reads), set(self.ids))
+        self.assertEqual(len(reads), len(set(reads)), reads)
+
+    def test_projects_reads_each_closed_and_exported_task_once(self):
+        """Issue #534: projects read each closed and exported task four times (10 s at 1,000 tasks)."""
+        self.assertEqual(sorted(self.reads("projects", self.root)), self.ids)
+
+    def test_a_task_record_is_written_without_indentation_and_reads_as_before(self):
+        """Issue #534: indentation made 29 % of a closed task record, which only the commands read."""
+        for task_id in self.ids:
+            with self.subTest(task=task_id):
+                text = (self.root / ".openguildkit" / "tasks" / f"{task_id}.json").read_text(encoding="utf-8")
+                self.assertEqual(text.count("\n"), 1)
+                self.assertTrue(text.startswith('{"schema_version":1,'), text[:40])
+                # Any JSON reader reads it, so an earlier release does too: the fields are those it wrote.
+                self.assertEqual(json.loads(text), tasks.read_task(self.root / ".openguildkit", task_id))
 
 
 def python(*arguments, stdin=""):

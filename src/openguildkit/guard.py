@@ -6,6 +6,7 @@ pull request carries an exported decision that matches the rules of its base rev
 """
 
 import hashlib
+import io
 import json
 import os
 import re
@@ -26,7 +27,7 @@ from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
 from .results import DONE_STATUSES, verification_of
-from .storage import read_json, write_json
+from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import (
     STALE_DAYS, STATUSES, approval_problem, days_since, evidence_states, expired_waiver_problem, read_task, task_path,
@@ -569,17 +570,39 @@ def _git_lines(root: Path, *args: str) -> list[str]:
     return [line for line in result.stdout.decode("utf-8", errors="replace").splitlines() if line.strip()]
 
 
+def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
+    """The content of files of the base revision, by name; a name the base does not hold as a file is left out.
+
+    One git cat-file process reads them all, however many records the base holds: one git show per file took 23.5 s
+    at 990 decisions (issue #532)."""
+    # cat-file reads one name per line, and git ls-tree quotes a name that holds a newline.
+    names = [name for name in names if not PurePosixPath(name).is_absolute() and ".." not in PurePosixPath(name).parts
+             and "\n" not in name]
+    if not names:
+        return {}
+    asked = "".join(f"{base}:{name}\n" for name in names).encode("utf-8")
+    output = io.BytesIO(subprocess.run(["git", "-C", str(root), "cat-file", "--batch"], input=asked,
+                                       capture_output=True, check=False).stdout)
+    files = {}
+    for name in names:
+        # "<object> <type> <size>", then the content and a newline; or "<name> missing" alone.
+        header = output.readline().rstrip(b"\n").rsplit(b" ", 2)
+        if len(header) != 3 or not header[2].isdigit():
+            continue
+        content = output.read(int(header[2]) + 1)
+        if len(content) != int(header[2]) + 1:
+            break  # git stopped within the file
+        if header[1] == b"blob":
+            files[name] = content[:-1]
+    return files
+
+
 def _extract_base(root: Path, base: str, directory: Path, names: list[str]) -> None:
     """Copy files of the base revision into directory, at the same relative paths."""
-    for name in names:
-        if PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts:
-            continue
-        result = _git(root, "show", f"{base}:{name}")
-        if result.returncode:
-            continue
+    for name, content in _base_files(root, base, names).items():
         target = directory / PurePosixPath(name)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(result.stdout)
+        target.write_bytes(content)
 
 
 def _record_shape(record: dict, relative: str) -> None:
@@ -801,11 +824,13 @@ def _has_local_task(state: Path, task_id: str) -> bool:
         return False
 
 
-def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints) -> list[dict]:
+def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str | Fingerprints,
+                       tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
     The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
-    and a note for a completed one, whose record is history.
+    and a note for a completed one, whose record is history. tasks holds the task records the caller already read,
+    by ID; a local task it lacks is read here.
     """
     rows = []
     policy = approval_policy(profile)
@@ -838,7 +863,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
             note = kind in ("earlier-record", "withdrawn") or (kind == "earlier-rules" and completed)
             row["problem"] = {"kind": kind, "severity": "note" if note else "error",
                               "message": message, "code": code}
-        elif row["local"] and (withdrawn := _withdrawn_here(state, record)):
+        elif row["local"] and (withdrawn := _withdrawn_here(state, record, tasks)):
             row["problem"] = {"kind": "withdrawn-here", "severity": "error", "message": (
                 f"{relative}: the approval of {record['task']} was withdrawn in this copy by {withdrawn['by']} on "
                 f"{withdrawn['at'][:10]}, and the record still says it is approved, so guard --ci keeps accepting it. "
@@ -848,12 +873,14 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
     return rows
 
 
-def _withdrawn_here(state: Path, record: dict) -> dict | None:
+def _withdrawn_here(state: Path, record: dict, tasks: dict | None = None) -> dict | None:
     """The withdrawal the local task records for the approval an exported record carries, if any."""
-    try:
-        task = read_task(state, record["task"])
-    except Exception:  # An unreadable task record is reported by task list and check.
-        return None
+    task = (tasks or {}).get(record["task"])
+    if task is None:
+        try:
+            task = read_task(state, record["task"])
+        except Exception:  # An unreadable task record is reported by task list and check.
+            return None
     return withdrawal_of(task, record)
 
 
@@ -901,15 +928,17 @@ def untracked_files(root: Path) -> list[str]:
                   if path and not path.startswith(prefix))
 
 
-def _earlier_records(directory: Path) -> dict:
+def _earlier_records(files: dict[str, bytes]) -> dict:
     """The exported decisions of the base revision, by task, at any depth below the decisions folder, as the change's
     own records are found: a record merged in a subfolder still binds its approval. The record in the folder itself
-    comes first when a task has several."""
+    comes first when a task has several. files holds the base revision's records by name, read in memory: writing
+    them to disk and reading them back took 3 s at 990 decisions (issue #532)."""
+    folder = PurePosixPath(STATE_DIR, DECISIONS_DIR)
     records = {}
-    for path in sorted(directory.rglob("*.json"), key=lambda item: (item.parent != directory, item.as_posix())):
+    for name in sorted(files, key=lambda item: (PurePosixPath(item).parent != folder, item)):
         try:
-            record = read_json(path)
-        except (OSError, ValueError):
+            record = parse_json(files[name], name)
+        except ValueError:
             continue
         if isinstance(record, dict) and isinstance(record.get("task"), str):
             records.setdefault(record["task"], record)
@@ -1072,7 +1101,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             return {"mode": "off", "changed": len(work), "decisions": [], "records": {},
                     "problems": [flag("guard-no-base-profile", _no_base_profile(root), None, "note")], "notes": notes,
                     "ok": True}
-        _extract_base(root, base, base_root, [name for name in names if not name.startswith(f"{STATE_DIR}/tasks/")])
+        _extract_base(root, base, base_root, [name for name in names
+                                              if not name.startswith((f"{STATE_DIR}/tasks/", prefix))])
         base_state = base_root / STATE_DIR
         catalog = catalog_for(base_state)
         profile = load_profile(base_state, catalog)
@@ -1080,7 +1110,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = Fingerprints(profile, catalog)
-        earlier = _earlier_records(base_state / DECISIONS_DIR)
+        earlier = _earlier_records(_base_files(root, base, [name for name in names
+                                                            if name.startswith(prefix) and name.endswith(".json")]))
         for relative in records:
             path = root / relative
             if not path.is_file():
