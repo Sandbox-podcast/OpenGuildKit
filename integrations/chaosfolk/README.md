@@ -65,15 +65,15 @@ jobs:
   replay:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
         with:
           python-version: "3.12"
       - run: python -m pip install "chaosfolk @ git+https://github.com/loukan42/chaosfolk@b406600b229485cfeb77f54ef6f8f0cf0cd4fc07"
       - run: python -m playwright install --with-deps chromium
       - run: npm ci && (npm start &) && npx wait-on http://localhost:3000
       - run: chaosfolk regression run qa/scenarios/*.json --output qa-results --times 3
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
         if: always()
         with:
           name: chaosfolk-results
