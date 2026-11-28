@@ -14,6 +14,7 @@ A policy of the company can make the hooks of a project stop running (Claude Cod
 openguildkit host managed --host claude-code --os macos                 # prints the file; the way to deploy it goes to standard error
 openguildkit host managed --host codex --os linux --output ./managed    # writes ./managed/codex/requirements.toml
 openguildkit host managed --host claude-code --os windows --command 'C:\Program Files\OGK\openguildkit.exe' --block-on-failure
+openguildkit host managed --host claude-code --os macos --allow allow.json   # also the allow list of host scan, as the locks of the host
 ```
 
 The command needs no project and installs nothing: it prints the file, or writes it in the folder `--output` names, and says where each system expects it and which channel an MDM has.
@@ -21,32 +22,45 @@ Copy it with your own MDM.
 
 | Host | The file holds | Deploy it at | MDM channel |
 |---|---|---|---|
-| `claude-code` | the two guard hooks, run with the command given, and the deny rules of the approval commands, terminal emulators and pseudo-terminals (`50-openguildkit.json`) | macOS `/Library/Application Support/ClaudeCode/managed-settings.d/`, Linux `/etc/claude-code/managed-settings.d/`, Windows `C:\Program Files\ClaudeCode\managed-settings.d\` | macOS: a configuration profile, domain `com.anthropic.claudecode`; Windows: the registry key `HKLM\SOFTWARE\Policies\ClaudeCode` |
-| `codex` | `[features] hooks = true`, which keeps a user from turning the hooks off (`requirements.toml`) | macOS and Linux `/etc/codex/`, Windows `%ProgramData%\OpenAI\Codex\` | macOS: domain `com.openai.codex`, key `requirements_toml_base64` |
+| `claude-code` | the two guard hooks, run with the command given, the deny rules of the approval commands, terminal emulators and pseudo-terminals, and `permissions.disableBypassPermissionsMode: "disable"` (`50-openguildkit.json`) | macOS `/Library/Application Support/ClaudeCode/managed-settings.d/`, Linux `/etc/claude-code/managed-settings.d/`, Windows `C:\Program Files\ClaudeCode\managed-settings.d\` | macOS: a configuration profile, domain `com.anthropic.claudecode`; Windows: the registry key `HKLM\SOFTWARE\Policies\ClaudeCode` |
+| `codex` | the two guard hooks as managed hooks under `[hooks]`, and `[features] hooks = true`, which keeps a user from turning the hooks off (`requirements.toml`) | macOS and Linux `/etc/codex/`, Windows `%ProgramData%\OpenAI\Codex\` | macOS: domain `com.openai.codex`, key `requirements_toml_base64` |
 | `gemini-cli` | the guard hooks and `hooksConfig.enabled: true`, the whole system settings file (`settings.json`) | macOS `/Library/Application Support/GeminiCli/`, Linux `/etc/gemini-cli/`, Windows `C:\ProgramData\gemini-cli\` | none read |
 
 `--command` is the command the hooks run: give the full path where the PATH of the agent may not hold `openguildkit`. A path with a space is written between double quotes.
 `--block-on-failure` writes Claude Code's `onFailure: block` on the edit hook. It is not the default: the file applies to every repository of the workstation, and a hook that cannot start would then refuse every edit, in projects that have nothing to do with OpenGuildKit.
 The Gemini CLI file replaces the system file already there: merge it by hand.
 
-### What was read, and what was not
+### The allow list as the locks of the hosts
 
-The paths, the channels and the key names come from pages that the audit of issue #453 read on 2026-11-26 and that were not read again when the command was written:
+`--allow FILE` takes the [allow list of `host scan`](host-scan.md#the-allow-list) and writes it where the page of the host shows a form it maps to:
 
-- Claude Code: https://code.claude.com/docs/en/managed-settings.md (the files, the folder `managed-settings.d/`, the profile and the registry key) and https://code.claude.com/docs/en/settings-reference.md (`allowManagedHooksOnly`).
-- Codex: https://learn.chatgpt.com/docs/enterprise/managed-configuration.md (`requirements.toml`, its places, the MDM key, the pin of `[features].hooks`).
-- Gemini CLI: https://geminicli.com/docs/reference/configuration/ (the system settings file and its places; it overrides the other files).
+| Axis of the list | Claude Code | Codex | Gemini CLI |
+|---|---|---|---|
+| `models` | `availableModels`, the list as it is: a model outside it cannot be selected | not written: no managed key for models was read | not written: no key that restricts models was read |
+| `mcp_servers` | `allowedMcpServers`, one `serverUrl` entry per address, when the list names only addresses; an empty list blocks every server users add | not written: an approved server of `requirements.toml` is matched by its name and its identity, and the list holds no name | not written: `mcp.allowed` lists servers by name |
+| `endpoints` | not written: no managed key for a provider address was read | not written | not written |
 
-À vérifier, because no page was read for it:
+A list that names a server by package or command (`npm:@playwright/mcp`, `command:basecamp`) leaves `allowedMcpServers` out: Claude Code matches a local server by its exact command line (`serverCommand`), which the list does not hold, and a list with only the addresses would block every other local server.
+What is not written is said on standard error, or in the output with `--output`. Without `--allow`, the files are as above.
+`host scan --allow FILE` still checks each project against the whole list.
 
-- where `managed-settings.d/` stands on Linux and Windows (the page names the folder, the places above put it next to `managed-settings.json`);
-- the value of `permissions.disableBypassPermissionsMode`, and the form of `allowedMcpServers` and `availableModels`: none is written;
-- the key names of managed hooks and of `forbidden` rules in the `requirements.toml` of Codex: only `[features] hooks = true` is written, and the hooks of Codex come from `.codex/hooks.json` (`host apply`);
-- that the Gemini CLI system file reads `hooks` and `hooksConfig` as the project file does;
-- that the Codex file goes in `/etc/codex/` on macOS too.
+### What was read
+
+The paths, the channels and the key names come from these pages, read on 2026-11-28:
+
+- Claude Code: https://code.claude.com/docs/en/managed-settings.md (the files, the folder `managed-settings.d/` next to `managed-settings.json` in the system folder of each system, the profile and the registry key) and https://code.claude.com/docs/en/settings-reference.md (`allowManagedHooksOnly`, `permissions.disableBypassPermissionsMode` and its value `"disable"`, `availableModels`, `allowedMcpServers` and its entries `serverName`, `serverCommand`, `serverUrl`).
+- Codex: https://learn.chatgpt.com/docs/enterprise/managed-configuration.md (`requirements.toml`, `/etc/codex/` on Linux and macOS, the MDM key, the pin of `[features].hooks`, the approved list `mcp_servers`) and https://developers.openai.com/codex/hooks.md (managed hooks under `[hooks]` of `requirements.toml`, `allow_managed_hooks_only`).
+- Gemini CLI: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md (the system settings file and its places, which overrides the other files; `hooks`, `hooksConfig.enabled` and `mcp.allowed` among the settings of every file).
+
+Not written, by choice:
+
+- `allow_managed_hooks_only` of Codex and `allowManagedHooksOnly` of Claude Code: they stop every other hook of the workstation.
+- `managed_dir` of the Codex hooks: it says where scripts are installed, and the guard hooks run the `openguildkit` command, not a script.
+- `admin.secureModeEnabled` of Gemini CLI, which disallows YOLO mode: the page lists it under `admin`, and whether the system settings file sets it is à vérifier.
 
 A key written with a wrong name or value could make a host ignore the file and leave the hooks off while everything looks deployed. That is why this command writes only what the pages say.
 The Edit rules that `host apply` writes for the files of a project are not in the managed file: a path rule is relative to the settings source, and the hooks refuse those edits anyway.
+In a Codex project where `host apply` wrote `.codex/hooks.json`, the guard runs twice, from the project and from the managed file, with the same answer.
 
 ## What `host check` reads back
 

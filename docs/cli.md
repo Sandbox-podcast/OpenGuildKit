@@ -585,7 +585,7 @@ Show or apply the rules the host agent can enforce, or scan its files.
 - `--os {macos,linux,windows}`: With managed: the system it will be deployed on.
 - `--output PATH`: With managed: a folder to write the file in (default: print it).
 - `--command HOOK_COMMAND`: With managed: the command the hooks run (default openguildkit; give a full path).
-- `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error.
+- `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error. With managed: the same list, written as the locks of the host where its page shows how.
 - `--block-on-failure`: With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).
 
 ## update

@@ -104,10 +104,51 @@ class GeneratorTests(Folder):
         self.managed("--host", "codex", "--os", "plan9", code=2)
         self.assertIn("needs --host", self.managed("--os", "linux", code=1).stderr)
 
-    def test_the_command_needs_no_project_and_says_what_it_did_not_write(self):
+    def test_the_command_needs_no_project_and_names_the_pages_it_rests_on(self):
         result = self.managed("--host", "claude-code", "--os", "linux", "--output", self.root / "out")
-        self.assertIn("à vérifier", result.stdout)
-        self.assertIn("disableBypassPermissionsMode", result.stdout)
+        self.assertIn("Read on 2026-11-28: https://code.claude.com/docs/en/settings-reference.md", result.stdout)
+
+    def test_issue_453_the_claude_code_file_disables_bypass_mode(self):
+        """Issue #453: the managed file left bypassPermissions mode open, which skips every permission rule."""
+        settings = json.loads(self.managed("--host", "claude-code", "--os", "macos").stdout)
+        self.assertEqual(settings["permissions"]["disableBypassPermissionsMode"], "disable")
+        self.assertNotIn("availableModels", settings)
+        self.assertNotIn("allowedMcpServers", settings)
+
+    def test_issue_453_the_codex_file_holds_the_guard_hooks_as_managed_hooks(self):
+        """Issue #453: the Codex file only pinned [features] hooks, so a workstation had no guard hook to keep on."""
+        text = self.managed("--host", "codex", "--os", "linux", "--command", "/opt/ogk/bin/openguildkit").stdout
+        requirements = tomllib.loads(text)
+        self.assertIs(requirements["features"]["hooks"], True)
+        self.assertNotIn("allow_managed_hooks_only", requirements)
+        hooks = requirements["hooks"]
+        self.assertEqual(hooks["UserPromptSubmit"][0]["hooks"][0],
+                         {"type": "command", "command": "/opt/ogk/bin/openguildkit guard --hook prompt"})
+        self.assertEqual(hooks["PreToolUse"][0]["matcher"], "apply_patch|Edit|Write")
+        self.assertEqual(hooks["PreToolUse"][0]["hooks"][0]["command"], "/opt/ogk/bin/openguildkit guard --hook pre-edit")
+
+    def test_issue_480_the_allow_list_becomes_the_model_and_server_locks_of_claude_code_where_it_maps(self):
+        """Issue #480: host managed did not write the allow list into the managed settings of the hosts."""
+        addresses = self.root / "addresses.json"
+        write_json(addresses, {"allow": {"mcp_servers": ["https://mcp.example.com/mcp"], "models": ["sonnet", "haiku"]}})
+        result = self.managed("--host", "claude-code", "--os", "linux", "--allow", addresses)
+        settings = json.loads(result.stdout)
+        self.assertEqual(settings["availableModels"], ["sonnet", "haiku"])
+        self.assertEqual(settings["allowedMcpServers"], [{"serverUrl": "https://mcp.example.com/mcp"}])
+        packages = self.root / "packages.json"
+        write_json(packages, {"mcp_servers": ["npm:@playwright/mcp", "https://mcp.example.com/mcp"], "models": [],
+                              "endpoints": ["https://gateway.example"]})
+        result = self.managed("--host", "claude-code", "--os", "linux", "--allow", packages)
+        settings = json.loads(result.stdout)
+        self.assertEqual(settings["availableModels"], [])
+        self.assertNotIn("allowedMcpServers", settings)
+        self.assertIn("allowedMcpServers is not written", result.stderr)
+        self.assertIn("provider addresses of the list are not written", result.stderr)
+        codex = self.managed("--host", "codex", "--os", "linux", "--allow", packages)
+        self.assertNotIn("mcp_servers", tomllib.loads(codex.stdout))
+        self.assertIn("The allow list is not written for codex", codex.stderr)
+        self.assertIn("is an option of openguildkit host scan",
+                      run_cli(self.root, "host", "check", "--allow", packages, expect=1).stderr)
 
 
 class NoProfileTests(Folder):

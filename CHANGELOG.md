@@ -4,6 +4,8 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `host managed --allow FILE` writes the allow list of `host scan` as `availableModels`, and as `allowedMcpServers` for a list of addresses, in the Claude Code file, and says what it cannot write for Codex and Gemini CLI (#480)
+- `host managed`: the Claude Code file sets `permissions.disableBypassPermissionsMode: "disable"` and the Codex file holds the guard hooks as managed hooks under `[hooks]` of `requirements.toml`, as the host pages read on 2026-11-28 show (#453)
 - Tool registry: the 34 MCP server launches that pulled the latest version at each start name one version, read on 2026-11-28 in npm, PyPI, Docker Hub, ghcr.io or GitHub tags, with `pin_read`; `tools apply` writes it, and `host scan` no longer reports them `mcp-unpinned` (#489)
 - `integrations/github/openguildkit-status.yml`: each push to the default branch keeps `projects . --surfaces --json` as an artifact, and `docs/workflow.md` gives the `gh` loop that gathers a fleet's status without cloning any repository (#479)
 - `integrations/github/openguildkit-org-catalog-update.yml`: a weekly job opens, in each repository that follows an organization catalog, a pull request that shows what its new commit brings and the command to pin it; the job pins nothing (#457)

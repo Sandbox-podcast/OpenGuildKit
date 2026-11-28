@@ -102,7 +102,7 @@ An axis that the file does not have is not restricted, and an empty list allows 
   `endpoint-not-allowed` is an error that names the host and never the rest of the address.
 
 The two settings findings name the key and the value that was refused (a model, a host) and carry no excerpt: no other value of an `env` section reaches the output. The key names read in `.codex/config.toml` (`model`, `model_providers.*.base_url`) and the absence of any key read in `.gemini/settings.json` are à vérifier: no page of either host was read for this command.
-`host managed` does not yet write the allow list as the locks of the hosts (`allowedMcpServers` and `availableModels` of Claude Code, a list of `requirements.toml` for Codex, `admin.mcp.config` for Gemini CLI): the exact form of each was not read, and `tools apply` does not refuse a server outside the list.
+`host managed --allow FILE` writes the list as the locks of Claude Code where it maps (`availableModels`, and `allowedMcpServers` for a list of addresses), and says what it cannot write for each host ([managed settings](managed-settings.md#the-allow-list-as-the-locks-of-the-hosts)). `tools apply` does not refuse a server outside the list.
 
 ### Permissive settings
 
