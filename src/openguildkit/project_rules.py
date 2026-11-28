@@ -244,7 +244,7 @@ def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -
                          f"Use project component IDs: {', '.join(sorted(available)) or 'none'}.")
     scopes = pack_scopes(profile, catalog)
     resolved["packs"] = [
-        pack for pack in resolved["packs"] if scopes.get(pack) is None or selected.intersection(scopes[pack])
+        pack for pack in resolved["packs"] if (scope := scopes.get(pack)) is None or selected.intersection(scope)
     ]
     patterns = []
     for entry in resolved.get("patterns", []):
@@ -325,7 +325,7 @@ class Fingerprints:
     def __init__(self, profile: dict, catalog: dict):
         self.profile, self.catalog = profile, catalog
         self.current = profile_fingerprint(profile, catalog)
-        self._legacy = None
+        self._legacy: str | None = None
 
     def holds(self, recorded: str | None) -> bool:
         """Whether rules recorded under this fingerprint are still the rules, checks and boards of the profile."""

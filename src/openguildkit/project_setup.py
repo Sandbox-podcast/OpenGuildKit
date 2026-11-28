@@ -159,7 +159,7 @@ def _host_question(detected: str | None) -> dict:
 
 def _checks_question(proposed: list[dict]) -> dict:
     """The project checks, with the test commands the repository shows proposed for the person to confirm."""
-    question = {
+    question: dict = {
         "id": "checks",
         "type": "list",
         "prompt": (
@@ -340,7 +340,7 @@ def _norm_answers(value, catalog: dict) -> dict[str, dict | None]:
     {"answer": "no", "by": NAME, "reason": WHY}. Returns None for an accepted norm, the decline otherwise."""
     if not isinstance(value, dict):
         raise ValueError('norms must be an object such as {"gdpr-personal-data": "yes"}')
-    answers = {}
+    answers: dict[str, dict | None] = {}
     for pattern_id, answer in value.items():
         if pattern_id not in catalog["patterns"] or not is_norm(catalog["patterns"][pattern_id]):
             raise ValueError(f"Unknown norm: {pattern_id}. Use the IDs listed in the norms question of init --questions.")

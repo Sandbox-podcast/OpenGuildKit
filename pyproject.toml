@@ -79,8 +79,6 @@ mypy_excluded = [
   "src/openguildkit/project.py",
   "src/openguildkit/project_checks.py",
   "src/openguildkit/project_mcp.py",
-  "src/openguildkit/project_rules.py",
-  "src/openguildkit/project_setup.py",
   "src/openguildkit/projects_cli.py",
   "src/openguildkit/prompts.py",
   "src/openguildkit/publishing.py",
