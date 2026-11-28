@@ -70,13 +70,13 @@ def _mapping(entry: object, where: str, frameworks: list) -> None:
     _require_line(entry["clause"], f"{where}: clause")
     if len(entry["clause"]) > MAX_CLAUSE:
         raise ValueError(f"{where}: clause is a locator of at most {MAX_CLAUSE} characters, not a text of the framework.")
-    _text(entry["quote"], f"{where}: quote")
+    _require_line(entry["quote"], f"{where}: quote")
     if len(entry["quote"]) > MAX_QUOTE:
         raise ValueError(f"{where}: quote is at most {MAX_QUOTE} characters: the words the cell relies on, not the clause.")
     if entry["fit"] not in FITS:
         raise ValueError(f"{where}: fit is {' or '.join(FITS)}.")
     if entry["fit"] == "partial":
-        _text(entry.get("gap"), f"{where}: gap (what the clause asks that the control does not do, for a partial fit)")
+        _require_line(entry.get("gap"), f"{where}: gap (what the clause asks that the control does not do, for a partial fit)")
     elif "gap" in entry:
         raise ValueError(f"{where}: a clause the control matches has no gap: say partial and what is missing.")
     source = entry["source"]
@@ -105,7 +105,7 @@ def validate(data: dict) -> None:
         raise ValueError("framework_notes holds one note per framework, in the order of frameworks: how it was read, or "
                          "why it was not.")
     for name in frameworks:
-        _text(notes[name], f"framework_notes: {name}")
+        _require_line(notes[name], f"framework_notes: {name}")
     seen = set()
     for item in data["controls"]:
         if not isinstance(item, dict) or item.keys() != FIELDS or not ID.fullmatch(str(item["id"])):
