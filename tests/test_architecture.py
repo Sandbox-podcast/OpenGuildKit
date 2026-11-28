@@ -32,6 +32,46 @@ MAX_CLI_FUNCTION_LINES = 120
 # Top-level function names that more than one module of the package defines (#530): a name searched from its
 # command should lead to one function. Lower the ceiling when a copy goes; never raise it.
 MAX_SHARED_FUNCTION_NAMES = 68
+# Issue #508: a function a reader can hold in mind, measured as scripts of the audit measure it. Length is its lines,
+# complexity counts one plus each branch (BRANCH, and each extra operand of and/or), nesting the deepest block of NEST
+# (an elif does not nest); a nested function, class or lambda counts for itself, not for its parent.
+MAX_FUNCTION_LINES = 80
+MAX_COMPLEXITY = 25
+MAX_NESTING = 4
+BRANCH = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.IfExp, ast.Assert, ast.comprehension,
+          ast.match_case)
+NEST = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try, ast.With, ast.AsyncWith, ast.Match)
+OWN_SCOPE = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+# The functions still above a threshold, with why. The list only shrinks: bring a function under every threshold
+# and remove its line; a new function above one fails, and so does a line whose function is now under them all.
+SHAPE_EXCEPTIONS = {
+    "cli.py:command_parser": "120 lines: the parser of every command, one add_parser call after another (#508)",
+    "project_setup.py:init_questions": "88 lines: the questions of init as one list of literals (#508)",
+    "catalog.py:_validate_pattern": "cc 32: checks each field of a catalog pattern in turn",
+    "code_lookup.py:code_lookup": "cc 26: the file and function names a bug brief cites, each searched",
+    "consultation.py:scope_lines": "cc 27: one optional line per field of the scope",
+    "detect.py:_parse": "cc 28: one branch per manifest format",
+    "detect.py:detect_stack": "cc 29: one branch per detected technology",
+    "detect_gradle.py:gradle_components": "cc 33: one pattern per form a Gradle build declares a version in",
+    "guard.py:guard_hook": "cc 31: the hook's decision for each host payload and guard mode",
+    "guard_export.py:record_shape": "cc 29: checks each field of an exported record in turn",
+    "mcp_mock.py:validate_mock": "cc 28: checks each part of a mock definition in turn",
+    "patterns.py:recommend_patterns": "cc 26: scores each pattern against the stack and the answers",
+    "profile_changes.py:export_answers": "cc 27: one answer per profile field",
+    "projects_cli.py:_print": "cc 29: the table of projects with each optional column",
+    "questionnaire.py:validate_answers": "cc 26: checks each answer by its question type",
+    "result_form.py:_check_entry": "cc 33: checks each field of a check outcome in turn",
+    "results.py:completion_problems": "cc 26: each condition task complete refuses",
+    "routing.py:scan_triggers": "cc 34: the trigger and exclusion passages of each board",
+    "routing.py:select_boards": "cc 34: each reason a board is selected or left out",
+    "surface_servers.py:configured_server": "cc 31: each finding about a configured MCP server",
+    "tasks.py:list_tasks": "cc 35: reads, judges and filters each task with the status index",
+    "tasks_blockers.py:resolve_blocker": "cc 32: checks a clearing or a waiver of a blocker in turn",
+    "tasks_consult_cli.py:_print_route": "cc 31: each part of the printed route",
+    "tasks_decide_cli.py:run_decide": "cc 30: each option of task decide",
+    "workflow.py:challenge_report": "cc 26: each line of the challenge report",
+    "workflow.py:validate_deliberation": "cc 29: checks each field of a deliberation in turn",
+}
 # The public names several modules define: the entry points every command module has, and the homonyms #530 lists
 # that are not merged yet. A public name added to two modules fails.
 SHARED_PUBLIC_NAMES = {
@@ -64,6 +104,45 @@ def code_sizes() -> dict[str, int]:
     listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", *BUDGETED], capture_output=True, check=True)
     names = [name for name in listed.stdout.decode("utf-8").split("\0") if name.endswith(CODE_SUFFIXES)]
     return {name: len((REPO / name).read_bytes().replace(b"\r\n", b"\n")) for name in names if (REPO / name).is_file()}
+
+
+def own_nodes(function: ast.AST):
+    """The nodes of a function, without those of the functions, classes and lambdas it defines."""
+    stack = list(ast.iter_child_nodes(function))
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, OWN_SCOPE):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def complexity(function: ast.AST) -> int:
+    return 1 + sum(1 if isinstance(node, BRANCH) else len(node.values) - 1 if isinstance(node, ast.BoolOp) else 0
+                   for node in own_nodes(function))
+
+
+def nesting(node: ast.AST, level: int = 0) -> int:
+    best = level
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, OWN_SCOPE):
+            continue
+        if isinstance(child, ast.If) and isinstance(node, ast.If) and child in node.orelse and len(node.orelse) == 1:
+            best = max(best, nesting(child, level))  # elif does not nest
+        else:
+            best = max(best, nesting(child, level + isinstance(child, NEST)))
+    return best
+
+
+def functions(node: ast.AST, prefix: str = ""):
+    """Every function of a module by qualified name (Class.method, outer.inner), nested ones included."""
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            yield f"{prefix}{child.name}", child
+            yield from functions(child, f"{prefix}{child.name}.")
+        elif isinstance(child, ast.ClassDef):
+            yield from functions(child, f"{prefix}{child.name}.")
+        else:
+            yield from functions(child, prefix)
 
 
 class ModuleShapeTests(unittest.TestCase):
@@ -168,6 +247,21 @@ class ModuleShapeTests(unittest.TestCase):
         shared = {name for name, found in modules.items() if len(found) > 1}
         self.assertLessEqual(len(shared), MAX_SHARED_FUNCTION_NAMES, sorted(shared))
         self.assertEqual(sorted(name for name in shared if not name.startswith("_") and name not in SHARED_PUBLIC_NAMES), [])
+
+    def test_issue_508_no_function_passes_the_size_complexity_and_nesting_thresholds(self):
+        """Issue #508: 13 functions passed 80 lines, 52 a complexity of 25 and 9 a nesting of 4 (ci_guard: 137 lines,
+        complexity 65), so a reader could not hold one in mind to find the line a symptom comes from."""
+        over = {}
+        for path in sorted(PACKAGE.glob("*.py")):
+            for name, function in functions(parsed(path)):
+                key = f"{path.name}:{name}"
+                shape = (function.end_lineno - function.lineno + 1, complexity(function), nesting(function))
+                if shape[0] > MAX_FUNCTION_LINES or shape[1] > MAX_COMPLEXITY or shape[2] > MAX_NESTING:
+                    over[key] = "lines {}, complexity {}, nesting {}".format(*shape)
+        self.assertEqual({key: shape for key, shape in over.items() if key not in SHAPE_EXCEPTIONS}, {},
+                         "split these functions under the thresholds")
+        self.assertEqual(sorted(key for key in SHAPE_EXCEPTIONS if key not in over), [],
+                         "under every threshold now, or gone: remove these lines from SHAPE_EXCEPTIONS")
 
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.
