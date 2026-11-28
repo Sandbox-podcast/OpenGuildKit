@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import project, tasks_decide_cli
+from openguildkit import mcp_mock, project, tasks_decide_cli
 from openguildkit.catalog import load_catalog
 from openguildkit.errors import OgkError, error_line
 from openguildkit.storage import write_json
@@ -24,7 +24,7 @@ CODE = re.compile(r"OGK-[A-Z]+-\d{3}")
 # The modules whose errors all carry a code: a ValueError raised with a message there fails the test.
 CODED = ("tasks.py", "tasks_cli.py")
 # The `raise ValueError(...)` left in the package: the count may go down, never up (#487). Lower it with the code.
-UNCODED_CEILING = 271
+UNCODED_CEILING = 247
 
 
 def uncoded_sites(path: Path) -> list[int]:
@@ -179,6 +179,49 @@ class ProfileErrorTests(CodedRefusals):
             ("OGK-PROJECT-073", profile(waivers={"allowed_by": ["Sam"]})),
             ("OGK-PROJECT-074", profile(waivers={"allowed_by": ["Sam"], "max_days": 400})),
             ("OGK-PROJECT-075", profile(frozen={"by": "Sam"})),
+        ])
+
+
+class MockErrorTests(CodedRefusals):
+    """Issue #487: each part of a mock MCP file that is wrong is refused with its own code."""
+
+    def test_issue_487_each_wrong_part_of_a_mock_has_its_code(self):
+        schema = {"type": "object", "properties": {"id": {"type": "string"}}}
+        answer = {"name": "find", "description": "Find.", "inputSchema": schema, "responses": [{"result": {}}]}
+        items = {"key": "id", "items": [{"id": "a"}]}
+
+        def mock(tools=None, records=None, **top):
+            return lambda: mcp_mock.validate_mock({"tool": "crm", "tools": tools or [answer], **(
+                {"records": records} if records is not None else {}), **top}, "crm")
+
+        tool = {key: value for key, value in answer.items() if key != "responses"}
+        self.assertCodes([
+            ("OGK-MCP-006", mock(records=[])),
+            ("OGK-MCP-007", mock(records={"people": {"key": "id"}})),
+            ("OGK-MCP-008", mock(records={"people": {"items": ["a"]}})),
+            ("OGK-MCP-009", mock(records={"people": {"items": [], "title": 3}})),
+            ("OGK-MCP-010", mock(records={"people": {**items, "refs": {"team": "teams"}}})),
+            ("OGK-MCP-011", mock([{**answer, "serve": {}}])),
+            ("OGK-MCP-012", mock([{**tool, "serve": {"records": "people", "action": "delete"}}], {"people": items})),
+            ("OGK-MCP-013", mock([{**tool, "serve": {"records": "people", "action": "get", "argument": "x"}}],
+                                 {"people": items})),
+            ("OGK-MCP-014", mock([{**tool, "serve": {"records": "people", "action": "list", "filters": {"x": "y"}}}],
+                                 {"people": items})),
+            ("OGK-MCP-015", mock([{**answer, "check": {"x": {"records": "people"}}}], {"people": items})),
+            ("OGK-MCP-016", mock([{**answer, "example": []}])),
+            ("OGK-MCP-017", mock(extra=1)),
+            ("OGK-MCP-018", lambda: mcp_mock.validate_mock({"tool": "erp", "tools": [answer]}, "crm")),
+            ("OGK-MCP-019", lambda: mcp_mock.validate_mock({"tool": "crm", "tools": []}, "crm")),
+            ("OGK-MCP-020", mock([{"name": "find"}])),
+            ("OGK-MCP-021", mock([answer, answer])),
+            ("OGK-MCP-022", mock([{**answer, "read_only": "yes"}])),
+            ("OGK-MCP-023", mock([{**answer, "inputSchema": {"type": "array"}}])),
+            ("OGK-MCP-024", mock([{**answer, "inputSchema": {**schema, "required": ["x"]}}])),
+            ("OGK-MCP-025", mock([{**answer, "responses": []}])),
+            ("OGK-MCP-026", mock([{**answer, "responses": [{"result": {}, "error": "x"}]}])),
+            ("OGK-MCP-027", mock([{**answer, "responses": [{"when": [], "result": {}}]}])),
+            ("OGK-MCP-028", mock([{**answer, "responses": [{"when": {"id": "a"}, "result": {}}]}])),
+            ("OGK-MCP-029", lambda: mcp_mock.apply_scenario({"tool": "crm"}, [], "scenario.json")),
         ])
 
 

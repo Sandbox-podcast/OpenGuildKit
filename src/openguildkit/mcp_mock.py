@@ -37,91 +37,91 @@ def _validate_records(mock: dict, tool_id: str) -> None:
     """Collections of records: a key that get tools look up, an optional title, references to other collections."""
     records = mock.get("records", {})
     if not isinstance(records, dict):
-        raise ValueError(f"Mock {tool_id}: records maps a collection name to its key and items.")
+        raise OgkError("OGK-MCP-006", f"Mock {tool_id}: records maps a collection name to its key and items.")
     for name, collection in records.items():
         label = f"Mock {tool_id}/records/{name}"
         if not isinstance(collection, dict) or "items" not in collection or not collection.keys() <= {"key", "title", "items", "refs"}:
-            raise ValueError(f"{label}: a collection has items, and can add key, title and refs.")
+            raise OgkError("OGK-MCP-007", f"{label}: a collection has items, and can add key, title and refs.")
         if not isinstance(collection["items"], list) or any(not isinstance(item, dict) for item in collection["items"]):
-            raise ValueError(f"{label}: items is a list of objects.")
+            raise OgkError("OGK-MCP-008", f"{label}: items is a list of objects.")
         for field in ("key", "title"):
             if field in collection and not isinstance(collection[field], str):
-                raise ValueError(f"{label}: {field} names a field of the items.")
+                raise OgkError("OGK-MCP-009", f"{label}: {field} names a field of the items.")
         if "key" in collection:
             values = [_norm(item.get(collection["key"])) for item in collection["items"]]
             if None in values or len(set(values)) != len(values):
                 raise OgkError("OGK-MCP-001", f"{label}: every item needs a unique {collection['key']}.")
         refs = collection.get("refs", {})
         if not isinstance(refs, dict) or any(target not in records or "key" not in records[target] for target in refs.values()):
-            raise ValueError(f"{label}: refs maps a field to a collection that has a key.")
+            raise OgkError("OGK-MCP-010", f"{label}: refs maps a field to a collection that has a key.")
 
 
 def _validate_serving(mock: dict, tool: dict, label: str) -> None:
     records, properties = mock.get("records", {}), tool["inputSchema"].get("properties", {})
     if ("responses" in tool) == ("serve" in tool):
-        raise ValueError(f"{label}: a tool has either responses or serve.")
+        raise OgkError("OGK-MCP-011", f"{label}: a tool has either responses or serve.")
     serve = tool.get("serve")
     if serve is not None:
         if not isinstance(serve, dict) or serve.get("action") not in _SERVE_ACTIONS or serve.get("records") not in records \
                 or not serve.keys() <= {"records", "action", "argument", "fields", "filters", "total", "wrap"}:
-            raise ValueError(f"{label}: serve names one of the records and an action ({', '.join(_SERVE_ACTIONS)}).")
+            raise OgkError("OGK-MCP-012", f"{label}: serve names one of the records and an action ({', '.join(_SERVE_ACTIONS)}).")
         collection = records[serve["records"]]
         if serve["action"] == "get":
             if "key" not in collection or serve.get("argument", collection["key"]) not in properties:
-                raise ValueError(f"{label}: a get tool reads the key of a collection from a declared argument.")
+                raise OgkError("OGK-MCP-013", f"{label}: a get tool reads the key of a collection from a declared argument.")
         elif not set(serve.get("filters", {})) <= properties.keys():
-            raise ValueError(f"{label}: filters name declared arguments.")
+            raise OgkError("OGK-MCP-014", f"{label}: filters name declared arguments.")
     for argument, rule in tool.get("check", {}).items():
         rule = _check_rule(rule)
         target = rule.get("records")
         if argument not in properties or target not in records or "key" not in records[target] \
                 or not rule.keys() <= {"records", "where", "at_most"} \
                 or not set(rule.get("at_most", {})) <= properties.keys():
-            raise ValueError(f"{label}: check maps a declared argument to a collection that has a key, "
+            raise OgkError("OGK-MCP-015", f"{label}: check maps a declared argument to a collection that has a key, "
                              "with optional where (field values) and at_most (argument: field).")
     if "example" in tool and not isinstance(tool["example"], dict):
-        raise ValueError(f"{label}: example is an object of arguments.")
+        raise OgkError("OGK-MCP-016", f"{label}: example is an object of arguments.")
 
 
 def validate_mock(mock: object, tool_id: str) -> dict:
     """Check a mock file: the records it holds, the tools it serves and the answers it gives."""
     if not isinstance(mock, dict) or not {"tool", "tools"} <= mock.keys() <= {"tool", "tools", "instructions", "records"}:
-        raise ValueError(f"Mock {tool_id} needs tool and tools, and can add instructions and records.")
+        raise OgkError("OGK-MCP-017", f"Mock {tool_id} needs tool and tools, and can add instructions and records.")
     if mock["tool"] != tool_id:
-        raise ValueError(f"Mock {tool_id} must name its tool: {tool_id}.")
+        raise OgkError("OGK-MCP-018", f"Mock {tool_id} must name its tool: {tool_id}.")
     if not isinstance(mock["tools"], list) or not mock["tools"]:
-        raise ValueError(f"Mock {tool_id} must serve at least one tool.")
+        raise OgkError("OGK-MCP-019", f"Mock {tool_id} must serve at least one tool.")
     _validate_records(mock, tool_id)
     names = set()
     for tool in mock["tools"]:
         allowed = {"name", "description", "inputSchema", "responses", "serve", "check", "example", "read_only"}
         if not isinstance(tool, dict) or not {"name", "description", "inputSchema"} <= tool.keys() <= allowed:
-            raise ValueError(f"Mock {tool_id}: each tool needs name, description, inputSchema, and responses or serve.")
+            raise OgkError("OGK-MCP-020", f"Mock {tool_id}: each tool needs name, description, inputSchema, and responses or serve.")
         name = tool["name"]
         if not isinstance(name, str) or not name.replace("_", "").isalnum() or name in names:
-            raise ValueError(f"Mock {tool_id}: tool names are unique words with underscores: {name!r}.")
+            raise OgkError("OGK-MCP-021", f"Mock {tool_id}: tool names are unique words with underscores: {name!r}.")
         names.add(name)
         if "read_only" in tool and not isinstance(tool["read_only"], bool):
-            raise ValueError(f"Mock {tool_id}/{name}: read_only must be true or false.")
+            raise OgkError("OGK-MCP-022", f"Mock {tool_id}/{name}: read_only must be true or false.")
         schema = tool["inputSchema"]
         if not isinstance(schema, dict) or schema.get("type") != "object" or not isinstance(schema.get("properties", {}), dict):
-            raise ValueError(f"Mock {tool_id}/{name}: inputSchema is a JSON Schema object with properties.")
+            raise OgkError("OGK-MCP-023", f"Mock {tool_id}/{name}: inputSchema is a JSON Schema object with properties.")
         if not set(schema.get("required", [])) <= schema.get("properties", {}).keys():
-            raise ValueError(f"Mock {tool_id}/{name}: required names a property that is not declared.")
+            raise OgkError("OGK-MCP-024", f"Mock {tool_id}/{name}: required names a property that is not declared.")
         _validate_serving(mock, tool, f"Mock {tool_id}/{name}")
         if "serve" in tool:
             continue
         responses = tool["responses"]
         if not isinstance(responses, list) or not responses:
-            raise ValueError(f"Mock {tool_id}/{name}: give at least one response.")
+            raise OgkError("OGK-MCP-025", f"Mock {tool_id}/{name}: give at least one response.")
         for response in responses:
             if not isinstance(response, dict) or not response.keys() <= {"when", "result", "error"} \
                     or ("result" in response) == ("error" in response):
-                raise ValueError(f"Mock {tool_id}/{name}: a response has an optional when, and either result or error.")
+                raise OgkError("OGK-MCP-026", f"Mock {tool_id}/{name}: a response has an optional when, and either result or error.")
             if not isinstance(response.get("when", {}), dict):
-                raise ValueError(f"Mock {tool_id}/{name}: when is an object of argument values.")
+                raise OgkError("OGK-MCP-027", f"Mock {tool_id}/{name}: when is an object of argument values.")
         if "when" in responses[-1]:
-            raise ValueError(f"Mock {tool_id}/{name}: the last response is the default and has no when.")
+            raise OgkError("OGK-MCP-028", f"Mock {tool_id}/{name}: the last response is the default and has no when.")
     problems = reference_problems(mock)
     if problems:
         raise OgkError("OGK-MCP-002", f"Mock {tool_id}: {problems[0]}")
@@ -184,7 +184,7 @@ def check_synthetic(data, label: str) -> None:
 def apply_scenario(mock: dict, collections: object, label: str) -> dict:
     """The mock with a project's own records in place of the bundled ones."""
     if not isinstance(collections, dict):
-        raise ValueError(f"{label}: give the records of {mock['tool']} as an object of collections.")
+        raise OgkError("OGK-MCP-029", f"{label}: give the records of {mock['tool']} as an object of collections.")
     unknown = sorted(set(collections) - set(mock.get("records", {})))
     if unknown:
         known = ", ".join(mock.get("records", {})) or "none"
