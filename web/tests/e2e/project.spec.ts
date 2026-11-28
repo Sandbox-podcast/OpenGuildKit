@@ -203,7 +203,12 @@ test('frames a draft and gathers the council', async ({ page }) => {
   await expect(page.getByText('Consultation préparée')).toBeVisible();
   await expect(page.locator('.board-seat').first()).toBeVisible();
   await expect(page.getByText(/0\/\d+ avis déposés/)).toBeVisible();
-  const record = await cli<{ answers: { concerns: string[] }; consultation: { boards: string[] } }>(page, ['task', 'show', 'dark-theme', '--json']);
+  const record = await cli<{ answers: { concerns: string[] }; consultation: { boards: string[] } }>(page, [
+    'task',
+    'show',
+    'dark-theme',
+    '--json',
+  ]);
   expect(record.json.answers.concerns).toEqual(['money', 'ai']);
   expect(record.json.consultation.boards).toContain('finance');
 });
@@ -433,6 +438,7 @@ test('records the GDPR named evidence with who provided it and completes a task 
     'task',
     'show',
     'data-export',
+    '--json',
   ]);
   const evidence = saved.json.result.checks.filter((c) => c.check.startsWith('evidence:'));
   expect(evidence).toHaveLength(2);

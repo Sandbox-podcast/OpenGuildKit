@@ -186,7 +186,9 @@ export function ForgeTask({ id }: { id: string }) {
 }
 
 function ForgeRecord({ id, reconsult }: { id: string; reconsult: string | null }) {
-  const record = useCli<TaskRecord>(['task', 'show', id, '--json'], { omit: ['markdown', 'review_template', 'scope', 'review', 'consultation'] });
+  const record = useCli<TaskRecord>(['task', 'show', id, '--json'], {
+    omit: ['markdown', 'review_template', 'scope', 'review', 'consultation'],
+  });
   const [handoff, setHandoff] = useState(false);
   return (
     <Q q={record}>

@@ -30,6 +30,7 @@ from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"
+SHOW = ["task", "show", "request-status", "--json"]
 ENV = {
     **os.environ,
     "PYTHONPATH": os.pathsep.join(filter(None, [str(REPO / "src"), os.environ.get("PYTHONPATH")])),
@@ -506,16 +507,15 @@ class WebInterfaceTests(unittest.TestCase):
 
     def test_json_answers_drop_the_duplicate_text_and_the_keys_a_page_does_not_need(self):
         self.run_in_page("task", "new", "Show request status", "--id", "request-status")
-        show = ["task", "show", "request-status", "--json"]
-        status, _, body = self.request("/api/run", {"argv": show, "omit": ["brief"]})
+        status, _, body = self.request("/api/run", {"argv": SHOW, "omit": ["brief"]})
         result = json.loads(body)
         self.assertEqual((status, result["stdout"]), (200, ""))
         self.assertEqual(result["json"]["id"], "request-status")
         self.assertNotIn("brief", result["json"])
-        status, _, body = self.request("/api/run", {"argv": show, "raw": True})
+        status, _, body = self.request("/api/run", {"argv": SHOW, "raw": True})
         self.assertIn('"brief"', json.loads(body)["stdout"])
         self.assertEqual(self.request("/api/run", {"argv": ["check"], "omit": "brief"})[0], 400)
-        status, _, body = self.request("/api/run", {"batch": {"one": show}, "omit": ["answers"]})
+        status, _, body = self.request("/api/run", {"batch": {"one": SHOW}, "omit": ["answers"]})
         self.assertNotIn("answers", json.loads(body)["results"]["one"]["json"])
 
     def test_large_answers_are_compressed_for_browsers_that_accept_it(self):
@@ -766,7 +766,7 @@ class WebInterfaceTests(unittest.TestCase):
             uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8"),
                      "brief.md": "Show the four agreed status labels on each support request."})
         self.assertEqual((status, result["code"]), (200, 0), result["stderr"])
-        record = self.run_in_page("task", "show", "request-status", "--json")[1]["json"]
+        record = self.run_in_page(*SHOW)[1]["json"]
         self.assertEqual(record["brief"], "Show the four agreed status labels on each support request.")
         self.assertEqual(record["rounds"][0]["brief"], (EXAMPLE / "brief.md").read_text(encoding="utf-8").strip())
 
@@ -776,12 +776,12 @@ class WebInterfaceTests(unittest.TestCase):
         self.run_in_page("task", "decide", "request-status", "--request-changes", "--by", "Camille", "--reason", "Again")
         self.run_in_page("task", "consult", "request-status", "--answers", "@upload:answers.json",
                          uploads={"answers.json": (EXAMPLE / "answers.json").read_text(encoding="utf-8")})
-        printed = run_cli(self.root, "task", "show", "request-status", "--json").stdout
+        printed = run_cli(self.root, *SHOW).stdout
         record = json.loads(printed)
         self.assertTrue(record["consultation"]["board_briefs"])
         self.assertTrue(record["consultation"]["domains"])
         self.assertTrue(record["rounds"][0]["consultation"]["board_briefs"])
-        status, result = self.run_in_page("task", "show", "request-status", "--json")
+        status, result = self.run_in_page(*SHOW)
         self.assertEqual((status, result["code"]), (200, 0))
         shown = result["json"]
         for consultation in (shown["consultation"], shown["rounds"][0]["consultation"]):
@@ -791,9 +791,9 @@ class WebInterfaceTests(unittest.TestCase):
         self.assertEqual(shown["consultation"]["boards"], record["consultation"]["boards"])
         self.assertLess(len(json.dumps(shown)), len(printed) / 2)
         # The text the CLI printed is still there for a page that asks to copy it, and the CLI itself is unchanged.
-        status, _, raw = self.request("/api/run", {"argv": ["task", "show", "request-status", "--json"], "raw": True})
+        status, _, raw = self.request("/api/run", {"argv": SHOW, "raw": True})
         self.assertEqual(json.loads(json.loads(raw)["stdout"]), record)
-        self.assertEqual(json.loads(run_cli(self.root, "task", "show", "request-status", "--json").stdout), record)
+        self.assertEqual(json.loads(run_cli(self.root, *SHOW).stdout), record)
         # Only a consultation loses them: another key of that name keeps its content.
         self.assertEqual(webui._without_unread({"domains": [1], "board_briefs": {}, "consultation": {"domains": [1]}}),
                          {"domains": [1], "board_briefs": {}, "consultation": {}})
