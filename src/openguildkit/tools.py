@@ -20,7 +20,7 @@ from . import clock, lazy_re
 from .catalog import CatalogError, package_file, record_files, validate_day
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .sensitive import looks_like_credential
-from .storage import load_json, read_json, unique_fields, write_json, write_text
+from .storage import NestedTooDeeply, load_json, read_json, unique_fields, write_json, write_text
 
 CATEGORIES = (
     "issue-tracking", "source-control", "ci-cd", "documentation", "design", "communication", "time-tracking", "hr",
@@ -990,9 +990,12 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
 
 def _host_entries(root: Path, host: str) -> dict:
     if host == "claude-code":
+        path = root / CLAUDE_MCP_FILE
         try:
-            return _mcp_file(root / CLAUDE_MCP_FILE)["mcpServers"]
-        except ValueError:
+            return _mcp_file(path)["mcpServers"]
+        except ValueError as error:
+            if isinstance(error.__cause__, NestedTooDeeply):
+                raise ValueError(f"{path.as_posix()}: {error.__cause__}") from error
             return {}
     path = root / CODEX_CONFIG_FILE
     if not path.is_file():
