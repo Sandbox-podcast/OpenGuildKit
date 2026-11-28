@@ -10,6 +10,7 @@ Entry: os_error_message, file_error, unknown, OgkError, InternalError, error_lin
 Tests: tests/test_error_forms.py, tests/test_error_codes.py
 """
 
+import os
 import re
 
 # Words that end the command a message names and start its prose again: "run openguildkit init only to set up...".
@@ -42,11 +43,18 @@ def os_error_message(error: OSError) -> str:
         return f"{error.strerror or error}".rstrip(".") + "."
     if isinstance(error, FileNotFoundError):
         return f"Cannot open {name}: it does not exist."
+    if _is_folder(error):
+        return f"Cannot open {name}: it is a folder, not a file."
     if isinstance(error, PermissionError):
         return f"Cannot open {name}: permission denied."
-    if isinstance(error, IsADirectoryError):
-        return f"Cannot open {name}: it is a folder, not a file."
     return f"Cannot open {name}: {(error.strerror or 'it cannot be read').rstrip('.').lower()}."
+
+
+def _is_folder(error: OSError) -> bool:
+    """Windows answers PermissionError, not IsADirectoryError, when a folder is opened as a file."""
+    if isinstance(error, IsADirectoryError):
+        return True
+    return isinstance(error, PermissionError) and isinstance(error.filename, str) and os.path.isdir(error.filename)
 
 
 def file_error(error: OSError, text: str) -> OgkError:
@@ -54,10 +62,10 @@ def file_error(error: OSError, text: str) -> OgkError:
     denied, a folder given as a file, or any other failure. `text` is its line, os_error_message or a longer form."""
     if isinstance(error, FileNotFoundError):
         return OgkError("OGK-FILE-001", text)
+    if _is_folder(error):
+        return OgkError("OGK-FILE-003", text)
     if isinstance(error, PermissionError):
         return OgkError("OGK-FILE-002", text)
-    if isinstance(error, IsADirectoryError):
-        return OgkError("OGK-FILE-003", text)
     return OgkError("OGK-FILE-004", text)
 
 
