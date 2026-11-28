@@ -530,7 +530,8 @@ function ProjectForm({ open, project, onClose }: { open: boolean; project?: Proj
       setV((s.drafts[draftKey] as typeof initial) ?? initial);
       setError(null);
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the form resets when it opens, not when its initial values change
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the form resets when it opens, not with its initial values
+  }, [open]);
   const dirty = open && JSON.stringify(v) !== JSON.stringify(initial);
   useDirtyGuard(draftKey, dirty);
   const members = [...new Set(list(s, 'member', s.session.orgId).map((m) => m.userId))];

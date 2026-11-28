@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_LINE, compare, longLines, parseEslint, parseList, parseTsc } from '../../scripts/check-ratchet.mjs';
+import { MAX_LINE, codeWidth, compare, longLines, parseEslint, parseList, parseTsc } from '../../scripts/check-ratchet.mjs';
 
 const roots = [];
 function project(files) {
@@ -22,15 +22,25 @@ afterEach(() => {
 describe('npm run check:ratchet', () => {
   /** Issue #515: lines of 731 characters, and nothing to stop a new one. */
   it('counts the lines of src over the width, per file', () => {
-    const long = `const x = '${'a'.repeat(MAX_LINE)}';`;
+    const long = `const x = [${'1, '.repeat(MAX_LINE / 3)}];`;
     const root = project({
       'src/a.tsx': `${long}\nconst short = 1;\n${long}\n`,
       'src/deep/b.ts': `${long}\n`,
-      'src/ok.ts': `const x = '${'a'.repeat(MAX_LINE - 20)}';\n`,
+      'src/ok.ts': `const x = [${'1, '.repeat((MAX_LINE - 20) / 3)}];\n`,
       'src/style.css': `${long}\n`,
       'tests/t.ts': `${long}\n`,
     });
     expect(longLines(root)).toEqual({ 'src/a.tsx': 2, 'src/deep/b.ts': 1 });
+  });
+
+  /** Issue #515: no line of src over 140 characters outside its strings, so a message or a pattern stays whole. */
+  it('does not count the characters of a string, a template or a regular expression', () => {
+    const text = 'a'.repeat(MAX_LINE);
+    expect(codeWidth(`const m = '${text}';`)).toBe('const m = "";'.length);
+    expect(codeWidth(`const m = t("${text}", \`${text}\`);`)).toBe('const m = t("", "");'.length);
+    expect(codeWidth(`  /^${text} (\\S+)$/.exec(line),`)).toBe('  //.exec(line),'.length);
+    expect(codeWidth(`const ratio = width / ${text} / 2;`)).toBe(`const ratio = width / ${text} / 2;`.length);
+    expect(longLines(project({ 'src/m.ts': `const m = '${text}';\n// ${text}\n` }))).toEqual({ 'src/m.ts': 1 });
   });
 
   /** Issue #515: `noUncheckedIndexedAccess` reports 400 errors the code cannot fix at once. */

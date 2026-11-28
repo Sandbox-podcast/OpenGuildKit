@@ -1,4 +1,7 @@
-/** Library: the reference catalogue, sheets, applicability, activation into rules, collections, packs, imports and update proposals (brief §5.5). */
+/**
+ * Library: the reference catalogue, sheets, applicability, activation into rules, collections, packs, imports and update
+ * proposals (brief §5.5).
+ */
 import { useMemo, useRef, useState } from 'react';
 import { NotFound } from '@/demo/app/App';
 import { dispatch, useAppState } from '@/demo/app/store';

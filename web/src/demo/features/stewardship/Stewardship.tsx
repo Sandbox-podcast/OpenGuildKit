@@ -1,4 +1,7 @@
-/** Intendance: members, roles matrix, integrations, models, budgets, notifications, retention, language, preferences, data and demo controls (brief §5.12). */
+/**
+ * Intendance: members, roles matrix, integrations, models, budgets, notifications, retention, language, preferences, data
+ * and demo controls (brief §5.12).
+ */
 import { useRef, useState } from 'react';
 import { dispatch, replaceState, useAppState } from '@/demo/app/store';
 import { navigate } from '@/shared/router';

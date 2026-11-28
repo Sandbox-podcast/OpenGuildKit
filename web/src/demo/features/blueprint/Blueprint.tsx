@@ -1212,7 +1212,16 @@ function ExportProfile() {
   const [vn, setVn] = useState(String(latestPublished(s, s.session.orgId)?.number ?? 1));
   const v = bpVersion(s, s.session.orgId, Number(vn))!;
   const data = blueprintExport(s, v);
-  const md = `# Blueprint ${data.organisation} — v${data.version}\n\n> ${data.note}\n\n## Contexte\n${data.contexte.map((f) => `- **${f.libelle}** : ${f.valeur ?? '_inconnue_'} (${f.provenance})`).join('\n')}\n\n## Règles\n${data.regles.map((r) => `### ${r.code} v${r.version} — ${r.titre}\n${r.formulation}\n\n- Niveau : ${r.niveau} · Politique : ${r.politique} · Criticité : ${r.criticite}${r.bloquante ? ' · bloquante' : ''}${r.derogeable ? '' : ' · non dérogeable'}\n- Références : ${(r.references ?? []).join(', ') || '—'}`).join('\n\n')}\n\n## Exclusions\n${data.exclusions.map((e) => `- ${e.reference} : ${e.motif}`).join('\n') || '—'}\n`;
+  const context = data.contexte.map((f) => `- **${f.libelle}** : ${f.valeur ?? '_inconnue_'} (${f.provenance})`).join('\n');
+  const rule = (r: (typeof data.regles)[number]) =>
+    `### ${r.code} v${r.version} — ${r.titre}\n${r.formulation}\n\n` +
+    `- Niveau : ${r.niveau} · Politique : ${r.politique} · Criticité : ${r.criticite}` +
+    `${r.bloquante ? ' · bloquante' : ''}${r.derogeable ? '' : ' · non dérogeable'}\n` +
+    `- Références : ${(r.references ?? []).join(', ') || '—'}`;
+  const exclusions = data.exclusions.map((e) => `- ${e.reference} : ${e.motif}`).join('\n') || '—';
+  const md =
+    `# Blueprint ${data.organisation} — v${data.version}\n\n> ${data.note}\n\n## Contexte\n${context}\n\n` +
+    `## Règles\n${data.regles.map(rule).join('\n\n')}\n\n## Exclusions\n${exclusions}\n`;
   const exportAs = (format: 'json' | 'yaml' | 'md') => {
     const out = dispatch(
       cmd.recordExport,

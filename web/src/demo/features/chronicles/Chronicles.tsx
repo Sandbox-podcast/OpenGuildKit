@@ -81,7 +81,7 @@ function Timeline() {
           (!f.periode || e.at >= now - Number(f.periode) * DAY) &&
           (!f.q || e.summary.toLowerCase().includes(f.q.toLowerCase())),
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): the filters object is new at each render, its JSON is the key
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- INTENTIONAL(#522): a new filters object each render, keyed by its JSON
     [all, JSON.stringify(f), now],
   );
   const [sel, setSel] = useState<ID[]>([]);
