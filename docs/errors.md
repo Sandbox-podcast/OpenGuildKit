@@ -152,6 +152,10 @@ The register holds the message of each code as the code writes it and the tests 
 - `_share_verify`: OGK-DOCS-005
 - `deliverable`: OGK-DOCS-001, OGK-DOCS-002
 
+### errors.py
+
+- `file_error`: OGK-FILE-001, OGK-FILE-002, OGK-FILE-003, OGK-FILE-004
+
 ### evidence_cli.py
 
 - `_day`: OGK-EVIDENCE-002

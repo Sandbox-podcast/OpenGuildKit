@@ -21,7 +21,7 @@ from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
 from .cli_errors import command_words, error_message, json_error, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .command import Command
-from .errors import error_line
+from .errors import error_line, file_error
 from .hosts import HOSTS
 from .storage import answering, json_text
 from .terminal import reader_closed, utf8_streams, warn
@@ -243,7 +243,8 @@ def main(argv: list[str] | None = None) -> int:
         return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        return _failed(args, answer, error, error_message(error, parser, args))
+        text = error_message(error, parser, args)
+        return _failed(args, answer, file_error(error, text) if isinstance(error, OSError) else error, text)
     except KeyboardInterrupt:
         print(file=sys.stderr)
         warn("Cancelled.")
