@@ -66,7 +66,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A ratchet test that counts, per file, the lines over 400 characters outside tables and fails when a count goes up.
 
-**Today.** 594 such lines in 110 Markdown files. Issue #505.
+**Today.** `tests/test_workflow_pages.py` holds `docs/workflow.md` and the pages of `docs/workflow/` at one sentence per line and none over 400 characters, and every tracked Markdown file under 40,000 bytes but a list that only shrinks; the other pages are not split yet (529 lines over 400 characters outside tables on 2026-11-28, 594 before). Issue #505.
 
 ### `handler-named-after-command`
 

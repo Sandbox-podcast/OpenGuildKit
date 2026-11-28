@@ -313,8 +313,7 @@ esac
                 self.assertEqual(invisible.findall(path.read_text(encoding="utf-8")), [], "write it as \\u200b in jq")
 
     def test_the_workflow_guide_describes_the_template_next_to_task_retro(self):
-        guide = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
-        section = guide.split("## Retrospective", 1)[1].split("\n## ", 1)[0]
+        section = (ROOT / "docs" / "workflow" / "retrospective.md").read_text(encoding="utf-8")
         self.assertIn("integrations/github/openguildkit-retro.yml", section)
         self.assertIn("issues: write", section)
 

@@ -134,11 +134,10 @@ class PathRuleTests(unittest.TestCase):
 
 class PageTests(unittest.TestCase):
     def section(self) -> str:
-        text = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8")
-        return text.split("\n## Short lane\n", 1)[1].split("\n## ", 1)[0]
+        return (REPO / "docs" / "workflow" / "short-lane.md").read_text(encoding="utf-8")
 
     def test_the_page_lists_everything_the_lane_never_covers(self):
-        listed = self.section().split("### Never in the lane", 1)[1].split("### ", 1)[0].casefold()
+        listed = self.section().split("## Never in the lane", 1)[1].split("## ", 1)[0].casefold()
         never = (*light_lane._MANIFEST_NAMES, *light_lane._AGENT_FOLDERS, *light_lane._INSTRUCTION_NAMES,
                  *(folder for folder, _ in light_lane._FOLDERS), *light_lane._MANIFEST_SUFFIXES)
         self.assertEqual([item for item in never if item not in listed], [])

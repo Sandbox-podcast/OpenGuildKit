@@ -491,7 +491,8 @@
         "doc_link"
       ],
       "tests": [
-        "tests/test_doc_links.py"
+        "tests/test_doc_links.py",
+        "tests/test_workflow_pages.py"
       ],
       "doc": "docs/architecture.md"
     },

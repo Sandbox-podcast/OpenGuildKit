@@ -44,7 +44,7 @@ The catalog has one brain per discipline of a software publisher:
 
 Each brain has at least four specialists, four evidence requests, four challenge questions, four decision criteria and three primary sources.
 
-`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. When the project declares the role, the stack reaches them too: `frontend` for a customer-facing task on React, Vue, Angular or Svelte, `backend` for a service task on Django, Rails, Spring Boot or FastAPI, and the board of a component's stack when the task names that component ([workflow](workflow.md#how-boards-are-selected)). A profile that lists its boards gets them only once it adds them to `boards`.
+`engineering` stays the brain that reviews features, bugs and maintenance across the code base, and every profile that names it keeps working. `frontend` and `backend` add the depth of each side: a brief that names browser support, a component library or the bundle size reaches `frontend`, one that names a migration, a webhook or idempotency reaches `backend`, and `frontend` or `backend` in a brief reaches both them and `engineering`. When the project declares the role, the stack reaches them too: `frontend` for a customer-facing task on React, Vue, Angular or Svelte, `backend` for a service task on Django, Rails, Spring Boot or FastAPI, and the board of a component's stack when the task names that component ([workflow](workflow/scope-the-task.md#how-boards-are-selected)). A profile that lists its boards gets them only once it adds them to `boards`.
 
 ### What each brain knows
 
@@ -169,4 +169,4 @@ Each board has a JSON file in `src/openguildkit/registry/boards/`. In `review`, 
 - `challenge`, questions about alternatives, failure modes and assumptions.
 - `decision_criteria`, conditions that change the board's verdict.
 
-Scope triggers to a role's actual work. A trigger written after a negation ("no payments") does not select the brain; see [routing](workflow.md#2-scope-the-task). Link to public primary sources and use concrete checks. [Board schema](catalog-format.md#boards)
+Scope triggers to a role's actual work. A trigger written after a negation ("no payments") does not select the brain; see [routing](workflow/scope-the-task.md). Link to public primary sources and use concrete checks. [Board schema](catalog-format.md#boards)
