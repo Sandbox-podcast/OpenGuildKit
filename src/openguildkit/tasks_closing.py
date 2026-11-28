@@ -201,7 +201,8 @@ def points_left_open(task: dict, profile: dict, relevance: dict | None = None, r
     project root, evidence changed since it was accepted too."""
     checks = {check["id"]: check for check in asked_checks(task, profile, relevance)}
     reported = outcomes(task, profile, relevance)
-    sensitive, other = [], []
+    sensitive: list[str] = []
+    other: list[str] = []
     for item in reported.values():
         check = checks.get(item["check"])
         if check is None or check["kind"] == "command" or item["status"] not in ("skipped", "failed"):
@@ -278,10 +279,11 @@ def record_decision(
         raise ValueError("Supply the decision owner and a reason.")
     status = "approved" if approve else "changes-requested"
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
-    decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
+    at = clock.real_timestamp()
+    decision: dict[str, object] = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": at}
     if approve:
         if dated and signature is None and not signed_at:
-            signed_at = signing_time_of(decision["at"])
+            signed_at = signing_time_of(at)
         payload = decision_payload(task, by, reason, base_revision, separate=separate, signed_at=signed_at)
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:

@@ -2,6 +2,7 @@
 the sequential passes, and the text a person reads before deciding."""
 
 from collections.abc import Mapping
+from typing import cast
 from pathlib import Path
 
 from . import light_lane, requester
@@ -75,7 +76,7 @@ def record_consultation(
         if reopened:
             archived["reopened"] = reopened["message"]
         rounds.append(archived)
-    validated = validate_answers(redact_data(answers))
+    validated = validate_answers(cast(dict, redact_data(answers)))
     result = {**task, "answers": validated, "rounds": rounds}
     if brief is not None:
         result["brief"] = validate_brief(brief)

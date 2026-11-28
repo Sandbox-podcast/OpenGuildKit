@@ -158,9 +158,9 @@ def run_decide(command: TaskCommand) -> None:
           else f"Next: {reconsult_command(args.id)}, with the changes requested.", file=sys.stderr)
 
 
-def run_blockers(command: TaskCommand) -> int | None:
+def run_blockers(command: TaskCommand) -> None:
     """The review's blockers and how each was resolved."""
-    args, root, state, task = command.args, command.root, command.state, command.task
+    args, root, task = command.args, command.root, command.task
     items = blocker_list(task)
     for item in items:
         resolution = item["resolution"]
@@ -182,8 +182,8 @@ def run_blockers(command: TaskCommand) -> int | None:
             if item.get("owner"):
                 print(f"    owner: {item['owner']}; clears when: {item['clears_when']}")
             if resolution and resolution["kind"] == "cleared":
-                state = EVIDENCE_WORDS[item.get("evidence_state", "no fingerprint")]
-                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}; {state}")
+                words = EVIDENCE_WORDS[item.get("evidence_state", "no fingerprint")]
+                print(f"    evidence: {resolution['evidence']}; supports: {resolution['supports']}; {words}")
             if expired:
                 print(f"    waived by {resolution['by']}: {resolution['reason']} (scope: {resolution['scope']}); "
                       "the blocker is open again")
@@ -198,7 +198,7 @@ EVIDENCE_WORDS = {"unchanged": "fingerprint: unchanged since it was cleared",
                   "no fingerprint": "no fingerprint: cleared before OpenGuildKit recorded one"}
 
 
-def run_resolve(command: TaskCommand) -> int | None:
+def run_resolve(command: TaskCommand) -> None:
     """The person clears a blocker with evidence, or waives it within the project's policy."""
     args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
                                                  command.catalog, command.task)
@@ -238,7 +238,7 @@ def run_resolve(command: TaskCommand) -> int | None:
     print(details["kind"])
 
 
-def run_alerts(command: TaskCommand) -> int | None:
+def run_alerts(command: TaskCommand) -> None:
     """The task's dependency alerts: import, link and review them."""
     args, state, task = command.args, command.state, command.task
     from .alerts_cli import task_command  # Not imported by the other task commands (#539).
@@ -246,7 +246,7 @@ def run_alerts(command: TaskCommand) -> int | None:
     task_command(args, state, task)
 
 
-def run_decision_payload(command: TaskCommand) -> int | None:
+def run_decision_payload(command: TaskCommand) -> None:
     """The exact decision an approver signs, after the text they read before approving."""
     args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
                                                  command.catalog, command.task)
@@ -272,7 +272,7 @@ def run_decision_payload(command: TaskCommand) -> int | None:
         print(text, end="")
 
 
-def run_authorize(command: TaskCommand) -> int | None:
+def run_authorize(command: TaskCommand) -> None:
     """A person allows or refuses an external action outside the authorized scope."""
     args, root, state, task = command.args, command.root, command.state, command.task
     refusal = "Allowing an external action requires a person at an interactive terminal."

@@ -120,6 +120,8 @@ STALE_DAYS = 14
 
 def days_since(moment: str | None) -> int | None:
     """Whole days since a recorded time; None when the time cannot be read."""
+    if moment is None:
+        return None
     try:
         then = datetime.fromisoformat(moment)
     except (TypeError, ValueError):

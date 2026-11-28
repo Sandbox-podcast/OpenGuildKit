@@ -55,7 +55,8 @@ def expired_waiver_problem(record: dict, relative: str) -> str | None:
     history: its waiver covered the work it delivered."""
     if record.get("completed") or record.get("status") in DONE_STATUSES:
         return None
-    expired = expired_waivers(record.get("blockers") if isinstance(record.get("blockers"), list) else [])
+    blockers = record.get("blockers")
+    expired = expired_waivers(blockers if isinstance(blockers, list) else [])
     if not expired:
         return None
     named = ", ".join(f"{item.get('id')} on {item['resolution']['until']}" for item in expired)
@@ -153,8 +154,8 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         if problem := roles.clearance_problem(profile, blocker, by, entry.get("signer")):
             raise ValueError(problem)
     else:
-        policy = waiver_policy(profile)
-        if not policy:
+        waivers = waiver_policy(profile)
+        if not waivers:
             clear = (f"Clear {blocker_id} with its evidence at the person's terminal (openguildkit task clear "
                      f"{task['id']} {blocker_id} --evidence PATH --supports TEXT --by INITIALS)")
             if verification:
@@ -162,16 +163,16 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                                  f"withdraws the approval: {revoke_command(task['id'])}.")
             raise ValueError(f"The project's policy allows no waiver. {clear}, or the person requests changes: "
                              f"openguildkit task decide {task['id']} --request-changes --by INITIALS --reason TEXT.")
-        if by not in policy["allowed_by"]:
-            raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
+        if by not in waivers["allowed_by"]:
+            raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(waivers['allowed_by'])}.")
         if problem := roles.clearance_problem(profile, blocker, by, waiver=True):
             raise ValueError(problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
         days = (datetime.fromisoformat(until).date() - clock.real_now().date()).days
-        if days < 1 or days > policy["max_days"]:
-            raise ValueError(f"A waiver lasts between 1 and {policy['max_days']} days.")
+        if days < 1 or days > waivers["max_days"]:
+            raise ValueError(f"A waiver lasts between 1 and {waivers['max_days']} days.")
         for field in ("reason", "scope"):
             if not resolution.get(field, "").strip():
                 raise ValueError(f"A waiver needs --{field}.")

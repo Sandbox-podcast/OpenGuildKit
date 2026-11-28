@@ -1,6 +1,9 @@
 """The shape of a task record: the fields each part may hold, the checks of a record read from disk and of a
 brief, and the time stamp records carry."""
 
+from collections.abc import Iterator
+from typing import cast
+
 from . import clock, delivered_review, light_lane
 from .sensitive import redact_credentials
 from .workflow import RESOLUTION_FIELDS
@@ -113,9 +116,10 @@ _RESOLUTION_FIELDS = {"cleared": ("evidence", "supports"), "waived": ("reason", 
 
 def shape_problem(value: object, shape: object, field: str) -> str | None:
     """Where value departs from shape (see _RECORD), named by its path such as review.boards[0].challenge."""
+    problems: Iterator[str | None]
     if isinstance(shape, tuple):
-        problems = [shape_problem(value, option, field) for option in shape]
-        return None if None in problems else problems[-1]
+        options = [shape_problem(value, option, field) for option in shape]
+        return None if None in options else options[-1]
     if isinstance(shape, frozenset):
         return None if value in shape else f"{field} must be one of {', '.join(sorted(shape))}"
     if isinstance(shape, list):
@@ -144,7 +148,7 @@ def shape_problem(value: object, shape: object, field: str) -> str | None:
         return None if type(value) is int else f"{field} must be a whole number"
     if shape is str:
         return None if isinstance(value, str) else f"{field} must be text"
-    return None if isinstance(value, shape) else f"{field} must be {'an object' if shape is dict else 'a list'}"
+    return None if isinstance(value, cast(type, shape)) else f"{field} must be {'an object' if shape is dict else 'a list'}"
 
 
 def record_problem(task: dict) -> str | None:

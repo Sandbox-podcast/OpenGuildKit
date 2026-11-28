@@ -410,11 +410,14 @@ def run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | No
 def _run(args, root: Path, state: Path, profile: dict, catalog: dict) -> int | None:
     action = args.action
     if action == "new":
-        return _new(args, root, state, profile, catalog)
+        _new(args, root, state, profile, catalog)
+        return None
     if action == "list":
-        return run_list(args, root, state, profile, catalog)
+        run_list(args, root, state, profile, catalog)
+        return None
     if action == "retro":
-        return run_retro(args, root, state, profile, catalog)
+        run_retro(args, root, state, profile, catalog)
+        return None
     record = state / DECISIONS_DIR / f"{args.id}.json"
     if not task_path(state, args.id).is_file() and record.is_file():
         if action == "show":

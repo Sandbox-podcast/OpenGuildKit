@@ -255,7 +255,7 @@ def _print_remaining(args, task: dict, profile: dict, relevance: dict, root: Pat
     return 1 if args.action == "verify" and failed else 0
 
 
-def run_checks(command: TaskCommand) -> int | None:
+def run_checks(command: TaskCommand) -> None:
     """The checks the approved task must report, and their outcomes so far."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
@@ -269,7 +269,7 @@ def run_checks(command: TaskCommand) -> int | None:
         _print_checks(checks, reported, task["id"])
 
 
-def run_result_template(command: TaskCommand) -> int | None:
+def run_result_template(command: TaskCommand) -> None:
     """A result file to fill in."""
     args, root, profile, catalog, task = command.args, command.root, command.profile, command.catalog, command.task
     if task["status"] != "approved":
@@ -292,7 +292,7 @@ def run_outcome(command: TaskCommand) -> int | None:
     decision = is_decision_task(task)
     changed = decision_changes(root, task)
     relevance = _relevance(root, task, profile, catalog, getattr(args, "all", False))
-    notes = []
+    notes: list[str] = []
     if action == "verify":
         payload = {}
         if not decision:
@@ -340,7 +340,7 @@ def run_outcome(command: TaskCommand) -> int | None:
               "tracks, so a new file left out of Git is in no record. guard --ci accepts it with the work, or in a "
               "pull request of its own once the approval's record is merged: the same approval, with its completion "
               "added.", file=sys.stderr)
-        return
+        return None
     for line in notes:
         print(line)
     kept = {item["check"] for item in result["result"]["checks"]}
@@ -370,7 +370,7 @@ def run_outcome(command: TaskCommand) -> int | None:
     return _print_remaining(args, result, profile, relevance, root, state, changed, held)
 
 
-def run_runs(command: TaskCommand) -> int | None:
+def run_runs(command: TaskCommand) -> None:
     """The scenarios whose outcome changed between the last two ChaosFolk replays."""
     args, task = command.args, command.task
     comparison = compare_runs(task)
@@ -385,7 +385,7 @@ def run_runs(command: TaskCommand) -> int | None:
         print(f"{plural(len(comparison['unchanged']), 'scenario')} unchanged")
 
 
-def run_export(command: TaskCommand) -> int | None:
+def run_export(command: TaskCommand) -> None:
     """Write the shareable decision record, or the withdrawal of its approval into it."""
     args, root, state, profile, task = command.args, command.root, command.state, command.profile, command.task
     if task["status"] not in ("approved", *DONE_STATUSES):
@@ -410,7 +410,7 @@ def run_export(command: TaskCommand) -> int | None:
     print(f"Next: git add {STATE_DIR}/decisions, then commit the record with the work in the pull request.", file=sys.stderr)
 
 
-def run_handoff(command: TaskCommand) -> int | None:
+def run_handoff(command: TaskCommand) -> None:
     """The approved implementation handoff, or the decision record of a decision task."""
     args, root, state, profile, catalog, task = (command.args, command.root, command.state, command.profile,
                                                  command.catalog, command.task)
@@ -418,7 +418,7 @@ def run_handoff(command: TaskCommand) -> int | None:
     if task.get("status") in ("approved", *DONE_STATUSES):
         checks = expected_checks(task, profile, _relevance(root, task, profile, catalog))
     if task.get("status") == "approved":
-        evidence = [check for check in checks if check["concerned"] and check["kind"] == "evidence"]
+        evidence = [check for check in checks or [] if check["concerned"] and check["kind"] == "evidence"]
     output = handoff(task, evidence, checks, root)
     require_instructions(args, root, state, profile, catalog)
     waits = waiting_for(task, {name: _status_of(state, name) for name in task.get("after", [])})

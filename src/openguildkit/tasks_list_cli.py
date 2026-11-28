@@ -77,7 +77,7 @@ def sharing_issues(root: Path, state: Path, records: list[dict], tasks: dict | N
     Each issue is its kind (task-absent, task-id-clash or evidence-unshared), the line check prints and the file it is
     about, None when it names none. tasks holds the task records the caller already read, by ID; without it they are
     read here."""
-    issues = []
+    issues: list[tuple[str, str, str | None]] = []
     absent = sorted({row["task"] for row in records if row["status"] != "unreadable" and not row["local"]})
     if absent:
         issues.append((
@@ -130,7 +130,7 @@ def _clash_message(task_id: str, path: str) -> str:
 
 def unshared_evidence(root: Path, cited: dict[str, list[str]]) -> list[tuple[str, str, str | None]]:
     """Evidence a reviewer cannot open from the repository: ignored by git or kept under .openguildkit/tasks/."""
-    issues = []
+    issues: list[tuple[str, str, str | None]] = []
     ignored = ignored_by_git(root, sorted({path for paths in cited.values() for path in paths}))
     local_only = f"{STATE_DIR}/tasks/"
     for task_id, paths in cited.items():
@@ -264,12 +264,12 @@ def run_retro(args, root: Path, state: Path, profile: dict, catalog: dict) -> No
         if task["status"] not in DONE_STATUSES:
             # Said without judging the approval, which would ask Git: the retrospective starts no process.
             raise ValueError(state_refusal(task, "Only a closed task has a retrospective."))
-        facts = facts_of_task(task)
+        record = facts_of_task(task)
     elif (state / DECISIONS_DIR / f"{args.id}.json").is_file():
-        facts = _retro_record(root, state, args.id)
+        record = _retro_record(root, state, args.id)
     else:
         read_task(state, args.id)  # says the task is unknown, with the closest ID and the command that lists them
-    retro = task_retro(facts)
+    retro = task_retro(record)
     if args.json:
         print_json(retro)
     else:
