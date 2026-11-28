@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import requester, short_lane
 from .alerts import STATUS_CHOICES as ALERT_STATUSES
+from .approval_check import approval_problem
 from .cli_surface import add_by
 from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
@@ -21,7 +22,6 @@ from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
 from .storage import project_lock
 from .tasks import create_task, read_task, task_path, waiting_for, waits_line
-from .tasks_approval import approval_problem
 from .tasks_close_cli import (
     add_diff_review_parser,
     run_checks,

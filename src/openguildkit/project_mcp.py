@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from .approval_check import approval_problem
 from .catalog import COLLECTION_FIELDS, ID_PATTERN
 from .lock import lock_path, package_version, project_catalog
 from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
@@ -12,7 +13,7 @@ from .project_rules import Fingerprints, rule_plan
 from .result_form import RESULT_STATUSES
 from .sensitive import redact_credentials
 from .tasks import list_tasks, read_task, task_path
-from .tasks_approval import approval_problem, stale_review_message
+from .tasks_approval import stale_review_message
 from .tasks_blockers import expired_on
 from .tasks_record import STATUSES
 from .tasks_status import next_command, next_step

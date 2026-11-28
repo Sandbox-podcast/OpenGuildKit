@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import delivered_review, short_lane
 from .alerts import blocking_alerts, load_register
+from .approval_check import DONE_STATUSES
 from .decisions import DECISIONS_DIR, git_revision
 from .doc_links import doc_link
 from .guard_export import changes_since_approval, export_decision, export_withdrawal, untracked_files
@@ -15,7 +16,6 @@ from .project import STATE_DIR
 from .relevance import changed_files, pack_relevance
 from .result_form import SUPPLY, SUPPLY_OR_NOT_APPLICABLE, result_template
 from .results import (
-    DONE_STATUSES,
     answers_to_report,
     chaosfolk_checks,
     compare_runs,

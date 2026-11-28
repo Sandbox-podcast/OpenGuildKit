@@ -16,11 +16,10 @@ from datetime import date
 from pathlib import Path
 
 from . import task_index
+from .approval_check import DONE_STATUSES, approval_problem
 from .decisions import base_commit, check_decision_seal, revisions_outside_history
 from .project_rules import Fingerprints
-from .results import DONE_STATUSES
 from .storage import file_signature, read_json, write_text
-from .tasks_approval import approval_problem
 from .tasks_blockers import _DAY
 from .tasks_record import STATUSES, task_record_problem, timestamp, validate_brief
 from .tasks_status import kept_line, line_to_keep, task_row

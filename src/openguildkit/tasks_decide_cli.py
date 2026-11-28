@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import audit_log, requester, roles, short_lane
 from .alerts import blocking_alerts, load_register
+from .approval_check import approval_problem
 from .board_entries import validate_review
 from .decisions import (
     DECISIONS_DIR,
@@ -25,7 +26,7 @@ from .project import load_profile
 from .results import evidence_state
 from .storage import print_json, project_lock
 from .tasks import last_approval, read_task, task_path, write_task
-from .tasks_approval import approval_problem, decided_message, require_approval, require_current_scope
+from .tasks_approval import decided_message, require_approval, require_current_scope
 from .tasks_blockers import expired_on, require_blocker_status, resolve_blocker
 from .tasks_closing import record_authorization, record_decision, revoke_approval
 from .tasks_command import TaskCommand

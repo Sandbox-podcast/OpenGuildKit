@@ -5,11 +5,11 @@ import re
 from pathlib import Path
 
 from . import clock, delivered_review
+from .approval_check import DONE_STATUSES
 from .decisions import decision_payload, seal, signing_time_of
 from .relevance import sensitive_area
 from .result_form import validate_result
 from .results import (
-    DONE_STATUSES,
     asked_checks,
     completion_problems,
     evidence_state,

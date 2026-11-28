@@ -3,17 +3,11 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .approval_check import DONE_STATUSES
 from .board_entries import required_text
 from .catalog_queries import recorded_value
 from .relevance import sensitive_area
-from .results import (
-    DONE_STATUSES,
-    asked_checks,
-    decision_revision_message,
-    evidence_fingerprint,
-    expected_checks,
-    not_concerned,
-)
+from .results import asked_checks, decision_revision_message, evidence_fingerprint, expected_checks, not_concerned
 from .rule_checks import validate_path
 from .sensitive import redact_data
 from .workflow import is_decision_task

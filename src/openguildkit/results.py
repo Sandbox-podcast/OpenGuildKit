@@ -242,9 +242,6 @@ def decision_revision_message(changed: list[str]) -> str:
     return f"Project files changed since the approved revision ({shown}). Name the delivered revision or pull request."
 
 
-DONE_STATUSES = ("done", "done-with-reservations")
-
-
 def merge_results(previous: dict | None, new: dict, source: str = "report") -> dict:
     """Later reports replace earlier outcomes check by check; a new replay replaces every earlier scenario."""
     new = {key: value for key, value in new.items() if key != "_held"}

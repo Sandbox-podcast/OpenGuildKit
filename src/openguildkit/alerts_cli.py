@@ -24,9 +24,9 @@ from .alerts import (
     task_brief,
     unhandled_alerts,
 )
+from .approval_check import DONE_STATUSES
 from .cli_surface import add_by
 from .command import Command
-from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
 from .terminal import typed

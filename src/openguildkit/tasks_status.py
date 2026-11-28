@@ -9,9 +9,9 @@ from functools import cache
 from pathlib import Path
 
 from . import clock, short_lane, task_index
+from .approval_check import DONE_STATUSES, STALE_DAYS
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS, reconsult_command
 from .project_rules import Fingerprints
-from .results import DONE_STATUSES
 from .storage import file_signature
 from .tasks_approval import decided_message, revoke_command, stale_review_message
 from .tasks_blockers import expired_waiver_step, expired_waivers, unresolved_blockers, waiver_policy
@@ -112,10 +112,6 @@ def state_refusal(task: dict, refused: str, problem: dict | None = None) -> str:
         return f"{refused} {decided}"
     words = _STATUS_WORDS.get(task["status"], task["status"])
     return f"{refused} Task {task['id']} is {words}: next, {next_command(task)}."
-
-
-# An approval older than this, with nothing recorded since, may be abandoned: task list and the guard say so.
-STALE_DAYS = 14
 
 
 def days_since(moment: str | None) -> int | None:

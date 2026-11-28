@@ -6,8 +6,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 from . import clock, roles
+from .approval_check import DONE_STATUSES
 from .decisions import approval_policy, seal, verify_signature
-from .results import DONE_STATUSES, evidence_fingerprint
+from .results import evidence_fingerprint
 from .tasks_approval import revoke_command
 from .workflow import TaskStateError, blocker_list, resolution_field
 

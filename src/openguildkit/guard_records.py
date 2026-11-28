@@ -183,7 +183,7 @@ def _same_approval(earlier: object, record: dict) -> bool:
 def _completion_problem(record: dict) -> str | None:
     """Whether a record's completion agrees with what task complete writes. No person seals a completion, so
     this is consistency, not proof: the record's own digest can be recomputed by whoever edits it."""
-    from .results import DONE_STATUSES
+    from .approval_check import DONE_STATUSES
     from .wording import plural
 
     status, completed = record.get("status"), record.get("completed")
@@ -216,7 +216,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: "str
                        tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
-    The record's twin of tasks_approval.approval_problem: the same wording, an error for an approval not yet completed
+    The record's twin of approval_check.approval_problem: the same wording, an error for an approval not yet completed
     and a note for a completed one, whose record is history. tasks holds the task records the caller already read,
     by ID; a local task it lacks is read here.
     """

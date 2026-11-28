@@ -61,7 +61,7 @@ NOT_COVERING = ("draft", "consulting", "reviewed", "changes-requested", "done", 
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still holds (tasks_approval.approval_problem).
+    """Approved tasks, not yet done, whose approval still holds (approval_check.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
     and checked in full, so the index never decides what is covered. One git call checks the approved revisions of
@@ -80,9 +80,8 @@ def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) ->
             approved.append(task)
     if not approved:
         return []
+    from .approval_check import STALE_DAYS, approval_problem
     from .project_rules import Fingerprints
-    from .tasks_approval import approval_problem
-    from .tasks_status import STALE_DAYS
 
     fingerprints = Fingerprints(profile, catalog)
     outside = revisions_outside_history(root, [base_commit(task) for task in approved])
@@ -180,7 +179,7 @@ def _describe(approvals: list[dict]) -> str:
         if item.get("lane") and mixed:
             text += f", short lane limited to {', '.join(item['paths'])}"
         if item["stale"]:
-            from .tasks_status import STALE_DAYS
+            from .approval_check import STALE_DAYS
 
             text += f", approved more than {STALE_DAYS} days ago: ask the person whether it still applies"
         parts.append(text)
@@ -236,7 +235,7 @@ def scope_note(approvals: list[dict]) -> str:
 
 def approval_text(item: dict) -> str:
     """One covering task in a line of guard: its ID and brief, its lane, and a warning on an old approval."""
-    from .tasks_status import STALE_DAYS
+    from .approval_check import STALE_DAYS
 
     lane = f" (short lane: {', '.join(item['paths'])})" if item.get("lane") else ""
     stale = f" (approved more than {STALE_DAYS} days ago: confirm it still applies)" if item["stale"] else ""
