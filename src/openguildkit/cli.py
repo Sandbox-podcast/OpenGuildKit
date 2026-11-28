@@ -112,8 +112,8 @@ add_share, export_docs, project_overview, revoke_share, same_access, share_statu
                  "shared_addresses", "space_neighbours"))
 render_scan, scan_exit_code, scan_report, scan_sarif = (
     _on_first_call("surfaces", name) for name in ("render_scan", "scan_exit_code", "scan_report", "scan_sarif"))
-alerts_run, market_run, storybook_run, tools_run = (_on_first_call(f"{name}_cli", "run")
-                                                   for name in ("alerts", "market", "storybook", "tools"))
+alerts_run, market_run, storybook_run, tools_run = (_on_first_call(module, "run")
+                                                   for module in ("alerts_cli", "market_cli", "storybook_cli", "tools_cli"))
 english_title, find_references, load_references, with_pattern_references = (
     _on_first_call("references", name)
     for name in ("english_title", "find_references", "load_references", "with_pattern_references"))
@@ -128,9 +128,8 @@ def command_parser(left_out: frozenset[str] = frozenset()) -> argparse.ArgumentP
     web server parses one command after another. The commands of the modules left_out (cli_surface.deferred_modules)
     get their line of the root's help and no options."""
     # No abbreviations: Python 3.11 read `projects --policy` as an ambiguous prefix of --policy-repo (#479).
-    parser = argparse.ArgumentParser(
-        prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.", allow_abbrev=False
-    )
+    parser = argparse.ArgumentParser(prog="openguildkit", allow_abbrev=False,
+                                     description="Project rules and specialist reviews for AI-assisted work.")
     parser.add_argument("--version", action=VersionAction)
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor). "
                                                      "It may also follow the command.")
