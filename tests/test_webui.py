@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import storage, task_files, tasks, web_requests, webui
+from openguildkit import storage, task_files, web_requests, webui
 from openguildkit.cli import main
 from openguildkit.storage import project_lock, write_json
 from openguildkit.webui import make_server
