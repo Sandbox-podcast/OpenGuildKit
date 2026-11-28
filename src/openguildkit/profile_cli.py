@@ -405,7 +405,7 @@ def _change_tools(current: list[str], values: list[str], add: bool) -> list[str]
     spellings and written as its title, as features enable and disable do; any other name is kept as typed."""
     tools = load_tools()
     for value in values:
-        tool_id = (match_tools([value], tools)[0] or [None])[0]
+        tool_id = next(iter(match_tools([value], tools)[0]), None)
         names = [name for name in current if name == value or tool_id and match_tools([name], tools)[0] == [tool_id]]
         if add and names or not add and not names:
             raise ValueError(f"{value} is {'already in' if add else 'not in'} the profile's tools. Nothing was written.")

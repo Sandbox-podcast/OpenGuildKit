@@ -6,7 +6,6 @@ Tests: tests/test_cli_surface.py
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 from .doc_links import doc_link
@@ -106,11 +105,22 @@ def polish(parser: argparse.ArgumentParser, depth: int = 0) -> None:
         parser.formatter_class = RootHelp
 
 
+# The line on a --by value that is not initials, kept until the command has done its work: a refusal stays its last word.
+_BY_WARNINGS: list[str] = []
+
+
 def _initials(value: str) -> str:
     """The value of --by, which is committed: a space or an address is let through with a line that gives the rule."""
     if "@" in value or " " in value.strip():
-        print(f"OpenGuildKit: {BY_RULE} ({doc_link('docs/personal-data.md')}).", file=sys.stderr)
+        _BY_WARNINGS[:] = [f"OpenGuildKit: {BY_RULE} ({doc_link('docs/personal-data.md')})."]
     return value
+
+
+def take_by_warning() -> str | None:
+    """The --by line the parser kept, once: main prints it after the command succeeds (issue #493)."""
+    warning = _BY_WARNINGS[0] if _BY_WARNINGS else None
+    _BY_WARNINGS.clear()
+    return warning
 
 
 def add_by(parser: argparse.ArgumentParser, required: bool = False) -> None:

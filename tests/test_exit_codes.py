@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 from openguildkit import clock
 from openguildkit.storage import write_json
-
 from tests import test_results
 
 REPO = Path(__file__).resolve().parents[1]

@@ -75,7 +75,8 @@ class TraceTests(unittest.TestCase):
 
     def test_importing_the_cli_does_not_load_the_traceback_module(self):
         done = subprocess.run([sys.executable, "-c", "import sys, openguildkit.cli; print('traceback' in sys.modules)"],
-                              capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(REPO / "src")})
+                              capture_output=True, text=True, check=False,
+                              env={**os.environ, "PYTHONPATH": str(REPO / "src")})
         self.assertEqual(done.stdout.strip(), "False", done.stderr)
 
 

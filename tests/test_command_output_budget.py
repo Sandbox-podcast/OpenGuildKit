@@ -246,8 +246,9 @@ NOT_RUN = {
 # ceiling is the size measured on 25 November 2026 plus 10 %, rounded up to the next 1 000 bytes. A command that grows
 # past its ceiling fails; raise the ceiling in the pull request that makes it grow, with the reason.
 EXCEPTIONS = {
-    "catalog": (12_000, "One line per pack, board and sector (168 on 27 November 2026), the titles in one column that "
-                        "starts after the longest identifier; it grows with each entry added, `catalog --json` prints all."),
+    "catalog": (12_000, ("One line per pack, board and sector (168 on 27 November 2026), the titles in one column "
+                         "that starts after the longest identifier; it grows with each entry added, `catalog --json` "
+                         "prints all.")),
     "catalog --json": (763_000, "The whole bundled catalog for a program to read; `catalog` lists it in 7 KB."),
     "references --json": (485_000, "Every reference of the library with its sources; `references` lists the families "
                                    "in 1 KB, and a search or `--id` prints a few."),
@@ -276,8 +277,8 @@ EXCEPTIONS = {
                                               "verdict and evidence, and the objections between boards."),
     "task checks request-status --json": (13_000, "Every check of the task with its status and evidence, for a program "
                                                   "to read; `task checks` prints 5 KB."),
-    "task show request-status --json": (167_000, "The whole task record as JSON, which `task show` prints too; "
-                                                 "`task show --summary` prints a screen of it in 1 KB."),
+    "task show request-status --json": (167_000, ("The whole task record as JSON, which `task show` prints too; "
+                                                  "`task show --summary` prints a screen of it in 1 KB.")),
     "task show request-status": (167_000, "The whole task record as JSON, consultation scope included; `task show "
                                           "--closing` prints the open points in 250 bytes, `task brief` the "
                                           "consultation in 5 KB."),

@@ -28,7 +28,7 @@ from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_br
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
 from .cli_errors import error_message, print_trace
-from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish
+from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
 from .errors import unknown
@@ -1327,7 +1327,8 @@ def _check_project(args, root: Path, state: Path, profile: dict, catalog: dict, 
 
 def _run(args) -> int | None:
     if args.command == "completion":  # Before the project: a script to load is asked for anywhere.
-        return completion_cli.run(args)
+        completion_cli.run(args)
+        return None
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
@@ -1462,7 +1463,9 @@ def main(argv: list[str] | None = None) -> int:
     if not argv:
         command_parser().print_help()
         return 0
+    take_by_warning()  # A line left by a parse that failed in this process is not this run's.
     args = command_parser().parse_args(argv)
+    by_warning = take_by_warning()
     if getattr(args, "project", None) is not None and not args.project.is_dir():
         what = "is not a folder" if args.project.exists() else "does not exist"
         print(f"OpenGuildKit: The project folder {args.project.as_posix()} {what}. Check --project, or create the "
@@ -1470,6 +1473,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2 if args.command == "ci-check" else 1
     try:
         code = _run(args) or 0
+        if by_warning:
+            print(by_warning, file=sys.stderr)
         sys.stdout.flush()
         return code
     except BrokenPipeError:

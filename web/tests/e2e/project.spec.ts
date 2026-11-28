@@ -324,7 +324,7 @@ test('runs the checks, records the results and completes a task in the forge', a
   await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await page.getByRole('button', { name: 'Lancer les commandes du projet' }).click();
   await expect(page.locator('tr', { hasText: 'command:1' }).getByText('Réussi')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText(/point\(s\) before the task can be done/)).toBeVisible();
+  await expect(page.getByText(/\d+ points? before the task can be done/)).toBeVisible();
   await expect(page.getByText('Une commande ne peut pas tourner ici')).toBeVisible();
   await page.getByLabel('Tes initiales').fill('CM');
   await page.getByRole('button', { name: /Marquer « non applicables » les règles non rapportées/ }).click();
