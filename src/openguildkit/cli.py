@@ -1,7 +1,6 @@
 """Command-line interface for OpenGuildKit."""
 
 import argparse
-import os
 import re
 import sys
 from functools import cache
