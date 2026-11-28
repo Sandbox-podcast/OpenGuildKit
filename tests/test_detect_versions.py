@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import _prompt_components
+from openguildkit.init_cli import _prompt_components
 from openguildkit.catalog import load_catalog
 from openguildkit.detect import components_for_profile, detect_stack, detected_project_name
 from openguildkit.patterns import recommend_patterns, technology_version

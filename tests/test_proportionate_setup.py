@@ -12,7 +12,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
-from openguildkit.cli import _print_preselection, main
+from openguildkit.cli import main
+from openguildkit.init_cli import _print_preselection
 from openguildkit.prompts import prompt_questions
 from openguildkit.project import (
     RULE_WARNING, init_questions, profile_recommendations, rule_plan, setup_profile, validate_profile,

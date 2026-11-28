@@ -24,11 +24,7 @@ from .lock import (
 )
 from .patterns import role_choices
 from .profile_cli import print_touched
-from .project import (
-    load_profile,
-    rule_conflicts,
-    sync_instructions,
-)
+from .project import load_profile, rule_conflicts, sync_instructions
 from .references import english_title, find_references, load_references, with_pattern_references
 from .storage import print_json, project_lock
 from .tasks import tasks_touched
