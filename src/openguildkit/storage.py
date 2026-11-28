@@ -34,13 +34,17 @@ def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+class NestedTooDeeply(ValueError):
+    """JSON nested deeper than the parser can follow: refused even where invalid JSON is left aside."""
+
+
 def _loads(content: bytes, pairs: Callable | None) -> Any:
     """JSON read as UTF-8 with or without a byte order mark; a value nested too deeply is a ValueError of one line, not
     a RecursionError and its traceback."""
     try:
         return json.loads(content.decode("utf-8-sig"), object_pairs_hook=pairs)
     except RecursionError as error:
-        raise ValueError("JSON nested too deeply") from error
+        raise NestedTooDeeply("JSON nested too deeply") from error
 
 
 def load_json(path: Any, *, pairs: Callable | None = None) -> Any:

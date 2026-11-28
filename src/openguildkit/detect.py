@@ -227,7 +227,9 @@ def _json_manifest(path: Path) -> dict:
     text = _read_text(path)
     try:
         data = json.loads(text) if text else None
-    except (ValueError, RecursionError):
+    except RecursionError as error:
+        raise ValueError(f"{path.as_posix()}: JSON nested too deeply") from error
+    except ValueError:
         return {}
     return data if isinstance(data, dict) else {}
 

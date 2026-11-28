@@ -2,7 +2,8 @@
 
 For: a contributor who adds or changes catalog records, and a team that adds its own.
 
-The [reference library](references.md) holds source material you can use when contributing a pack. The records below define what OpenGuildKit can apply to a project or use in a board review.
+The [reference library](references.md) holds source material you can use when contributing a pack.
+The records below define what OpenGuildKit can apply to a project or use in a board review.
 
 The catalog has four collections of records, one JSON file per record, and five folders of material that the records and the commands use:
 
@@ -21,9 +22,19 @@ src/openguildkit/registry/          shared catalog, shipped with the package
   packs/ boards/ sectors/ patterns/ references/ deliverables/ tools/ tool-mocks/
 ```
 
-A project folder holds files in the same format as the bundled one and adds to it; an ID that already exists is refused, with two exceptions: a project board completes the bundled board of the same ID (see [Boards](#boards)), and a project mock replaces the bundled mock of the same tool. `openguildkit brains --new ID` writes a project brain in `boards/`, `patterns/`, `packs/` and `references/`.
+A project folder holds files in the same format as the bundled one and adds to it; an ID that already exists is refused, with two exceptions: a project board completes the bundled board of the same ID (see [Boards](#boards)), and a project mock replaces the bundled mock of the same tool.
+`openguildkit brains --new ID` writes a project brain in `boards/`, `patterns/`, `packs/` and `references/`.
 
-`catalog.py` validates every file at load time. An installed package reads its packs, boards, sectors and patterns from one file instead, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the wheel is built; Git ignores it, and a checkout without it, or whose record files changed name or size since, reads the record files. Use `openguildkit catalog --json` to list packs, boards and sectors. Use `openguildkit patterns --json` for the [pattern collection](patterns.md). A pattern can name the reference entries on its subject in an optional `references` list. A method without a `match` can name, in an optional `core_for` list, the roles of the pattern for which it is preselected by the role alone: its rules apply to any work of that discipline, whatever the product, its interface or its domain, and the catalog marks one or two per role at most. The other methods of a role are suggested, with their description as the reason. A regulation is never preselected by a role. A pattern's `match` can also hold `"people_decisions": true`: the project scores, ranks or decides about people (the EU AI Act). `check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back, and that the packs and brains a reference names exist; `openguildkit check`, `openguildkit references`, `openguildkit brains` and `task consult` run it on the project's own references, against the catalog the project uses with its lock, and stop on the first error.
+`catalog.py` validates every file at load time.
+An installed package reads its packs, boards, sectors and patterns from one file instead, `registry/catalog.bundle.json`, which `scripts/build_catalog_bundle.py` validates and writes before the wheel is built; Git ignores it, and a checkout without it, or whose record files changed name or size since, reads the record files.
+Use `openguildkit catalog --json` to list packs, boards and sectors.
+Use `openguildkit patterns --json` for the [pattern collection](patterns.md).
+A pattern can name the reference entries on its subject in an optional `references` list.
+A method without a `match` can name, in an optional `core_for` list, the roles of the pattern for which it is preselected by the role alone: its rules apply to any work of that discipline, whatever the product, its interface or its domain, and the catalog marks one or two per role at most.
+The other methods of a role are suggested, with their description as the reason.
+A regulation is never preselected by a role.
+A pattern's `match` can also hold `"people_decisions": true`: the project scores, ranks or decides about people (the EU AI Act).
+`check_reference_links` in `references.py`, run by the tests on the bundled catalog, checks that each one exists and names the pattern or one of its packs back, and that the packs and brains a reference names exist; `openguildkit check`, `openguildkit references`, `openguildkit brains` and `task consult` run it on the project's own references, against the catalog the project uses with its lock, and stop on the first error.
 
 ## Rules common to all records
 
@@ -32,14 +43,16 @@ A project folder holds files in the same format as the bundled one and adds to i
 | `id` | string | Lowercase letters, digits and single hyphens (`secure-sdlc`). Unique within its collection, across bundled and project records. Use the file name `<id>.json`. |
 | `title` | string | Single line, not empty |
 | `description` | string | Single line, not empty |
-| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://...", "checked": "YYYY-MM-DD"}`. `checked` is required in the bundled catalog and recommended in a project's own (see [Source dates](#source-dates)). HTTPS only, no credentials in the URL, no duplicate URL in one record, no tracking parameter (`utm_*`, `trk`, `gclid`, `fbclid`, `visit_id`, `siteLocation`, a copied `#:~:text=` fragment...). |
+| `sources` | array | Can be empty. Each item is `{"title": "...", "url": "https://...", "checked": "YYYY-MM-DD"}`. `checked` is required in the bundled catalog and recommended in a project's own (see [Source dates](catalog-format/source-dates.md)). HTTPS only, no credentials in the URL, no duplicate URL in one record, no tracking parameter (`utm_*`, `trk`, `gclid`, `fbclid`, `visit_id`, `siteLocation`, a copied `#:~:text=` fragment...). |
 
 Also enforced:
 
-- No field outside the schema. A typo such as `"instructions"` instead of `"instruction"` fails.
+- No field outside the schema.
+  A typo such as `"instructions"` instead of `"instruction"` fails.
 - No duplicate keys in the same JSON object.
 - Every text value is a single line without control characters.
-- Files are UTF-8 (a BOM is accepted). Only `.json` files are read.
+- Files are UTF-8 (a BOM is accepted).
+  Only `.json` files are read.
 
 ## Packs
 
@@ -72,11 +85,15 @@ A pack is a versioned set of rules an agent follows and a reviewer can verify.
 | `conflicts_with` | Optional. IDs of packs whose rules cannot both apply to the same scope. A project that selects both must record which ones it keeps, with a reason. A pack cannot depend on a pack it conflicts with. |
 | `rules` | Non-empty array of `{id, instruction, verification}`, each with an optional `check`, an optional `evidence`, an optional `records` and an optional `manual` (see below). Rule IDs follow the ID format and are unique within the pack. A rule with a `check` may leave out `instruction` and `verification`: the CLI writes them from the check. |
 
-Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule. Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`. From then on their fingerprint changes and pending approvals need a new consultation.
+Versioning: bump `patch` for wording fixes, `minor` for a new rule, `major` for a removed or reversed rule.
+Projects pin the records they use in `.openguildkit/catalog.lock.json`, so a changed pack reaches them only when they run `openguildkit update --apply`.
+From then on their fingerprint changes and pending approvals need a new consultation.
 
 ### Machine checks and named evidence
 
-A rule can declare a `check` that `openguildkit task verify` evaluates and records as a check of the task, `rule:PACK/RULE`, with the evidence it found. Only `task verify` records it: `task result` refuses an outcome for it. The declarative kinds read the project's files with the standard library and run nothing:
+A rule can declare a `check` that `openguildkit task verify` evaluates and records as a check of the task, `rule:PACK/RULE`, with the evidence it found.
+Only `task verify` records it: `task result` refuses an outcome for it.
+The declarative kinds read the project's files with the standard library and run nothing:
 
 | `kind` | Fields | Passes when |
 |---|---|---|
@@ -86,7 +103,13 @@ A rule can declare a `check` that `openguildkit task verify` evaluates and recor
 | `size` | `paths`: 1 to 20 paths, `max_bytes`: a whole number from 1 to 1,000,000,000 | Every file the paths name is at most `max_bytes` bytes. The evidence names the largest file and its size, and every file above the limit when one is. No matching file passes, like `text` with `absent`: nothing is above the limit. Add a `file-exists` check to require the file. |
 | `command` | `command` | The command exits with 0. Only a pack in `.openguildkit/catalog/packs/` may declare it: the project already controls its check commands. A bundled pack, a central policy or a catalog lock with a command is refused. |
 
-Paths are relative to the project root, written with `/`, made of letters, digits, `. _ - @ + =` and the wildcards `*`, `?` and `**`, without `.` or `..` segments; a `field` path names one file, without wildcards. A path that resolves outside the project through a link is ignored, a wildcard never matches inside `.git` or `.openguildkit`, and the catalog refuses a path that names one of them. The work is bounded: at most 200 matched files (more fails the check and asks for narrower paths) and 1,000,000 bytes per file read (a larger file fails the check). Texts are matched literally, never as regular expressions, so a check always runs in time proportional to the files it reads. A `size` check does not read the file: it counts its bytes, so the 1,000,000 bytes per file limit does not apply to it, and it measures files only, not folders. Field checks read JSON and TOML only; YAML is not supported. A file that is not valid JSON or TOML fails the check with the parser's message.
+Paths are relative to the project root, written with `/`, made of letters, digits, `. _ - @ + =` and the wildcards `*`, `?` and `**`, without `.` or `..` segments; a `field` path names one file, without wildcards.
+A path that resolves outside the project through a link is ignored, a wildcard never matches inside `.git` or `.openguildkit`, and the catalog refuses a path that names one of them.
+The work is bounded: at most 200 matched files (more fails the check and asks for narrower paths) and 1,000,000 bytes per file read (a larger file fails the check).
+Texts are matched literally, never as regular expressions, so a check always runs in time proportional to the files it reads.
+A `size` check does not read the file: it counts its bytes, so the 1,000,000 bytes per file limit does not apply to it, and it measures files only, not folders.
+Field checks read JSON and TOML only; YAML is not supported.
+A file that is not valid JSON or TOML fails the check with the parser's message.
 
 A rule can also name pieces of evidence that a person keeps outside the code, such as the record of processing activities:
 
@@ -99,9 +122,16 @@ A rule can also name pieces of evidence that a person keeps outside the code, su
 }
 ```
 
-Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow/report-the-results.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task. `task complete` refuses the task while an asked evidence has no answer. The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`). The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first. A rule names at most 5 pieces of evidence.
+Each entry becomes a check `evidence:PACK/RULE/ID` that a task answers in `task result` when its pack concerns the task (see [workflow](workflow/report-the-results.md#only-the-rules-that-concern-the-task)) and, for an entry with `when`, when the task's `data` meets it: either the evidence itself, status `passed` with a project path that exists or an `https://` link and the `owner` who provided or confirmed it, or status `not-applicable` with a `reason` and an `owner` when it does not concern the task.
+`task complete` refuses the task while an asked evidence has no answer.
+The evidence must be supplied (`"requirement": "passed"` in the template), and `not-applicable` is held back, when the rule or its pack is listed in the profile's `required_rules`, or when the entry declares `"when": {"data": [...]}` and the task's `data` answer is one of the listed values (`none`, `internal`, `personal`, `regulated`, `unsure`).
+The `gdpr` pack uses `"when": {"data": ["personal", "regulated", "unsure"]}` for the record of processing activities and the decision on a data protection impact assessment: when the requester does not know whether personal data is involved, the evidence is supplied or the answer is settled first.
+A rule names at most 5 pieces of evidence.
 
-A rule that no file of the project can settle says why in `manual`, one line: the record lives outside the repository, the decision is a legal assessment, the behaviour shows only in a running system. A rule has a `check` or a `manual`, never both. Every rule of the bundled regulation packs (`gdpr`, `dora`, `nis2`, `iso-27001`, `pci-dss`, `eu-ai-act`, `cyber-resilience-act`, `european-accessibility-act`) has one of the two, and most stack packs carry at least one `text` or `field` check; `tests/test_machine_checks.py` lists the stack packs without one and why. [Catalog coverage](coverage.md#machine-checks-by-pack) counts both per pack.
+A rule that no file of the project can settle says why in `manual`, one line: the record lives outside the repository, the decision is a legal assessment, the behaviour shows only in a running system.
+A rule has a `check` or a `manual`, never both.
+Every rule of the bundled regulation packs (`gdpr`, `dora`, `nis2`, `iso-27001`, `pci-dss`, `eu-ai-act`, `cyber-resilience-act`, `european-accessibility-act`) has one of the two, and most stack packs carry at least one `text` or `field` check; `tests/test_machine_checks.py` lists the stack packs without one and why.
+[Catalog coverage](coverage.md#machine-checks-by-pack) counts both per pack.
 
 ### A value the task records
 
@@ -116,9 +146,19 @@ A rule whose answer means nothing without a number, such as a quality threshold 
 }
 ```
 
-`task result ID --template` shows `records`, with the accepted range, and an empty `value` on the check of that rule. A `passed` or `failed` outcome of the check is refused until `value` holds the number with its unit (`2 percentage points`, `95 % of critical cases`), and refused with the accepted range when the first number of the value falls outside the bounds; a `skipped` or `not-applicable` outcome needs none. The value is kept in the task's result next to the evidence. A task consulted before the rule declared `records` keeps the rule as it was approved, so its result is read and completed as before. In the bundled catalog, the `llm-evaluations` rules `evaluate-user-outcomes` (`pass-threshold`), `review-grading-rubric` (`grader-agreement`) and `compare-evaluation-baselines` (`regression-budget`) and the `nist-ai-risk` rule `set-risk-evidence` (`acceptance-threshold`) declare one. The pass threshold and the grader agreement are above 0 and at most 100: a threshold of 0 % accepts every run, so it says nothing. The regression budget and the acceptance threshold are at least 0 and at most 100: 0 is a strict and valid answer, no drop or no failure accepted. The two other `llm-evaluations` rules answer without a number: `check-permitted-tool-use` passes when the traces show no live action and blocked steps stopping, and `record-evaluation-setup` when the run record names each item.
+`task result ID --template` shows `records`, with the accepted range, and an empty `value` on the check of that rule.
+A `passed` or `failed` outcome of the check is refused until `value` holds the number with its unit (`2 percentage points`, `95 % of critical cases`), and refused with the accepted range when the first number of the value falls outside the bounds; a `skipped` or `not-applicable` outcome needs none.
+The value is kept in the task's result next to the evidence.
+A task consulted before the rule declared `records` keeps the rule as it was approved, so its result is read and completed as before.
+In the bundled catalog, the `llm-evaluations` rules `evaluate-user-outcomes` (`pass-threshold`), `review-grading-rubric` (`grader-agreement`) and `compare-evaluation-baselines` (`regression-budget`) and the `nist-ai-risk` rule `set-risk-evidence` (`acceptance-threshold`) declare one.
+The pass threshold and the grader agreement are above 0 and at most 100: a threshold of 0 % accepts every run, so it says nothing.
+The regression budget and the acceptance threshold are at least 0 and at most 100: 0 is a strict and valid answer, no drop or no failure accepted.
+The two other `llm-evaluations` rules answer without a number: `check-permitted-tool-use` passes when the traces show no live action and blocked steps stopping, and `record-evaluation-setup` when the run record names each item.
 
-The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`. `ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check. The former form, `"check": {"max_minutes": 60}`, is still read as that same field check. The Node coordinator in `integrations/ci/` supports this one rule, in either form; it does not evaluate a `size` check, and the central policy of `ci-check` takes a `field` check only.
+The [central export-rule example](../examples/export-expiry/README.md) is a pack `export-link-expiry` with one rule whose check is a `field` check: `{"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": true, "min": 1, "max": 60}`.
+`ci-check` evaluates it on the exact target commit with the same evaluator as `task verify`, and the CLI derives the instruction and verification text from the check.
+The former form, `"check": {"max_minutes": 60}`, is still read as that same field check.
+The Node coordinator in `integrations/ci/` supports this one rule, in either form; it does not evaluate a `size` check, and the central policy of `ci-check` takes a `field` check only.
 
 ## Boards
 
@@ -151,7 +191,12 @@ A board is a discipline's review lens.
 | `triggers` | Non-empty list. Words or phrases that select the board when they appear as whole words in a brief. Matching ignores case, accents, the kind of apostrophe and regular plurals; the longest overlapping phrase wins, and a board's own shorter phrase never cancels its longer one, so `dora lead time` in `devops` keeps `dora` from selecting `legal`. Add translations (`sécurité`, `rgpd`) so non-English briefs route correctly, and avoid words that are common in other disciplines. |
 | `questions` | Non-empty list. What the board asks of every task it reviews. |
 
-A project file in `.openguildkit/catalog/boards/` whose `id` is a bundled board completes that board instead of being refused as a duplicate. It may hold only the fields it changes: `title` and `description` replace the bundled text, the lists (`expertises`, `triggers`, `questions`, `sources`, and in `review` the `evidence`, `challenge` and `decision_criteria`) gain the new items, and a specialist replaces the bundled one with the same `id` or is added. The merged board is validated like any other. A replaced title, description or specialist is the team's choice, and it changes what the board asks of every task: `check` and `task consult` name each one, with the bundled text it replaces, so the person sees it. An edit to `.openguildkit/catalog/` is work an approved task must cover when the guard is on ([the board before every change](../integrations/README.md#the-board-before-every-change)). `openguildkit brains --new ID` writes the skeleton of a new project board, with its pattern, pack and reference.
+A project file in `.openguildkit/catalog/boards/` whose `id` is a bundled board completes that board instead of being refused as a duplicate.
+It may hold only the fields it changes: `title` and `description` replace the bundled text, the lists (`expertises`, `triggers`, `questions`, `sources`, and in `review` the `evidence`, `challenge` and `decision_criteria`) gain the new items, and a specialist replaces the bundled one with the same `id` or is added.
+The merged board is validated like any other.
+A replaced title, description or specialist is the team's choice, and it changes what the board asks of every task: `check` and `task consult` name each one, with the bundled text it replaces, so the person sees it.
+An edit to `.openguildkit/catalog/` is work an approved task must cover when the guard is on ([the board before every change](../integrations/README.md#the-board-before-every-change)).
+`openguildkit brains --new ID` writes the skeleton of a new project board, with its pattern, pack and reference.
 
 ## Sectors
 
@@ -173,7 +218,13 @@ A sector adds domain context to every consultation and to `AGENTS.md`.
 |---|---|
 | `context` | Non-empty list of instructions specific to the sector. |
 
-A sector selects rules through the patterns that list it in `match.sectors`: `init` and `recommend` preselect them for the person to confirm or decline (see [patterns](patterns.md#browse-and-preview)). The bundled sectors are `general`, `financial-services`, `insurance`, `healthcare`, `public-sector`, `e-commerce`, `education`, `critical-infrastructure`, `aerospace`, `software-publisher` and `automotive`; `openguildkit catalog` prints the packs each one preselects. Their packs cover EU law and name the jurisdiction in their description; national rules come on top. The French packs (`france-health-data-hosting`, `france-rgaa-accessibility`, `france-public-sector-security`, `france-cookies-and-trackers`, `france-e-invoicing`) are the first of them: their description starts with `France only`, says whom the text binds and when it does not apply, and names the EU pack they add to; the two that no sector fits carry no `match` and are only suggested to their roles. `aerospace` proposes the information security rules of EASA Part-IS (`aviation-information-security`) and, for software on board an aircraft, the process controls built on ED-12C / DO-178C and ED-202A / DO-326A through EASA AMC 20-115D and AMC 20-42 (`airborne-software-assurance`); its context asks who is in scope and says that state aircraft are outside, and the standards, sold by RTCA and EUROCAE, are named, never quoted. `automotive` proposes UN Regulation No 155 (vehicle cybersecurity, `unece-r155-vehicle-cybersecurity`) and No 156 (software updates, `unece-r156-software-updates`): its context asks whether the organization is the vehicle manufacturer, a supplier or the maker of software outside the vehicle, and says that Regulation (EU) 2019/2144 lists No 155 but not No 156, that the Cyber Resilience Act leaves out products that Regulation covers (Art. 2(2)(c)), and that ISO/SAE 21434, ISO 24089 and ISO 26262 are paid standards the catalog links without reproducing them. `software-publisher` proposes ISO/IEC 27001 (`iso-27001-certification`, the norm form of the `iso-27001-isms` method, for a certification that customers ask for) and the Cyber Resilience Act; the norms question of `init --questions` gives each norm a `help`, the pattern's description that says when it does not apply (a SaaS outside the CRA, the PCI DSS questionnaire that depends on the payment integration), and the `sources` behind it.
+A sector selects rules through the patterns that list it in `match.sectors`: `init` and `recommend` preselect them for the person to confirm or decline (see [patterns](patterns.md#browse-and-preview)).
+The bundled sectors are `general`, `financial-services`, `insurance`, `healthcare`, `public-sector`, `e-commerce`, `education`, `critical-infrastructure`, `aerospace`, `software-publisher` and `automotive`; `openguildkit catalog` prints the packs each one preselects.
+Their packs cover EU law and name the jurisdiction in their description; national rules come on top.
+The French packs (`france-health-data-hosting`, `france-rgaa-accessibility`, `france-public-sector-security`, `france-cookies-and-trackers`, `france-e-invoicing`) are the first of them: their description starts with `France only`, says whom the text binds and when it does not apply, and names the EU pack they add to; the two that no sector fits carry no `match` and are only suggested to their roles.
+`aerospace` proposes the information security rules of EASA Part-IS (`aviation-information-security`) and, for software on board an aircraft, the process controls built on ED-12C / DO-178C and ED-202A / DO-326A through EASA AMC 20-115D and AMC 20-42 (`airborne-software-assurance`); its context asks who is in scope and says that state aircraft are outside, and the standards, sold by RTCA and EUROCAE, are named, never quoted.
+`automotive` proposes UN Regulation No 155 (vehicle cybersecurity, `unece-r155-vehicle-cybersecurity`) and No 156 (software updates, `unece-r156-software-updates`): its context asks whether the organization is the vehicle manufacturer, a supplier or the maker of software outside the vehicle, and says that Regulation (EU) 2019/2144 lists No 155 but not No 156, that the Cyber Resilience Act leaves out products that Regulation covers (Art. 2(2)(c)), and that ISO/SAE 21434, ISO 24089 and ISO 26262 are paid standards the catalog links without reproducing them.
+`software-publisher` proposes ISO/IEC 27001 (`iso-27001-certification`, the norm form of the `iso-27001-isms` method, for a certification that customers ask for) and the Cyber Resilience Act; the norms question of `init --questions` gives each norm a `help`, the pattern's description that says when it does not apply (a SaaS outside the CRA, the PCI DSS questionnaire that depends on the payment integration), and the `sources` behind it.
 
 To add a sector of your own, put its record in the project catalog and a pattern that names it, then answer the sector question with its ID:
 
@@ -182,13 +233,20 @@ To add a sector of your own, put its record in the project catalog and a pattern
 .openguildkit/catalog/patterns/internal-tools-access.json   "match": {"sectors": ["internal-tools"]}
 ```
 
-The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`. A pattern that names a sector absent from the catalog is refused when the catalog loads.
+The pattern can reuse bundled packs or packs from `.openguildkit/catalog/packs/`.
+A pattern that names a sector absent from the catalog is refused when the catalog loads.
 
-`general` is the default. If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog. Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included. Once the sector is known again, change it with `openguildkit profile set sector ID --by INITIALS --reason WHY`.
+`general` is the default.
+If a saved profile uses a sector absent from the current catalog, add that sector to the project's local catalog.
+Otherwise set `sector` to an available ID in `.openguildkit/project.json` by hand, then run `openguildkit sync`: no command can read a profile whose sector is unknown, `openguildkit profile set sector` included.
+Once the sector is known again, change it with `openguildkit profile set sector ID --by INITIALS --reason WHY`.
 
 ## References
 
-A file in `references/` is a family of reference entries: standards, regulations, methods and tools that a brain reads during a consultation. `references.py` loads the bundled families, then the project's, and validates each one: the family has `id`, `title` and `references`, the file is named `<id>.json`, and a project family with a bundled ID must keep its title and adds its entries to it. Reference IDs and aliases are unique across all families. The fields of an entry and the closed list of `kind` values are in [references.md](references.md#add-references).
+A file in `references/` is a family of reference entries: standards, regulations, methods and tools that a brain reads during a consultation.
+`references.py` loads the bundled families, then the project's, and validates each one: the family has `id`, `title` and `references`, the file is named `<id>.json`, and a project family with a bundled ID must keep its title and adds its entries to it.
+Reference IDs and aliases are unique across all families.
+The fields of an entry and the closed list of `kind` values are in [references.md](references.md#add-references).
 
 ```json
 {
@@ -206,15 +264,20 @@ A file in `references/` is a family of reference entries: standards, regulations
 }
 ```
 
-`brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task. `pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back. Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
+`brains` ties the reference to the brains that read it: a brain's briefs keep the references that best fit the task.
+`pattern` and `packs` link it to the method and the rule packs that apply it, and `check_reference_links` verifies that those name it back.
+Every source needs `title`, `url` (HTTPS) and, in the shared catalog, a `checked` date.
 
 ## Deliverables
 
-A file in `deliverables/` is the template of a business deliverable: its method, its inputs, the tool actions that need approval and the checks a reviewer runs. `deliverables.py` loads the bundled templates, then the project's; a project template with a bundled ID is refused. The format and the commands are in [deliverables.md](deliverables.md).
+A file in `deliverables/` is the template of a business deliverable: its method, its inputs, the tool actions that need approval and the checks a reviewer runs.
+`deliverables.py` loads the bundled templates, then the project's; a project template with a bundled ID is refused.
+The format and the commands are in [deliverables.md](deliverables.md).
 
 ## Tools
 
-`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)). One file per category:
+`registry/tools/CATEGORY.json` lists the tools of a company's stack and the MCP servers that connect an agent to them (see [tools.md](tools.md)).
+One file per category:
 
 ```json
 {
@@ -250,9 +313,15 @@ A file in `deliverables/` is the template of a business deliverable: its method,
 }
 ```
 
-The file name is the category, one of the 27 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`, `identity`, `ide`, `registries`, `containers`, `api-management`. A file with another name is refused. A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record. `tools plan` and `tools apply` mark each project tool `[project catalog]`.
+The file name is the category, one of the 27 that `tools.py` admits: `issue-tracking`, `source-control`, `ci-cd`, `documentation`, `design`, `communication`, `time-tracking`, `hr`, `finance`, `crm`, `marketing`, `support`, `security`, `quality`, `observability`, `cloud`, `data`, `browser`, `testing`, `analytics`, `automation`, `product`, `identity`, `ide`, `registries`, `containers`, `api-management`.
+A file with another name is refused.
+A project file in `.openguildkit/catalog/tools/` uses the same names and adds tools to the category; a tool ID that already exists is refused, and so is a project tool whose ID, title (with or without its vendor) or alias is a bundled tool's name, so that typing `Jira` never selects a project record.
+`tools plan` and `tools apply` mark each project tool `[project catalog]`.
 
-`registry/features/features.json` groups tools into features (see [tools.md](tools.md#features)). Each feature has an `id`, a `purpose`, a `lead` and exactly three `alternatives`; each option names a `tool` of the registry and may carry an `as` label, such as `{"tool": "aws", "as": "Amazon ECR"}`. The four tools of a feature are different. A project cannot add features.
+`registry/features/features.json` groups tools into features (see [tools.md](tools.md#features)).
+Each feature has an `id`, a `purpose`, a `lead` and exactly three `alternatives`; each option names a `tool` of the registry and may carry an `as` label, such as `{"tool": "aws", "as": "Amazon ECR"}`.
+The four tools of a feature are different.
+A project cannot add features.
 
 | Field | Constraint |
 |---|---|
@@ -272,90 +341,40 @@ The file name is the category, one of the 27 that `tools.py` admits: `issue-trac
 | `servers[].source`, `verified` | The publisher's page or the server's repository where the endpoint or the command was read, and the day it was read. A directory site or a blog post is not a source. |
 | `api` | Optional. The tool's main public API: `kind` (`rest`, `graphql`, `other`) and `docs`. |
 
-A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry. `registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account). Mock data is fictional: no real person, company or address, emails on `example.test`.
+A server shared by several tools (one server for an issue tracker and its wiki) keeps the same `id` and the same endpoint in each entry.
+`registry/tool-mocks/TOOL.json` holds the synthetic answers of a tool's mock; its format is in [tools.md](tools.md#mocks-demos-and-tests-without-an-account).
+Mock data is fictional: no real person, company or address, emails on `example.test`.
 
 ## Organization catalog
 
-An option, off by default (RFC #446, not decided yet): several repositories can follow the same catalog of an organization, pinned at a commit of a local Git copy. A project that does not set one reads and writes exactly what it did before, and runs no Git command for it.
-
-The organization's repository holds `packs/`, `boards/`, `sectors/` and `patterns/` at its root, in the format of a project catalog. Its records pass the same checks as a project's, with two differences: a pack may not declare a `command` check, since nothing read from another repository runs, and an ID that ships with OpenGuildKit is refused, since an organization catalog adds records. References, deliverables, tools and tool mocks are not read from it.
-
-OpenGuildKit never fetches. The person keeps the copy up to date (`git -C ../org-catalog fetch`), and OpenGuildKit reads the files at the pinned commit with `git ls-tree` and `git cat-file`, whatever branch the copy has checked out.
-
-```bash
-openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA              # what the commit adds, removes and changes
-openguildkit org-catalog set --repo ../org-catalog --commit FULL_SHA --by INITIALS --reason WHY   # pin it, at a terminal
-openguildkit profile add pack ORG_PACK --by INITIALS --reason WHY                     # use one of its packs
-openguildkit org-catalog show                                                     # what the project follows and replaces
-```
-
-- **The pin.** `set` with `--by` and `--reason` asks the person to type the first 12 characters of the commit, then writes the instructions and, in `.openguildkit/catalog.lock.json`, an `organization` entry: the full commit, the `sha256:` fingerprint of the files read, who pinned it, when and why, and the copy (below). Changing the commit is the same command: it lists the records added, removed and changed, with the version of each pack, and the tasks consulted under the previous rules. A commit that drops a record the profile uses is refused. `update --apply` and `sync` keep the pin. A new repository can be pinned before `init`, so that `init --answers` reads the organization's packs; `profile export` names the commit to pin there.
-- **The copy: a name, or a path.** With `--name acme` the lock keeps the name and no path, so the same lock reads on every machine and on a CI runner. Each machine sets `OPENGUILDKIT_ORG_CATALOG_ACME` (the name in capitals, `-` as `_`) to the folder of its copy, and `guard --ci --org-catalog acme=PATH` takes the folder on a runner; the flag wins over the variable. Without `--name`, the lock keeps the path of the copy, relative to the project root when it can be: the copy must then sit at that path next to every checkout. `org-catalog show` proposes the move to a name when the lock keeps a path.
-- **History.** Each pin and each stop is added to `organization_history` in the lock, with the commit, who, when and why: `off` removes the pin, not its trace. `org-catalog show --json` prints it under `history`.
-- **Order.** The bundled catalog, then the organization's records, then the project's own `.openguildkit/catalog/`. The catalog lock does not copy the organization's records: the commit and the fingerprint already fix them.
-- **A local replacement.** A project record with the ID of an organization record replaces it (a project board completes it, as it completes a bundled one). `check` says so, as a warning with the SARIF code `catalog-org-replaced`, and `org-catalog show` lists it, until a person runs `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal. The acceptance holds for that edition of the organization record: when a new commit changes it, `check` says so again.
-- **When it cannot be read.** If the copy is missing, the commit is not in it, or the files no longer match the fingerprint, every command that reads the catalog stops, `check` included, with the command that fixes it: `git -C PATH fetch`, or `org-catalog set` with the right path or commit. The message names the folder it looked in. A lock that names the catalog and finds neither the variable nor the flag says which one to set.
-- **In CI.** `guard --ci` reads the base revision in a temporary folder but looks for a relative copy from the real project root, so a pin made at `../org-catalog` works when the runner has the copy there. For a named pin, check out the catalog repository in the workflow and pass its folder (`integrations/github/openguildkit-guard.yml` shows the step). A path given to `set` is stored relative to the project root, never absolute: use a name for a runner.
-- **A new commit in N repositories.** [`integrations/github/openguildkit-org-catalog-update.yml`](../integrations/github/openguildkit-org-catalog-update.yml), copied to each repository, checks out the catalog every Monday and, when its default branch moved past the pinned commit, opens a pull request whose description is the output of `org-catalog set` without `--by` and the command to pin. The job pins nothing and writes no file (its branch holds one empty commit): a person checks out the branch, pins at their terminal, commits the lock and pushes, or closes the pull request.
-- **Off.** `openguildkit org-catalog off --by INITIALS --reason WHY`, at a terminal, removes the pin once the profile no longer uses its records, and records who stopped it, why and at which commit in the history.
+Now in [Organization catalog](catalog-format/organization-catalog.md).
 
 ### Organization policy
 
-An option, off by default (RFC #452, not decided yet): the security or platform team writes `policy.json` at the root of the organization catalog, and every repository that pins a commit holding it keeps its minimum. A repository may be stricter, never less strict. A commit without `policy.json` keeps the fingerprint it had, and a project that follows no organization catalog reads nothing more.
-
-```json
-{"schema_version": 1,
- "minimum": {"guard": "enforce", "approval": "signed", "separate_requester": true},
- "required": {"packs": ["secure-sdlc"]},
- "frozen": {"by": "SEC", "reason": "Compromised model provider", "since": "2026-11-28"}}
-```
-
-Every field but `schema_version` is optional; any other field stops the pin, so a requirement OpenGuildKit does not enforce never passes for one it does. `minimum.guard` is `observe` or `enforce`, `minimum.approval` is `signed`, `minimum.separate_requester` is `true`, `required.packs` lists pack IDs (an organization pack is used once the project follows the catalog that provides it).
-
-- **The pin.** `org-catalog set` reads `policy.json` with the records and says the minimum the commit brings; the person pins it at a terminal, as for the records. `openguildkit org-catalog policy` shows the minimum in force and where the profile is under it.
-- **Profile changes.** `profile set`, `add`, `remove` and the web page refuse a change that goes under the minimum, even from a person at a terminal, and write nothing. A change that raises a setting, or keeps a gap the profile already had, goes on.
-- **`check`** fails with one line per gap, which names the setting, the value required, the commit of the policy and the command that meets it (SARIF `policy-below-floor`), and with `policy-frozen` while the policy freezes the repositories.
-- **In CI.** `openguildkit guard --ci --org-policy PATH --org-commit SHA` reads the policy from the copy and the commit the organization's required workflow gives, never from the lock a pull request carries; without the options it reads the commit the base revision pins. It fails, whatever the guard mode, when the profile of the base revision or the one the change brings is under the minimum.
-- **Freeze (#481).** `frozen` stops the merges of every repository whose required workflow passes the policy commit: `guard --ci` fails every change with `policy-frozen`. Only a new commit of the policy lifts it. Edits on each workstation stop through the freeze of each project (`openguildkit profile set freeze on`, [incident response](workflow.md#incident-response)).
-- **`--policy-repo`** still reads only the central export rule `packs/export-link-expiry.json`; on a commit that holds `policy.json` instead, it names the commands above.
+Now in [Organization policy](catalog-format/organization-catalog.md#organization-policy).
 
 ## Source dates
 
-Every source carries `checked`, a date written `YYYY-MM-DD`, placed right after its `url`:
-
-```json
-{
-  "title": "Regulation (EU) 2016/679 (GDPR), official text",
-  "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng",
-  "checked": "2026-11-20"
-}
-```
-
-`checked` is the day the page was last opened and answered; a contributor who writes or changes a rule re-reads its source and sets the date to that day. It does not certify that someone re-read the whole document on that day.
-
-How a bundled source is verified and dated:
-
-- **A contributor writes or changes a rule.** They open the source, check the rule's article, threshold or wording against it, and set `checked` to that day. The loader refuses a bundled source without a valid date, and a test reads every packs, boards, patterns, sectors, references and deliverables file. Every loader refuses a `checked` date, or a tool server's `verified` or `reviewed` date, that is not a calendar day or that is after today (one day of margin for time zones); a test refuses any bundled date after the day it runs.
-- **A maintainer runs the link check.** `python3 -I scripts/check_links.py --out link-report --stamp` opens every source page and writes the dates: a page that answered (available, or redirected to a page that answered) gets the day of the report; a page that did not answer or refused the script (dead, 401, 403, 429, a timeout) keeps its date, and a source that has none gets the day its URL entered the catalog, read from the Git history (`git log -S`, the oldest commit's author date; a shallow clone is refused). The script prints each source that did not answer, to open by hand. It never gives the day of the run to a page that did not answer. `--stamp-from link-report/links-DATE.json` writes the dates from a saved report without opening the pages again, so the result depends only on the report and the history and can be run again after a merge.
-- **Every Monday** the `Check catalog links` workflow lists, besides dead, redirected and to-recheck links, the sources whose `checked` date is older than 180 days (`--max-age DAYS` to change it), with the records that cite each one. It fails only on dead links.
-- **Editions.** `scripts/watch_editions.py`, run each Monday by the `Watch reference editions` workflow, opens the source pages of each reference that declares an `edition` and looks for the edition's text. A page whose address does not carry the edition is read first; once the watch has seen the edition there, that page alone decides, and the pages whose address carries an edition are no longer opened. It records in `scripts/edition-watch.json`, per reference, the page, the edition last seen and the day (`seen`, `seen_on`), where it was seen (`seen_in`: on the `page`, or in the `catalog` on the latest `checked` date of the reference's sources until the watch finds it on its page), the day of the check (`checked`) and a status: `from-catalog` (seeded, no page opened yet), `found`, `not-found` (the page answered, never showed the edition, and the catalog gives no date), `unreachable`, or `may-have-changed` (the edition recorded as seen is no longer on the page). The workflow opens one issue per reference in `may-have-changed`, never a second one while the first is open, and keeps the updated file as an artifact; the [reference library](references.md#edition-watch) says who commits the file and when. The heuristic compares text: a page that reformats its edition text (`Rev 5` for `Rev. 5`) raises a false alarm; a publisher that keeps the old edition's page online, unchanged, hides a new edition and nothing is detected; a page built by scripts or served as a PDF rarely shows its edition, so it is reported once its catalog date is the last observation, until the reference points at a page that shows the edition; a short edition such as a year can match an unrelated date.
-
-What a project sees:
-
-- `openguildkit references --id ID` and `openguildkit patterns --id ID` print each source with its date, `(checked 2026-11-20)`, and the JSON outputs carry `checked`.
-- `openguildkit update` starts with the date of the installed catalog, the most recent `checked` date among its bundled sources, and the number of records that changed since the project's lock: `Installed catalog: sources checked up to 2026-11-21. 3 records changed since the project's lock.` A record whose only change is a newer date shows `~ N sources checked again, latest DATE`; applying it changes no rule and leaves consulted tasks current.
-- A project's own sources in `.openguildkit/catalog/` (packs, boards, sectors, patterns, references, deliverables) load without a date, so an upgrade breaks nothing, but `openguildkit check` prints a notice that names each record with an undated source. To date one, open the page, check what the record says against it and add `"checked": "YYYY-MM-DD"` after its `url` with that day's date; change the date each time you re-read the page for a rule. The link check and the edition watch read only the bundled catalog: a project that wants the same watch runs its own.
+Now in [Source dates](catalog-format/source-dates.md).
 
 ## Writing good records
 
 - Write each instruction as an action an agent can take in a repository or a question it must ask a named owner.
 - Write each verification as something a reviewer can check: a file, a test, a record, a link.
-- Link the official source (standard body, regulator, project documentation). Paraphrase; do not copy text from paid standards.
-- Link the canonical page, not a search result, a template download or a course page. Give the source a title that describes it, such as `IETF RFC 7208, Sender Policy Framework`, not the browser tab text or the host name.
-- Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites. `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
-- Do not claim compliance. "Map project controls to the Statement of Applicability" is a rule. "This makes you ISO 27001 compliant" is not.
-- Keep one idea per rule. Split a rule that needs "and" twice.
+- Link the official source (standard body, regulator, project documentation).
+  Paraphrase; do not copy text from paid standards.
+- Link the canonical page, not a search result, a template download or a course page.
+  Give the source a title that describes it, such as `IETF RFC 7208, Sender Policy Framework`, not the browser tab text or the host name.
+- Use one address for a document across packs, patterns, boards and references, at the edition the catalog cites.
+  `tests/test_catalog_sources.py` checks the usual variants (an RFC on two IETF sites, `index.html`, a final slash).
+- Do not claim compliance.
+  "Map project controls to the Statement of Applicability" is a rule.
+  "This makes you ISO 27001 compliant" is not.
+- Keep one idea per rule.
+  Split a rule that needs "and" twice.
 - Give each rule an ID that says what it asks (`keep-render-pure`, `protect-secrets`): `AGENTS.md` names every rule in force by its ID alone, and the agent reads that line at every turn.
-- Start a pack description with the context it applies to, such as "For a service in production: ...". [Catalog coverage](coverage.md) shows, for each brain, the packs its patterns reach and the references no pack applies yet.
-- Keep one method per pack, so that a pattern activates only the rules of its method. When you split a pack, keep its ID for the part its name describes, move the other rules to a new pack and bump the major version.
+- Start a pack description with the context it applies to, such as "For a service in production: ...".
+  [Catalog coverage](coverage.md) shows, for each brain, the packs its patterns reach and the references no pack applies yet.
+- Keep one method per pack, so that a pattern activates only the rules of its method.
+  When you split a pack, keep its ID for the part its name describes, move the other rules to a new pack and bump the major version.
 - When a service pack serves HTTP endpoints, declare `depends_on: ["api-design"]` so the contract rules apply to every stack.

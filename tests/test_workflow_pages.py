@@ -20,7 +20,7 @@ LINE_BUDGET = 400
 PARAGRAPH_BUDGET = 1_200
 # Tracked Markdown files over the budget when it was set. The list only shrinks: a file that goes under the budget
 # leaves it, and no file joins it.
-OVER_BUDGET = {"CHANGELOG.md", "docs/catalog-format.md", "docs/testing.md", "integrations/README.md"}
+OVER_BUDGET = {"CHANGELOG.md", "integrations/README.md"}
 # The headings of docs/workflow.md that a message, a page or the changelog cited before the split: each still lands
 # on the index, which says where the section went.
 OLD_ANCHORS = (
