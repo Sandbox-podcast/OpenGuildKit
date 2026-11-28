@@ -23,10 +23,7 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
 
     The record carries the approval payload, and its signature when there is one, so CI can recompute the seal.
     """
-    from .delivered_review import exported_review
-    from .results import verification_of
-    from .tasks_closing import evidence_states
-    from .workflow import TaskStateError, exported_blockers, mock_evidence
+    from .workflow import TaskStateError, mock_evidence
 
     if task["status"] not in ("approved", "done", "done-with-reservations"):
         raise TaskStateError("Only an approved or completed task can be exported.")
@@ -65,45 +62,71 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     if task.get("rounds"):
         record["rounds"] = exported_rounds(task)
     if task.get("result"):
-        # A decision task closes without a result file: its result holds only the closing.
-        checks = task["result"].get("checks", [])
-        record["result"] = {
-            key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
-        }
-        record["result"]["checks"] = {item["check"]: item["status"] for item in checks}
-        journals = [
-            {"check": item["check"], "evidence": item["evidence"], "sha256": item["sha256"]}
-            for item in checks
-            if item.get("journal") is True and isinstance(item.get("sha256"), str) and isinstance(item.get("evidence"), str)
-        ]
-        if journals:
-            record["result"]["journals"] = journals
-        record["result"]["check_exceptions"] = [
-            {key: item[key] for key in ("check", "status", "reason", "owner") if key in item}
-            for item in checks if item["status"] in ("skipped", "not-applicable")
-        ]
-        # A reviewer sees which named evidence was declared not applicable, by whom and why.
-        record["result"]["evidence_not_applicable"] = [
-            {key: item[key] for key in ("check", "reason", "owner")} for item in checks
-            if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
-        ]
-        # The tool checks that a named evidence exists, never what it says: the record names who confirmed it.
-        supplied = [{"check": item["check"], "evidence": item["evidence"], "confirmed_by": item.get("owner")}
-                    for item in checks
-                    if item["check"].startswith("evidence:") and item["status"] == "passed"]
-        if supplied:
-            record["result"]["evidence_supplied"] = supplied
-            record["result"]["evidence_note"] = "OpenGuildKit checked that each path exists; it did not read the documents."
-        record["result"]["criteria"] = [
-            {"criterion": item["criterion"], "status": item["status"],
-             "verified_by": verification_of(item, task["result"])}
-            for item in task["result"].get("criteria", [])
-        ]
-        for key in ("packs", "warnings", "deferred"):
-            if task["result"].get(key):
-                record["result"][key] = task["result"][key]
-        if "closing" in task["result"]:
-            record["result"]["closing"] = task["result"]["closing"]
+        record["result"] = _exported_result(task)
+    _export_extras(root, task, record)
+    # What was added after the approval (completion, result) is covered by a digest of the whole record.
+    record["record_sha256"] = export_digest(record)
+    write_json(path, record)
+    return path
+
+
+RECORD_VERSION = 2
+
+
+def _exported_result(task: dict) -> dict:
+    """The result part of an exported record: the checks and their exceptions, the journals, the evidence declared
+    or supplied, the criteria and how each was verified."""
+    from .results import verification_of
+
+    # A decision task closes without a result file: its result holds only the closing.
+    checks = task["result"].get("checks", [])
+    result = {
+        key: task["result"][key] for key in ("revision", "pull_request") if key in task["result"]
+    }
+    result["checks"] = {item["check"]: item["status"] for item in checks}
+    journals = [
+        {"check": item["check"], "evidence": item["evidence"], "sha256": item["sha256"]}
+        for item in checks
+        if item.get("journal") is True and isinstance(item.get("sha256"), str) and isinstance(item.get("evidence"), str)
+    ]
+    if journals:
+        result["journals"] = journals
+    result["check_exceptions"] = [
+        {key: item[key] for key in ("check", "status", "reason", "owner") if key in item}
+        for item in checks if item["status"] in ("skipped", "not-applicable")
+    ]
+    # A reviewer sees which named evidence was declared not applicable, by whom and why.
+    result["evidence_not_applicable"] = [
+        {key: item[key] for key in ("check", "reason", "owner")} for item in checks
+        if item["check"].startswith("evidence:") and item["status"] == "not-applicable"
+    ]
+    # The tool checks that a named evidence exists, never what it says: the record names who confirmed it.
+    supplied = [{"check": item["check"], "evidence": item["evidence"], "confirmed_by": item.get("owner")}
+                for item in checks
+                if item["check"].startswith("evidence:") and item["status"] == "passed"]
+    if supplied:
+        result["evidence_supplied"] = supplied
+        result["evidence_note"] = "OpenGuildKit checked that each path exists; it did not read the documents."
+    result["criteria"] = [
+        {"criterion": item["criterion"], "status": item["status"],
+         "verified_by": verification_of(item, task["result"])}
+        for item in task["result"].get("criteria", [])
+    ]
+    for key in ("packs", "warnings", "deferred"):
+        if task["result"].get(key):
+            result[key] = task["result"][key]
+    if "closing" in task["result"]:
+        result["closing"] = task["result"]["closing"]
+    return result
+
+
+def _export_extras(root: Path, task: dict, record: dict) -> None:
+    """Add to the record what the task gathered besides its result: blockers, evidence states, the task it follows,
+    the declined scope, the review of the delivered diff."""
+    from .delivered_review import exported_review
+    from .tasks_closing import evidence_states
+    from .workflow import exported_blockers
+
     blockers = exported_blockers(task)
     if blockers:
         record["blockers"] = blockers
@@ -121,13 +144,6 @@ def export_decision(root: Path, state: Path, task: dict, profile: dict, output: 
     findings = exported_review(task)
     if findings:
         record["delivered_review"] = findings
-    # What was added after the approval (completion, result) is covered by a digest of the whole record.
-    record["record_sha256"] = export_digest(record)
-    write_json(path, record)
-    return path
-
-
-RECORD_VERSION = 2
 
 
 def changed_files(root: Path, base_revision: dict | None) -> list[str] | None:
