@@ -134,7 +134,7 @@
       "entry": [
         "is_positive_integer",
         "CatalogError",
-        "unique_fields",
+        "record_files",
         "validate_fields",
         "validate_text",
         "validate_id",
@@ -1257,6 +1257,8 @@
       "role": "Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock.",
       "entry": [
         "parse_json",
+        "load_json",
+        "unique_fields",
         "read_bytes",
         "read_json",
         "file_signature",

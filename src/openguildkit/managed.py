@@ -16,7 +16,7 @@ from pathlib import Path
 
 from . import hosts
 from .doc_links import doc_link
-from .storage import write_text
+from .storage import load_json, write_text
 
 OS_NAMES = ("macos", "linux", "windows")
 FRAGMENT = "50-openguildkit.json"
@@ -131,7 +131,7 @@ def _managed_files() -> list[tuple[Path, dict]]:
     found = []
     for path in [CLAUDE_FOLDER / "managed-settings.json", *sorted((CLAUDE_FOLDER / "managed-settings.d").glob("*.json"))]:
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            data = load_json(path)
         except (OSError, ValueError):
             continue
         if isinstance(data, dict):

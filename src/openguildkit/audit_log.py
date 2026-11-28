@@ -133,7 +133,9 @@ def refused(raw: str | None, project: Path | None) -> None:
         except Exception:  # A hook input the guard could not read is refused without paths.
             paths = []
         try:
-            profile = json.loads((root / ".openguildkit" / "project.json").read_text(encoding="utf-8"))
+            from .storage import load_json
+
+            profile = load_json(root / ".openguildkit" / "project.json")
         except (OSError, ValueError):
             profile = {}
         facts = profile if isinstance(profile, dict) else {}

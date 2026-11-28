@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import audit_log
 from .doc_links import doc_link
-from .storage import write_text
+from .storage import load_json, write_text
 
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
 # The hosts whose hooks `host apply` writes and `host check` reports.
@@ -121,7 +121,7 @@ def _read_settings(path: Path) -> dict:
     if not path.is_file():
         return {}
     try:
-        settings = json.loads(path.read_text(encoding="utf-8-sig"))
+        settings = load_json(path)
     except ValueError as error:
         raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(settings, dict):
@@ -135,18 +135,7 @@ def _claude_settings(root: Path) -> dict:
 
 
 def _codex_hooks(root: Path) -> dict:
-    """The Codex hooks file, refused with its name when it is not a JSON object the hooks can be read from."""
-    path = root / CODEX_HOOKS_FILE
-    if not path.is_file():
-        return {}
-    try:
-        current = json.loads(path.read_text(encoding="utf-8-sig"))
-    except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
-    if not isinstance(current, dict):
-        raise ValueError(f"{path.as_posix()} must hold a JSON object.")
-    _check_hook_groups(current.get("hooks"), path)
-    return current
+    return _read_settings(root / CODEX_HOOKS_FILE)
 
 
 def _check_hook_groups(hooks: object, path: Path) -> None:

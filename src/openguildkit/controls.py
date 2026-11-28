@@ -8,7 +8,6 @@ Entry: load, validate, locate, render, update_page.
 Tests: tests/test_controls.py.
 """
 
-import json
 import re
 from datetime import date
 from functools import cache
@@ -16,6 +15,7 @@ from pathlib import Path
 
 from . import clock
 from .catalog import package_file
+from .storage import load_json
 
 FIELDS = {"id", "title", "guarantees", "not_covered", "commands", "code", "in_dossier", "maps_to"}
 MAPPING_FIELDS = ("reference", "clause", "source", "checked")
@@ -31,14 +31,14 @@ def _references() -> dict[str, dict]:
     found = {}
     for path in sorted(package_file("registry", "references").iterdir(), key=lambda item: item.name):
         if path.name.endswith(".json"):
-            for record in json.loads(path.read_text(encoding="utf-8-sig"))["references"]:
+            for record in load_json(path)["references"]:
                 found[record["id"]] = record
     return found
 
 
 def load() -> dict:
     """The registry shipped with the package, checked."""
-    data = json.loads(package_file("registry", "controls.json").read_text(encoding="utf-8"))
+    data = load_json(package_file("registry", "controls.json"))
     validate(data)
     return data
 

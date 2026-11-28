@@ -1,6 +1,5 @@
 """Discover bibliographic references separately from active rule packs."""
 
-import json
 import re
 import unicodedata
 from pathlib import Path
@@ -9,7 +8,7 @@ from .catalog import (
     ID_PATTERN,
     CatalogError,
     package_file,
-    unique_fields,
+    record_files,
     validate_fields,
     validate_id,
     validate_list,
@@ -107,13 +106,8 @@ def load_references(extra_dir: Path | None = None, catalog: dict | None = None) 
     for directory in directories:
         if not directory.is_dir():
             raise CatalogError(f"{directory} must be a directory")
-        for path in sorted(directory.iterdir(), key=lambda entry: entry.name):
-            if not path.name.endswith(".json"):
-                continue
+        for path, incoming in record_files(directory):
             try:
-                incoming = json.loads(
-                    path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields
-                )
                 _validate_family(incoming, path.name, directory == bundled)
                 family = families.setdefault(
                     incoming["id"], {"id": incoming["id"], "title": incoming["title"], "references": []}
@@ -128,8 +122,6 @@ def load_references(extra_dir: Path | None = None, catalog: dict | None = None) 
                     family["references"].append(reference)
                     if directory != bundled:
                         project.add(reference["id"])
-            except RecursionError as error:
-                raise CatalogError(f"{path}: JSON nested too deeply") from error
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
         if directory == bundled and not families:

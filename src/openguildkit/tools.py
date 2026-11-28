@@ -17,11 +17,11 @@ import tomllib
 from pathlib import Path
 
 from . import clock
-from .catalog import CatalogError, package_file, unique_fields, validate_day
+from .catalog import CatalogError, package_file, record_files, validate_day
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
 from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
-from .storage import read_json, write_json, write_text
+from .storage import load_json, read_json, unique_fields, write_json, write_text
 
 CATEGORIES = (
     "issue-tracking", "source-control", "ci-cd", "documentation", "design", "communication", "time-tracking", "hr",
@@ -301,11 +301,8 @@ def load_tools(extra_dir: Path | None = None) -> dict[str, dict]:
     for from_project, root in enumerate(roots):
         if from_project:
             bundled = {_key(name): tool["id"] for tool in tools.values() for name in tool_names(tool)}
-        for path in sorted(root.iterdir(), key=lambda item: item.name):
-            if not path.name.endswith(".json"):
-                continue
+        for path, record in record_files(root):
             try:
-                record = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
                 if not isinstance(record, dict) or record.keys() != {"id", "title", "tools"}:
                     raise CatalogError("a tool file has id, title and tools")
                 if record["id"] not in CATEGORIES or path.name != f"{record['id']}.json":
@@ -342,7 +339,7 @@ def read_scenario(extra_dir: Path | None) -> dict | None:
     if path is None or not path.is_file():
         return None
     try:
-        scenario = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
+        scenario = load_json(path, pairs=unique_fields)
     except ValueError as error:
         raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(scenario, dict) or "records" not in scenario or not scenario.keys() <= {"about", "records"} \
@@ -363,7 +360,7 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
     for path in candidates:
         if path.is_file():
             try:
-                mock = validate_mock(json.loads(path.read_text(encoding="utf-8-sig")), tool_id)
+                mock = validate_mock(load_json(path), tool_id)
             except ValueError as error:
                 raise CatalogError(f"{path}: {error}") from error
             scenario = read_scenario(extra_dir)
@@ -474,7 +471,7 @@ def _manifest_names(root: Path) -> tuple[set[str], set[str]]:
         package = folder / "package.json"
         if package.is_file() and package.stat().st_size <= MAX_MANIFEST_BYTES:
             try:
-                data = json.loads(package.read_text(encoding="utf-8-sig"))
+                data = load_json(package)
             except (OSError, ValueError):
                 data = {}
             for section in ("dependencies", "devDependencies"):
@@ -865,20 +862,25 @@ def _split_codex(text: str, path: Path) -> tuple[str, str]:
     return text[:start], text[end + len(CODEX_BLOCK_END):]
 
 
+def _mcp_file(path: Path) -> dict:
+    """The JSON object of Claude Code's .mcp.json, with an mcpServers object (empty when the file is missing); refused
+    with the file's name when it is not valid JSON or not such an object."""
+    try:
+        data = load_json(path) if path.is_file() else {}
+    except ValueError as error:
+        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+    if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
+        raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
+    return data
+
+
 def _write_host(root: Path, host: str, connections: list[dict], removed: set[str]) -> tuple[str, list[str]]:
     """Write the managed entries to the host's file. Entries the person wrote under the same name are kept."""
     managed = {item["key"]: item["entry"] for item in connections if item["host"] == host}
     kept = []
     if host == "claude-code":
         path = root / CLAUDE_MCP_FILE
-        data = {}
-        if path.is_file():
-            try:
-                data = json.loads(path.read_text(encoding="utf-8-sig"))
-            except ValueError as error:
-                raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
-        if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
-            raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
+        data = _mcp_file(path)
         servers = data["mcpServers"]
         for key in removed:
             servers.pop(key, None)
@@ -925,10 +927,7 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
     if accepted and host == "claude-code":
         path = root / CLAUDE_MCP_FILE
         if path.is_file():
-            try:
-                existing = json.loads(path.read_text(encoding="utf-8-sig")).get("mcpServers", {})
-            except (ValueError, AttributeError) as error:
-                raise ValueError(f"{path} is not a valid MCP configuration: {error}") from error
+            existing = _mcp_file(path)["mcpServers"]
             for item in accepted:
                 if item["key"] in existing and (host, item["key"]) not in connections and existing[item["key"]] != item["entry"]:
                     raise ValueError(f"{path} already defines {item['key']} with other settings. Rename or remove it first.")
@@ -988,14 +987,10 @@ def remove_connections(root: Path, state: Path, host: str, names: list[str]) -> 
 
 def _host_entries(root: Path, host: str) -> dict:
     if host == "claude-code":
-        path = root / CLAUDE_MCP_FILE
-        if not path.is_file():
-            return {}
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            return _mcp_file(root / CLAUDE_MCP_FILE)["mcpServers"]
         except ValueError:
             return {}
-        return data.get("mcpServers", {}) if isinstance(data, dict) and isinstance(data.get("mcpServers"), dict) else {}
     path = root / CODEX_CONFIG_FILE
     if not path.is_file():
         return {}

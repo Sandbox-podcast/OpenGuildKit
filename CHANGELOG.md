@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- JSON files of a project: a file nested too deeply (200 000 `[`) in the tools, deliverables or tool mocks of the catalog, or in `.claude/settings.json`, is refused in one line `OpenGuildKit: <path>: JSON nested too deeply` instead of a Python traceback; in `.mcp.json` or `package.json` it is left aside like any invalid file (#460)
 - `task verify`: a check that runs past its time limit keeps what it printed as text in its log, accents and line breaks included, instead of `b'...'` (#510)
 - `trace`: decisions are ordered by the time of their approval, not by its day and then the task ID, and changes are counted from the decision that holds and comes latest in the history, so two approvals of one day no longer report "no decision covers this change" (#525)
 - `task export`, `trace`, `guard --ci` and the rules a closing asks: a file named with an accent, a space or a quote is read as it is on disk, not as Git quotes it (`"docs/r\303\251sum\303\251.md"`), so `trace` names the task that delivered it and a pack limited to a component is still asked; a record exported before keeps covering its files (#458)
