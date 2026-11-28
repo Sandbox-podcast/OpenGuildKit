@@ -15,7 +15,8 @@ from .doc_links import doc_link
 GROUPS = (
     ("Set up a project", ("init", "detect", "recommend", "preview", "sync", "check", "update", "profile", "features",
                           "org-catalog", "host", "integrations")),
-    ("Take a task to its closing", ("task", "guard", "deliverable", "docs", "alerts", "market", "storybook", "trace")),
+    ("Take a task to its closing", ("task", "guard", "deliverable", "docs", "alerts", "market", "storybook", "trace",
+                                    "audit", "evidence")),
     ("Browse the catalog", ("catalog", "references", "patterns", "brains", "tools")),
     ("Connect other tools", ("ui", "mcp", "projects", "ci-check", "completion")),
 )

@@ -110,6 +110,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`. An approval was given under rules that have changed since: the packs, their rules, the checks or the boards ([when an approval no longer holds](workflow.md#when-an-approval-no-longer-holds)). On the task record, or on the exported decision. Consult the task again (`openguildkit task consult ID`) or open a linked task.
 
+#### `decision-expired`
+
+`error`, on the task record. The project sets `approval.max_age_days` and the approval is older: it covers no more work. Consult the task again ([incident response](workflow.md#incident-response)).
+
 #### `decision-seal-invalid`
 
 `error`, on the task record. The approval has no seal, or its seal does not match the record. Consult the task again.
@@ -164,6 +168,14 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 `error`, `guard --ci` only, on the exported decision. A short-lane record lists changed files outside its paths or the `light_paths` of the base revision, or the base revision has no `light_paths`: a pull request cannot widen or turn on the lane it is judged by ([short lane](workflow.md#short-lane)). Open a task on the full path for that work.
 
+#### `decision-signed-late`
+
+`error`, `guard --ci` only, on the exported decision. A decision the base revision does not carry says in its signed payload (`signed_at`) that it was signed after the commit of the change that first brings its record, by more than five minutes. Sign it again at your terminal and export it again ([signed approvals](workflow.md#signed-approvals)).
+
+#### `decision-role-outside`
+
+`error`, `guard --ci` only, on the exported decision. The base revision gives a board a role (`approval.roles`), and a blocker that board raised was cleared or waived by someone outside it, or the approval of a task that board blocked is by someone outside the roles of the boards that blocked: the signer of a signed record, else the name typed with `--by` ([roles by board](workflow.md#roles-by-board)).
+
 #### `decision-requester-approved`
 
 `error`, `guard --ci` only, on the exported decision. The base revision separates the requester from the approver (`separate-requester on`), and the record was approved by its requester, under the name given or as the signer ([requester and approver](workflow.md#requester-and-approver)). Have another person approve the task, then export it again.
@@ -175,6 +187,10 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 #### `evidence-journal-changed`
 
 `error`, on the exported decision. A journal that the record cites as evidence no longer matches the SHA-256 recorded with it.
+
+#### `guard-frozen`
+
+`error`, `guard --ci` only. The profile of the base revision holds `frozen` and the change is not the one that lifts it, so no change is accepted, whatever the guard mode. A person lifts the freeze at a terminal: `openguildkit profile set freeze off --by INITIALS --reason WHY` ([incident response](workflow.md#incident-response)).
 
 #### `guard-no-base-profile`
 

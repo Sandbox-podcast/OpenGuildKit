@@ -8,35 +8,86 @@ from functools import cache
 from importlib import import_module
 from pathlib import Path
 
-from . import alerts_cli, features_cli, market_cli, profile_cli, storybook_cli, tasks_cli, tools_cli
-from . import completion_cli, org_catalog_cli, projects_cli, trace_cli
-from .cli_errors import error_message, print_trace
-from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
+from . import (
+    alerts_cli,
+    audit_cli,
+    completion_cli,
+    evidence_cli,
+    features_cli,
+    managed,
+    market_cli,
+    org_catalog_cli,
+    profile_cli,
+    projects_cli,
+    storybook_cli,
+    tasks_cli,
+    tools_cli,
+    trace_cli,
+)
 from .brains import brain_knowledge, knowledge_gaps, reading_list_note, write_brain_skeleton
 from .catalog import replaced_boards, undated_sources
 from .ci import check_export
+from .cli_errors import error_message, print_trace
+from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
 from .errors import unknown
 from .guard import (
-    NO_TASK, approval_text, ci_guard, covering_approvals, exported_decisions, guard_mode, hook_command, scope_note,
+    NO_TASK,
+    approval_text,
+    ci_guard,
+    covering_approvals,
+    exported_decisions,
+    guard_mode,
+    hook_command,
+    scope_note,
 )
 from .hosts import HOOK_HOSTS, HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .integrations import OTHER_HOST_NOTE, install_agent_files
 from .lock import (
-    LOCK_FILE, apply_lock, build_lock, catalog_changes, installed_catalog, installed_catalog_date, lock_is_current,
-    package_version, project_catalog, read_lock, require_instructions, unshipped_records, update_target, write_lock,
+    LOCK_FILE,
+    apply_lock,
+    build_lock,
+    catalog_changes,
+    installed_catalog,
+    installed_catalog_date,
+    lock_is_current,
+    package_version,
+    project_catalog,
+    read_lock,
+    require_instructions,
+    unshipped_records,
+    update_target,
+    write_lock,
 )
 from .patterns import patterns_to_review, role_choices
 from .profile_cli import print_touched
 from .project import (
-    ALREADY_INITIALIZED, GUARD_MODES, RULES_NOTE, STATE_DIR, Fingerprints, RuleError, complete_answers, init_questions,
-    initialize, is_norm, load_profile, profile_recommendations, project_root, require_resolved_conflicts, rule_conflicts,
-    rule_plan, setup_profile, state_path, sync_instructions, unsure_answers,
+    ALREADY_INITIALIZED,
+    GUARD_MODES,
+    RULES_NOTE,
+    STATE_DIR,
+    Fingerprints,
+    RuleError,
+    complete_answers,
+    init_questions,
+    initialize,
+    is_norm,
+    load_profile,
+    profile_recommendations,
+    project_root,
+    require_resolved_conflicts,
+    rule_conflicts,
+    rule_plan,
+    setup_profile,
+    state_path,
+    sync_instructions,
+    unsure_answers,
 )
 from .project_checks import propose_checks
 from .prompts import prompt_questions
-from .storage import json_text, print_json, project_lock, read_json, write_json
+from .rule_plan_text import print_recommendations, print_rule_plan
+from .storage import print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_issues
 from .terminal import interactive
@@ -75,7 +126,10 @@ UI_PORT = 7311
 def command_parser() -> argparse.ArgumentParser:
     """The CLI's argument parser, built once per process: building it costs more than parsing a command, and the
     web server parses one command after another."""
-    parser = argparse.ArgumentParser(prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.")
+    # No abbreviations: Python 3.11 read `projects --policy` as an ambiguous prefix of --policy-repo (#479).
+    parser = argparse.ArgumentParser(
+        prog="openguildkit", description="Project rules and specialist reviews for AI-assisted work.", allow_abbrev=False
+    )
     parser.add_argument("--version", action=VersionAction)
     parser.add_argument("--project", type=Path, help="Project root (defaults to the closest configured ancestor). "
                                                      "It may also follow the command.")
@@ -119,6 +173,8 @@ def command_parser() -> argparse.ArgumentParser:
     guard.add_argument("--base", default="origin/main", help="Base revision for --ci (default origin/main).")
     guard.add_argument("--require-signed", action="store_true",
                        help="With --ci, fail while the base revision's approvals are local and cannot be verified.")
+    guard.add_argument("--org-catalog", action="append", metavar="NAME=PATH",
+                       help="With --ci, the copy of the organization catalog that the lock calls NAME.")
     guard.add_argument("--json", action="store_true", help="Print the result as JSON.")
     format_option(guard, "With --ci, print the problems")
     deliverable = commands.add_parser("deliverable", help="Start and check a business deliverable from an approved task.")
@@ -161,20 +217,14 @@ def command_parser() -> argparse.ArgumentParser:
     share.add_argument("--user", help="Documentalist editor account email (verify; password is prompted at the terminal).")
     share.add_argument("--json", action="store_true", help="Print the shares as JSON.")
     for module in (tools_cli, features_cli, profile_cli, alerts_cli, market_cli, storybook_cli, trace_cli, projects_cli,
-                   org_catalog_cli, completion_cli):
+                   org_catalog_cli, audit_cli, evidence_cli, completion_cli):
         module.add_parser(commands)
     agent = commands.add_parser("integrations", help="Install the agent skill and subagent of this version.")
     agent.add_argument("--host", required=True, choices=HOSTS,
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
-    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
-    host.add_argument("mode", choices=("check", "apply", "scan"),
-                      help="check reports each rule; apply writes the host settings; scan reads the instruction files "
-                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands.")
-    host.add_argument("--json", action="store_true", help="Print the report as JSON.")
-    host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
-    format_option(host, "With scan, print the findings")
+    _host_parser(commands)
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -192,6 +242,19 @@ def command_parser() -> argparse.ArgumentParser:
     tasks_cli.add_parser(commands)
     polish(parser)
     return parser
+
+
+def _host_parser(commands) -> None:
+    """The host command: check, apply, scan and managed, with their options."""
+    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
+    host.add_argument("mode", choices=("check", "apply", "scan", "managed"),
+                      help="check reports each rule; apply writes the host settings; scan reads the instruction files "
+                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands; "
+                           "managed prints the settings file an administrator deploys by MDM for one host.")
+    host.add_argument("--json", action="store_true", help="Print the report as JSON.")
+    host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
+    format_option(host, "With scan, print the findings")
+    managed.add_options(host)
 
 
 def _pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
@@ -659,79 +722,6 @@ def _print_patterns(args, patterns: dict) -> None:
         print(f"  {pattern['id']:<33} {pattern['title']} [{', '.join(pattern['roles'])}]")
 
 
-def _print_recommendations(plan: dict, as_json: bool) -> None:
-    if as_json:
-        print_json(plan)
-        return
-    print("Preselected patterns, confirm or remove them")
-    for pattern in plan["matched"]:
-        where = f" [{', '.join(pattern['components'])}]" if pattern.get("components") else ""
-        print(f"  {pattern['id']}{where}: {'; '.join(pattern['reasons'])} ({pattern['rules']} rules)")
-        if pattern.get("version_unknown"):
-            print(f"    version unknown, confirm {', '.join(pattern['version_unknown'])}")
-    if plan.get("excluded"):
-        print("Not applicable because of a version")
-        for item in plan["excluded"]:
-            where = f" [{item['component']}]" if item["component"] else ""
-            print(f"  {item['id']}{where}: {'; '.join(item['reasons'])}")
-    print("Suggested, not selected: add one only if the team uses it")
-    for pattern in plan["suggested"]:
-        reason = "choose one overlapping pattern" if pattern.get("choice_required") else "; ".join(pattern["reasons"])
-        print(f"  {pattern['id']}: {reason} ({pattern['rules']} rules)")
-    print(f"Recommended packs: {', '.join(plan['recommended_packs'])} ({plan['rule_count']} rules in all)")
-    print(RULES_NOTE)
-    if plan.get("declined"):
-        print("Declined in the profile, not proposed again (openguildkit profile adopt brings one back)")
-        for entry in plan["declined"]:
-            who = f" by {entry['by']} on {entry['on']}: {entry['reason']}" if isinstance(entry, dict) else ""
-            print(f"  {entry['id'] if isinstance(entry, dict) else entry}{who}")
-    if plan.get("review"):
-        print("Selected patterns to review")
-        for item in plan["review"]:
-            print(f"  {item['id']}: {'; '.join(item['reasons'])}")
-
-
-def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
-    file = file or sys.stdout
-    if as_json:
-        print(json_text(plan), end="", file=file)
-        return
-    if plan["patterns"]:
-        print("Patterns, with why they apply and their rules", file=file)
-        for pattern in plan["patterns"]:
-            print(f"  {pattern['id']} ({pattern['rules']} rules): {pattern['reason']}", file=file)
-        print(f"  {RULES_NOTE}", file=file)
-    for regulation in plan["regulations"]:
-        print(f"  {regulation['id']} asks: {regulation['asks']}", file=file)
-    for entry in plan["declined"]:
-        who = f" by {entry['by']} on {entry['on']}: {entry['reason']}" if "by" in entry else ""
-        print(f"  Declined, not active: {entry['id']}{who}", file=file)
-    print(f"{plan['rule_count']} rules in force; a task is asked only those that concern it.", file=file)
-    if plan["rule_warning"]:
-        print(f"Warning: {plan['rule_warning']}", file=file)
-    print("Rule packs, in the order AGENTS.md lists them", file=file)
-    for pack in plan["packs"]:
-        scope = f" [{', '.join(pack['scope'])}]" if pack["scope"] else ""
-        print(f"  {pack['id']}@{pack['version']}{scope}: {'; '.join(pack['provenance'])}", file=file)
-    for pack_id in plan["excluded"]:
-        print(f"  {pack_id}: not applied, see the rule decisions", file=file)
-    if plan["conflicts"]:
-        print("Conflicting packs", file=file)
-        for conflict in plan["conflicts"]:
-            where = f" in {', '.join(conflict['scope'])}" if conflict["scope"] else ""
-            resolution = conflict["resolution"]
-            outcome = (
-                f"keep {', '.join(resolution['keep'])} ({resolution['reason']})" if resolution
-                else "unresolved: add a resolution to the profile"
-            )
-            print(f"  {' / '.join(conflict['packs'])}{where}: {outcome}", file=file)
-    for title, field in (("Team conventions", "conventions"), ("Project checks", "checks")):
-        if plan[field]:
-            print(title, file=file)
-            for item in plan[field]:
-                print(f"  - {item}", file=file)
-
-
 def _print_selection(plan: dict) -> None:
     """Before init --answers writes: each pattern with its reason and rules, so the person sees what the
     answers they confirmed with preview bring."""
@@ -746,7 +736,7 @@ def _print_selection(plan: dict) -> None:
 
 def _confirm_rule_plan(plan: dict) -> None:
     print("", file=sys.stderr)
-    _print_rule_plan(plan, False, file=sys.stderr)
+    print_rule_plan(plan, False, file=sys.stderr)
     print("Write this profile and these rules? [Y/n]", file=sys.stderr)
     print("> ", end="", file=sys.stderr, flush=True)
     if input().strip().casefold() not in ("", "y", "yes", "o", "oui"):
@@ -809,7 +799,7 @@ def _guard(args, root: Path, state: Path) -> int:
     if args.ci:
         found: list[dict] = []
         result = ci_guard(root, args.base, lambda base_state: project_catalog(args, base_state),
-                          require_signed=args.require_signed, findings=found)
+                          require_signed=args.require_signed, findings=found, org_catalog=args.org_catalog)
         if args.format == "sarif":
             _print_guard_sarif(root, found, result["mode"])
         elif args.json:
@@ -1241,7 +1231,7 @@ def _host_scan(args, root: Path, state: Path) -> int:
     """Read the instruction files and settings of the project, list its agent tools and MCP servers, and report what
     could mislead an agent. The profile, when there is one, gives the guard; the project's own tools join the registry."""
     profile = load_profile(state, project_catalog(args, state)) if (state / "project.json").is_file() else {}
-    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"))
+    result = scan_report(root, profile, load_tools(state / "catalog" / "tools"), args.allow)
     if args.format == "sarif":
         print(scan_sarif(result, root), end="")
     elif args.json:
@@ -1345,16 +1335,20 @@ def _run(args) -> int | None:
     _require_sarif_options(args)
     if args.command == "guard" and args.hook:
         return _guard_hook(args)
-    if args.command == "host" and args.strict and args.mode != "scan":
-        raise ValueError("--strict is an option of openguildkit host scan.")
+    if args.command == "host" and (args.strict or args.allow) and args.mode != "scan":
+        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     if args.command == "mcp" and args.project is None:
         raise ValueError("Supply --project PATH to open a project MCP server.")
     root = project_root(args.project)
     state = state_path(root)
     if args.command in ("trace", "projects"):
         return trace_cli.run(args, root, state) if args.command == "trace" else projects_cli.run(args)
+    if args.command == "audit":
+        return audit_cli.run(args, root)
     if args.command == "org-catalog":  # Before the catalog in force, which an unreadable organization copy stops.
         return org_catalog_cli.run(args, root, state)
+    if args.command == "evidence":
+        return evidence_cli.run(args, root, state)
     if args.command == "mcp":
         if args.policy_repo is not None or args.policy_commit is not None:
             raise ValueError("The MCP server reads the project catalog in force without policy overrides.")
@@ -1367,8 +1361,8 @@ def _run(args) -> int | None:
         from . import webui  # Only this command serves pages; every other one starts without the web server.
 
         return webui.serve(root, args.port, args.static, not args.no_browser)
-    if args.command == "host" and args.mode == "scan":
-        return _host_scan(args, root, state)
+    if args.command == "host" and args.mode in ("scan", "managed"):  # managed needs no project: an administrator's machine
+        return managed.run(args) if args.mode == "managed" else _host_scan(args, root, state)
     catalog = project_catalog(args, state)
     if args.command == "references":
         _print_references(args, state, catalog)
@@ -1392,7 +1386,7 @@ def _run(args) -> int | None:
             profile = setup_profile(read_json(args.answers), catalog, _setup_questions(root, state, catalog)[0])[0]
         else:
             profile = load_profile(state, catalog)
-        _print_rule_plan(rule_plan(profile, catalog), args.json)
+        print_rule_plan(rule_plan(profile, catalog), args.json)
     elif args.command == "recommend":
         if args.answers:
             questions = _setup_questions(root, state, catalog)[0]
@@ -1400,7 +1394,7 @@ def _run(args) -> int | None:
         else:
             profile = load_profile(state, catalog)
             plan = {**profile_recommendations(profile, catalog), "review": patterns_to_review(profile, catalog)}
-        _print_recommendations(plan, args.json)
+        print_recommendations(plan, args.json)
     elif args.command == "catalog":
         _print_catalog(catalog, args.json)
     elif args.command == "profile":

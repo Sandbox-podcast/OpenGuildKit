@@ -30,8 +30,9 @@ _FOLDERS = ((_STATE_FOLDER, "the profile, the catalog and the decisions of the p
 # whole folders where it reads a folder): a test keeps both lists in step.
 _AGENT_FOLDERS = (".claude", ".codex", ".cursor", ".cursorrules", ".windsurf", ".windsurfrules", ".clinerules", ".roo",
                   ".kilocode", ".junie", ".rules", ".gemini", ".vscode/mcp.json", ".mcp.json",
-                  ".github/copilot-instructions.md", ".github/instructions")
-_INSTRUCTION_NAMES = frozenset({"agents.md", "claude.md", "gemini.md", "warp.md"})
+                  ".github/copilot-instructions.md", ".github/instructions", ".goosehints", ".opencode", ".agents/skills",
+                  ".github/prompts", ".github/agents")
+_INSTRUCTION_NAMES = frozenset({"agents.md", "claude.md", "gemini.md", "warp.md", "agents.override.md", "claude.local.md"})
 _MANIFEST_NAMES = frozenset({
     "package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     "bun.lock", "bun.lockb", ".npmrc", ".yarnrc", ".yarnrc.yml", "pyproject.toml", "setup.py", "setup.cfg", "pipfile",

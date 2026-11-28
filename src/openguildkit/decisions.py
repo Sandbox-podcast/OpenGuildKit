@@ -3,17 +3,22 @@
 Every approval carries a seal: a SHA-256 over what was approved. The handoff refuses a
 decision whose seal no longer matches the task record. A project can also require a
 signed approval: the approver signs the decision with an SSH key listed in an
-allowed-signers file kept in the repository, and the CLI verifies it locally.
+allowed-signers file kept in the repository, and the CLI verifies it locally. The key may be a
+certificate of an authority (a `cert-authority` line); an approver who adds signed_at to the
+payload has the approval, once recorded, verified at that time, so that an expiry later on voids none.
 """
 
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from . import clock
 from .storage import read_json
 
 NAMESPACE = "openguildkit-decision"
@@ -95,10 +100,62 @@ PAYLOAD_VERSION = 3
 PAYLOAD_VERSIONS = (3, 2, 1)
 
 
+SIGNED_AT_FORMAT = "YYYY-MM-DDTHH:MM:SSZ"
+_SIGNED_AT = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+# The clocks of two machines differ by seconds: a signature this far ahead of the clock still counts as made.
+CLOCK_SKEW = timedelta(minutes=5)
+
+
+def signing_time(value: str | None, *, now_ok: bool = False) -> str | None:
+    """The time an approver states they signed at, checked: UTC written YYYY-MM-DDTHH:MM:SSZ and not in the future.
+    "now" is this instant when now_ok. None when none is given."""
+    if value is None:
+        return None
+    current = clock.real_now()
+    if now_ok and value == "now":
+        return current.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if not _SIGNED_AT.fullmatch(value):
+        raise ValueError(f"--signed-at is a UTC time written {SIGNED_AT_FORMAT}, such as 2026-11-27T10:15:30Z. "
+                         "Nothing was written.")
+    if datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=current.tzinfo) > current + CLOCK_SKEW:
+        raise ValueError(f"--signed-at {value} is in the future: the signature cannot have been made yet.")
+    return value
+
+
+def signing_time_of(timestamp: str | None) -> str | None:
+    """The date of a decision, as clock.real_timestamp writes it, written as signed_at; None when it cannot be read."""
+    if not isinstance(timestamp, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(timestamp)
+    except (TypeError, ValueError):
+        return None
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if moment.tzinfo else None
+
+
+def date_moved(decision: dict, payload: dict) -> bool:
+    """Whether a local approval shows a decision date other than the one its seal covers. With the audit log on, a local
+    approval carries signed_at, the time of its decision (#454): `at` is then that time to the second. A signed approval
+    carries the time its signer gave, which `at` may follow by days."""
+    return bool(payload.get("signed_at")) and "signature" not in decision \
+        and signing_time_of(decision.get("at")) != payload["signed_at"]
+
+
+def verify_time(payload: dict) -> str | None:
+    """The time a payload says it was signed at, as `ssh-keygen -O verify-time=` writes it; None when it says none."""
+    moment = payload.get("signed_at")
+    if moment is None:
+        return None
+    if not isinstance(moment, str) or not _SIGNED_AT.fullmatch(moment):
+        raise ValueError(f"signed_at must be a UTC time written {SIGNED_AT_FORMAT}.")
+    return re.sub(r"[-:T]", "", moment)
+
+
 def decision_payload(task: dict, by: str, reason: str, base_revision: dict | None, version: int = PAYLOAD_VERSION,
-                     separate: bool = False) -> dict:
+                     separate: bool = False, signed_at: str | None = None) -> dict:
     """What an approval covers. The approver signs exactly this object in signed mode. separate says that the profile
-    separated the requester from the approver when it was given (requester.py)."""
+    separated the requester from the approver when it was given (requester.py). signed_at, when the approver gives
+    it, is the time they sign at: the recorded approval is then verified at that time (verify_recorded_signature)."""
     payload = {
         "task": task["id"],
         "outcome": "approved",
@@ -128,6 +185,8 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         payload["requested_by"] = task["requested_by"]
     if separate:
         payload["separate_requester"] = True
+    if signed_at:
+        payload["signed_at"] = signed_at
     if version >= 2:
         payload["shared_sha256"] = task_shared_digest(task)
     if version >= 3:
@@ -175,11 +234,12 @@ class SignerNotCurrent(ValueError):
 
 
 def verify_signature(root: Path, policy: dict, payload: dict, signature: str, signer: str, *,
-                     committed: bool = True) -> None:
+                     committed: bool = True, at_signing: bool = False) -> None:
     """Check an SSH signature of the decision against the project's allowed signers.
 
     The signers come from HEAD (committed_signers). committed=False reads the file as it is in root, for a copy
-    already extracted from a Git revision, such as the base revision CI reads.
+    already extracted from a Git revision, such as the base revision CI reads. The key or certificate is judged at
+    the current time, or with at_signing at the signed_at of the payload when it has one.
     """
     if signer not in policy["approvers"]:
         raise SignerNotCurrent(f"{signer} is not an approver for this project. "
@@ -188,11 +248,13 @@ def verify_signature(root: Path, policy: dict, payload: dict, signature: str, si
     if not allowed.is_file() or root.resolve() not in allowed.parents:
         raise ValueError(f"The allowed signers file {policy['allowed_signers']} is missing from the project.")
     signers = committed_signers(root, Path(policy["allowed_signers"]).as_posix()) if committed else None
-    _ssh_verify(allowed.read_text(encoding="utf-8") if signers is None else signers, payload, signature, signer)
+    _ssh_verify(allowed.read_text(encoding="utf-8") if signers is None else signers, payload, signature, signer,
+                verify_time(payload) if at_signing else None)
 
 
-def _ssh_verify(signers: str, payload: dict, signature: str, signer: str) -> None:
-    """Verify the signature of the payload for signer, against the text of an allowed signers file."""
+def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: str | None = None) -> None:
+    """Verify the signature of the payload for signer, against the text of an allowed signers file, at the time `at`
+    (ssh-keygen's YYYYMMDDHHMMSSZ) instead of now when it is given."""
     if shutil.which("ssh-keygen") is None:
         raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
     with tempfile.TemporaryDirectory() as directory:
@@ -201,7 +263,8 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str) -> Non
         allowed = Path(directory) / "allowed_signers"
         allowed.write_text(signers, encoding="utf-8")
         result = subprocess.run(
-            ["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", signer, "-n", NAMESPACE, "-s", str(signature_path)],
+            ["ssh-keygen", "-Y", "verify", "-f", str(allowed), "-I", signer, "-n", NAMESPACE, "-s", str(signature_path),
+             *(["-O", f"verify-time={at}"] if at else [])],
             input=payload_text(payload).encode("utf-8"), capture_output=True, check=False,
         )
     if result.returncode:
@@ -273,10 +336,11 @@ def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature
     from the Git repository history (root by default); that revision is returned. Read from root, in a local copy,
     the revision must also be on the merged branch, so that a key an agent committed and then reverted approves
     nothing; CI passes history and judges the record against its base revision instead. A new approval goes through
-    verify_signature, which refuses them.
+    verify_signature, which refuses them. A payload with signed_at is verified at that time, so that the expiry of a
+    key or of a certificate since voids no approval the signer gave while it was valid.
     """
     try:
-        verify_signature(root, policy, payload, signature, signer, committed=committed)
+        verify_signature(root, policy, payload, signature, signer, committed=committed, at_signing=True)
         return None
     except SignerNotCurrent as current:
         if not (history or committed):
@@ -289,7 +353,7 @@ def verify_recorded_signature(root: Path, policy: dict, payload: dict, signature
                 raise SignerNotCurrent(f"{current}{_not_merged(source, payload)}") from None
             raise
         try:
-            _ssh_verify(recorded[1], payload, signature, signer)
+            _ssh_verify(recorded[1], payload, signature, signer, verify_time(payload))
         except ValueError:
             raise current from None
         return payload["base_revision"]["commit"]
@@ -355,8 +419,12 @@ def check_decision_seal(task: dict) -> dict:
                          f"older than sealed decisions. {reconsult_hint(task['id'])}")
     for version in PAYLOAD_VERSIONS:
         payload = decision_payload(task, decision["by"], decision["reason"], decision.get("base_revision"), version,
-                                   separate=decision.get("separate_requester") is True)
+                                   separate=decision.get("separate_requester") is True,
+                                   signed_at=decision.get("signed_at"))
         if seal(payload) == decision["seal"]:
+            if date_moved(decision, payload):
+                raise ValueError(f"The date of the approval of {task['id']} was changed after it was sealed. "
+                                 f"{reconsult_hint(task['id'])}")
             return payload
     raise ValueError(f"The record of {task['id']} no longer matches what was approved. {reconsult_hint(task['id'])}")
 

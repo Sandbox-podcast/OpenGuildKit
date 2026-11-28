@@ -10,6 +10,8 @@ For: anyone who looks for a page of this folder: it lists each page under the re
 - [Exit codes](exit-codes.md) of the commands, for a CI job or a script.
 - [Troubleshooting](troubleshooting.md): the refusals most often met, with the next command.
 - [Host coverage](host-coverage.md): what each host and surface enforces.
+- [Managed settings](managed-settings.md): the file an MDM deploys for each host, and the workstation policy.
+- [Audit log](audit-log.md): one chained event per line, to verify and export to a SIEM.
 - [Support and deprecation policy](support.md).
 - [Tools and MCP servers](tools.md), [stack patterns and work methods](patterns.md) and [project documentation and sharing](documentation.md).
 - [Personal data the tool records](personal-data.md).
@@ -19,6 +21,7 @@ For: anyone who looks for a page of this folder: it lists each page under the re
 - [Threat model](threat-model.md), [host coverage](host-coverage.md) and [architecture](architecture.md).
 - [Scan what an agent reads](host-scan.md) and [SARIF output](sarif.md).
 - [Personal data the tool records](personal-data.md) and [support policy](support.md).
+- [Controls and frameworks](compliance.md) and the `evidence export` dossier for an auditor.
 
 ## Developer and agent
 

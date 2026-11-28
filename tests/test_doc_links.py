@@ -13,7 +13,8 @@ from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "src" / "openguildkit"
-PAGE = re.compile(r"\b(?:docs|integrations)/[\w/.-]+\.md\b")
+# A page of this repository, not the docs/ folder of another site (https://code.claude.com/docs/en/settings.md).
+PAGE = re.compile(r"(?<![/\w.])(?:docs|integrations)/[\w/.-]+\.md\b")
 # A path a message gives as an example of a file of the person's project, not a page of this repository.
 EXAMPLE_PATHS = {"docs/privacy/record.md"}
 

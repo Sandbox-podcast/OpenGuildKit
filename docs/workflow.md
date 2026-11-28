@@ -264,6 +264,24 @@ What signed mode is worth depends on where the check runs:
 - **In CI** (`guard --ci`), the approvers and the signers file come from the base revision, which the pull request cannot change: a key the change adds signs nothing there, and a record the base revision does not carry is verified against today's approvers only. This is the check that holds against an agent that can write files and commit.
 - **In a local copy** (`task list`, `check`, the edit hook, `handoff`), a signature is verified against the signers file committed at `HEAD`. An agent that commits its own key to that file and to `approvers` can sign an approval that holds locally while the key is there; the pull request then shows the change to the signers file, and CI refuses the approval. When the key is gone from `HEAD` again, the approval holds only through the revision it was signed at, and that revision counts only when the merged branch contains it: `origin/HEAD` (the remote's default branch, which `git clone` sets; `git remote set-head origin --auto` sets it otherwise), or else the branch's upstream. A key committed and reverted on a local branch therefore approves nothing, and `task list` names the signer and the revision of every approval that holds this way. Local Git references can still be rewritten by whoever has a shell in the repository: locally, signed mode stops an edited file and a key that was never reviewed, and CI on the base revision is what decides.
 
+### Certificates of an authority
+
+Instead of one key per approver, the allowed signers file can trust an SSH authority, the one the company runs behind its single sign-on: one line, `PRINCIPAL cert-authority ssh-ed25519 AAAA...` (the authority's public key). The approver signs in to the directory, the authority gives them a short certificate for their principal, and they sign with it: `ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json`. `task decide` and every reader verify it with `ssh-keygen -Y verify`, which checks the authority's signature, the principal, the namespace and the validity of the certificate. An approver who leaves loses the right to sign when the authority stops issuing: no commit in each repository. A test signs and verifies with a certificate (`tests/test_decisions.py`).
+
+What it proves: the signature was made with a key that the committed signers file's authority certified for that principal, and the certificate was valid when it was checked. What it does not prove: what the authority checked before issuing it, that a person and not a program held the key (a passphrase or a hardware token still decides that), or when the person signed.
+
+Verified now, a certificate that expires voids every approval already recorded. An approver who wants to avoid that adds the time they sign at to the payload:
+
+```bash
+openguildkit task decision-payload request-status --by CM --reason "Agreed" --signed-at --output decision.json
+ssh-keygen -Y sign -f ~/.ssh/id_ed25519-cert.pub -n openguildkit-decision decision.json
+openguildkit task decide request-status --approve --by CM --reason "Agreed" --signature decision.json.sig --signer CM --signed-at 2026-11-27T10:15:30Z
+```
+
+`--signed-at` alone writes the current UTC time in the payload; `task decide` takes the same value, in `YYYY-MM-DDTHH:MM:SSZ`, and verifies it because the approver signed it: a changed `signed_at` breaks both the signature and the seal. Without `--signed-at`, nothing changes. `task decide` always verifies at the current time, so a key or a certificate that has expired signs no new approval, and refuses a `signed_at` in the future. An approval already recorded (`task list`, `handoff`, `guard --ci`) is verified at its `signed_at`: it keeps holding after the certificate expires, while the approvers and the signers file it is checked against are unchanged. `guard --ci` also refuses a new record whose `signed_at` is more than five minutes after the commit that first brings the record (`decision-signed-late`).
+
+`signed_at` is what the signer states. Someone who still holds an expired certificate and its key can sign a payload that claims an earlier time, and the check accepts it if the time falls in the certificate's validity and is not later than its commit: no clock proves otherwise. Keep the certificates short, ask for a passphrase or a token, and review who merges.
+
 ## 5. Hand off
 
 ```bash
@@ -476,7 +494,7 @@ Whatever the profile and the task say, the lane never covers a change of rules, 
 
 - the state of the project: everything under `.openguildkit/` (the profile, the catalog, the decisions);
 - CI workflows: `.github/workflows/` and `.github/actions/`;
-- the instructions and settings of agents: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and `WARP.md` in any folder, and the files and folders `host scan` reads: `.claude/`, `.codex/`, `.cursor/`, `.cursorrules`, `.windsurf/`, `.windsurfrules`, `.clinerules`, `.roo/`, `.kilocode/`, `.junie/`, `.rules`, `.gemini/`, `.mcp.json`, `.vscode/mcp.json`, `.github/copilot-instructions.md` and `.github/instructions/`;
+- the instructions and settings of agents: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `WARP.md`, `AGENTS.override.md` and `CLAUDE.local.md` in any folder, and the files and folders `host scan` reads: `.claude/`, `.codex/`, `.cursor/`, `.cursorrules`, `.windsurf/`, `.windsurfrules`, `.clinerules`, `.roo/`, `.kilocode/`, `.junie/`, `.rules`, `.gemini/`, `.mcp.json`, `.vscode/mcp.json`, `.goosehints`, `.opencode/`, `.agents/skills/`, `.github/copilot-instructions.md`, `.github/instructions/`, `.github/prompts/` and `.github/agents/`;
 - the dependency manifests and lockfiles, in any folder: `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `bun.lock`, `bun.lockb`, `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `pyproject.toml`, `setup.py`, `setup.cfg`, `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, `pdm.lock`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `Cargo.toml`, `Cargo.lock`, `composer.json`, `composer.lock`, `Gemfile`, `Gemfile.lock`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle`, `settings.gradle.kts`, `gradle.lockfile`, `libs.versions.toml`, `packages.config`, `Directory.Packages.props`, `Directory.Build.props`, `Package.swift`, `Package.resolved`, `mix.exs`, `mix.lock`, `pubspec.yaml`, `pubspec.lock`, `deno.json`, `deno.jsonc`, `deno.lock`, `environment.yml`, `conda-lock.yml`, `flake.lock`, `requirements*.txt` and `constraints*.txt`, and any file ending in `.lock`, `.lockb`, `-lock.json`, `-lock.yaml`, `-lock.yml`, `.csproj`, `.fsproj`, `.vbproj` or `.gemspec`.
 
 A change of these goes through the full path.
@@ -524,6 +542,38 @@ Turning it on or off changes who may approve, so both follow the rule of every s
 - **The seal** of an approval given with the option on records `"separate_requester": true`, and the exported record carries it in `decision`.
 - **`guard --ci`** reads the option at the base revision, as it reads `light_paths`, so a pull request cannot turn it off for itself. When it is on there, a record whose approver (`by`, or the signer) is its requester is refused (`decision-requester-approved`), and so is a new record that names no requester (`decision-requester-missing`). A record whose `requested_by` differs from the sealed one is invalid (`decision-record-invalid`).
 - **Tasks for dependency alerts** (`alerts tasks --open`) name `openguildkit alerts` as their requester when the option is on: the watch asked for them, and any person approves them.
+
+## Roles by board
+
+Until the project decides, `approval.approvers` and `waivers.allowed_by` are flat lists: a blocker the security board raised is cleared by whoever types `--by`, or, in a signed project, by the signature of any approver, and the final approval is the same. OpenGuildKit offers an option, `approver-roles`, off in every project: a project that sets none behaves exactly as before, and its records, approvals and exports are read as they were. A role only restricts, so setting one needs no terminal; giving a role more people, or removing it, weakens a protection and is a person's act at an interactive terminal, who types the board and the names to confirm.
+
+```bash
+openguildkit profile set approver-roles security CM JD --by SAM --reason "Security signs for security"
+openguildkit profile set approver-roles legal AB --by SAM --reason "Legal signs for legal"
+openguildkit profile set approver-roles security none --by SAM --reason "Roles ended"     # a person, at a terminal
+```
+
+The profile then holds `"approval": {"mode": "local", "roles": {"security": ["CM", "JD"], "legal": ["AB"]}}`; the keys are board IDs. In a signed project the names are the principals of the allowed signers file.
+
+- **Clearing and waiving.** `task clear` and `task waive` of a blocker a board with a role raised are refused unless the person is in that role, with `security:1 was raised by the security board: a signer of role security clears it (CM, JD). PL is not one of them.` A signed clearance compares the verified signer; a local one, and every waiver, the name given with `--by`, without case or spaces. A board without a role is as before.
+- **The final approval.** `task decide --approve` is refused when a board with a role gave a blocking advice on the task (a `block` verdict, or at least one blocker) and the approver is in none of those roles: the signer of a signed approval, else `--by`. One person approves, so a task blocked by two boards is approved by a member of either role, the blockers having been cleared by their own.
+- **`guard --ci`** reads the roles of the base revision, so a pull request cannot give itself a role. A record the base revision does not carry is refused (`decision-role-outside`) when a blocker was cleared or waived by someone outside the role of its board, or when its approval is outside the roles of the boards that blocked. A record the base revision already carries is not judged again.
+- **What it does not do.** A name typed with `--by` is not linked to a person: someone can type a member's name at a terminal they control, as `separate-requester` says of requesters. Only signed approvals tie a role to a key. The role does not void an approval, and it does not make `--requested-by` a principal: a requester is still compared by name.
+
+## Incident response
+
+When a model is compromised, a malicious MCP server is found or a secret leaks, two options of the profile stop what agents can do. Both are off in every project: a project that sets neither behaves as before, and its task records, approvals and exports are read as they were. Both only restrict, so they are set without a terminal, with `--by` and `--reason` like every profile change. Lifting or loosening one weakens a protection: a person at an interactive terminal types the command and its value to confirm it, as for `light-paths` or `approval signed`.
+
+```bash
+openguildkit profile set freeze on --by CM --reason "Model compromised, 2026-11-27"
+openguildkit profile set freeze off --by CM --reason "All clear"          # a person, at a terminal
+openguildkit profile set max-approval-age 30 --by CM --reason "Reconsult monthly"
+openguildkit profile set max-approval-age 60 --by CM --reason "Back to two months"   # looser: a person, at a terminal
+```
+
+- **Freeze.** `freeze on` writes `frozen` (`by`, `on`, `reason`) in the profile and in its history. The edit hook then refuses every edit inside the project, even under an approved task and in `observe`, with `Edit refused: the project is frozen by CM since 2026-11-27: REASON`, and each request reminds the agent. The approvals stand: `guard --json` still lists them in `covered_by`, and the freeze voids none. `guard --ci` reads the freeze at the base revision, as it reads the mode, so a pull request cannot lift it for itself: it fails every change (`guard-frozen`, whatever the guard mode) except the one that does nothing but lift the freeze, which touches only the profile, the catalog lock and decision records, drops `frozen` and adds the entries of `profile set freeze off` to the history. That change is then judged like any other and needs its decision. A freeze needs the guard on: with `"guard": "off"` the hook does not run, and the command says so. The freeze does not reach what runs outside the guard: an agent with a shell, a host that does not run the hooks, a change made through Cursor or Copilot before CI.
+- **Longest age of an approval.** `approval.max_age_days` (1 to 366) ends the cover of an approval older than that: `guard --json` no longer lists it in `covered_by`, the edit hook refuses the edits it covered, and `task list`, `check` (`decision-expired`), `handoff`, `verify`, `result`, `complete` and `export` name the approval and the command that consults the task again, the same as for an approval given under earlier rules. A completed task is history and is not reached. An approval whose date cannot be read does not cover. `guard --ci` does not date records: it judges the change a pull request brings. The stale flag after 14 days stays a message for a project without a limit.
+- **What is not here.** A freeze or a limit for the whole organization, pushed to every repository by a policy file or a workstation configuration, needs the organization policy of the same audit and is not part of this option.
 
 ## Dependency alerts
 
@@ -612,6 +662,8 @@ Then Git says whether the file changed after the most recent decision: after its
 
 The path is read from the current folder inside the project, from the project root otherwise; a path outside the project is refused. `trace` writes nothing: no task, no record, and Git runs without its optional locks, so the index is not refreshed either. It always ends with exit code 0: what it finds is for a person to read, and `guard --ci` is the check that fails a pull request.
 
+For an auditor, `openguildkit evidence export --output DOSSIER` gathers the exported decisions of a period with the state of their seals and signatures, and `evidence verify DOSSIER` checks that no file changed ([compliance](compliance.md#the-evidence-dossier)).
+
 ## Several projects at once
 
 ```bash
@@ -619,6 +671,8 @@ openguildkit projects ~/code                      # each project among the subfo
 openguildkit projects ~/code/*                    # the folders the shell names, one by one
 openguildkit projects ~/code --search "refund"    # briefs, decision reasons and rule IDs that hold the text
 openguildkit projects ~/code --json               # every project and every match, for a program
+openguildkit projects ~/code --surfaces           # also the agent tools and MCP servers of each folder, a project or not
+openguildkit projects ~/code --policy policy.json --strict --format csv > fleet.csv   # gaps to a minimum, one line per folder
 ```
 
 A tech lead or a security officer who looks after several repositories sees where to act without opening each one. `projects` takes folders: a project itself, or a folder whose subfolders are projects (one level down; hidden folders are skipped). Without a folder it reads the current one. It prints one line per project: the guard mode, whether approvals are signed, the tasks by status, the approvals that no longer hold, the open points (the blockers a reviewed task still waits on and the points a task closed with reservations left open), the critical alerts confirmed in the alert register, and whether `openguildkit check` passes, with its last line when it fails. The last line gives the `check` command of the first project that fails it.
@@ -628,6 +682,24 @@ A folder that is not an OpenGuildKit project is named on one line (`Not OpenGuil
 `--search TEXT` finds the text, case aside, in the first line of each task's brief, its decision reason and the rule IDs of its result (`rule:python/follow-python-style (failed)`), in the tasks of each copy and then in the exported records of the tasks it does not hold. Each match names its project. The first 50 are printed; `--json` gives them all.
 
 `projects` writes nothing and registers no project anywhere: it reads each project as its own commands do, runs `check` in the same process, and takes the folders again at each run. The web interface runs it on its own project only, since a path outside the project is refused there.
+
+### Inventory of a fleet (options, off by default)
+
+`--surfaces` adds to each project what `host scan` finds in its folder: the host and the state of its hooks, the agent tools, the MCP servers (how many, how many without a fixed version, how many the registry does not know), the permissive settings, the version that wrote the catalog lock, the commit of the organization catalog it follows and the day of its last decision.
+A folder without a profile is read the same way: where agents already work, it is printed on its own line (`not an OpenGuildKit project; agents at work: cursor`) instead of among the folders that hold nothing. That is the list to read before a deployment.
+
+`--policy FILE` compares each project with the minimum a JSON file describes, and reads the surfaces too. The file is read and never written, and holds any of three fields:
+
+```json
+{"guard": "enforce", "approvals": "signed", "separate_requester": true}
+```
+
+`guard` is the lowest mode accepted (`off`, `observe` or `enforce`), `approvals` asks for signed approvals, `separate_requester` asks for the [requester kept from approving](#requester-and-approver). Each gap is named, with the value found, on the line of the project (`policy gap: guard observe, the policy asks for enforce`) and under `drift` in `--json`.
+A folder where agents work without a profile, and a project that cannot be read, are a gap of the field `project`. Any other field, or a value the policy does not allow, stops the command, so that a typo is not a rule that never fires. `--strict` ends in 1 when a folder falls short; it needs `--policy`.
+
+`--format csv` prints one line per folder under a header that does not change: `path,state,name,guard,approvals,tasks,attention,open_points,critical_alerts,check,host,hooks,lock,catalog_commit,last_decision,tools,mcp_servers,mcp_unpinned,mcp_unlisted,permissive,drift`.
+A cell is empty when its option was not given (`--surfaces` fills `host` to `permissive`, `--policy` fills `drift`, where `none` says that no gap was found), `tools` and `tasks` hold `;`-separated values, and a text that starts with `=`, `+`, `-` or `@` gets a quote before it, so that a spreadsheet shows a project name instead of running it. It does not go with `--json` or `--search`.
+None of this writes in a project: the folders are read as before, and a policy file may sit anywhere.
 
 ## Inspecting a task
 

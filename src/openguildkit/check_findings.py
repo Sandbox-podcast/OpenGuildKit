@@ -40,6 +40,8 @@ _RULES = {
                                    "The signature of a decision cannot be verified against the allowed signers."),
     "decision-outside-history": ("Approval outside the history",
                                  "An approval was given on a revision that is not in the history of this change."),
+    "decision-expired": ("Approval older than the limit",
+                         "An approval is older than the project's approval.max_age_days and covers no more work."),
     "decision-withdrawn": ("Approval withdrawn", "The approval a decision record carries was withdrawn."),
     "decision-withdrawn-here": ("Withdrawal not exported",
                                 "An approval was withdrawn in this copy and its exported record still says approved."),
@@ -53,14 +55,20 @@ _RULES = {
                                  "Changed files are in no decision record of the change."),
     "decision-lane-outside": ("Short-lane decision outside its lane",
                               "A short-lane decision covers files outside its paths, or the base revision has no lane."),
+    "decision-signed-late": ("Signature later than its commit",
+                             "A new decision says it was signed after the commit that brings its record."),
+    "decision-role-outside": ("Decision outside the role of a board",
+                              ("A blocker or an approval is by someone outside the role the base revision gives the "
+                               "board.")),
     "decision-requester-approved": ("Requester approved their own task",
-                                    "The base revision separates the requester from the approver, and a decision "
-                                    "was approved by its requester."),
+                                    ("The base revision separates the requester from the approver, and a decision "
+                                     "was approved by its requester.")),
     "decision-requester-missing": ("Decision without a requester",
-                                   "The base revision separates the requester from the approver, and a new decision "
-                                   "names no requester."),
+                                   ("The base revision separates the requester from the approver, and a new decision "
+                                    "names no requester.")),
     "evidence-journal-changed": ("Evidence journal changed",
                                  "A journal cited as evidence no longer matches the hash recorded with it."),
+    "guard-frozen": ("Project frozen", "The base revision is frozen: no change is accepted but the one that lifts it."),
     "guard-no-base-profile": ("No profile on the base revision",
                               "The base revision has no OpenGuildKit profile, so nothing is enforced."),
     "guard-workflow-edited": ("Check workflow edited", "The change edits a workflow that runs this check."),
@@ -74,6 +82,7 @@ APPROVAL_CODES = {
     "no-seal": "decision-seal-invalid",
     "invalid-seal": "decision-seal-invalid",
     "earlier-rules": "decision-stale",
+    "approval-expired": "decision-expired",
     "unsigned": "decision-unsigned",
     "invalid-signature": "decision-signature-invalid",
     "outside-history": "decision-outside-history",

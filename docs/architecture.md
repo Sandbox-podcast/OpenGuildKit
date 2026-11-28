@@ -54,8 +54,16 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `alerts_cli.py` | The `alerts` commands and `task alerts`: import scanner reports and review alerts. |
 | `storybook_cli.py` | The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs. |
 | `projects_cli.py` | The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a project that cannot be read, is named and the others listed. Reads only. |
+| `controls.py` | The controls of OpenGuildKit and the frameworks they may answer: the registry `controls.json`, its validation (a clause only with its source and the day it was read) and the generated tables of `docs/compliance.md`. |
+| `evidence_cli.py` | The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of SHA-256, `verify` recomputes it. Reads the project and states no conformity. |
 | `trace_cli.py` | The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one. Reads only. |
+| `allowlist.py` | The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and matched against what a project configures. |
+| `audit_cli.py` | The `audit` commands: verify the chain of the audit log, and export its events for a SIEM. |
+| `audit_log.py` | The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies the chain and rebuilds events from the records. |
+| `managed.py` | Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI, and reads back what keeps the hooks of a project from running. |
+| `workstation.py` | Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
+| `rule_plan_text.py` | Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations, packs and conflicts), and the patterns `recommend` preselects. |
 | `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
 | `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
@@ -73,6 +81,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
 | `integrations.py` | Installs the agent skill and the subagents shipped with this version. |
 | `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions. |
+| `incident.py` | Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an approval, both set with `profile set`. |
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
 | `routing.py` | Routes a task to boards from its brief and answers, then applies required boards and the requester's changes. |
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
@@ -89,6 +98,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
 | `light_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
 | `requester.py` | The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445). |
+| `roles.py` | Roles by board, off by default (#475): who may clear a board's blockers and approve what a board blocked, set with `profile set approver-roles`. |
 | `ci.py` | Reads versioned evidence from Git and evaluates the central policy's field check. |
 | `sarif.py` | Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints, the same bytes at every run. |
 | `check_findings.py` | Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF output. |

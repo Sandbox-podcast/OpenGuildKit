@@ -45,7 +45,7 @@ Issues = "https://github.com/Sandbox-podcast/OpenGuildKit/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-openguildkit = ["registry/*/*.json", "registry/catalog.bundle.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
+openguildkit = ["registry/*.json", "registry/*/*.json", "registry/catalog.bundle.json", "agent_files/*/*.md", "agent_files/*/*/*.md", "agent_files/*/*/references/*.md", "web_dist/**/*"]
 
 # Python lint and types (#501). scripts/lint_ratchet.py runs both tools with the settings below and compares
 # the findings per rule with scripts/lint-baseline.json: a count may go down, never up (docs/testing.md).

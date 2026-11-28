@@ -82,6 +82,7 @@ Say whether an approved task covers the work, for hooks and CI.
 - `--ci`: Check the decisions exported for the changes since --base.
 - `--base BASE`: Base revision for --ci (default origin/main).
 - `--require-signed`: With --ci, fail while the base revision's approvals are local and cannot be verified.
+- `--org-catalog NAME=PATH`: With --ci, the copy of the organization catalog that the lock calls NAME.
 - `--json`: Print the result as JSON.
 - `--format {text,sarif}`: With --ci, print the problems as SARIF 2.1.0 for code scanning instead of text.
 
@@ -315,11 +316,11 @@ Remove entries from a list.
 
 ### profile set
 
-Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, or a setup answer.
+Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, the freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), or a setup answer.
 
-- `FIELD`: The setting to change. One of: approval, ask-every-rule, guard, host, light-paths, people-decisions, personal-data, research, sector, separate-requester, waivers.
+- `FIELD`: The setting to change. One of: approval, approver-roles, ask-every-rule, freeze, guard, host, light-paths, max-approval-age, people-decisions, personal-data, research, sector, separate-requester, waivers.
 - `VALUE`: Its new value (light-paths: a folder or file glob such as 'docs/**', or none).
-- `[PATH ...]`: light-paths: more paths.
+- `[PATH ...]`: light-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.
 - `--signers PATH`: approval signed: the allowed signers file, a path inside the project.
 - `--approver NAME`: approval signed: a person whose signature approves a task; repeat for each.
 - `--allowed-by NAME`: waivers allowed: a person who may waive a blocker; repeat for each.
@@ -489,6 +490,10 @@ Show several projects at a glance: guard, tasks, open points, alerts and check. 
 - `[FOLDERS ...]`: Project folders, or folders whose subfolders are projects (default: the current one).
 - `--search TEXT`: Find TEXT in the task briefs, decision reasons and rule IDs of every project.
 - `--json`: Print each project and each match as JSON.
+- `--surfaces`: Add what host scan finds in each folder, a project or not: agent tools, MCP servers, permissive settings, hooks, lock version and last decision.
+- `--policy FILE`: JSON file with the minimum each project must show (guard, approvals, separate_requester); read only. Gaps are named; it reads the surfaces too.
+- `--strict`: With --policy: exit 1 when a folder falls short.
+- `--format {text,csv}`: csv prints one line per folder under a fixed header, for a spreadsheet.
 
 ## org-catalog
 
@@ -506,6 +511,7 @@ Show what a commit of the organization catalog adds, removes and changes; with -
 
 - `--repo PATH`: The local Git copy of the organization catalog.
 - `--commit SHA`: The full SHA of the commit to follow.
+- `--name NAME`: Pin it under this name, which carries no path: each machine points OPENGUILDKIT_ORG_CATALOG_NAME at its copy, and guard --ci takes --org-catalog NAME=PATH.
 - `--by INITIALS`: Your initials or team handle, not your full name: it is committed.
 - `--reason WHY`: Why, in one line.
 - `--json`: Print the changes as JSON.
@@ -524,6 +530,32 @@ Stop following the organization catalog, at a terminal.
 
 - `--by INITIALS`: Your initials or team handle, not your full name: it is committed.
 - `--reason WHY`: Why, in one line.
+
+## audit
+
+Verify the audit log of the project, or export its events for a SIEM.
+
+- `{verify,export}`: verify reads the log and names the first line that no longer follows the one before it; export prints, one JSON event per line, the approvals of the exported records and the changes of the profile history.
+- `[PATH]`: With verify: the log or an export (default: the project's log).
+- `--since YYYY-MM-DD`: With export: only the events of this day and after.
+
+## evidence
+
+Gather the decisions, signatures and settings of a period into a dossier for an auditor, and check that it was not changed. States no conformity.
+
+### evidence export
+
+Write the dossier into a new folder of the project. Reads the project.
+
+- `--output DOSSIER`: New or empty folder inside the project, outside .openguildkit/.
+- `--since DATE`: First day of the period, YYYY-MM-DD (UTC).
+- `--until DATE`: Last day of the period, YYYY-MM-DD (UTC).
+
+### evidence verify
+
+Recompute the manifest of a dossier: exit 1 when a file changed.
+
+- `DOSSIER`: The folder `evidence export` wrote, from the project root unless absolute.
 
 ## completion
 
@@ -545,10 +577,16 @@ Install the agent skill and subagent of this version.
 
 Show or apply the rules the host agent can enforce, or scan its files.
 
-- `{check,apply,scan}`: check reports each rule; apply writes the host settings; scan reads the instruction files and agent settings for hidden characters, phrases that cancel the rules and risky commands.
+- `{check,apply,scan,managed}`: check reports each rule; apply writes the host settings; scan reads the instruction files and agent settings for hidden characters, phrases that cancel the rules and risky commands; managed prints the settings file an administrator deploys by MDM for one host.
 - `--json`: Print the report as JSON.
 - `--strict`: With scan: exit 1 on any finding, not only an error.
 - `--format {text,sarif}`: With scan, print the findings as SARIF 2.1.0 for code scanning instead of text.
+- `--host {claude-code,codex,gemini-cli}`: With managed: the host whose file to produce.
+- `--os {macos,linux,windows}`: With managed: the system it will be deployed on.
+- `--output PATH`: With managed: a folder to write the file in (default: print it).
+- `--command HOOK_COMMAND`: With managed: the command the hooks run (default openguildkit; give a full path).
+- `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error.
+- `--block-on-failure`: With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).
 
 ## update
 
@@ -764,6 +802,7 @@ Record a human decision.
 - `--reason WHY`: Reason for the decision.
 - `--signature PATH`: SSH signature of task decision-payload (signed projects).
 - `--signer SIGNER`: Principal in the allowed signers file (signed projects).
+- `--signed-at TIME`: The signed_at line of the payload (signed projects), UTC as YYYY-MM-DDTHH:MM:SSZ.
 
 ### task revoke
 
@@ -787,6 +826,7 @@ Print the exact decision an approver signs in a project that requires signed app
 - `--by INITIALS`: Your initials or team handle, not your full name: it is committed.
 - `--reason WHY`: Reason for the decision.
 - `--output PATH`: Write the exact bytes to sign to this file.
+- `--signed-at TIME`: Add the time you sign at (now, or UTC as YYYY-MM-DDTHH:MM:SSZ): once recorded, the approval is verified at that time, so a key or certificate that expires later voids nothing. Pass the same value to task decide.
 
 ### task show
 

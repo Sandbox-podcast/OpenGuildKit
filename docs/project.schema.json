@@ -80,7 +80,16 @@
     },
     "approval": {
       "oneOf": [
-        {"type": "object", "required": ["mode"], "additionalProperties": false, "properties": {"mode": {"const": "local"}}},
+        {
+          "type": "object",
+          "required": ["mode"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": {"const": "local"},
+            "max_age_days": {"type": "integer", "minimum": 1, "maximum": 366},
+            "roles": {"type": "object", "additionalProperties": {"$ref": "#/$defs/lines"}}
+          }
+        },
         {
           "type": "object",
           "required": ["mode", "allowed_signers", "approvers"],
@@ -88,7 +97,9 @@
           "properties": {
             "mode": {"const": "signed"},
             "allowed_signers": {"type": "string", "minLength": 1},
-            "approvers": {"$ref": "#/$defs/lines"}
+            "approvers": {"$ref": "#/$defs/lines"},
+            "max_age_days": {"type": "integer", "minimum": 1, "maximum": 366},
+            "roles": {"type": "object", "additionalProperties": {"$ref": "#/$defs/lines"}}
           }
         }
       ]
@@ -129,6 +140,21 @@
         "properties": {"id": {"type": "string", "pattern": "^[^/]+/[^/]+$"}}
       }
     },
-    "separate_requester": {"const": true}
+    "separate_requester": {"const": true},
+    "frozen": {"allOf": [{"$ref": "#/$defs/decision"}], "required": ["by", "on", "reason"], "additionalProperties": false,
+               "properties": {"by": {}, "on": {}, "reason": {}}},
+    "restricted_paths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["paths"],
+        "additionalProperties": false,
+        "properties": {
+          "paths": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "^[^/\\\\]"}},
+          "class": {"type": "string"},
+          "boards": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
   }
 }

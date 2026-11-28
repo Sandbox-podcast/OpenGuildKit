@@ -8,8 +8,9 @@ project with 500 tasks of which 5 are approved (guard enforce), that project
 again inside a Git repository whose commit the approvals record, a project of
 500 tasks closed and exported as the normal path leaves them, a web project
 whose node_modules holds FILES files (50 000 by default), a monorepo of 200
-packages, and a Git repository whose base revision holds 200 exported decision
-records, for guard --ci. Python caches the bytecode in that folder, as an installed package
+packages, a Git repository whose base revision holds 200 exported decision
+records, for guard --ci, and a folder of 30 copies of the example project for
+`projects`. Python caches the bytecode in that folder, as an installed package
 does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
 so the figure stays comparable between a fast laptop and a slow CI runner.
@@ -50,6 +51,7 @@ TASKS = 500
 APPROVED = 5
 PACKAGES = 200
 MERGED = 200
+FLEET = 30
 DEPENDENCY_FILES = 50_000
 BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
              "is never called.")
@@ -235,6 +237,14 @@ def monorepo(folder: Path) -> Path:
     return folder
 
 
+def fleet(folder: Path) -> Path:
+    """FLEET copies of the example project side by side, as a lead's code folder holds them."""
+    first = example_project(folder / "p00")
+    for index in range(1, FLEET):
+        shutil.copytree(first, folder / f"p{index:02d}")
+    return folder
+
+
 def edit_hook(project: Path) -> str:
     return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit", "cwd": str(project),
                        "tool_input": {"file_path": str(project / "src" / "app.py")}})
@@ -249,6 +259,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
     web = web_project(base / "web", dependencies)
     repo = monorepo(base / "monorepo")
     merged = merged_records(base / "merged-records")
+    projects = fleet(base / "fleet")
     counter = iter(range(10 ** 6))
 
     def fresh_init():
@@ -292,6 +303,7 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         (f"detect (monorepo, {PACKAGES} packages)", lambda: cli(repo, "detect", "--json")),
         (f"init (monorepo, {PACKAGES} packages)", init_monorepo),
         (f"guard --ci ({MERGED} records on the base)", lambda: cli(merged, "guard", "--ci", "--base", "HEAD~2")),
+        (f"projects --surfaces ({FLEET} projects)", lambda: cli(projects, "projects", projects, "--surfaces", "--json")),
     ]
 
 

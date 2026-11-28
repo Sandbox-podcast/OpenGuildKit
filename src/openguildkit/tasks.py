@@ -8,31 +8,61 @@ import re
 import time
 import uuid
 from collections.abc import Iterable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from functools import cache
 from pathlib import Path
 
-from . import clock, delivered_review, light_lane, requester, task_index
-from .decisions import (
-    DECISIONS_DIR, EARLIER_SIGNERS, approval_policy, base_commit, check_decision_seal, decision_payload,
-    history_message, reconsult_command, revisions_outside_history, seal, signature_or_history_problem,
-    stale_approval_message, verify_signature,
-)
-from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
-from .relevance import sensitive_area
-from .sensitive import redact_credentials, redact_data
-from .results import (
-    DONE_STATUSES, asked_checks, completion_problems, evidence_fingerprint, evidence_state, merge_results,
-    not_concerned, outcomes, result_warnings, validate_result, waiting_evidence,
-)
-from .storage import file_signature, read_json, write_text
+from . import clock, delivered_review, incident, light_lane, requester, roles, task_index
 from .alerts import resolution_line, resolved_by_import
 from .consultation import code_not_found, consult, profile_settings
+from .decisions import (
+    DECISIONS_DIR,
+    EARLIER_SIGNERS,
+    approval_policy,
+    base_commit,
+    check_decision_seal,
+    decision_payload,
+    history_message,
+    reconsult_command,
+    revisions_outside_history,
+    seal,
+    signature_or_history_problem,
+    signing_time_of,
+    stale_approval_message,
+    verify_signature,
+)
+from .project import Fingerprints, fingerprint_holds, profile_fingerprint, rules_in_force, task_scope_profile
 from .questionnaire import validate_answers
+from .relevance import sensitive_area
+from .results import (
+    DONE_STATUSES,
+    asked_checks,
+    completion_problems,
+    evidence_fingerprint,
+    evidence_state,
+    merge_results,
+    not_concerned,
+    outcomes,
+    result_warnings,
+    validate_result,
+    waiting_evidence,
+)
+from .sensitive import redact_credentials, redact_data
+from .storage import file_signature, read_json, write_text
 from .wording import plural
 from .workflow import (
-    RESOLUTION_FIELDS, TaskStateError, blocker_list, blocker_resolutions, decision_summary, is_decision_task,
-    pending_removals, resolution_field, review_warnings, validate_board_entry, validate_deliberation, validate_review,
+    RESOLUTION_FIELDS,
+    TaskStateError,
+    blocker_list,
+    blocker_resolutions,
+    decision_summary,
+    is_decision_task,
+    pending_removals,
+    resolution_field,
+    review_warnings,
+    validate_board_entry,
+    validate_deliberation,
+    validate_review,
 )
 
 ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -499,7 +529,7 @@ def days_since(moment: str | None) -> int | None:
     except (TypeError, ValueError):
         return None
     if then.tzinfo is None:
-        then = then.replace(tzinfo=timezone.utc)
+        then = then.replace(tzinfo=UTC)
     return (clock.real_now() - then).days
 
 
@@ -584,6 +614,9 @@ def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None
         if completed:
             return {"kind": "earlier-rules", "severity": "note", "message": history_message(task["id"], changes)}
         return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
+    # An approval over the project's limit (incident.py) covers no more work; a completed task is history.
+    if not completed and (expired := incident.expired_problem(task, profile)):
+        return expired
     # A completed task's record is history: a squash merge is expected to take its revision out of the history.
     found = None if completed or root is None else signature_or_history_problem(task, root, profile, payload, outside)
     if not found:
@@ -1293,6 +1326,9 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
         if policy["mode"] == "signed":
             entry.update(signer=resolution.get("signer"), signature=resolution.get("signature"))
             _check_clearance_signature(task, blocker_id, entry, policy, root)
+        # The role of the board that raised the blocker (roles.py): the verified signer, or the name typed.
+        if problem := roles.clearance_problem(profile, blocker, by, entry.get("signer")):
+            raise ValueError(problem)
     else:
         policy = waiver_policy(profile)
         if not policy:
@@ -1305,6 +1341,8 @@ def resolve_blocker(task: dict, blocker_id: str, resolution: dict, profile: dict
                              f"openguildkit task decide {task['id']} --request-changes --by INITIALS --reason TEXT.")
         if by not in policy["allowed_by"]:
             raise ValueError(f"{by} cannot grant waivers. Allowed: {', '.join(policy['allowed_by'])}.")
+        if problem := roles.clearance_problem(profile, blocker, by, waiver=True):
+            raise ValueError(problem)
         until = resolution.get("until", "")
         if not _DAY.fullmatch(until):
             raise ValueError("Give the waiver's end date as YYYY-MM-DD.")
@@ -1588,10 +1626,14 @@ def decided_message(task: dict, problem: dict | None = None) -> str | None:
 
 def record_decision(
     task: dict, approve: bool, by: str, reason: str, base_revision: dict | None = None, signature: dict | None = None,
-    confirmed_removals: list[str] | None = None, separate: bool = False,
+    confirmed_removals: list[str] | None = None, separate: bool = False, signed_at: str | None = None,
+    dated: bool = False,
 ) -> dict:
     """Record the person's decision. Approving needs their confirmation of each protected board removed. separate
-    says that the profile separated the requester from the approver: the approval and its seal record it."""
+    says that the profile separated the requester from the approver: the approval and its seal record it. signed_at,
+    when the approver signed a payload that carries it, is recorded and sealed with the approval. dated has a local
+    approval carry the time of its decision as signed_at, under its seal (the audit log, #454); a signed approval
+    keeps the time its signer gave, or none: the signer signs before the decision is dated."""
     if task["status"] != "reviewed":
         decided = decided_message(task)
         if decided:
@@ -1615,10 +1657,14 @@ def record_decision(
     # A person's decision is dated by the real clock, which its age is measured with (clock.py).
     decision = {"outcome": status, "by": by.strip(), "reason": reason.strip(), "at": clock.real_timestamp()}
     if approve:
-        payload = decision_payload(task, by, reason, base_revision, separate=separate)
+        if dated and signature is None and not signed_at:
+            signed_at = signing_time_of(decision["at"])
+        payload = decision_payload(task, by, reason, base_revision, separate=separate, signed_at=signed_at)
         decision.update(base_revision=base_revision, seal=seal(payload))
         if separate:
             decision["separate_requester"] = True
+        if signed_at:
+            decision["signed_at"] = signed_at
         if signature is not None:
             decision.update(signer=signature["signer"], signature=signature["text"])
         if pending_removals(task):

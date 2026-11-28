@@ -566,6 +566,19 @@ def rules_in_force(pack: dict, profile: dict) -> dict:
     return {**pack, "rules": [rule for rule in pack["rules"] if rule["id"] not in declined]}
 
 
+def _approval_roles(value, catalog: dict) -> dict[str, list[str]]:
+    """approval.roles: each board, by ID, with the people of its role (roles.py)."""
+    if not isinstance(value, dict) or not value:
+        raise ValueError("approval.roles must map a board to the people of its role")
+    unknown = sorted(set(value) - catalog["boards"].keys())
+    if unknown:
+        raise ValueError(f"Unknown board in approval.roles: {', '.join(unknown)}. Run openguildkit catalog.")
+    roles = {board: _texts(names, f"approval.roles.{board}") for board, names in sorted(value.items())}
+    if not all(roles.values()):
+        raise ValueError("Each role of approval.roles needs at least one person")
+    return roles
+
+
 def _changes(value) -> list[dict]:
     """The history of profile commands: who changed what, on which day and why."""
     if not isinstance(value, list):
@@ -692,7 +705,7 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
         "resolutions", "boards", "required_boards", "required_rules", "research", "host", "guard", "waivers", "approval", "tools",
         "conventions", "checks", "personal_data", "people_decisions", "declined", "changes", "ask_every_rule",
-        "light_paths", "declined_rules", "separate_requester",
+        "light_paths", "declined_rules", "separate_requester", "frozen", "restricted_paths",
     }
     unknown = sorted(answers.keys() - fields)
     if unknown:
@@ -776,16 +789,26 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
     if approval is not None:
         if not isinstance(approval, dict) or approval.get("mode") not in ("local", "signed"):
             raise ValueError("approval.mode must be local or signed")
-        if approval["mode"] == "signed":
-            if set(approval) != {"mode", "allowed_signers", "approvers"}:
+        # max_age_days (incident.py) and roles (roles.py) are options that go with either mode.
+        setting = {key: value for key, value in approval.items() if key not in ("max_age_days", "roles")}
+        if setting["mode"] == "signed":
+            if set(setting) != {"mode", "allowed_signers", "approvers"}:
                 raise ValueError("A signed approval needs allowed_signers (a project path) and approvers")
-            path = approval["allowed_signers"]
+            path = setting["allowed_signers"]
             if not isinstance(path, str) or not path.strip() or path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/"):
                 raise ValueError("approval.allowed_signers must be a path inside the project")
             profile["approval"] = {"mode": "signed", "allowed_signers": path.strip(),
-                                   "approvers": _texts(approval["approvers"], "approval.approvers")}
-        elif set(approval) != {"mode"}:
+                                   "approvers": _texts(setting["approvers"], "approval.approvers")}
+        elif set(setting) != {"mode"}:
             raise ValueError("A local approval takes no other setting")
+        if "max_age_days" in approval:
+            days = approval["max_age_days"]
+            if type(days) is not int or not 1 <= days <= 366:
+                raise ValueError("approval.max_age_days must be a whole number of days between 1 and 366")
+            profile["approval"] = {**profile.get("approval", {"mode": "local"}), "max_age_days": days}
+        if "roles" in approval:
+            profile["approval"] = {**profile.get("approval", {"mode": "local"}),
+                                   "roles": _approval_roles(approval["roles"], catalog)}
     waivers = answers.get("waivers")
     if waivers is not None:
         if not isinstance(waivers, dict) or set(waivers) != {"allowed_by", "max_days"}:
@@ -802,6 +825,14 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if answers["separate_requester"] is not True:
             raise ValueError("separate_requester must be true, or absent when the option is off")
         profile["separate_requester"] = True
+    # A freeze (incident.py): who, when and why; absent means the project is not frozen.
+    if "frozen" in answers:
+        if not isinstance(answers["frozen"], dict) or set(answers["frozen"]) != set(DECISION_FIELDS):
+            raise ValueError("frozen must name by, on and reason")
+        profile["frozen"] = _decision(answers["frozen"], "frozen")
+    # Folders closed to the agent (hosts.py reads them when host apply and host check act, and refuses a bad shape).
+    if answers.get("restricted_paths"):
+        profile["restricted_paths"] = answers["restricted_paths"]
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
         raise ValueError("ask_every_rule must be true or false")
@@ -1251,7 +1282,7 @@ def check_component(command: str, components: list[dict]) -> str | None:
 # waiver, short lane and requester settings are read when they act (the signature, for one, is verified again by every reader of
 # an approval, and the lane's paths by the edit hook, task complete and guard --ci).
 APPROVAL_NEUTRAL_FIELDS = ("name", "conventions", "tools", "host", "guard", "research", "approval", "waivers",
-                           "light_paths", "separate_requester")
+                           "light_paths", "separate_requester", "frozen", "restricted_paths")
 
 
 def _advice_profile(profile: dict, neutral: tuple = ()) -> dict:

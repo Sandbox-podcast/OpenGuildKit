@@ -38,6 +38,7 @@ EXTRA = {
     "scripts/bench.py": ["tests/test_performance.py"],
     "scripts/build_catalog_bundle.py": ["tests/test_catalog_bundle.py"],
     ".gitignore": ["tests/test_catalog_bundle.py"],
+    "scripts/build_compliance.py": ["tests/test_controls.py"],
     "scripts/check_links.py": ["tests/test_check_links.py"],
     "scripts/lint_ratchet.py": ["tests/test_lint_ratchet.py"],
     "scripts/lint-baseline.json": ["tests/test_lint_ratchet.py"],

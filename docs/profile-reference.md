@@ -8,7 +8,7 @@ For: an administrator or a developer who reads or checks `.openguildkit/project.
 Change a profile with `openguildkit profile`, which records who, when and why under `changes` and rewrites `AGENTS.md` ([change the profile after setup](patterns.md#change-the-profile-after-setup)). A change to the rules, the checks or the boards voids the approvals made before it ([task workflow](workflow.md)).
 `openguildkit profile export` prints the setup answers that give another repository the same profile ([reuse the profile](workflow.md#reuse-the-profile-in-another-repository)).
 
-## The 28 fields
+## The 30 fields
 
 A field marked "absent when empty" is written only when it holds something. Dates are written `YYYY-MM-DD`, and a text that records a person is one line.
 
@@ -30,7 +30,7 @@ A field marked "absent when empty" is written only when it holds something. Date
 | `host` | `claude-code`, `codex`, `gemini-cli` or `other`; absent in a profile written before the field | `other` | `profile set host VALUE` |
 | `guard` | `off`, `observe` or `enforce`; absent in a profile written before the field, which then reads as `off` | `observe` for a new project | `profile set guard VALUE`; lowering it is typed by a person at a terminal |
 | `waivers` | `{"allowed_by": [names], "max_days": 1 to 366}`. Absent when waivers are not allowed | Absent | `profile set waivers allowed --allowed-by NAME --max-days DAYS`; `none` removes it |
-| `approval` | `{"mode": "local"}` or `{"mode": "signed", "allowed_signers": PATH, "approvers": [names]}`; the path is inside the project | Absent: local seals | `profile set approval local` or `signed --signers PATH --approver NAME` |
+| `approval` | `{"mode": "local"}` or `{"mode": "signed", "allowed_signers": PATH, "approvers": [names]}`; the path is inside the project. Either may add `max_age_days` (1 to 366) and `roles` (each board ID with its people) | Absent: local seals | `profile set approval local` or `signed --signers PATH --approver NAME`; `profile set max-approval-age DAYS` and `profile set approver-roles BOARD NAME...` ([roles by board](workflow.md#roles-by-board)) |
 | `tools` | List of tool names the company works with | Empty | `profile add tool` and `profile remove tool` |
 | `conventions` | List of one-line texts the agent follows | Empty | `profile add convention` and `profile remove convention` |
 | `checks` | List of commands `task verify` runs; every one is mandatory | Empty | `profile add check` and `profile remove check` |
@@ -42,6 +42,8 @@ A field marked "absent when empty" is written only when it holds something. Date
 | `light_paths` | List of folder or file globs the short lane covers. Absent or empty: the lane is off | Absent | `profile set light-paths GLOB...`; `none` turns it off ([short lane](workflow.md#short-lane)) |
 | `declined_rules` | List of `{"id": "PACK/RULE", "by", "on", "reason"}`: rules set aside while their pack stays in force. Absent when empty | Absent | `profile decline rule PACK/RULE`; `profile adopt rule PACK/RULE` restores one |
 | `separate_requester` | `true`, or absent: the requester of a task may not approve it | Absent | `profile set separate-requester on\|off` ([requester and approver](workflow.md#requester-and-approver)) |
+| `frozen` | `{"by", "on", "reason"}`, or absent: the edit hook refuses every edit and `guard --ci` every change but the one that lifts it | Absent | `profile set freeze on\|off`; lifting it needs a person at a terminal ([incident response](workflow.md#incident-response)) |
+| `restricted_paths` | List of `{"paths": [globs], "class": TEXT, "boards": [board IDs]}`; a path is inside the project, without `..` or parentheses | Absent | By hand; `host apply` writes the deny rules ([paths the team closes to the agent](../integrations/README.md#paths-the-team-closes-to-the-agent)) |
 
 ## Check a profile
 

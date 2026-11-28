@@ -25,7 +25,6 @@ from openguildkit import clock
 from openguildkit.cli import command_parser
 from openguildkit.decisions import record_digest
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 from tests.test_cli_coverage import _subcommands, command_paths
 
@@ -85,6 +84,8 @@ EXAMPLES = [
     Example("observed", "guard --hook pre-edit", sends=(EDIT_HOOK,)),
     Example("claude", "host check", code=1), Example("claude", "host check --json", code=1),
     Example("claude", "host apply"),
+    Example("bare", "host managed --host claude-code --os linux"),
+    Example("bare", "host managed --host claude-code --os linux --json", code=1),
     Example("claude", "host scan"), Example("suspect", "host scan --strict", code=1),
     Example("suspect", "host scan --json", code=1),
     Example("init", "integrations --host claude-code"),
@@ -225,6 +226,9 @@ EXAMPLES = [
     Example("recurring", "task retro --all --draft-rules drafts"),
     # From a file to the decisions that cover it.
     Example("exported", "trace README.md"), Example("exported", "trace README.md --json"),
+    # The audit log: the events rebuilt from the records, and a file that is not a log.
+    Example("exported", "audit export"), Example("exported", "audit verify $example/brief.md", code=1),
+    Example("exported", "evidence export --output pack"), Example("evidenced", "evidence verify pack"),
     # Several projects at once: this one, its parent folder with the other runs, and a search across them.
     Example("done", "projects $root"), Example("done", "projects $root --json"),
     Example("done", "projects $root --search status"),
@@ -374,9 +378,10 @@ class Projects:
         "git": ("approved", "commit_project"),
         "replayed": ("approved", "replay_chaosfolk"), "resulted": ("approved", "report_result"),
         "done": ("resulted", "complete"), "recurring": ("done", "close_more"), "exported": ("done", "export"),
+        "evidenced": ("exported", "export_evidence"),
         "delivered": ("reviewed", "deliver_in_git"),
     }
-    NEEDS_GIT = {"git", "ci", "exported", "delivered", "org", "replaced"}
+    NEEDS_GIT = {"git", "ci", "exported", "evidenced", "delivered", "org", "replaced"}
 
     def __init__(self, base: Path):
         self.base = base
@@ -602,6 +607,9 @@ class Projects:
         record.pop("record_sha256")
         write_json(path, {**record, "record_sha256": record_digest(record)})
         commit_everything(root)
+
+    def export_evidence(self, root: Path) -> None:
+        run_cli(root, "evidence", "export", "--output", "pack")
 
     def deliver_in_git(self, root: Path) -> None:
         """Approved at a commit, then a change committed and its revision recorded by task verify."""

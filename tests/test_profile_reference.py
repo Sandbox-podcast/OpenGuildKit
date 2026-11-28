@@ -25,7 +25,7 @@ def profile_fields() -> set[str]:
 
 def page_fields() -> list[str]:
     """The field of each row of the table of docs/profile-reference.md."""
-    table = PAGE.read_text(encoding="utf-8").split("## The 28 fields", 1)[1].split("\n## ", 1)[0]
+    table = PAGE.read_text(encoding="utf-8").split("## The 30 fields", 1)[1].split("\n## ", 1)[0]
     return re.findall(r"^\| `(\w+)` \|", table, re.MULTILINE)
 
 
@@ -72,9 +72,9 @@ def problems(value, schema: dict, root: dict, path: str = "$") -> list[str]:
 
 
 class ProfileReferenceTests(unittest.TestCase):
-    def test_the_page_lists_the_28_fields_validate_profile_accepts_once_each(self):
-        """Issue #491: no page listed the 28 fields of the profile, and `schema_version` was in none."""
-        self.assertEqual(len(profile_fields()), 28)
+    def test_the_page_lists_the_30_fields_validate_profile_accepts_once_each(self):
+        """Issue #491: no page listed the 28 fields of the profile, and `schema_version` was in none; #481 and #519 added two."""
+        self.assertEqual(len(profile_fields()), 30)
         self.assertEqual(sorted(page_fields()), sorted(profile_fields()))
 
     def test_the_schema_has_one_property_for_each_field_and_refuses_the_others(self):
@@ -100,19 +100,22 @@ class ProfileReferenceTests(unittest.TestCase):
             "boards": [], "required_boards": ["security"], "required_rules": ["gdpr/confirm-lawful-basis"],
             "research": "local-only", "host": "gemini-cli", "guard": "enforce",
             "waivers": {"allowed_by": ["CM"], "max_days": 30},
-            "approval": {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["CM"]},
+            "approval": {"mode": "signed", "allowed_signers": ".openguildkit/allowed_signers", "approvers": ["CM"],
+                         "max_age_days": 30, "roles": {"security": ["CM"]}},
             "tools": ["jira"], "conventions": ["Use Conventional Commits."], "checks": ["python -m pytest"],
             "personal_data": True, "people_decisions": False,
             "declined": ["eu-ai-act-system", {"id": "dora", "by": "CM", "on": "2026-11-27", "reason": "Not a bank"}],
             "changes": [{"change": "guard enforce", "by": "CM", "on": "2026-11-27", "reason": "Go live"}],
             "ask_every_rule": True, "light_paths": ["docs/**"],
             "declined_rules": [{"id": "python/lint", "by": "CM", "on": "2026-11-27", "reason": "Linter in CI"}],
-            "separate_requester": True,
+            "separate_requester": True, "frozen": {"by": "CM", "on": "2026-11-27", "reason": "Incident"},
+            "restricted_paths": [{"paths": ["data/customers/**"], "class": "restricted", "boards": ["security"]}],
         }
         self.assertEqual(set(profile), profile_fields())
         self.assertEqual(problems(profile, schema, schema), [])
         for change in ({"guard": "strict"}, {"unknown_field": 1}, {"approval": {"mode": "signed"}},
                        {"waivers": {"allowed_by": ["CM"], "max_days": 400}}, {"schema_version": 2},
+                       {"frozen": {"by": "CM"}}, {"restricted_paths": [{"paths": ["/etc/**"]}]},
                        {"declined_rules": [{"id": "python", "by": "CM", "on": "2026-11-27", "reason": "x"}]}):
             with self.subTest(change=change):
                 self.assertNotEqual(problems({**profile, **change}, schema, schema), [])
