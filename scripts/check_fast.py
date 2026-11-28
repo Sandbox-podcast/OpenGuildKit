@@ -48,6 +48,7 @@ EXTRA = {
     "README.md": ["tests/test_entry_pages.py", "tests/test_release.py"],
     "README.fr.md": ["tests/test_entry_pages.py"],
     "CHANGELOG.md": ["tests/test_release.py"],
+    "SECURITY.md": ["tests/test_doc_pages.py", "tests/test_release.py"],
     "GOVERNANCE.md": ["tests/test_release.py", "tests/test_workflows.py"],
     "pyproject.toml": ["tests/test_release.py", "tests/test_workflows.py"],
     ".github/workflows/check-links.yml": ["tests/test_edition_watch.py", "tests/test_workflows.py"],
