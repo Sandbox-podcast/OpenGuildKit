@@ -1,4 +1,4 @@
-"""The `openguildkit alerts` commands and `task alerts`: one dependency alert register per project.
+"""The `alerts` commands and `task alerts`: import scanner reports and review alerts.
 
 Entry: add_parser, run, task_command, consultation_task
 Tests: tests/test_architecture.py, tests/test_requester.py

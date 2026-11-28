@@ -1,4 +1,5 @@
-"""The controls of OpenGuildKit itself and the frameworks they may answer: a registry and the tables of docs/compliance.md (issue #482).
+"""The controls of OpenGuildKit and the frameworks they may answer: the registry `controls.json`, its validation (a
+clause only with its source and the day it was read) and the generated tables of `docs/compliance.md`.
 
 registry/controls.json lists what OpenGuildKit does that an auditor can ask about: what it guarantees, the commands and the
 code that hold it, what it does not cover, and for each framework of the catalog the clause it answers. A clause is entered

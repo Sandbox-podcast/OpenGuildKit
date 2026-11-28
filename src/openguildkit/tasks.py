@@ -1,4 +1,5 @@
-"""Read, write and create the task records of a project, list them, and follow the tasks each one waits for.
+"""Writes and creates task records, lists the tasks and follows the tasks each one waits for; `task_files.py` reads
+them.
 
 The rest of the task path has its own modules: tasks_record (the shape of a record), tasks_approval (whether an
 approval holds), tasks_blockers, tasks_review (consultation, review and passes), tasks_closing (decision, result,

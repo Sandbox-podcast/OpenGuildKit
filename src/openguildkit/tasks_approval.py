@@ -1,5 +1,5 @@
-"""Whether an approval still holds: the rules and settings that changed since it, the scope it covered, and the
-messages that say a task is already decided or its review is stale.
+"""What changed in the rules since an approval, the scope it covered, and the messages for a task already decided or a
+stale review; `approval_check.py` says whether it holds.
 
 Entry: require_approval, rule_changes, require_current_scope
 Tests: tests/test_approval_lifecycle.py, tests/test_rule_changes.py

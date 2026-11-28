@@ -1,4 +1,4 @@
-"""A stand-in MCP server for demos and tests: synthetic answers, no network, no credentials.
+"""Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials.
 
 `openguildkit tools mock ID` speaks the Model Context Protocol over stdio (JSON-RPC 2.0, one
 message per line). It serves the records and canned answers of a mock file, so a host agent

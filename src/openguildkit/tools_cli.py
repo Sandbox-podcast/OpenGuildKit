@@ -1,4 +1,4 @@
-"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks.
+"""The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks.
 
 Entry: add_parser, run
 Tests: tests/test_exit_codes.py, tests/test_gemini_host.py

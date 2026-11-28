@@ -1,4 +1,6 @@
-"""The evidence command: a dossier of facts for an auditor, and the check that it was not changed (issue #482).
+"""The `evidence` commands: `export` gathers the decisions with the state of their seal and signature, the profile
+changes, the history of the signers file, the alerts and the controls of a period into a dossier with a manifest of
+SHA-256, `verify` recomputes it. Reads the project and states no conformity.
 
 `export` gathers, for a period, what the tool already knows: the exported decisions with the state of their seal and of
 their signature, the profile changes, the history of the allowed signers file in Git, the alerts, the registry of

@@ -1,4 +1,4 @@
-"""Propose the project's components and technologies from the files in the repository.
+"""Proposes components, technologies and versions from the repository's manifests, without running a package manager.
 
 Detection only reads local manifests. It never runs a package manager or opens the
 network, and the team confirms or corrects the proposal before it reaches the profile.

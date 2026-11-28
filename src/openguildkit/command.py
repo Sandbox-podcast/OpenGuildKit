@@ -1,5 +1,5 @@
-"""What every command module's run receives: the parsed arguments, and the project's root, state, catalog and profile
-read on first use.
+"""`Command`, what every command module's `run` receives: the arguments, and the project's root, state, catalog and
+profile, each read once, on first use.
 
 Entry: Command.
 Tests: tests/test_architecture.py.

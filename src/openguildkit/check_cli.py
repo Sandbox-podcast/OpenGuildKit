@@ -1,4 +1,5 @@
-"""The commands that check a project against its profile: check, guard and host.
+"""The `check`, `guard` and `host` commands: the project against its profile, the approvals that cover an edit, the host
+settings.
 
 Entry: run, check, check_status, warn_unsigned, pending_catalog_changes.
 Tests: tests/test_guard.py, tests/test_sarif_commands.py, tests/test_hosts.py, tests/test_host_scan.py.

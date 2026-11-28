@@ -1,4 +1,5 @@
-"""An organization policy: the minimum every repository keeps (RFC #452), an option, off by default.
+"""Reads the organization policy (`policy.json` of the organization catalog) at the pinned commit, or at the commit
+`guard --ci --org-policy` is given, and lists where a profile is under its minimum or frozen.
 
 The security or platform team writes `policy.json` at the root of the organization catalog (org_catalog.py). A
 project reads it at the commit a person pinned at a terminal with `org-catalog set`, and `guard --ci` reads it at the

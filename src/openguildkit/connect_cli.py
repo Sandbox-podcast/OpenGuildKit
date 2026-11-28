@@ -1,4 +1,4 @@
-"""The commands that connect a project to other tools: integrations, mcp, ui and ci-check.
+"""The `integrations`, `mcp`, `ui` and `ci-check` commands, which connect a project to other tools.
 
 Entry: run.
 Tests: tests/test_integrations.py, tests/test_webui.py, tests/test_cli_coverage.py.

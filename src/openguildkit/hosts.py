@@ -1,4 +1,5 @@
-"""Report and apply the project rules that a host agent can enforce itself.
+"""Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay
+instructions.
 
 OpenGuildKit cannot stop a host agent from using its tools. Some hosts can, through
 their own project settings. This module writes those settings for the hosts it knows

@@ -1,4 +1,5 @@
-"""The projects command: several OpenGuildKit projects at a glance, and a search across them.
+"""The `projects` command: several projects at a glance and a search across them; a folder that is not a project, or a
+project that cannot be read, is named and the others listed. Reads only.
 
 A tech lead or a security officer who looks after several repositories sees where to act without opening each one.
 The command takes the folders each time; it registers no project anywhere. It reads each project as its own

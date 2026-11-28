@@ -1,4 +1,4 @@
-"""Local state helpers shared by the profile and task commands.
+"""Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock.
 
 Entry: parse_json, load_json, unique_fields, read_bytes, read_json, file_signature, json_text, print_json
 Tests: tests/test_storage.py

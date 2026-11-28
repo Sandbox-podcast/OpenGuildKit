@@ -1,4 +1,4 @@
-"""Discover bibliographic references separately from active rule packs.
+"""Searches the reference library, separately from the active rule packs.
 
 Entry: load_references, check_reference_links, with_pattern_references, english_title, find_references
 Tests: tests/test_references.py

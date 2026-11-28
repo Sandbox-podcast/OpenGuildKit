@@ -1,4 +1,4 @@
-"""Keep the project's dependency alerts in one register, from the reports of its own scanners.
+"""The dependency alert register, from the reports of the project's own scanners.
 
 The CLI does not scan anything: it reads the JSON report a scanner the project approves
 already produced (npm audit, pip-audit, OSV-Scanner or GitHub Dependabot alerts). The register

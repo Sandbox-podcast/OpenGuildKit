@@ -1,4 +1,5 @@
-"""The allow list of an organization: the MCP servers, models and provider addresses that `host scan --allow FILE` accepts.
+"""The allow list an organization keeps (MCP servers, models, provider addresses), read by `host scan --allow` and
+matched against what a project configures.
 
 A person keeps the file, in a policy repository or in the project, and passes it to the scan: what it does not name is an
 error. A list without an axis does not restrict that axis, and an empty list allows nothing. Entries are written

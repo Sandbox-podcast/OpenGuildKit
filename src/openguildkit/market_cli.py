@@ -1,4 +1,4 @@
-"""The `openguildkit market` command: create a dossier, record observations and changes, check it, list due sources.
+"""The `market` command: create, fill, check and watch market dossiers.
 
 Entry: add_parser, run
 Tests: tests/test_architecture.py, tests/test_cli_coverage.py

@@ -1,4 +1,4 @@
-"""Market dossiers: competitors and substitutes, dated observations, and what is still unknown.
+"""Market dossiers: competitors, dated observations, what is still unknown.
 
 A dossier lives in .openguildkit/market/ID.json and is shared with the team through git.
 The CLI validates it and attaches it to consultations; the host agent gathers the

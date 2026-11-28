@@ -1,5 +1,5 @@
-"""Business deliverables: a method's template, the inputs it needs, the tool actions that need
-approval and the checks a reviewer runs on the result.
+"""Business deliverable templates: inputs, tool actions that need approval, reviewer checks; the architecture decision
+record filled from a decision task.
 
 Templates live in registry/deliverables/ (and .openguildkit/catalog/deliverables/ for a
 project). `deliverable new` turns an approved task into a draft; `deliverable check` says what

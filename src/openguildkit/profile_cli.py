@@ -1,4 +1,5 @@
-"""The `openguildkit profile` commands: change the project profile after setup, with who, when and why.
+"""The `profile` commands: parse a change and confirm at a terminal what weakens a protection; the change itself goes
+through `profile_changes.py`.
 
 Each change goes through profile_changes.write_change, the path the web page saves through too. What weakens a
 protection is the person's decision: here it needs an interactive terminal and the typed confirmation (_confirm).

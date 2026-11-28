@@ -1,5 +1,4 @@
-"""The storybook command: compose the company Storybook, record its stories, and extract a design system from an
-existing React application.
+"""The `storybook` command: compose, record and extract; loads the Storybook modules only when it runs.
 
 The Storybook modules load when the command runs, so the other commands start without them.
 

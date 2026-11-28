@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `scripts/build_map.py` takes the role of each module from the first paragraph of its docstring and writes the table of modules of `docs/architecture.md` from it, `--check` included; the 104 docstrings that said otherwise now carry the role the map gave (#502)
 - Code size: the twelve modules above 40,000 bytes (`guard.py` 72,982, `workflow.py`, `tools.py`, `surfaces.py`, `webui.py`, `results.py`, `consultation.py` and five more) are split by role into 21 modules, code moved unchanged; `tests/test_architecture.py` holds every code file under 40,000 bytes, and `tests/byte_budget.json` gives the larger ones a ceiling that only goes down (#486)
 - Code shape: no function passes 80 lines but the parser and `init_questions`, none nests more than 4 levels, and 24 instead of 52 pass a complexity of 25; a test holds the three thresholds with a list of exceptions that only shrinks (#508)
 - Module headers: every module names its entry points and its test files in `Entry:` and `Tests:` lines, which `scripts/build_map.py` reads into `docs/agents/map.json` and a test checks (#502)

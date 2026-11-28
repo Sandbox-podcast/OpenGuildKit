@@ -1,4 +1,5 @@
-"""The short lane: a shorter way through the workflow for a change a person declares trivial.
+"""The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules,
+dependencies, the profile, agent instructions) and the one board its paths call for.
 
 A profile that names `light_paths` (folder or file globs such as `docs/**` and `tests/**`) lets a task be opened with
 `task new ID --lane light --paths GLOB...`. The lane drops what has no meaning for one reviewing board: the

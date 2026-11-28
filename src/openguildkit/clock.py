@@ -1,4 +1,4 @@
-"""The two clocks: the date a record is written with, and the real time decisions are made with.
+"""The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with.
 
 When SOURCE_DATE_EPOCH is set, following the reproducible-builds convention, its value in
 seconds since 1970-01-01 UTC replaces the current time in now(), today() and timestamp(), so a

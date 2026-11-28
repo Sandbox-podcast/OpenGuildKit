@@ -1,4 +1,4 @@
-"""Recognize credentials and personal data in what people and agents give the CLI.
+"""Recognizes credentials and personal data in what people and agents give the CLI.
 
 CREDENTIAL_SHAPES is the one table that decides what looks like a credential. Tool settings, task briefs and
 answers, review entries and public evidence all go through it, without reading the environment or the network.

@@ -1,4 +1,5 @@
-"""The code owners of the paths a task touches, read from the project's CODEOWNERS with GitHub's syntax.
+"""Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the
+decision brief and the handoff; never written into a record.
 
 Shown in the decision brief and the handoff, never written into a task or a decision record: the owners are often
 people's names or emails (docs/personal-data.md), and whether a record may keep them is still an open decision.

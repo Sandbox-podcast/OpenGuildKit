@@ -1,4 +1,4 @@
-"""Install the agent skill and the subagents (board, market analyst, dependency watch) shipped with this version.
+"""Installs the agent skill and the subagents shipped with this version.
 
 Entry: packaged_file, install_agent_files
 Tests: tests/test_gemini_host.py

@@ -1,4 +1,5 @@
-"""What `check` and `guard --ci` report, as findings with a stable rule code, for their SARIF output (#420).
+"""Gives each problem that `check` and `guard --ci` report a stable rule code, a level and a file, for their SARIF
+output.
 
 The commands keep printing what they printed. When a person asks for `--format sarif`, a `Report` gathers each problem
 under the code of its rule, a level and the file it is about, and writes them with `sarif.to_sarif`. The codes are

@@ -1,5 +1,5 @@
-"""The task actions after the approval: checks, verify, result, complete, runs, export, handoff and diff-review, with
-the declarations that a check command cannot run.
+"""The task actions after the approval: checks, verify, result, complete, runs, export, handoff, diff-review, and the
+declarations that a check cannot run.
 
 Entry: run_checks, run_outcome, run_export, run_handoff, run_diff_review
 Tests: tests/test_closing_points.py, tests/test_evidence_fingerprints.py, tests/test_results.py

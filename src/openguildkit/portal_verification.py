@@ -1,4 +1,5 @@
-"""Compare a local share register with one Documentalist instance on explicit request.
+"""`docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's
+reader invitations and compares their end dates with the share register.
 
 The observation describes the server's invitation policy, not a live reader session.
 Credentials are requested at a terminal, held in memory and never saved in the register.

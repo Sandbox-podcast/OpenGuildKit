@@ -1,4 +1,5 @@
-"""The tools of a company's stack and the MCP servers that connect an agent to them.
+"""The tools of a company's stack: matches them to a project, plans the MCP servers to connect and checks the evidence
+agents cite from them.
 
 The registry (registry/tools/, one file per category) names each tool, the review boards
 that use it and the MCP servers verified on the publisher's own documentation. From it the

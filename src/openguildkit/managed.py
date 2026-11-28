@@ -1,5 +1,5 @@
-"""Managed settings: the files an administrator deploys by MDM so that the guard hooks run in every project of a
-workstation, and what `host check` reads back of them.
+"""Writes the settings files an administrator deploys by MDM for the managed layer of Claude Code, Codex and Gemini CLI,
+and reads back what keeps the hooks of a project from running.
 
 `openguildkit host managed --host H --os S` prints the file of one host, or writes it into the folder it is given, and
 says where each system expects it and which channel an MDM has. It installs nothing and writes nowhere else. With

@@ -1,4 +1,4 @@
-"""The audit commands: verify the chain of the audit log, or export its events for a SIEM (audit_log.py).
+"""The `audit` commands: verify the chain of the audit log, and export its events for a SIEM.
 
 Entry: add_parser, run.
 Tests: tests/test_audit_log.py.

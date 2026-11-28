@@ -1,4 +1,5 @@
-"""What an agent reads and what could act in a project: `openguildkit host scan`.
+"""`host scan`: lists the agent tools, MCP servers and permissive settings a project shows, and reads its instruction
+files and settings (`surface_text.py`, `surface_servers.py`), offline and read-only.
 
 The instruction files of a project (AGENTS.md, Claude Code agents and Skills, Cursor rules, Copilot instructions...)
 are read by an agent as orders. A character nobody sees or a sentence that cancels the rules passes a human review.

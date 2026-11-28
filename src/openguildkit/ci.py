@@ -1,4 +1,4 @@
-"""Read versioned evidence from Git and evaluate the central policy's field check on it.
+"""Reads versioned evidence from Git and evaluates the central policy's field check.
 
 Entry: read_policy_pack, check_export
 Tests: tests/e2e/test_export_ci.py

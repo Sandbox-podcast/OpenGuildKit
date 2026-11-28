@@ -1,4 +1,5 @@
-"""Command-line interface for OpenGuildKit.
+"""Parses commands and runs each one through one table, `COMMANDS`: the module whose `run(command)` runs it, imported
+for that command only, and what is read before it runs.
 
 Entry: command_parser, main, COMMANDS
 Tests: tests/e2e/test_admin_guide.py, tests/e2e/test_board_passes.py, tests/e2e/test_campaign_links.py,

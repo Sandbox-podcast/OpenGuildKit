@@ -1,4 +1,4 @@
-"""The commands that set a project up: init, with its questions at a terminal, and sync.
+"""The `init` command, with its questions at a terminal, and `sync`.
 
 Entry: run, setup_questions.
 Tests: tests/test_setup_questionnaire.py, tests/test_first_run.py, tests/test_proportionate_setup.py.

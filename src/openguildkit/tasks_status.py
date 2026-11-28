@@ -1,5 +1,5 @@
-"""The next step of a task and the command that takes it, what its status refuses, the words that describe its
-decision, and the line the task list shows for it, kept while nothing it was built from changed.
+"""The next step of a task and the command that takes it, what its status refuses, and the line of the task list, kept
+while nothing it was built from changed.
 
 Entry: next_step, next_command, state_refusal, task_row, kept_line
 Tests: tests/test_closing_points.py

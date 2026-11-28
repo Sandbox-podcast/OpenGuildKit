@@ -1,4 +1,5 @@
-"""Local web interface: the built front end and a JSON API over the CLI, on the loopback interface only.
+"""The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1; `web_requests.py`
+refuses what needs a person at a terminal.
 
 The API runs the same commands a person types, in this process, one at a time. It never runs what needs a
 person at a terminal: approving a task or clearing a blocker without a signature, waiving a blocker, allowing an

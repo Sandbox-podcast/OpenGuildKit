@@ -1,5 +1,5 @@
-"""Check what the boards return and carry the task to the person's decision: the review entries and their evidence,
-the deliberation between boards, the decision brief, the blockers and the implementation handoff.
+"""Carries the task to the person's decision: the deliberation between boards, the decision brief and the blockers;
+`board_entries.py` checks the entries, `handoff.py` writes the handoff.
 
 The questionnaire (questionnaire.py), the routing (routing.py) and the consultation (consultation.py) come first.
 

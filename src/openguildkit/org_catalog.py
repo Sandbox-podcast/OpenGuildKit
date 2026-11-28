@@ -1,4 +1,5 @@
-"""An organization catalog that several repositories follow (RFC #446): an option, off by default.
+"""Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network;
+fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one.
 
 A person pins, in `catalog.lock.json`, a commit of a local Git copy of the organization's catalog. Its packs,
 patterns, brains and sectors, in the format of a project catalog, add to the bundled catalog; the project's own

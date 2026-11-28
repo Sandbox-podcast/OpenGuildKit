@@ -1,4 +1,4 @@
-"""Match project context to versioned rule packs.
+"""Matches the project's stack and context to versioned stack patterns and the packs they apply.
 
 Entry: role_choices, technology_key, technology_version, version_at_least, stack_contexts, is_stack_pattern
 Tests: tests/test_patterns.py

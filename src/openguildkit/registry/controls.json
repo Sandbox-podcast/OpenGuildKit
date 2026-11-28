@@ -34,7 +34,7 @@
         {
           "file": "src/openguildkit/terminal.py",
           "symbol": "interactive",
-          "line": 14
+          "line": 15
         }
       ],
       "in_dossier": [
@@ -92,17 +92,17 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 251
+          "line": 252
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 301
+          "line": 302
         },
         {
           "file": "src/openguildkit/hosts.py",
           "symbol": "HOOK_HOSTS",
-          "line": 27
+          "line": 28
         }
       ],
       "in_dossier": [],
@@ -149,12 +149,12 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "decision_payload",
-          "line": 145
+          "line": 146
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "seal",
-          "line": 192
+          "line": 193
         },
         {
           "file": "src/openguildkit/guard_records.py",
@@ -180,17 +180,17 @@
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_signature",
-          "line": 228
+          "line": 229
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "committed_signers",
-          "line": 200
+          "line": 201
         },
         {
           "file": "src/openguildkit/decisions.py",
           "symbol": "verify_recorded_signature",
-          "line": 327
+          "line": 328
         }
       ],
       "in_dossier": [
@@ -222,12 +222,12 @@
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "approval_problem",
-          "line": 84
+          "line": 85
         },
         {
           "file": "src/openguildkit/requester.py",
           "symbol": "record_problem",
-          "line": 110
+          "line": 111
         },
         {
           "file": "src/openguildkit/guard_ci.py",
@@ -320,7 +320,7 @@
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 64
+          "line": 65
         }
       ],
       "in_dossier": [
@@ -378,7 +378,7 @@
         {
           "file": "src/openguildkit/check_cli.py",
           "symbol": "check",
-          "line": 234
+          "line": 235
         }
       ],
       "in_dossier": [
@@ -522,17 +522,17 @@
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "discover",
-          "line": 386
+          "line": 387
         },
         {
           "file": "src/openguildkit/surfaces.py",
           "symbol": "scan",
-          "line": 144
+          "line": 145
         },
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 183
+          "line": 184
         }
       ],
       "in_dossier": [],

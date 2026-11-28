@@ -1,4 +1,5 @@
-"""The one argument of every task action that acts on a task: the command line, the project and the task record.
+"""The one argument of every task action that acts on a task: the command line, the project, its profile and catalog,
+and the task record.
 
 Entry: TaskCommand
 Tests: tests/test_approval_lifecycle.py, tests/test_next_steps.py

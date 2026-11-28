@@ -1,4 +1,5 @@
-"""Run Git: one place for its options, for a machine without Git, and for reading file names as they are on disk.
+"""Runs Git for every module: one place for its options, for a machine without Git, and for file names read with `-z` as
+they are on disk.
 
 Entry: run, text, names, split_names, unquote
 Tests: tests/test_guard.py, tests/test_trace.py

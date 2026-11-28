@@ -1,4 +1,4 @@
-"""Features: the tools a team can turn on, each with the three best-known alternatives to it.
+"""The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on.
 
 A feature is a purpose (issue tracking, payroll, container registry) with a lead tool and three alternatives, all
 tools of the registry. Turning an option on adds the tool to the profile's tools, by the profile commands' own path,

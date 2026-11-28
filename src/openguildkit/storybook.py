@@ -1,5 +1,4 @@
-"""Storybook for a project: reference the company's Storybook, compare it with the project's own,
-and extract a design system from an existing React application.
+"""References the company's Storybook, compares it with the project's, and writes extraction proposals.
 
 The CLI never runs npm and never opens the network. It writes the refs file that the project's
 .storybook/main imports, reads Storybook index.json files the team built or downloaded, and records

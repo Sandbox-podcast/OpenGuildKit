@@ -1,4 +1,5 @@
-"""Write findings as SARIF 2.1.0, the OASIS standard that code scanning dashboards read (#420).
+"""Writes findings as SARIF 2.1.0 for code scanning: rules with a help link, relative locations, stable fingerprints,
+the same bytes at every run.
 
 A finding is the same dict for every command that reports in SARIF: `finding(code, level, message, path, line)`.
 `code` names a rule, `level` is `error`, `warning` or `note`, `path` is a file relative to the project root with `/`

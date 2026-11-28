@@ -1,5 +1,5 @@
-"""How a profile changes: what each change writes, what weakens a protection (weakening_changes), and the one path
-every change takes, from a command at a terminal or from the web page (write_change, save_edited).
+"""How a profile changes: what weakens a protection, and the one path every change takes, from a command at a terminal
+or from the web page; `profile_edits.py` holds what each change writes.
 
 Entry: weakening_changes, write_change, save_edited, check_proposal, report_change, print_touched, Weakening,
 InvalidProfile.

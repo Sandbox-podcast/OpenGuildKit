@@ -1,4 +1,4 @@
-"""The commands that take a task's work to readers: deliverable, and docs export and share.
+"""The `deliverable` and `docs` commands: drafts from approved tasks, documentation export and its shares.
 
 Entry: run.
 Tests: tests/test_deliverables.py, tests/test_publishing.py.

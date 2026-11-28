@@ -1,4 +1,5 @@
-"""The audit log: what OpenGuildKit itself did, one JSON event per line, chained by SHA-256, off by default.
+"""The audit log: one JSON event per line, chained by SHA-256, off by default, in a folder the guard protects; verifies
+the chain and rebuilds events from the records.
 
 A person turns it on with OPENGUILDKIT_AUDIT_LOG (1, or the name of a file) or `audit_log` in the workstation policy
 (workstation.py). The file lives in .openguildkit/audit/, which the guard protects and Git ignores: a collector reads it

@@ -1,4 +1,5 @@
-"""Bind an approval to the consultation, the review, the rules in force and the project revision.
+"""Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads
+exported records.
 
 Every approval carries a seal: a SHA-256 over what was approved. The handoff refuses a
 decision whose seal no longer matches the task record. A project can also require a

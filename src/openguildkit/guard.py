@@ -1,4 +1,5 @@
-"""Put the board in front of every change: in the agent, before file edits, and in CI.
+"""Says whether an approved task covers the work, for the host hooks before a request or an edit; `guard --ci` runs in
+`guard_ci.py`.
 
 `openguildkit guard` says whether an approved task covers the work in progress. Host
 hooks run it when a request arrives and before a file edit. In CI, it checks that a

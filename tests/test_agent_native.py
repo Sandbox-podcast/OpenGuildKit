@@ -137,7 +137,7 @@ class MapTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
-        files = {"src/openguildkit/a.py": "", "src/openguildkit/b.py": "", "tests/__init__.py": "",
+        files = {"src/openguildkit/a.py": '"""R."""\n', "src/openguildkit/b.py": '"""R."""\n', "tests/__init__.py": "",
                  "tests/test_a.py": "from openguildkit import a\nfrom openguildkit.b import thing\n",
                  "tests/fixtures/sample.json": "{}", "tests/test_sample.py": "NAME = 'sample.json'\n"}
         for name, text in files.items():

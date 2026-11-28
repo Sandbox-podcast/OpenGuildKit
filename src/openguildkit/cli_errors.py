@@ -1,4 +1,5 @@
-"""What the CLI says when a command ends on an error: the Python trace on request, and the option that named a file.
+"""What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option
+that named a file.
 
 With OPENGUILDKIT_DEBUG=1, an error turned into one line prints its traceback on standard error first; the hook
 that runs before every edit imports only this module for it, and `traceback` is loaded only when it is asked for.

@@ -1,4 +1,5 @@
-"""The policy of a workstation: one JSON file that its administrator deploys, read by the guard hook and the audit log.
+"""Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its
+equivalents), for the guard hook and the audit log.
 
 The file is `/etc/openguildkit/config.json` (macOS also `/Library/Application Support/OpenGuildKit/config.json`, Windows
 `%ProgramData%\\OpenGuildKit\\config.json`). No variable moves it: an agent that can set the environment of a command

@@ -1,4 +1,5 @@
-"""The one-line forms of the errors a person reads: a file that cannot be opened, an identifier nothing has.
+"""The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier
+with the command that lists them.
 
 Entry: os_error_message, unknown
 Tests: tests/test_error_forms.py

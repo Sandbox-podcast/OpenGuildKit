@@ -1,4 +1,4 @@
-"""Decide which active rule packs concern a task, from facts the tool already holds.
+"""Decides which active packs concern a task, from its answers, boards and brief.
 
 Each bundled pack has a subject (SUBJECTS): the task answers that call for it, and for a few packs the boards
 the task consults or the words its brief uses. A pack concerns a task when its subject meets the task's kind,

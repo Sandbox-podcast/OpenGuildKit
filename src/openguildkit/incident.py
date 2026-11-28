@@ -1,4 +1,5 @@
-"""Response to an incident (#481): a freeze that stops edits and a longest age of an approval, both off by default.
+"""Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an
+approval, both set with `profile set`.
 
 `openguildkit profile set freeze on --by INITIALS --reason WHY` writes `frozen` (who, when, why) in the profile: the edit
 hook then refuses every edit inside the project, even under an approved task, and `guard --ci` refuses every change

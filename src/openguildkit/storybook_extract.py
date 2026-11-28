@@ -1,4 +1,4 @@
-"""Inventory the components, variants and style tokens of an existing React application, for storybook extract.
+"""Inventories the components, variants and style tokens of an existing React application.
 
 The sources are read with text patterns and the standard library, not a JavaScript parser: React function
 components with their props, literal defaults and string-union prop types, the export aliases and re-exports of

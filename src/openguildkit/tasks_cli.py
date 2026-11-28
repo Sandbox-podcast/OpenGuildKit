@@ -1,4 +1,5 @@
-"""The task command: take a task from the request to its closing.
+"""The `task` command: its parser, `task new`, and the table that runs each action, with a refusal that names the
+command to run next.
 
 add_parser adds the task actions to the CLI's parser and run runs one of them, as tools_cli and the other command
 modules do. Each action reads the task, checks what its status allows, and writes the record under the project

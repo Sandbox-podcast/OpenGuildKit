@@ -1,4 +1,4 @@
-"""Read a single OpenGuildKit project's metadata over local MCP.
+"""Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes.
 
 Entry: serve_project
 Tests: tests/test_project_mcp.py

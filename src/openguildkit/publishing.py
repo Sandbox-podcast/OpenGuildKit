@@ -1,4 +1,4 @@
-"""Turn verified work into documentation pages and keep track of who it is shared with.
+"""Exports verified work as documentation pages for Documentalist and keeps the share register.
 
 The export writes a Markdown tree that Documentalist imports from a Git repository:
 `reference/` for the Reference tab, `learn/` for Learn, `blog/` for dated release notes, each

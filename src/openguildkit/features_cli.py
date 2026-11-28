@@ -1,4 +1,4 @@
-"""The `openguildkit features` commands: list the features, turn an option on or off, with who and why.
+"""The `features` commands: list the features, turn an option on or off through the profile's path.
 
 Turning an option on or off changes the profile's tools by the profile commands' path (profile_changes), so the change
 is recorded with who, when and why, and the instructions follow. Connecting the tool's MCP server stays with

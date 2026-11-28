@@ -1,5 +1,5 @@
-"""The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass,
-submit, progress, review, deliberate, respond and challenge, with the input files they read.
+"""The task actions from the questions to the boards' review: questions, route, consult, brief, template, pass, submit,
+progress, review, deliberate, respond, challenge.
 
 Entry: run_consult, run_route, run_pass, run_review, input_file
 Tests: tests/test_brain_knowledge.py

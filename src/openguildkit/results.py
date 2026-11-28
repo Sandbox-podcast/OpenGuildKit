@@ -1,4 +1,5 @@
-"""Record what was delivered for an approved task and the checks that prove it.
+"""Records what was delivered for an approved task and the checks that prove it; `result_form.py` holds the result
+template and its check.
 
 The expected checks come from the approved scope: every project check command is mandatory,
 and every rule of the packs that concern the task (see relevance.py) must be reported; the

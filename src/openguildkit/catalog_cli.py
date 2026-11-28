@@ -1,5 +1,5 @@
-"""The commands that read the catalog in force: catalog, references, patterns, brains, detect, preview, recommend
-and update.
+"""The commands that read the catalog in force: `catalog`, `references`, `patterns`, `brains`, `detect`, `preview`,
+`recommend` and `update`.
 
 Entry: run.
 Tests: tests/test_upgrades.py, tests/test_references.py, tests/test_brain_knowledge.py.

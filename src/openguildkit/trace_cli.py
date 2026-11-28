@@ -1,4 +1,5 @@
-"""The trace command: from a file to the exported decisions that cover it, and whether it changed since.
+"""The `trace` command: from a file to the exported decisions that cover it, and whether it changed since the last one.
+Reads only.
 
 A reviewer, a security officer or an auditor asks which decision covers a file. The exported records list the files
 of each change; this command reads them, says for each whether it still holds, and asks Git whether the file changed

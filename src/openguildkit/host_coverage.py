@@ -1,5 +1,5 @@
-"""The coverage of the hosts: for each host and surface where an agent runs, what the hook before an edit and the refusal
-of the approval commands hold, with the pages read and the day.
+"""The coverage of each host and surface (hook before an edit, approval commands refused), with the pages read; `host
+check --matrix` prints it and docs/host-coverage.md carries its table.
 
 `openguildkit host check --matrix --json` prints it for a fleet view, `host check --matrix` prints the table of
 docs/host-coverage.md, and tests/test_doc_pages.py fails when the page and this table differ. The hosts with a hook

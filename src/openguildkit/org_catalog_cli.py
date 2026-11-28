@@ -1,4 +1,5 @@
-"""The `org-catalog` commands: follow an organization catalog pinned at a commit of a local Git copy (RFC #446).
+"""The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a
+local replacement, off.
 
 `show` says what the project follows; `set` shows what a commit brings and, with --by and --reason at a terminal,
 pins it in the catalog lock (with --name, under a name that carries no path); `accept` records that a person accepts a

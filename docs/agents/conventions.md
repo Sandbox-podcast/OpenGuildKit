@@ -32,7 +32,7 @@ Today 65 modules of 65 have a docstring, none names a test file, 3 name their en
 
 **Check.** `tests/test_architecture.py`, to extend: the `Tests:` paths exist and the `Entry:` names are defined at the top level of the module.
 
-**Today.** Every module carries the two lines; `ModuleShapeTests` in `tests/test_architecture.py` checks them, and `scripts/build_map.py` reads them. The role is still written in the map.
+**Today.** Every module carries the two lines; `ModuleShapeTests` in `tests/test_architecture.py` checks them, and `scripts/build_map.py` reads them, with the role from the first paragraph of the docstring.
 Issue #502.
 
 ### `generated-repo-map`
@@ -44,7 +44,7 @@ It covers `web/src`, `integrations/ci/lib` and `scripts`, and holds an index of 
 
 **Check.** `python scripts/build_map.py --check`, to add: regenerates in memory, compares with the committed file, exits 1 with the entries that differ.
 
-**Today.** `scripts/build_map.py` takes each module's entry points and test files from its `Entry:` and `Tests:` lines, adds the tests that import it, the fixtures and the `commands` section, and `--check` runs in `tests/test_agent_native.py`; role and documentation page are still written in the map.
+**Today.** `scripts/build_map.py` takes each module's entry points and test files from its `Entry:` and `Tests:` lines, adds the tests that import it, the fixtures and the `commands` section, takes each role from the module's docstring and writes the table of `docs/architecture.md` from it, and `--check` runs in `tests/test_agent_native.py`; the documentation page is still written in the map.
 Issue #502.
 
 ### `map-query-command`

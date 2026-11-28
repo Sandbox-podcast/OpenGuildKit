@@ -1,4 +1,5 @@
-"""The boards' review of the delivered diff: after task result, before task complete.
+"""The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved
+revision, its findings by file and line, and the open points the closing keeps of them.
 
 Each board of the decision reads the diff between the approved revision and the delivered one, limited to the files of
 the change, with what the decision asked (expected outcome, the board's recommendation, verdict and blockers,

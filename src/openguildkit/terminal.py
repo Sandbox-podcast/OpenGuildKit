@@ -1,4 +1,5 @@
-"""Whether a person can answer at this terminal.
+"""Tells whether standard input is a terminal a person types in (on Windows a console, not the NUL device), and sets up
+the output streams and the error line of a command.
 
 Every act left to a person, and every question asked at a terminal, starts with `interactive()`. Python's
 `isatty()` is true on Windows for any character device, the NUL device included: there the handle of standard

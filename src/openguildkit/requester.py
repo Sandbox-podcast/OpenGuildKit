@@ -1,4 +1,5 @@
-"""Who asked for a task, and the rule that they do not approve it themselves (RFC #445), off by default.
+"""The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester
+from approving it, at `task decide` and in `guard --ci` (RFC #445).
 
 `task new --requested-by NAME` records the requester. A person turns `separate-requester` on in the profile at a
 terminal (profile_cli); then every new task names its requester, task decide refuses an approval by that person,

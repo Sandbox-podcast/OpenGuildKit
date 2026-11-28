@@ -1,5 +1,4 @@
-"""Route a task to the boards: read the brief and the answers (triggers, negations, concepts, audience and stack),
-then apply the project's required boards and the requester's changes.
+"""Routes a task to boards from its brief and answers, then applies required boards and the requester's changes.
 
 Routing changes with each edition of the catalog's triggers; the consultation (consultation.py) and the rest of
 the workflow read its result.

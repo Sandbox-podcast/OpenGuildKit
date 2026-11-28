@@ -1,4 +1,4 @@
-"""Regular expressions compiled when a command first uses them, not when their module is imported.
+"""Regular expressions compiled when a command first uses them, so that importing a module compiles none.
 
 A command imports many more modules than it runs code of, and compiling each module's expressions at import cost
 about 10 ms per command (#539). compile() gives an object that stands for the pattern: it compiles the pattern the

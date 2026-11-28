@@ -1,4 +1,4 @@
-"""Validate and evaluate the machine checks that pack rules declare.
+"""Validates and evaluates the machine checks that pack rules declare, without executing anything.
 
 A declarative check reads project files with the standard library and executes nothing:
 a path exists, a text file contains or lacks a literal text, a field of a JSON or TOML

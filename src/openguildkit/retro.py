@@ -1,4 +1,5 @@
-"""What closed tasks leave to learn, read from the records that already exist and counted, never kept.
+"""The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the
+profile command a person could type.
 
 `task retro ID` says what one closed task set aside, which boards brought nothing, what it left open and which
 blockers it waived. `task retro --all` counts what comes back in several closed tasks and, for some findings, names the

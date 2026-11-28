@@ -1,4 +1,4 @@
-"""Render, merge, sync and check the repository instructions: the managed block of AGENTS.md and its imports.
+"""Renders the managed block of `AGENTS.md`, syncs the instruction files and checks that they are current.
 
 Entry: render_instructions, sync_instructions, check_instructions, managed_block_lines
 Tests: tests/test_chaosfolk.py, tests/test_components.py, tests/test_gemini_host.py, tests/test_host_scan.py

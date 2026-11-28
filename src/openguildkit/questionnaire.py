@@ -1,5 +1,4 @@
-"""The task questionnaire: its questions and follow-ups, what each answer means, and the check of the answers a
-consultation records.
+"""The task questionnaire, its follow-ups and the check of the answers.
 
 Entry: task_questions, as_list, concerns_question, require_concerns, validate_answers, open_points
 Tests: tests/test_assumptions.py, tests/test_brain_selection.py, tests/test_first_run.py, tests/test_questions.py

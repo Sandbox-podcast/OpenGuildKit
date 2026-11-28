@@ -1,4 +1,4 @@
-"""What a brain knows: its specialists' methods, rule packs and reference material.
+"""Assembles what a brain knows: its specialists' methods, packs and references.
 
 A brain's knowledge is assembled from the catalog instead of being copied into each board:
 the patterns whose roles name the brain, the packs those patterns apply, and the references

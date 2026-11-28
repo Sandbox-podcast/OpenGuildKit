@@ -1,4 +1,4 @@
-"""Pin the catalog records a project uses so a new OpenGuildKit release cannot change its rules silently.
+"""Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog.
 
 The lock holds a copy of every bundled pack, board, sector and pattern the profile
 uses. Commands read the locked copy instead of the bundled one. `openguildkit update`

@@ -1,5 +1,5 @@
-"""Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks, and the patterns
-`recommend` preselects.
+"""Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations,
+packs and conflicts), and the patterns `recommend` preselects.
 
 The plan lists the patterns with why they apply, the regulations, the packs in the order `AGENTS.md` lists them, and
 the conflicts between packs.

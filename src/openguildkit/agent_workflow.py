@@ -1,5 +1,4 @@
-"""The task workflow that AGENTS.md teaches every agent, and the note that says where the rule texts are: the
-managed block of the instructions carries both.
+"""The task workflow that the managed block of `AGENTS.md` teaches every agent.
 
 Entry: AGENT_WORKFLOW
 Tests: tests/test_agent_instructions.py, tests/test_instruction_files.py
