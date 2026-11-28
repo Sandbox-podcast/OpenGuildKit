@@ -20,7 +20,7 @@ def add_parser(commands) -> None:
     audit.add_argument("--since", metavar="YYYY-MM-DD", help="With export: only the events of this day and after.")
 
 
-def run(args, root: Path, state: Path) -> int:
+def run(args, root: Path) -> int:
     if args.mode == "export":
         if args.path is not None:
             raise ValueError("audit export takes no path: it reads the records and the profile of the project.")

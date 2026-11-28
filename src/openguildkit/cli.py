@@ -1341,7 +1341,7 @@ def _run(args) -> int | None:
     if args.command in ("trace", "projects"):
         return trace_cli.run(args, root, state) if args.command == "trace" else projects_cli.run(args)
     if args.command == "audit":
-        return audit_cli.run(args, root, state)
+        return audit_cli.run(args, root)
     if args.command == "org-catalog":  # Before the catalog in force, which an unreadable organization copy stops.
         return org_catalog_cli.run(args, root, state)
     if args.command == "evidence":
