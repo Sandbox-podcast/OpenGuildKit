@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Compliance: `docs/compliance.md` maps 9 of the 11 controls to 24 cells of the EU AI Act, NIST AI RMF, DORA and NIS 2, each read on 2026-11-28 with its clause, the words it relies on, `Partial` and the gap; ISO/IEC 42001 and SOC 2 stay `to verify` (not read: sold, or behind an account), and a note per framework says how it was read (#482)
 - Code: `tasks.py` (1,822 lines) and `tasks_cli.py` (1,793) split into eleven modules of 150 to 440 lines along the task path, code moved unchanged; `tasks_cli.py` imports 51 names from 21 modules instead of 143 from 28 (#506)
 - `task` actions: each of the 25 handlers takes one `TaskCommand` (`tasks_command.py`) instead of six parameters, 52 of which were never read; ten of the new task modules have no mypy error and leave `mypy_excluded` (mypy errors 295 to 245) (#507)
 - Confirmations typed at a terminal: the eleven prompts of `task decide`, `revoke`, `clear`, `waive`, `authorize`, `complete --by`, `verify --cannot-run`, `alerts`, `org-catalog` and `profile` go through `terminal.typed`, and the four lock, re-read and write blocks of `task` through one function; a test fails on any other comparison with `input()`; messages unchanged (#461)

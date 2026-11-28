@@ -1,7 +1,8 @@
 """The controls of OpenGuildKit and the frameworks they may answer: a registry a test holds to what the code does (issue #482).
 
-No clause of a framework is written from memory: a mapping needs the clause, the address of the source read and the day
-it was read, and a cell without them stays empty and says "to verify". The page docs/compliance.md is generated.
+No clause of a framework is written from memory: a mapping needs the clause, the words it relies on, whether the control
+matches it or only part of it with the gap, the address of the source read and the day it was read, and a cell without them
+stays empty and says "to verify". The page docs/compliance.md is generated.
 """
 
 import copy
@@ -18,14 +19,19 @@ from openguildkit.cli import command_parser
 REPO = Path(__file__).resolve().parents[1]
 PAGE = REPO / "docs" / "compliance.md"
 SCRIPT = REPO / "scripts" / "build_compliance.py"
-READ = {"reference": "nist-ai-rmf", "clause": "A clause locator", "source": "https://example.org/framework",
-        "checked": "2026-11-01"}
+READ = {"reference": "nist-ai-rmf", "clause": "A clause locator", "fit": "partial", "quote": "the words of the clause",
+        "gap": "What the control leaves out", "source": "https://example.org/framework", "checked": "2026-11-01"}
 
 
 def refused(data: dict) -> str:
     with unittest.TestCase().assertRaises(ValueError) as error:
         controls.validate(data)
     return str(error.exception)
+
+
+def empty_cells(data: dict) -> int:
+    return sum(1 for item in data["controls"] for name in data["frameworks"]
+               if not any(entry["reference"] == name for entry in item["maps_to"]))
 
 
 def with_mapping(entry: dict) -> dict:
@@ -76,6 +82,22 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("clause", refused(with_mapping({**READ, "clause": "A sentence copied from a text. " * 6})))
         self.assertIn("unknown", refused(with_mapping({**READ, "text": "quoted"})))
 
+    def test_an_entry_says_whether_the_control_matches_the_clause_with_the_words_it_relies_on_and_the_gap(self):
+        """Issue #482: a cell named a clause without saying whether the control does all it asks."""
+        controls.validate(with_mapping({key: value for key, value in READ.items() if key != "gap"} | {"fit": "matches"}))
+        for key in ("fit", "quote"):
+            self.assertIn(key, refused(with_mapping({name: value for name, value in READ.items() if name != key})))
+        self.assertIn("fit", refused(with_mapping({**READ, "fit": "mostly"})))
+        self.assertIn("quote", refused(with_mapping({**READ, "quote": "word " * 60})))
+        self.assertIn("gap", refused(with_mapping({key: value for key, value in READ.items() if key != "gap"})))
+        self.assertIn("gap", refused(with_mapping({**READ, "fit": "matches"})))
+
+    def test_each_framework_has_a_note_that_says_how_it_was_read_or_why_it_was_not(self):
+        data = copy.deepcopy(controls.load())
+        self.assertEqual(list(data["framework_notes"]), data["frameworks"])
+        del data["framework_notes"][data["frameworks"][-1]]
+        self.assertIn("framework_notes", refused(data))
+
     def test_a_reference_the_catalog_knows_must_also_be_one_of_the_frameworks_of_the_page(self):
         data = with_mapping({**READ, "reference": "owasp-top-10"})
         self.assertIn("frameworks", refused(data))
@@ -86,6 +108,8 @@ class RegistryTests(unittest.TestCase):
             for entry in item["maps_to"]:
                 self.assertRegex(entry["checked"], r"^\d{4}-\d{2}-\d{2}$")
                 self.assertTrue(entry["source"].startswith("https://"))
+                self.assertTrue(entry["quote"].strip())
+                self.assertEqual(entry["fit"] == "partial", bool(entry.get("gap")))
 
     def test_each_command_a_control_cites_is_one_of_the_cli_with_options_it_has(self):
         for item in controls.load()["controls"]:
@@ -137,8 +161,10 @@ class PageTests(unittest.TestCase):
     def test_every_cell_without_a_source_read_says_to_verify_and_the_page_has_a_column_of_what_is_not_covered(self):
         tables = controls.render(controls.load())
         data = controls.load()
-        self.assertEqual(tables.count("to verify"), len(data["controls"]) * len(data["frameworks"]))
+        self.assertEqual(tables.count("to verify"), empty_cells(data))
         self.assertIn("Not covered by OpenGuildKit", tables)
+        for name, note in data["framework_notes"].items():
+            self.assertIn(note, tables, name)
         for item in data["controls"]:
             self.assertIn(item["not_covered"], tables)
 
@@ -148,12 +174,15 @@ class PageTests(unittest.TestCase):
         self.assertIn("A clause locator", tables)
         self.assertIn("https://example.org/framework", tables)
         self.assertIn("read 2026-11-01", tables)
-        self.assertEqual(tables.count("to verify"), len(data["controls"]) * len(data["frameworks"]) - 1)
+        self.assertIn("Partial: A clause locator", tables)
+        self.assertIn("Gap: What the control leaves out", tables)
+        self.assertIn("\u201cthe words of the clause\u201d", tables)
+        self.assertEqual(tables.count("to verify"), empty_cells(data))
 
     def test_the_page_says_it_states_no_conformity_and_copies_no_text_of_a_framework(self):
         text = PAGE.read_text(encoding="utf-8")
         self.assertIn("does not state that", text)
-        self.assertIn("No text of a framework is copied", text)
+        self.assertIn("No clause is written from memory", text)
 
     def test_the_script_refreshes_the_lines_and_writes_the_page(self):
         spec = importlib.util.spec_from_file_location("build_compliance", SCRIPT)
