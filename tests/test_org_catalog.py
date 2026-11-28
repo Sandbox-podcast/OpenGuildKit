@@ -10,7 +10,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import org_catalog
 from openguildkit.catalog import load_catalog
 from tests.support import copy_initialized_project, run_cli
 
