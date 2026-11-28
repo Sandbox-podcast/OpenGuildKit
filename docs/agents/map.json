@@ -231,6 +231,7 @@
         "main"
       ],
       "tests": [
+        "tests/e2e/test_admin_guide.py",
         "tests/e2e/test_board_passes.py",
         "tests/e2e/test_campaign_links.py",
         "tests/e2e/test_catalog_lock.py",
