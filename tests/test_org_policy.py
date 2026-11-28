@@ -103,6 +103,7 @@ class OrgPolicyTests(unittest.TestCase):
 
     def test_issue_452_policy_repo_names_the_command_that_reads_a_policy(self):
         """Issue #452: --policy-repo on a policy commit said only that the export rule could not be read."""
+        # OGK-CI-004
         commit = self.policy(minimum={"guard": "enforce"})
         result = self.cli("--policy-repo", self.org, "--policy-commit", commit, "check", code=1)
         self.assertIn("openguildkit org-catalog set --repo PATH --commit SHA", result.stderr)

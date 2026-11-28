@@ -37,6 +37,7 @@ class ExitCodeTests(test_results.ResultCase):
 
     def test_every_row_of_the_page_is_replayed_and_gives_the_code_it_names(self):
         """Issue #495: the exit codes table said 2 was a usage error, and three commands gave 2 for another reason."""
+        # OGK-CI-005
         cases = {
             "guard --hook|2|Refused": self.hook_refused,
             "guard --ci|1|Problem": self.guard_ci_problem,

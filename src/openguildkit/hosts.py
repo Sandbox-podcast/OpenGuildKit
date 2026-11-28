@@ -18,6 +18,7 @@ import tomllib
 from pathlib import Path
 
 from . import audit_log
+from .errors import OgkError
 from .project import restricted_paths
 from .records import Profile
 from .storage import load_json, write_text
@@ -133,9 +134,9 @@ def _read_settings(path: Path) -> dict:
     try:
         settings = load_json(path)
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+        raise OgkError("OGK-HOST-002", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(settings, dict):
-        raise ValueError(f"{path.as_posix()} must hold a JSON object.")
+        raise OgkError("OGK-HOST-003", f"{path.as_posix()} must hold a JSON object.")
     _check_hook_groups(settings.get("hooks"), path)
     return settings
 
@@ -153,7 +154,7 @@ def _check_hook_groups(hooks: object, path: Path) -> None:
     for event, groups in hooks.items() if isinstance(hooks, dict) else ():
         for index, group in enumerate(groups if isinstance(groups, list) else []):
             if isinstance(group, dict) and not isinstance(group.get("hooks", []), list):
-                raise ValueError(f"{path.as_posix()}: hooks.{event}[{index}].hooks must be a list of handlers. "
+                raise OgkError("OGK-HOST-004", f"{path.as_posix()}: hooks.{event}[{index}].hooks must be a list of handlers. "
                                  "Fix or remove it, then run openguildkit host apply.")
 
 
@@ -202,7 +203,7 @@ def _codex_disable_web_search(path: Path, current: str, config: dict) -> str:
         updated = text[:position] + CODEX_WEB_SEARCH_LINE + newline + text[position:]
         if _parses_as(updated, expected):
             return updated
-    raise ValueError(f'Could not add web_search = "disabled" to {path.as_posix()} safely. Add it at the top of the file yourself.')
+    raise OgkError("OGK-HOST-005", f'Could not add web_search = "disabled" to {path.as_posix()} safely. Add it at the top of the file yourself.')
 
 
 def _codex_lift_web_search(path: Path, current: str, config: dict) -> str | None:
@@ -349,7 +350,7 @@ def _gemini_hooks_present(hooks: object) -> bool:
 def _gemini_hooks_config(settings: dict, path: Path) -> dict:
     config = settings.get("hooksConfig", {})
     if not isinstance(config, dict):
-        raise ValueError(f"{path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply.")
+        raise OgkError("OGK-HOST-006", f"{path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply.")
     return config
 
 
@@ -651,7 +652,7 @@ def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> l
     current = path.read_bytes().decode("utf-8-sig") if path.is_file() else ""
     if local_only:
         if "web_search" in config and config["web_search"] != "disabled":
-            raise ValueError(f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
+            raise OgkError("OGK-HOST-007", f'{path.as_posix()} sets web_search = "{config["web_search"]}". Set it to "disabled" yourself.')
         sandbox = config.get("sandbox_workspace_write", {})
         if isinstance(sandbox, dict) and sandbox.get("network_access") is True:
             raise ValueError(f"{path.as_posix()} allows sandbox network access. Turn it off yourself.")
@@ -661,7 +662,7 @@ def _apply_codex(root: Path, profile: Profile, local_only: bool, host: str) -> l
     elif config.get("web_search") == "disabled":
         updated = _codex_lift_web_search(path, current, config)
         if updated is None:
-            raise ValueError(
+            raise OgkError("OGK-HOST-008", 
                 f'{path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. '
                 "Remove it yourself, or set research to local-only."
             )

@@ -25,6 +25,7 @@ from .decisions import (
     verify_recorded_signature,
     verify_signature,
 )
+from .errors import OgkError
 from .guard import read_task_lazily
 from .guard_export import RECORD_VERSION, conflict_message, record_shape, withdrawal_of
 from .records import Profile
@@ -235,7 +236,7 @@ def exported_decisions(root: Path, state: Path, profile: Profile, fingerprint: "
         row = {"task": path.stem, "path": relative, "status": "unreadable", "problem": None}
         try:
             if record is None:
-                raise ValueError(conflict_message(path, relative) or (
+                raise OgkError("OGK-GUARD-013", conflict_message(path, relative) or (
                     f"{relative} is not a decision record written by openguildkit task export. "
                     "Export the decision again or remove the file."))
             record_shape(record, relative)

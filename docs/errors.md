@@ -12,6 +12,11 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-CATALOG-003` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: write it in value, a number with its unit such as "90 % of cases" ({records['description']}). | tests/test_recorded_values.py |
 | `OGK-CATALOG-004` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: {problem} ({records['description']}). | tests/test_recorded_values.py |
 | `OGK-CHECK-001` | `check_cli.py:check` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit check --format sarif for code scanning, or openguildkit check --json for a program. | tests/test_json_output.py |
+| `OGK-CI-001` | `ci.py:_committed_bytes` | Git could not read {args[-1]} in {repo}. Fetch the required commit first. | tests/e2e/test_export_ci.py |
+| `OGK-CI-002` | `ci.py:_committed_file` | Use a full lowercase Git commit SHA. | tests/e2e/test_export_ci.py |
+| `OGK-CI-003` | `ci.py:_committed_file` | The supplied SHA must identify a commit directly. | tests/e2e/test_export_ci.py |
+| `OGK-CI-004` | `ci.py:read_policy_pack` | --policy-repo reads only the central export rule ({POLICY_PATH}), and commit {commit[:12]} holds an organization policy ({ORG_POLICY}). Pin it at a terminal: openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY; in CI: openguildkit guard --ci --org-policy PATH --org-commit SHA. | tests/test_org_policy.py |
+| `OGK-CI-005` | `ci.py:check_export` | Select the {EXPORT_EXPIRY_ID} pack in the trusted project profile. | tests/test_exit_codes.py |
 | `OGK-CORE-001` | `clock.py:_source_date_epoch` | SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it. | tests/test_clock.py |
 | `OGK-CORE-002` | `detect.py:_json_manifest` | {path.as_posix()}: JSON nested too deeply | tests/test_clean_errors.py |
 | `OGK-CORE-003` | `git.py:required` | {needs} needs Git: it is not installed or not on the PATH. | tests/test_guard.py |
@@ -25,6 +30,32 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-CORE-011` | `storage.py:write_text` | Refusing to replace a symbolic link: {path} | tests/test_storage.py |
 | `OGK-CORE-012` | `storage.py:_held_lock` | Another OpenGuildKit command is writing this project. Try again. | tests/e2e/test_concurrency.py |
 | `OGK-CORE-013` | `terminal.py:typed` | {cancelled} | tests/e2e/test_more_commands.py, tests/test_terminal.py |
+| `OGK-GUARD-001` | `allowlist.py:load_allow` | The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}. | tests/test_allow_list_scan.py |
+| `OGK-GUARD-002` | `allowlist.py:load_allow` | The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, each a list of non-empty text, alone or under the key allow; a server may be an object with server and name, a name of letters, digits, - and _. | tests/test_managed_settings.py |
+| `OGK-GUARD-003` | `guard.py:edited_paths` | the hook input names no tool input | tests/test_robustness.py |
+| `OGK-GUARD-004` | `guard.py:edited_paths` | tool_input.{key} is not a file path | tests/test_guard.py |
+| `OGK-GUARD-005` | `guard.py:edited_paths` | the hook input names no file to edit | tests/test_guard.py |
+| `OGK-GUARD-006` | `guard.py:_decide_hook` | the hook input is not JSON | tests/test_guard.py |
+| `OGK-GUARD-007` | `guard_ci.py:ci_guard` | guard --ci needs a Git repository: the project folder is not inside one. | tests/test_guard.py |
+| `OGK-GUARD-008` | `guard_ci.py:ci_guard` | base revision {base} not found: pass --base REF | tests/test_error_forms.py |
+| `OGK-GUARD-009` | `guard_export.py:_refuse_foreign_record` | {conflict} | tests/test_record_integrity.py |
+| `OGK-GUARD-010` | `guard_export.py:_refuse_foreign_record` | {shown} holds a decision record of another task, such as a teammate's task with the same ID: it is left as it is. Read it with openguildkit task list --decisions; export this task with --output to another file, or open it again under another ID. | tests/test_team_sharing.py |
+| `OGK-GUARD-011` | `guard_export.py:record_shape` | {relative} is not a decision record written by openguildkit task export: {problem}. Export the decision again or remove the file. | tests/test_guard.py |
+| `OGK-GUARD-012` | `guard_export.py:export_withdrawal` | The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported record to write the withdrawal into, and nothing for guard --ci to accept. | tests/test_record_lifecycle.py |
+| `OGK-GUARD-013` | `guard_records.py:exported_decisions` | {conflict_message(path, relative) or f'{relative} is not a decision record written by openguildkit task export. Export the decision again or remove the file.'} | tests/test_team_sharing.py |
+| `OGK-GUARD-014` | `sensitive.py:refuse_link_credentials` | {field}: the link must carry no user name, password or token: the address is recorded as written, and {WHERE}. | tests/e2e/test_more_commands.py |
+| `OGK-GUARD-015` | `sensitive.py:public_evidence_url` | {field}: a public source must use a link without credentials. | tests/test_board_entries.py |
+| `OGK-GUARD-016` | `sensitive.py:public_evidence_url` | {field}: a public source needs a public host. Cite internal evidence as a project file or tool. | tests/test_clean_errors.py |
+| `OGK-HOST-001` | `host_coverage.py:run` | --matrix is an option of openguildkit host check. | tests/test_doc_pages.py |
+| `OGK-HOST-002` | `hosts.py:_read_settings` | {path.as_posix()} is not valid JSON: {error} | tests/test_gemini_host.py |
+| `OGK-HOST-003` | `hosts.py:_read_settings` | {path.as_posix()} must hold a JSON object. | tests/test_gemini_host.py |
+| `OGK-HOST-004` | `hosts.py:_check_hook_groups` | {path.as_posix()}: hooks.{event}[{index}].hooks must be a list of handlers. Fix or remove it, then run openguildkit host apply. | tests/test_gemini_host.py |
+| `OGK-HOST-005` | `hosts.py:_codex_disable_web_search` | Could not add web_search = "disabled" to {path.as_posix()} safely. Add it at the top of the file yourself. | tests/test_host_research.py |
+| `OGK-HOST-006` | `hosts.py:_gemini_hooks_config` | {path.as_posix()}: hooksConfig must be a JSON object. Fix or remove it, then run openguildkit host apply. | tests/test_gemini_host.py |
+| `OGK-HOST-007` | `hosts.py:_apply_codex` | {path.as_posix()} sets web_search = "{config['web_search']}". Set it to "disabled" yourself. | tests/test_hosts.py |
+| `OGK-HOST-008` | `hosts.py:_apply_codex` | {path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. Remove it yourself, or set research to local-only. | tests/test_host_research.py |
+| `OGK-HOST-009` | `workstation.py:policy` | {path.as_posix()} cannot be read as the workstation policy: {error} | tests/test_managed_settings.py |
+| `OGK-HOST-010` | `workstation.py:policy` | {path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only. | tests/test_managed_settings.py |
 | `OGK-ORG-001` | `org_catalog.py:parse_copies` | --org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}. | tests/test_org_catalog.py |
 | `OGK-ORG-002` | `org_catalog.py:_named_folder` | This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to your Git copy of it (guard --ci: --org-catalog {name}=PATH). | tests/test_org_catalog.py |
 | `OGK-ORG-003` | `org_catalog.py:read_files` | Give the full commit SHA of the organization catalog, not {commit!r}: git -C {shell_word(repo)} rev-parse COMMIT prints it. | tests/test_org_catalog.py |

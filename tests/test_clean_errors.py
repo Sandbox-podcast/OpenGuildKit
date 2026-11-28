@@ -263,6 +263,7 @@ class CleanErrorTests(unittest.TestCase):
             self.assertNotIn(value, warning)
 
     def test_public_evidence_rejects_private_hosts_and_credentials(self):
+        # OGK-GUARD-016
         review = self.consulted()
         path = self.root / "review.json"
         evidence = review["boards"][0]["evidence"][0]

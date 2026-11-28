@@ -108,6 +108,7 @@ class ErrorFormTests(CapturedCli, unittest.TestCase):
         """Issue #528: guard --ci without origin/main printed Git's error and usage, without --base."""
         subprocess.run(["git", "-C", str(self.root), "init", "-q", "-b", "main"], check=True)
         _, error = self.run_cli("guard", "--ci", "--base", "origin/main", code=1)
+        # OGK-GUARD-008
         self.assertIn("base revision origin/main not found: pass --base REF", error)
 
 

@@ -106,6 +106,7 @@ class HostControlTests(CapturedCli, unittest.TestCase):
         self.assertTrue(all(item["status"] in ("enforced", "partial", "human") for item in json.loads(report)))
 
     def test_codex_settings_that_open_the_network_are_left_to_the_person(self):
+        # OGK-HOST-007
         config = self.root / ".codex" / "config.toml"
         config.parent.mkdir()
         config.write_text('web_search = "live"\n', encoding="utf-8")

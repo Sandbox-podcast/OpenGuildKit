@@ -22,6 +22,7 @@ from .decisions import (
     exported_boards,
     exported_rounds,
 )
+from .errors import OgkError
 from .project import STATE_DIR
 from .records import Profile, Task
 from .storage import print_json, read_json, write_json
@@ -207,8 +208,8 @@ def _refuse_foreign_record(root: Path, path: Path, task: Task) -> None:
         shown = path.resolve().relative_to(root.resolve()).as_posix() if root.resolve() in path.resolve().parents else str(path)
         conflict = conflict_message(path, shown) if existing is None else None
         if conflict:
-            raise ValueError(conflict)
-        raise ValueError(f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
+            raise OgkError("OGK-GUARD-009", conflict)
+        raise OgkError("OGK-GUARD-010", f"{shown} holds a decision record of another task, such as a teammate's task with the same ID: "
                          f"it is left as it is. Read it with openguildkit task list --decisions; export this task "
                          "with --output to another file, or open it again under another ID.")
 
@@ -243,7 +244,7 @@ def record_shape(record: dict, relative: str) -> None:
             isinstance(record["withdrawn"].get(key), str) for key in ("by", "reason", "at"))):
         problem = "withdrawn must name who withdrew the approval, why and when (by, reason, at)"
     if problem:
-        raise ValueError(f"{relative} is not a decision record written by openguildkit task export: {problem}. "
+        raise OgkError("OGK-GUARD-011", f"{relative} is not a decision record written by openguildkit task export: {problem}. "
                          "Export the decision again or remove the file.")
 
 
@@ -300,7 +301,7 @@ def export_withdrawal(root: Path, state: Path, task: Task, output: Path | None =
     if not any(isinstance(item.get("revoked"), dict) for item in task.get("rounds", [])):
         raise TaskStateError("Only an approved or completed task can be exported, or one whose approval was withdrawn.")
     if not path.is_file():
-        raise ValueError(f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
+        raise OgkError("OGK-GUARD-012", f"The approval of {task['id']} was withdrawn and {shown} does not exist: there is no exported "
                          "record to write the withdrawal into, and nothing for guard --ci to accept.")
     _refuse_foreign_record(root, path, task)
     record = read_json(path)

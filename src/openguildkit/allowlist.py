@@ -16,6 +16,7 @@ Tests: tests/test_host_surfaces.py.
 import re
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import load_json
 
 AXES = ("mcp_servers", "models", "endpoints")
@@ -38,12 +39,12 @@ def load_allow(path: Path) -> dict:
     try:
         data = load_json(path)
     except (OSError, ValueError) as error:
-        raise ValueError(f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
+        raise OgkError("OGK-GUARD-001", f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
     block = data.get("allow", data) if isinstance(data, dict) else None
     if (not isinstance(block, dict) or set(block) - set(AXES)
             or any(not isinstance(items, list) or not all((_server if axis == "mcp_servers" else _is_text)(item)
                                                           for item in items) for axis, items in block.items())):
-        raise ValueError(f"The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, "
+        raise OgkError("OGK-GUARD-002", f"The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, "
                          "each a list of non-empty text, alone or under the key allow; a server may be an object with "
                          "server and name, a name of letters, digits, - and _.")
     names = [item["name"] for item in block.get("mcp_servers", []) if isinstance(item, dict)]

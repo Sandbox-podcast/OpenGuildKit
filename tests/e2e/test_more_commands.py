@@ -210,6 +210,7 @@ class StorybookComposeCommandTests(CliTestCase):
         self.run_cli("storybook", "compose", "brand", "--remove", expect=1)
 
     def test_compose_refuses_a_url_with_a_password_or_a_token(self):
+        # OGK-GUARD-014
         self.init_example()
         (self.project / ".storybook").mkdir()
         (self.project / ".storybook" / "main.ts").write_text("export default {};\n", encoding="utf-8")

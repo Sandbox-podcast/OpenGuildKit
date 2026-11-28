@@ -286,6 +286,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertIn("app.py", error)
 
     def test_enforce_refuses_an_edit_the_guard_cannot_check(self):
+        # OGK-GUARD-004, OGK-GUARD-005
         self.init(guard="enforce")
         tasks = self.root / ".openguildkit" / "tasks"
         tasks.mkdir(exist_ok=True)
@@ -309,6 +310,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         self.assertIn("cannot know its mode", json.loads(output)["hookSpecificOutput"]["additionalContext"])
 
     def test_observe_reports_an_edit_the_guard_cannot_check_and_lets_it_through(self):
+        # OGK-GUARD-006
         self.init(guard="observe")
         output, _ = self.run_cli("guard", "--hook", "pre-edit", stdin="not json")
         self.assertIn("could not check this edit", json.loads(output)["hookSpecificOutput"]["additionalContext"])
@@ -346,6 +348,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_reports_a_malformed_record_without_a_traceback(self):
+        # OGK-GUARD-011
         self.branch_with_change(guard="enforce")
         self.commit_record("fake.json", {"task": "nothing", "profile_fingerprint": "f", "decision": "oops"})
         output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
@@ -359,7 +362,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
             output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
         self.assertEqual(output, "")
         self.assertEqual(len(error.splitlines()), 1, error)
-        self.assertTrue(error.startswith("OpenGuildKit: guard --ci needs a Git repository"), error)
+        self.assertTrue(error.startswith("OpenGuildKit [OGK-GUARD-007]: guard --ci needs a Git repository"), error)
 
     def test_ci_without_git_says_git_is_missing_in_one_sentence(self):
         """Issue #459: guard --ci without Git printed the system's raw error, [Errno 2] No such file or directory."""

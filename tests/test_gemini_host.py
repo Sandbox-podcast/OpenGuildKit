@@ -274,6 +274,7 @@ class GeminiApplyTests(GeminiCase):
         self.assertEqual(self.board()["status"], "enforced")
 
     def test_host_apply_refuses_a_file_it_cannot_read_and_keeps_it(self):
+        # OGK-HOST-003, OGK-HOST-004, OGK-HOST-006
         self.init("enforce")
         for text, message in (("{not json", "is not valid JSON"), ("[]", "must hold a JSON object"),
                               ('{"hooks": {"BeforeTool": [{"hooks": "x"}]}}', "must be a list of handlers"),
@@ -576,6 +577,7 @@ class GeminiCoverageTests(GeminiCase):
         self.assertIn("context.fileName", text)
 
     def test_a_settings_file_that_cannot_be_read_is_reported_as_unreadable(self):
+        # OGK-HOST-002
         self.init("enforce")
         (self.root / ".gemini").mkdir()
         (self.root / ".gemini" / "settings.json").write_text("{nope", encoding="utf-8")

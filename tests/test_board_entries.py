@@ -79,6 +79,7 @@ class EntryValidationTests(unittest.TestCase):
         self.assertIn("security.challenge.blockers[0]: missing clears_when, owner.", message)
 
     def test_a_bad_evidence_ref_is_reported_once_counted_from_one(self):
+        # OGK-GUARD-015
         entry = copy.deepcopy(example_entries()["security"])
         entry["evidence"][0] = {"source": "public", "ref": "https://example.com/x?token=ghp_" + "a" * 36,
                                 "supports": "A page.", "date": "2026-11-20"}

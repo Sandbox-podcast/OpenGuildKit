@@ -310,6 +310,7 @@ class StateFileTests(FuzzTestCase):
 
 class HookInputTests(FuzzTestCase):
     def test_hook_input_never_crashes_and_enforce_still_refuses_an_uncovered_edit(self):
+        # OGK-GUARD-003
         self.init(guard="enforce")
         hook = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
                 "tool_input": {"file_path": str(self.root / "src" / "app.py")}, "cwd": str(self.root)}
