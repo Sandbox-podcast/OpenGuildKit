@@ -78,79 +78,99 @@ def deliverable(args, root: Path, state: Path, profile: dict, catalog: dict) -> 
     return 0
 
 
+def _docs_export(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
+    """docs export: write the documentation pages of the tasks, and say what was written, removed or kept."""
+    tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
+    sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
+    output = project_path(root, state, args.output, "--output")
+    openapi = project_path(root, state, args.openapi, "--openapi") if args.openapi else None
+    result = export_docs(state, tasks, output, args.doc_version, sections, openapi, profile["name"],
+                         project_overview(profile, catalog))
+    for path in result["written"]:
+        print(f"wrote {path}")
+    for path in result["removed"]:
+        print(f"removed {path}")
+    for path in result["kept"]:
+        print(f"kept {path}: not a page this export wrote inside {args.output.as_posix()}, left in place")
+    for warning in result["warnings"]:
+        print(f"OpenGuildKit: {warning}", file=sys.stderr)
+    return 0
+
+
+def _share_add(args, state: Path) -> int:
+    """docs share add: record a share, and warn about the readers it really reaches."""
+    if not (args.deliverable and args.until and args.portal and args.by):
+        raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
+    share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
+    _print_share_added(share)
+    for given in dict.fromkeys(args.recipient):
+        if given not in share["recipients"]:
+            kept = shared_addresses(share, {"recipients": [given]})[0]
+            print(f"OpenGuildKit: {given} and {kept} differ only in case, so they are one reader: the share records "
+                  f"{kept}.", file=sys.stderr)
+    for other in space_neighbours(state, share):
+        print(f"OpenGuildKit: space {share['space']} also carries {other['deliverable']} (share {other['id']}): the "
+              f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
+              "publish it in a space of its own and record it with --dedicated-space.", file=sys.stderr)
+    for other in same_access(state, share, running=True):
+        for recipient in shared_addresses(share, other):
+            print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
+                  f"(until {other['until']}). Documentalist keeps one access per address and space: give it the later "
+                  f"last day, {max(share['until'], other['until'])}, in the portal; removing it there ends both shares, "
+                  "so revoke them together.", file=sys.stderr)
+    return 0
+
+
+def _share_revoke(args, state: Path) -> int:
+    """docs share revoke: record the end of a share, and name the other shares the same access ended."""
+    if not args.share_id or not args.by:
+        raise ValueError("docs share revoke needs --id and --by.")
+    share = revoke_share(state, args.share_id, args.by)
+    print("revoked")
+    space = share["space"] or f"of the portal {share['portal']}"
+    print(f"\"Retirer l'accès\" in Documentalist removes an address from the whole space {space}, not only from "
+          f"{share['deliverable']}.")
+    others = same_access(state, share)
+    if others:
+        shared = sorted({recipient for other in others for recipient in shared_addresses(share, other)})
+        print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
+              "too. Record each one:")
+        for other in others:
+            print(f"  openguildkit docs share revoke --id {other['id']} --by INITIALS   "
+                  f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
+    return 0
+
+
+def _share_verify(args, state: Path) -> int:
+    """docs share verify: compare the register with the accesses the portal reports."""
+    if not args.portal or not args.user:
+        raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
+    from .portal_verification import verify_portal
+    report = verify_portal(state, args.portal, args.user)
+    if args.json:
+        print_json(report)
+    else:
+        print(f"{report['space']}: {report['source']} at {report['checked_at']}")
+        print(report["scope"])
+        if report["problem"]:
+            print(report["problem"])
+        for item in report["rows"]:
+            print(f"  {item['recipient']}: register until {item['register_until'] or 'no running share'}; "
+                  f"portal {_portal_state(item)}; {item['status']}")
+            if item.get("action"):
+                print(f"    {item['action']}")
+    return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
+
+
 def docs(args, root: Path, state: Path, profile: dict, catalog: dict) -> int:
     if args.docs_action == "export":
-        tasks = [item.strip() for item in args.tasks.split(",") if item.strip()]
-        sections = tuple(item.strip() for item in args.sections.split(",") if item.strip())
-        output = project_path(root, state, args.output, "--output")
-        openapi = project_path(root, state, args.openapi, "--openapi") if args.openapi else None
-        result = export_docs(state, tasks, output, args.doc_version, sections, openapi, profile["name"],
-                             project_overview(profile, catalog))
-        for path in result["written"]:
-            print(f"wrote {path}")
-        for path in result["removed"]:
-            print(f"removed {path}")
-        for path in result["kept"]:
-            print(f"kept {path}: not a page this export wrote inside {args.output.as_posix()}, left in place")
-        for warning in result["warnings"]:
-            print(f"OpenGuildKit: {warning}", file=sys.stderr)
-        return 0
+        return _docs_export(args, root, state, profile, catalog)
     if args.share_action == "add":
-        if not (args.deliverable and args.until and args.portal and args.by):
-            raise ValueError("docs share add needs --deliverable, --recipient, --until, --portal and --by.")
-        share = add_share(state, args.deliverable, args.recipient, args.until, args.portal, args.by, args.dedicated_space)
-        _print_share_added(share)
-        for given in dict.fromkeys(args.recipient):
-            if given not in share["recipients"]:
-                kept = shared_addresses(share, {"recipients": [given]})[0]
-                print(f"OpenGuildKit: {given} and {kept} differ only in case, so they are one reader: the share records "
-                      f"{kept}.", file=sys.stderr)
-        for other in space_neighbours(state, share):
-            print(f"OpenGuildKit: space {share['space']} also carries {other['deliverable']} (share {other['id']}): the "
-                  f"recipients of each share can read both deliverables. To share {share['deliverable']} on its own, "
-                  "publish it in a space of its own and record it with --dedicated-space.", file=sys.stderr)
-        for other in same_access(state, share, running=True):
-            for recipient in shared_addresses(share, other):
-                print(f"OpenGuildKit: {recipient} already has access to space {share['space']} through share {other['id']} "
-                      f"(until {other['until']}). Documentalist keeps one access per address and space: give it the later "
-                      f"last day, {max(share['until'], other['until'])}, in the portal; removing it there ends both shares, "
-                      "so revoke them together.", file=sys.stderr)
-        return 0
+        return _share_add(args, state)
     if args.share_action == "revoke":
-        if not args.share_id or not args.by:
-            raise ValueError("docs share revoke needs --id and --by.")
-        share = revoke_share(state, args.share_id, args.by)
-        print("revoked")
-        space = share["space"] or f"of the portal {share['portal']}"
-        print(f"\"Retirer l'accès\" in Documentalist removes an address from the whole space {space}, not only from "
-              f"{share['deliverable']}.")
-        others = same_access(state, share)
-        if others:
-            shared = sorted({recipient for other in others for recipient in shared_addresses(share, other)})
-            print(f"Other shares give {', '.join(shared)} the same space: if you removed that access there, they lost it "
-                  "too. Record each one:")
-            for other in others:
-                print(f"  openguildkit docs share revoke --id {other['id']} --by INITIALS   "
-                      f"# {', '.join(other['recipients'])}, {other['deliverable']}, until {other['until']}")
-        return 0
+        return _share_revoke(args, state)
     if args.share_action == "verify":
-        if not args.portal or not args.user:
-            raise ValueError("docs share verify needs --portal and --user; the password is requested at the terminal.")
-        from .portal_verification import verify_portal
-        report = verify_portal(state, args.portal, args.user)
-        if args.json:
-            print_json(report)
-        else:
-            print(f"{report['space']}: {report['source']} at {report['checked_at']}")
-            print(report["scope"])
-            if report["problem"]:
-                print(report["problem"])
-            for item in report["rows"]:
-                print(f"  {item['recipient']}: register until {item['register_until'] or 'no running share'}; "
-                      f"portal {_portal_state(item)}; {item['status']}")
-                if item.get("action"):
-                    print(f"    {item['action']}")
-        return 0 if report["source"] == "documentalist-api" and all(row["status"] == "matches" for row in report["rows"]) else 1
+        return _share_verify(args, state)
     rows = share_status(state)
     if args.json:
         print_json(rows)
