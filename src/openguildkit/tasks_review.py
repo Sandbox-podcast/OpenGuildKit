@@ -8,7 +8,8 @@ from typing import cast
 from . import requester, short_lane
 from .alerts import resolution_line, resolved_by_import
 from .board_entries import review_warnings, validate_board_entry, validate_review
-from .consultation import code_lookup, consult
+from .code_lookup import code_lookup
+from .consultation import consult
 from .project_rules import fingerprint_holds, profile_fingerprint, task_scope_profile
 from .questionnaire import validate_answers
 from .sensitive import redact_data

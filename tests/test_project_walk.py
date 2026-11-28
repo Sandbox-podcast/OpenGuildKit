@@ -155,10 +155,10 @@ class LargeRepositoryLookupTests(unittest.TestCase):
                                                                    encoding="utf-8")
 
     def lookup(self, brief=BRIEF):
-        from openguildkit import consultation
+        from openguildkit import code_lookup
 
-        with patch.object(consultation, "MAX_SCANNED_FILES", 4):
-            return consultation.code_lookup(brief, self.root)
+        with patch.object(code_lookup, "MAX_SCANNED_FILES", 4):
+            return code_lookup.code_lookup(brief, self.root)
 
     def git(self, *arguments):
         import shutil
