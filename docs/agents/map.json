@@ -89,6 +89,7 @@
     {"module": "src/openguildkit/workstation.py", "role": "Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log.", "entry": ["policy", "audit_setting"], "tests": ["tests/test_audit_log.py", "tests/test_managed_settings.py"], "doc": "docs/audit-log.md"}
   ],
   "paths": [
+    {"path": ".git-blame-ignore-revs", "tests": ["tests/test_release.py"]},
     {"path": ".gitattributes", "tests": ["tests/test_install_script.py"]},
     {"path": ".github/", "tests": ["tests/test_release.py", "tests/test_workflows.py", "tests/test_ci_jobs.py"]},
     {"path": ".github/workflows/check-links.yml", "tests": ["tests/test_edition_watch.py", "tests/test_workflows.py"]},
