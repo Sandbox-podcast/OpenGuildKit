@@ -3,6 +3,9 @@
 Turning an option on or off changes the profile's tools by the profile commands' path (profile_changes), so the change
 is recorded with who, when and why, and the instructions follow. Connecting the tool's MCP server stays with
 tools plan and tools apply.
+
+Entry: add_parser, run
+Tests: tests/test_cli_coverage.py, tests/test_features.py
 """
 
 import json
@@ -13,7 +16,9 @@ from .cli_surface import add_by
 from .command import Command
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
-from .tools import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status, load_tools, resolve_tool
+from .tool_connections import CLAUDE_MCP_FILE, CODEX_CONFIG_FILE, connection_status
+from .tool_registry import load_tools
+from .tools import resolve_tool
 from .wording import plural
 
 

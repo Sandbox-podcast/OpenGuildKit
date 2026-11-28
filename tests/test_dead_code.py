@@ -14,7 +14,7 @@ PACKAGE = REPO / "src" / "openguildkit"
 READERS = ("src", "scripts", "examples", "integrations")
 # The names only the tests read, kept on purpose, and why.
 TESTED_ONLY = {
-    "LEGAL_BASIS": "relevance.py: the legal reason of each regulatory pack, a table for maintainers (docs/workflow.md); "
+    "LEGAL_BASIS": "legal_basis.py: the legal reason of each regulatory pack, a table for maintainers (docs/workflow.md); "
                    "its test checks that every regulatory pack has one.",
 }
 

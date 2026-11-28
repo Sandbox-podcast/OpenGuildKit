@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 from openguildkit.cli import main
 from openguildkit.integrations import HOST_FILES, packaged_file
-
 from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from openguildkit.lock import package_version
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 

@@ -8,13 +8,13 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
+from openguildkit.consultation import consult
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import resolved_profile
 from openguildkit.tasks_blockers import resolve_blocker, verification_blocker_problems
 from openguildkit.tasks_closing import record_decision
 from openguildkit.tasks_record import task_record_problem
 from openguildkit.tasks_review import archived_round, cited_evidence, record_consultation, record_review
-from openguildkit.consultation import consult
 from openguildkit.workflow import blocker_list, blocker_resolutions, exported_blockers
 from tests.test_approval_lifecycle import ApprovalCase
 

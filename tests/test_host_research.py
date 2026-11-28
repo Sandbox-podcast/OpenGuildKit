@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from openguildkit import consultation, hosts
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

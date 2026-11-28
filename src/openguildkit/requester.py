@@ -6,6 +6,9 @@ and guard --ci refuses a record whose approver is its requester when the base re
 compared without case or spaces. A signed approval compares the requester to the signer's principal too; in a project
 with signed approvals, task new takes as requester only a principal of the allowed signers file, so that comparison is
 exact (#475).
+
+Entry: active, same_person, declared, approval_problem, brief_line, record_problem
+Tests: tests/test_requester.py
 """
 
 import fnmatch

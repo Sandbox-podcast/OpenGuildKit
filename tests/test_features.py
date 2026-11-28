@@ -11,7 +11,7 @@ from openguildkit.catalog import CatalogError
 from openguildkit.cli import command_parser
 from openguildkit.features import _feature, load_features
 from openguildkit.storage import write_json
-from openguildkit.tools import load_tools
+from openguildkit.tool_registry import load_tools
 from tests.support import run_cli
 
 DAY = {"SOURCE_DATE_EPOCH": "1795219200"}  # 2026-11-21

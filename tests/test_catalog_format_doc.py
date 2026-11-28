@@ -7,7 +7,7 @@ from pathlib import Path
 from openguildkit.brains import brain_skeleton
 from openguildkit.catalog import COLLECTION_FIELDS
 from openguildkit.rule_checks import CHECK_KINDS
-from openguildkit.tools import CATEGORIES
+from openguildkit.tool_registry import CATEGORIES
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "src" / "openguildkit"

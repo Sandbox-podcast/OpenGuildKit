@@ -1,13 +1,19 @@
 """Blockers of an approved task: clearing one with evidence, waiving one within the project's policy, and the
-waivers that expired."""
+waivers that expired.
+
+Entry: resolve_blocker, unresolved_blockers, verification_blocker_problems, expired_waivers
+Tests: tests/test_blocker_clearances.py, tests/test_blockers.py, tests/test_clock.py,
+tests/test_evidence_fingerprints.py
+"""
 
 import re
 from datetime import date, datetime
 from pathlib import Path
 
 from . import clock, roles
+from .approval_check import DONE_STATUSES
 from .decisions import approval_policy, seal, verify_signature
-from .results import DONE_STATUSES, evidence_fingerprint
+from .results import evidence_fingerprint
 from .tasks_approval import revoke_command
 from .workflow import TaskStateError, blocker_list, resolution_field
 

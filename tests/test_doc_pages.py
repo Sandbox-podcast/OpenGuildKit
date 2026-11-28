@@ -158,7 +158,7 @@ class SupportTests(unittest.TestCase):
         rows = {row[0]: row[2] for row in table(read(DOCS / "support.md"), "What the code reads today")[2:]}
         self.assertEqual(rows["Profile (`.openguildkit/project.json`)"], str(SCHEMA_VERSION))
         self.assertEqual(SCHEMA_VERSION, 1)
-        for module, label in (("lock", "Catalog lock (`.openguildkit/catalog.lock.json`)"), ("tasks", "Task record")):
+        for module, label in (("lock", "Catalog lock (`.openguildkit/catalog.lock.json`)"), ("task_files", "Task record")):
             source = read(REPO / "src" / "openguildkit" / f"{module}.py")
             self.assertRegex(source, r'\.get\("schema_version"\) != 1\b')
             self.assertEqual(rows[label], "1")

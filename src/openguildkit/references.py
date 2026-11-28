@@ -1,4 +1,8 @@
-"""Discover bibliographic references separately from active rule packs."""
+"""Discover bibliographic references separately from active rule packs.
+
+Entry: load_references, check_reference_links, with_pattern_references, english_title, find_references
+Tests: tests/test_references.py
+"""
 
 import re
 import unicodedata
@@ -93,6 +97,24 @@ def _validate_family(family, filename: str, bundled: bool = False) -> None:
         validate_sources(record["sources"], require_checked=bundled)
 
 
+def _merge_family(incoming: dict, families: dict, seen: set, project: set | None) -> None:
+    """Add the references of one family file to its family, refusing an ID or alias already seen; with project, a
+    set that receives the IDs of a project file."""
+    family = families.setdefault(
+        incoming["id"], {"id": incoming["id"], "title": incoming["title"], "references": []}
+    )
+    if incoming["title"] != family["title"]:
+        raise CatalogError(f"Expected family title {family['title']!r}")
+    for reference in incoming["references"]:
+        for name in (reference["id"], *reference.get("aliases", ())):
+            if name in seen:
+                raise CatalogError(f"Duplicate reference ID: {name}")
+            seen.add(name)
+        family["references"].append(reference)
+        if project is not None:
+            project.add(reference["id"])
+
+
 def load_references(extra_dir: Path | None = None, catalog: dict | None = None) -> dict[str, dict]:
     """Load the reference index and merge new project entries by stable ID. With the catalog the project uses, also
     check the project's entries with check_reference_links; the tests check the bundled ones."""
@@ -101,27 +123,15 @@ def load_references(extra_dir: Path | None = None, catalog: dict | None = None) 
     if extra_dir is not None and extra_dir.exists():
         directories.append(extra_dir)
     families = {}
-    seen = set()
-    project = set()
+    seen: set[str] = set()
+    project: set[str] = set()
     for directory in directories:
         if not directory.is_dir():
             raise CatalogError(f"{directory} must be a directory")
         for path, incoming in record_files(directory):
             try:
                 _validate_family(incoming, path.name, directory == bundled)
-                family = families.setdefault(
-                    incoming["id"], {"id": incoming["id"], "title": incoming["title"], "references": []}
-                )
-                if incoming["title"] != family["title"]:
-                    raise CatalogError(f"Expected family title {family['title']!r}")
-                for reference in incoming["references"]:
-                    for name in (reference["id"], *reference.get("aliases", ())):
-                        if name in seen:
-                            raise CatalogError(f"Duplicate reference ID: {name}")
-                        seen.add(name)
-                    family["references"].append(reference)
-                    if directory != bundled:
-                        project.add(reference["id"])
+                _merge_family(incoming, families, seen, project if directory != bundled else None)
             except (OSError, ValueError) as error:
                 raise CatalogError(f"{path}: {error}") from error
         if directory == bundled and not families:

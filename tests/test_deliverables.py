@@ -8,7 +8,6 @@ from unittest.mock import patch
 from openguildkit.catalog import load_catalog
 from openguildkit.deliverables import draft_problems, load_deliverables, new_draft
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

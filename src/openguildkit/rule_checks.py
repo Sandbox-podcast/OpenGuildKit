@@ -6,6 +6,9 @@ file compares to a value, or a file stays within a number of bytes. Literal text
 regular expressions keeps every match linear, so no pattern can make a check hang. Only a pack
 of the project's own catalog may declare a `command` check, which task verify runs like the
 project's check commands.
+
+Entry: validate_path, validate_check, describe_check, parse_fields, compare_field, matching_paths
+Tests: tests/test_rule_checks.py
 """
 
 import json
@@ -213,16 +216,9 @@ def _same(value: object, expected: object) -> bool:
     return (type(value) is bool) == (type(expected) is bool) and value == expected
 
 
-def compare_field(check: dict, data: dict) -> dict:
-    """Judge one field: the outcome, the value found when it is a plain value, and why."""
-    found, value = _lookup(data, check["field"])
-    where = f"{check['path']}: {check['field']}"
-    if not found:
-        return {"passed": False, "actual": None, "evidence": f"{where} is missing."}
-    plain = value if _is_scalar(value) else None
-    integer = _is_number(value) and math.isfinite(value) and value == int(value) and abs(value) <= MAX_SAFE_INTEGER
-    if integer:
-        plain = int(value)
+def _bound_failures(check: dict, value: object, integer: bool) -> list[str]:
+    """Why a field's value fails its check: not an integer, below its min, above its max, not the value it equals,
+    or not one of the accepted values."""
     failures = []
     if check.get("integer") and not integer:
         failures.append("not an integer")
@@ -235,6 +231,20 @@ def compare_field(check: dict, data: dict) -> dict:
         failures.append(f"not {_show(check['equals'])}")
     if "one_of" in check and not any(_same(value, option) for option in check["one_of"]):
         failures.append("not one of the accepted values")
+    return failures
+
+
+def compare_field(check: dict, data: dict) -> dict:
+    """Judge one field: the outcome, the value found when it is a plain value, and why."""
+    found, value = _lookup(data, check["field"])
+    where = f"{check['path']}: {check['field']}"
+    if not found:
+        return {"passed": False, "actual": None, "evidence": f"{where} is missing."}
+    plain = value if _is_scalar(value) else None
+    integer = _is_number(value) and math.isfinite(value) and value == int(value) and abs(value) <= MAX_SAFE_INTEGER
+    if integer:
+        plain = int(value)
+    failures = _bound_failures(check, value, integer)
     shown = _show(plain) if plain is not None or value is None else "a value of another type"
     reasons = "; ".join(dict.fromkeys(failures))
     evidence = f"{where} = {shown}" + (f" ({reasons})." if failures else ".")

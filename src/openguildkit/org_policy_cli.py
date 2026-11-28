@@ -1,6 +1,9 @@
 """What the commands say of an organization policy (RFC #452, org_policy.py): `org-catalog policy`, the lines `check`
 fails on, the policy a commit brings in `org-catalog set`, and the options `guard --ci --org-policy PATH --org-commit
 SHA`. A project whose organization catalog has no policy, or that follows none, sees nothing of it.
+
+Entry: add_parser, add_guard_options, check_policy, run
+Tests: tests/test_org_policy.py
 """
 
 import sys

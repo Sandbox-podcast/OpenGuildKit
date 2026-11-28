@@ -1,14 +1,20 @@
 """Deciding and closing a task: the decision and its withdrawal, the authorizations of external actions, the result,
-the evidence handed to a follow-up task, and the points left open at the closing."""
+the evidence handed to a follow-up task, and the points left open at the closing.
+
+Entry: record_decision, revoke_approval, record_authorization, record_result, complete_task, points_left_open
+Tests: tests/test_blocker_clearances.py, tests/test_blockers.py, tests/test_closing_points.py,
+tests/test_deliberation.py
+"""
 
 import re
 from pathlib import Path
 
 from . import clock, delivered_review
+from .approval_check import DONE_STATUSES
 from .decisions import decision_payload, seal, signing_time_of
 from .relevance import sensitive_area
+from .result_form import validate_result
 from .results import (
-    DONE_STATUSES,
     asked_checks,
     completion_problems,
     evidence_state,
@@ -16,7 +22,6 @@ from .results import (
     not_concerned,
     outcomes,
     result_warnings,
-    validate_result,
     waiting_evidence,
 )
 from .tasks_approval import decided_message

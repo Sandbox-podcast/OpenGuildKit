@@ -14,7 +14,6 @@ from openguildkit.catalog_cli import _print_update
 from openguildkit.lock import COLLECTIONS, catalog_changes, lock_is_current, locked_records, update_target
 from openguildkit.project import validate_profile
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 DROPPED = {"packs": "playwright", "patterns": "playwright-web"}

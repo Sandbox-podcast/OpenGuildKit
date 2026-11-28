@@ -4,6 +4,9 @@ A feature is a purpose (issue tracking, payroll, container registry) with a lead
 tools of the registry. Turning an option on adds the tool to the profile's tools, by the profile commands' own path,
 so tools recommend, plan and apply then connect its MCP server. Nothing else records whether a feature is on: an
 option is on when a name in the profile's tools resolves to its tool.
+
+Entry: load_features, feature_options, enabled_tools, features_view, profile_names
+Tests: tests/test_features.py
 """
 
 import re

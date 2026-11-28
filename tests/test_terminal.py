@@ -10,7 +10,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import terminal
-
 from tests.test_results import TASK, ResultCase
 
 SOURCE = Path(__file__).resolve().parents[1] / "src" / "openguildkit"

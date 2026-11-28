@@ -4,7 +4,7 @@ A workstation installed from a wheel has no `docs/` folder, so a message gives t
 installed version (`main` for a source checkout or a development version, which no tag names).
 
 Entry: doc_link
-Tests: tests/test_doc_links.py
+Tests: tests/test_doc_links.py, tests/test_workflow_pages.py
 """
 
 from functools import cache

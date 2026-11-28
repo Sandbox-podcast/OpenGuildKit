@@ -65,7 +65,8 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `tasks_list_cli.py` | The task actions that read the tasks: list, show and retro, with a teammate's exported records and what the team does not share. |
 | `tasks_command.py` | The one argument of every task action that acts on a task: the command line, the project, its profile and catalog, and the task record. |
 | `profile_cli.py` | The `profile` commands: parse a change and confirm at a terminal what weakens a protection; the change itself goes through `profile_changes.py`. |
-| `profile_changes.py` | How a profile changes: what each change writes, what weakens a protection, and the one path every change takes, from a command at a terminal or from the web page. Imported by `webui`, `retro` and `features_cli`; no `argparse`. |
+| `profile_changes.py` | How a profile changes: what weakens a protection, and the one path every change takes, from a command at a terminal or from the web page; `profile_edits.py` holds what each change writes. |
+| `profile_edits.py` | What each `profile` command writes into the profile: packs and rules adopted or declined, lists, settings and their values. |
 | `features_cli.py` | The `features` commands: list the features, turn an option on or off through the profile's path. |
 | `tools_cli.py` | The `tools` commands: browse the registry, plan and apply MCP connections, call and serve mocks. |
 | `market_cli.py` | The `market` command: create, fill, check and watch market dossiers. |
@@ -82,10 +83,12 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `workstation.py` | Reads the workstation policy file that an administrator deploys (`/etc/openguildkit/config.json` and its equivalents), for the guard hook and the audit log. |
 | `prompts.py` | Asks a person at a terminal the setup questions of `init` and the task questions of `task consult`. |
 | `rule_plan_text.py` | Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks (patterns, regulations, packs and conflicts), and the patterns `recommend` preselects. |
-| `terminal.py` | Tells whether standard input is a terminal a person types in: on Windows it must also be a console, not the NUL device. |
+| `terminal.py` | Tells whether standard input is a terminal a person types in (on Windows a console, not the NUL device), and sets up the output streams and the error line of a command. |
 | `shell.py` | Quotes the commands printed for a person to paste, the same way for POSIX shells and PowerShell. |
-| `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1, refuses what needs a person at a terminal. |
+| `webui.py` | The local web interface: serves the built front end and a JSON API over the CLI on 127.0.0.1; `web_requests.py` refuses what needs a person at a terminal. |
+| `web_requests.py` | What the local web interface refuses to run or to read: commands that need a person at a terminal, paths outside the project, secrets, and the project files it may show or write. |
 | `catalog.py` | Loads bundled records from `registry/` and project records from `.openguildkit/catalog/`. Rejects unknown fields, duplicate IDs and keys, non-HTTPS sources, multi-line text and pack dependency cycles. |
+| `catalog_queries.py` | What the commands ask of the catalog besides loading it: a recorded value against its rule's bounds, the boards an organization replaced and the sources without a date. |
 | `lock.py` | Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog. |
 | `org_catalog.py` | Reads an organization catalog at the commit the catalog lock pins, from a local Git copy and without network; fingerprints the files read and lists the project records that replace one of its records. Off unless a person pins one. |
 | `org_catalog_cli.py` | The `org-catalog` commands: show, set (what a commit brings, then the pin a person makes at a terminal), accept a local replacement, off. |
@@ -95,6 +98,8 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `references.py` | Searches the reference library, separately from the active rule packs. |
 | `brains.py` | Assembles what a brain knows: its specialists' methods, packs and references. |
 | `detect.py` | Proposes components, technologies and versions from the repository's manifests, without running a package manager. |
+| `detect_gradle.py` | Proposes the components a Gradle build declares: Android and Kotlin plugins, Ktor from the build files or the version catalog, and the modules of the settings. |
+| `detect_manifest.py` | A component that detection proposes, and the bounded read of the manifest it comes from. |
 | `stack_versions.py` | Reads declared versions and version ranges for detection, patterns and the Storybook dependency report. |
 | `project.py` | Finds a project and its state folder, and validates and loads its profile. |
 | `project_setup.py` | Builds the setup questionnaire of `init` and completes its answers into a profile. |
@@ -109,23 +114,34 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
 | `routing.py` | Routes a task to boards from its brief and answers, then applies required boards and the requester's changes. |
 | `relevance.py` | Decides which active packs concern a task, from its answers, boards and brief. |
-| `consultation.py` | Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task. |
-| `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
+| `legal_basis.py` | The legal reason of each regulatory pack: the subject relevance.py retains for it and the text it rests on, a table for maintainers. |
+| `consultation.py` | Prepares the consultation: scope snapshot and review request; `board_brief.py` writes each board's brief. |
+| `board_brief.py` | Writes the brief of one board's pass: its part of the scope, the rules of its packs that concern the task, and its reading list. |
+| `code_lookup.py` | Looks up in the project's code the names a task cites, from the files Git tracks or a bounded walk of the folder. |
+| `workflow.py` | Carries the task to the person's decision: the deliberation between boards, the decision brief and the blockers; `board_entries.py` checks the entries, `handoff.py` writes the handoff. |
+| `board_entries.py` | Checks the review entry a board returns: its findings, its evidence, its challenge and its warnings. |
+| `handoff.py` | Writes the implementation handoff of an approved task: what to build, the checks to run and the rules that hold. |
 | `owners.py` | Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record. |
-| `tasks.py` | Reads, writes and creates task records, lists the tasks and follows the tasks each one waits for. |
+| `tasks.py` | Writes and creates task records, lists the tasks and follows the tasks each one waits for; `task_files.py` reads them. |
+| `task_files.py` | Finds and reads a task record: its file, its check, and the records kept between the requests of the web page. |
 | `tasks_record.py` | The shape of a task record: the fields each part may hold, the checks of a record read from disk and of a brief, and the time stamp records carry. |
-| `tasks_approval.py` | Whether an approval still holds: the rules and settings changed since it, the scope it covered, and the messages for a task already decided or a stale review. |
+| `tasks_approval.py` | What changed in the rules since an approval, the scope it covered, and the messages for a task already decided or a stale review; `approval_check.py` says whether it holds. |
+| `approval_check.py` | Whether an approval still holds, with only the modules the edit hook already loads: its seal, its rules, its age, its signature and its history. |
 | `tasks_blockers.py` | Blockers of an approved task: clearing one with evidence, waiving one within the project's policy, and the waivers that expired. |
 | `tasks_review.py` | The consultation and the boards' review of a task: the rounds kept on a new consultation, the sequential passes, and the text a person reads before deciding. |
 | `tasks_closing.py` | Deciding and closing a task: the decision and its withdrawal, authorizations of external actions, the result, evidence handed to a follow-up task, and the points left open. |
 | `tasks_status.py` | The next step of a task and the command that takes it, what its status refuses, and the line of the task list, kept while nothing it was built from changed. |
 | `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit, and task list skips the records it does not list and lists closed tasks from the line it kept. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
-| `results.py` | Records what was delivered for an approved task and the checks that prove it. |
+| `results.py` | Records what was delivered for an approved task and the checks that prove it; `result_form.py` holds the result template and its check. |
+| `result_form.py` | The result template a person fills for an approved task, and the check of the result they return. |
 | `retro.py` | The retrospective of a closed task and of the project: what the records already say, counted and never kept, with the profile command a person could type. |
 | `rule_checks.py` | Validates and evaluates the machine checks that pack rules declare, without executing anything. |
 | `git.py` | Runs Git for every module: one place for its options, for a machine without Git, and for file names read with `-z` as they are on disk. |
-| `guard.py` | Says whether an approved task covers the work: the host hooks before a request or an edit, and `guard --ci` in a pull request. |
+| `guard.py` | Says whether an approved task covers the work, for the host hooks before a request or an edit; `guard --ci` runs in `guard_ci.py`. |
+| `guard_ci.py` | Runs `ci-check`: the decision records of a change, against its base commit, the files it touches and the guard workflow. |
+| `guard_export.py` | Exports an approval decision and its withdrawal as a signed record, and names the conflicts between records. |
+| `guard_records.py` | Checks the decision records a project exports: their shape, their seal, their history and the conflicts between them. |
 | `delivered_review.py` | The boards' review of the delivered diff (`task diff-review`): each board's brief with the diff since the approved revision, its findings by file and line, and the open points the closing keeps of them. |
 | `short_lane.py` | The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for. |
 | `requester.py` | The requester of a task (`task new --requested-by`) and the profile option, off by default, that keeps the requester from approving it, at `task decide` and in `guard --ci` (RFC #445). |
@@ -143,7 +159,9 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |
 | `features.py` | The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on. |
-| `tools.py` | The tool registry and the MCP servers that connect an agent to each tool; plans and writes host connections. |
+| `tools.py` | The tools of a company's stack: matches them to a project, plans the MCP servers to connect and checks the evidence agents cite from them. |
+| `tool_connections.py` | Writes the MCP servers a person accepted into each host's configuration, removes them, and reports which are connected. |
+| `tool_registry.py` | Loads the tool registry and the project's own tools, and checks each tool and MCP server it declares. |
 | `mcp_protocol.py` | Shared stdio transport, handshake and tool dispatch for local MCP servers. |
 | `mcp_mock.py` | Stand-in MCP servers over stdio for demos and tests: synthetic answers, no network, no credentials. |
 | `project_mcp.py` | Read-only MCP access to the selected project’s profile, rule references, task status and check outcomes. |
@@ -151,8 +169,11 @@ For those it answers with the command to type ([interface d'un projet réel](../
 | `publishing.py` | Exports verified work as documentation pages for Documentalist and keeps the share register. |
 | `portal_verification.py` | `docs share verify`: signs in to one Documentalist instance with a password typed at the terminal, reads a space's reader invitations and compares their end dates with the share register. |
 | `storybook.py` | References the company's Storybook, compares it with the project's, and writes extraction proposals. |
+| `storybook_stories.py` | Writes what the team validated as Storybook files: Design Tokens, CSF3 stories and their index. |
 | `storybook_extract.py` | Inventories the components, variants and style tokens of an existing React application. |
-| `surfaces.py` | Lists the agent tools, MCP servers and permissive settings a project shows, and reads its instruction files and settings for hidden characters, phrases that cancel the rules and downloads piped into an interpreter (`host scan`), offline and read-only. |
+| `surfaces.py` | `host scan`: lists the agent tools, MCP servers and permissive settings a project shows, and reads its instruction files and settings (`surface_text.py`, `surface_servers.py`), offline and read-only. |
+| `surface_servers.py` | Reads one configured MCP server: the package and the pin it launches, its match in the tool registry, and its masked command line. |
+| `surface_text.py` | Reads one instruction or configuration file for what a person does not see: hidden characters, sentences that cancel the rules, downloads piped into an interpreter. |
 
 ## What lives in a project
 

@@ -5,6 +5,12 @@ modules do. Each action reads the task, checks what its status allows, and write
 lock; what only a person may do (approve, withdraw an approval, clear, waive, close over open points) waits for
 them at a terminal. The actions live in tasks_consult_cli, tasks_decide_cli, tasks_close_cli and tasks_list_cli;
 this module keeps the parser, task new and the table that runs the others.
+
+Entry: add_parser, run
+Tests: tests/e2e/test_short_lane.py, tests/e2e/test_task_retro.py, tests/test_audit_log.py,
+tests/test_before_delivered_review.py, tests/test_brain_knowledge.py, tests/test_delivered_review.py,
+tests/test_evidence_fingerprints.py, tests/test_next_steps.py, tests/test_performance.py, tests/test_requester.py,
+tests/test_short_lane.py, tests/test_task_dependencies.py, tests/test_task_index.py, tests/test_unhooked_hosts.py
 """
 
 import sys
@@ -12,6 +18,7 @@ from pathlib import Path
 
 from . import requester, short_lane
 from .alerts import STATUS_CHOICES as ALERT_STATUSES
+from .approval_check import approval_problem
 from .cli_surface import add_by
 from .command import Command
 from .decisions import DECISIONS_DIR, EARLIER_SIGNERS
@@ -20,8 +27,8 @@ from .project import WORK_DIR
 from .retro import DEFAULT_MINIMUM
 from .sensitive import redact_credentials
 from .storage import project_lock
-from .tasks import create_task, read_task, task_path, waiting_for, waits_line
-from .tasks_approval import approval_problem
+from .task_files import read_task, task_path
+from .tasks import create_task, waiting_for, waits_line
 from .tasks_close_cli import (
     add_diff_review_parser,
     run_checks,
@@ -393,12 +400,38 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
 
 
 # What runs each action on an existing task. new, list and retro come before the task is read.
+# One function per action, named after it (#530): several actions share the body of run_resolve, run_outcome or
+# run_pass, which reads args.action.
+def run_clear(command: TaskCommand) -> None:
+    run_resolve(command)
+
+
+def run_waive(command: TaskCommand) -> None:
+    run_resolve(command)
+
+
+def run_verify(command: TaskCommand) -> int | None:
+    return run_outcome(command)
+
+
+def run_result(command: TaskCommand) -> int | None:
+    return run_outcome(command)
+
+
+def run_complete(command: TaskCommand) -> int | None:
+    return run_outcome(command)
+
+
+def run_submit(command: TaskCommand) -> None:
+    run_pass(command)
+
+
 HANDLERS = {
     "show": run_show, "questions": run_questions, "brief": run_brief, "template": run_template,
-    "blockers": run_blockers, "clear": run_resolve, "waive": run_resolve, "checks": run_checks, "verify": run_outcome,
-    "result": run_outcome, "complete": run_outcome, "alerts": run_alerts, "runs": run_runs, "export": run_export,
+    "blockers": run_blockers, "clear": run_clear, "waive": run_waive, "checks": run_checks, "verify": run_verify,
+    "result": run_result, "complete": run_complete, "alerts": run_alerts, "runs": run_runs, "export": run_export,
     "deliberate": run_deliberate, "respond": run_respond, "challenge": run_challenge, "route": run_route,
-    "consult": run_consult, "review": run_review, "pass": run_pass, "submit": run_pass, "progress": run_progress,
+    "consult": run_consult, "review": run_review, "pass": run_pass, "submit": run_submit, "progress": run_progress,
     "decide": run_decide, "revoke": run_revoke, "decision-payload": run_decision_payload, "authorize": run_authorize,
     "handoff": run_handoff,
     "diff-review": run_diff_review,

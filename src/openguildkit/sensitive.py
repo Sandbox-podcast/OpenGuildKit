@@ -3,10 +3,13 @@
 CREDENTIAL_SHAPES is the one table that decides what looks like a credential. Tool settings, task briefs and
 answers, review entries and public evidence all go through it, without reading the environment or the network.
 A message about a match names the field and the kind of value, never the value.
+
+Entry: credential_kind, looks_like_credential, redact_credentials, redact_data, personal_data_kinds, input_warnings
+Tests: tests/test_sensitive.py
 """
 
-from ipaddress import ip_address
 import re
+from ipaddress import ip_address
 from urllib.parse import parse_qsl, urlsplit
 
 from . import lazy_re

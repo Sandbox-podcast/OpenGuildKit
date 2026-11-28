@@ -1,4 +1,8 @@
-"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks."""
+"""The `openguildkit tools` commands: browse the tool registry, connect a project's tools, rehearse with mocks.
+
+Entry: add_parser, run
+Tests: tests/test_exit_codes.py, tests/test_gemini_host.py
+"""
 
 import json
 import sys
@@ -12,12 +16,27 @@ from .project import load_profile
 from .sensitive import looks_like_credential
 from .shell import shell_command
 from .storage import json_text, project_lock, write_text
-from .tasks import read_task
+from .task_files import read_task
 from .terminal import interactive
+from .tool_connections import (
+    HOSTS,
+    apply_connections,
+    check_settings,
+    connection_status,
+    read_manifest,
+    remove_connections,
+)
+from .tool_registry import CATEGORIES, PROJECT_ORIGIN, PROJECT_TOOLS, check_tool_links, load_tools
 from .tools import (
-    CATEGORIES, HOSTS, PROJECT_ORIGIN, PROJECT_TOOLS, SCENARIO, apply_connections, check_settings, check_tool_links,
-    choose_server, connection_status, load_mock, load_tools, mock_ids, plan_connections, read_manifest, recommend_tools,
-    remove_connections, resolve_tool, scenario_fields, scenario_records,
+    SCENARIO,
+    choose_server,
+    load_mock,
+    mock_ids,
+    plan_connections,
+    recommend_tools,
+    resolve_tool,
+    scenario_fields,
+    scenario_records,
 )
 from .wording import plural
 

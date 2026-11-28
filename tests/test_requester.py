@@ -22,7 +22,6 @@ from openguildkit.decisions import check_decision_seal, decision_payload, export
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
-
 from tests.support import run_cli
 
 REPO = Path(__file__).resolve().parents[1]

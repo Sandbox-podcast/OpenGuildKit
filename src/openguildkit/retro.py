@@ -6,6 +6,9 @@ profile command a person could type. Everything is a count taken from a task rec
 exported decision record (`.openguildkit/decisions/`): no model, no estimate, no field that holds a person, and no file
 written unless the person asks for a draft rule pack with --draft-rules (draft_pack, write_draft). The functions take and
 return dicts; reading the records is the command's part (tasks_cli.py).
+
+Entry: facts_of_task, facts_of_record, task_retro, recurrences, proposals, project_summary, render_task, render_project
+Tests: tests/test_rule_decline.py
 """
 
 import re
@@ -68,18 +71,24 @@ def _wording(text: str) -> str:
     return _collapse(text).rstrip(".;: ")
 
 
+def _sort_person_fields(value: dict, found: set[str], pending: list) -> None:
+    """Add to found the person a field of value names, and to pending the other fields to look into."""
+    for key, item in value.items():
+        if key in PERSON_KEYS and isinstance(item, str):
+            if item.strip():
+                found.add(item.strip())
+        else:
+            pending.append(item)
+
+
 def _people(record: object) -> set[str]:
     """Every text under a field that names a person, anywhere in a record."""
-    found, pending = set(), [record]
+    found: set[str] = set()
+    pending = [record]
     while pending:
         value = pending.pop()
         if isinstance(value, dict):
-            for key, item in value.items():
-                if key in PERSON_KEYS and isinstance(item, str):
-                    if item.strip():
-                        found.add(item.strip())
-                else:
-                    pending.append(item)
+            _sort_person_fields(value, found, pending)
         elif isinstance(value, list):
             pending.extend(value)
     return found

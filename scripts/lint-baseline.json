@@ -1,17 +1,17 @@
 {
   "mypy": {
-    "arg-type": 55,
-    "assignment": 31,
-    "attr-defined": 15,
+    "arg-type": 48,
+    "assignment": 29,
+    "attr-defined": 11,
     "call-arg": 1,
     "call-overload": 5,
-    "dict-item": 5,
-    "index": 9,
+    "dict-item": 1,
+    "index": 7,
     "misc": 5,
     "operator": 2,
     "return-value": 4,
-    "union-attr": 40,
-    "var-annotated": 65
+    "union-attr": 39,
+    "var-annotated": 64
   },
   "ruff": {
     "ARG001": 18,
@@ -26,7 +26,6 @@
     "F541": 3,
     "F601": 3,
     "F841": 3,
-    "I001": 84,
     "ISC002": 2,
     "ISC004": 82,
     "PLW1510": 57,

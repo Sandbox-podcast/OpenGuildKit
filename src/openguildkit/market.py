@@ -4,6 +4,9 @@ A dossier lives in .openguildkit/market/ID.json and is shared with the team thro
 The CLI validates it and attaches it to consultations; the host agent gathers the
 observations within the project's research policy. Its dates decide what is stale, due or in
 the future: they follow the real clock, whatever SOURCE_DATE_EPOCH says.
+
+Entry: dossier_path, validate_dossier, validate_watch, load_dossier, dossier_text, save_dossier
+Tests: tests/test_market.py
 """
 
 import codecs
@@ -38,7 +41,7 @@ def dossier_path(state: Path, dossier_id: str) -> Path:
     return state / MARKET_DIR / f"{dossier_id}.json"
 
 
-def _text(value, field: str) -> str:
+def _one_text_line(value, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or len(value.strip().splitlines()) != 1:
         raise ValueError(f"{field} must be a single line of text.")
     return value.strip()
@@ -81,9 +84,9 @@ def _cited(text: str, field: str) -> str:
 def _source(value, field: str) -> dict:
     if not isinstance(value, dict) or not {"ref", "date"} <= value.keys() <= {"ref", "date", "title"}:
         raise ValueError(f"{field} needs ref and date, and can add title.")
-    source = {"ref": _cited(_text(value["ref"], f"{field}.ref"), f"{field}.ref"), "date": _day(value["date"], f"{field}.date")}
+    source = {"ref": _cited(_one_text_line(value["ref"], f"{field}.ref"), f"{field}.ref"), "date": _day(value["date"], f"{field}.date")}
     if "title" in value:
-        source["title"] = _text(value["title"], f"{field}.title")
+        source["title"] = _one_text_line(value["title"], f"{field}.title")
     return source
 
 
@@ -97,7 +100,7 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
     result = {"id": dossier_id}
     for field in ("title", "market", "audience", "feature"):
         if field in dossier:
-            result[field] = _text(dossier[field], field)
+            result[field] = _one_text_line(dossier[field], field)
     competitors = {}
     for item in dossier["competitors"] if isinstance(dossier["competitors"], list) else [None]:
         if not isinstance(item, dict) or not {"id", "name", "kind"} <= item.keys() <= {"id", "name", "kind", "url", "segment"}:
@@ -106,7 +109,7 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
             raise ValueError(f"Competitor IDs are unique lowercase slugs: {item['id']!r}.")
         if item["kind"] not in KINDS:
             raise ValueError("A competitor's kind is direct or substitute.")
-        competitors[item["id"]] = {key: (_text(item[key], key) if key != "kind" else item[key])
+        competitors[item["id"]] = {key: (_one_text_line(item[key], key) if key != "kind" else item[key])
                                    for key in COMPETITOR_FIELDS if key in item}
     result["competitors"] = list(competitors.values())
     observations = []
@@ -114,18 +117,18 @@ def validate_dossier(dossier: dict, dossier_id: str) -> dict:
         if not isinstance(item, dict) or not {"id", "competitor", "claim", "source"} <= item.keys() <= {"id", "competitor", "claim", "source", "feature"}:
             raise ValueError("Each observation needs id, competitor, claim and source, and can add feature.")
         observation = {
-            "id": _text(item["id"], "observation id"),
+            "id": _one_text_line(item["id"], "observation id"),
             "competitor": _competitor(item, competitors, f"Observation {index}"),
-            "claim": _text(item["claim"], "claim"),
+            "claim": _one_text_line(item["claim"], "claim"),
         }
         if "feature" in item:
-            observation["feature"] = _text(item["feature"], "feature")
+            observation["feature"] = _one_text_line(item["feature"], "feature")
         observation["source"] = _source(item["source"], f"observation {index} source")
         observations.append(observation)
     if len({item["id"] for item in observations}) != len(observations):
         raise ValueError("Observation IDs must be unique.")
     result["observations"] = observations
-    result["unknowns"] = [_text(item, "unknown") for item in _list(dossier, "unknowns", "unknowns")]
+    result["unknowns"] = [_one_text_line(item, "unknown") for item in _list(dossier, "unknowns", "unknowns")]
     if "watch" in dossier:
         result["watch"] = validate_watch(dossier["watch"], competitors)
     return result
@@ -146,21 +149,21 @@ def validate_watch(watch: dict, competitors: dict) -> dict:
         if not isinstance(item["url"], str) or not item["url"].startswith("https://"):
             raise ValueError("Watched sources are public https pages.")
         public_evidence_url(item["url"].strip(), "url")
-        source = {"competitor": competitor, "url": _text(item["url"], "url"), "kind": _text(item["kind"], "kind")}
+        source = {"competitor": competitor, "url": _one_text_line(item["url"], "url"), "kind": _one_text_line(item["kind"], "kind")}
         if "last_checked" in item:
             source["last_checked"] = _day(item["last_checked"], "last_checked")
         if "provided_by" in item:
             if "last_checked" not in item:
                 raise ValueError("A source provided by a person also has last_checked, the day it was provided.")
-            source["provided_by"] = _text(item["provided_by"], "provided_by")
+            source["provided_by"] = _one_text_line(item["provided_by"], "provided_by")
         sources.append(source)
     changes = []
     for item in _list(watch, "changes", "watch.changes"):
         if not isinstance(item, dict) or not {"competitor", "what", "date", "source", "verified_by"} <= item.keys():
             raise ValueError("Each change needs competitor, what, date, source and verified_by.")
         changes.append({
-            "competitor": _competitor(item, competitors, "A change"), "what": _text(item["what"], "what"), "date": _day(item["date"], "date"),
-            "source": _cited(_text(item["source"], "source"), "source"), "verified_by": _text(item["verified_by"], "verified_by"),
+            "competitor": _competitor(item, competitors, "A change"), "what": _one_text_line(item["what"], "what"), "date": _day(item["date"], "date"),
+            "source": _cited(_one_text_line(item["source"], "source"), "source"), "verified_by": _one_text_line(item["verified_by"], "verified_by"),
         })
     paused = watch.get("paused", False)
     if type(paused) is not bool:
@@ -308,7 +311,7 @@ def add_observation(dossier: dict, observation: dict) -> dict:
 
 
 def set_unknown(dossier: dict, text: str, remove: bool = False) -> dict:
-    text = _text(text, "unknown")
+    text = _one_text_line(text, "unknown")
     unknowns = list(dossier["unknowns"])
     if remove:
         if text not in unknowns:
@@ -354,7 +357,7 @@ def mark_provided(dossier: dict, url: str, by: str, day: str | None = None) -> d
     watch = _watch(dossier)
     if not any(item["url"] == url for item in watch["sources"]):
         raise ValueError(f"{url} is not a watched source of the dossier. Run market due to list them.")
-    by = _text(by, "--by")
+    by = _one_text_line(by, "--by")
     day = _day(day or clock.real_today().isoformat(), "date")
     sources = [{**item, "provided_by": by} if item["url"] == url else item for item in _checked(watch["sources"], url, day)]
     return validate_dossier({**dossier, "watch": {**watch, "sources": sources}}, dossier["id"])

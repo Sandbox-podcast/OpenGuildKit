@@ -1,4 +1,9 @@
-"""Find a project and its state folder, and validate and load its profile."""
+"""Find a project and its state folder, and validate and load its profile.
+
+Entry: project_root, state_path, validate_profile, load_profile
+Tests: tests/test_brain_knowledge.py, tests/test_gemini_host.py, tests/test_host_scan.py, tests/test_host_surfaces.py,
+tests/test_profile_reference.py, tests/test_rule_checks.py, tests/test_source_dates.py
+"""
 
 import re
 from pathlib import Path

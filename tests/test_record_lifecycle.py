@@ -11,9 +11,8 @@ import unittest
 from pathlib import Path
 
 from openguildkit.decisions import export_digest
-from openguildkit.guard import _base_files, _earlier_records
+from openguildkit.guard_ci import _base_files, _earlier_records
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

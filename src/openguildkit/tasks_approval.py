@@ -1,21 +1,17 @@
 """Whether an approval still holds: the rules and settings that changed since it, the scope it covered, and the
-messages that say a task is already decided or its review is stale."""
+messages that say a task is already decided or its review is stale.
+
+Entry: require_approval, rule_changes, require_current_scope
+Tests: tests/test_approval_lifecycle.py, tests/test_rule_changes.py
+"""
 
 from pathlib import Path
 
-from . import incident
+from .approval_check import DONE_STATUSES, approval_problem
 from .consultation import profile_settings
-from .decisions import (
-    EARLIER_SIGNERS,
-    check_decision_seal,
-    history_message,
-    reconsult_command,
-    signature_or_history_problem,
-    stale_approval_message,
-)
+from .decisions import reconsult_command, stale_approval_message
 from .project import rules_in_force
-from .project_rules import Fingerprints, fingerprint_holds, task_scope_profile
-from .results import DONE_STATUSES
+from .project_rules import fingerprint_holds, task_scope_profile
 
 
 def _setting_change(name: str, before, after) -> str:
@@ -62,44 +58,6 @@ def rule_changes(task: dict, profile: dict, catalog: dict) -> list[str]:
 def revoke_command(task_id: str) -> str:
     """The person's command that withdraws an approval, the same in every message that names it."""
     return f"openguildkit task revoke {task_id} --by INITIALS --reason TEXT"
-
-
-def approval_problem(task: dict, profile: dict, catalog: dict, root: Path | None = None, *,
-                     fingerprints: Fingerprints | None = None, outside: set[str] | None = None,
-                     explain: bool = True) -> dict | None:
-    """Whether a task's approval still holds: its seal intact, its rules, checks and boards current, its signature
-    valid and the revision it was approved at still in the project history.
-
-    Every reader asks this one function and prints its message: task list, check, task consult (which reopens the
-    task under the same ID), handoff, verify, result, complete, export and the guard. An error blocks the work; a note
-    marks a completed task, whose record is history. Without the project root, the signature and the history are not
-    read. outside and fingerprints let a reader of many tasks ask git and hash the profile once (covering_approvals);
-    explain names what changed in the rules, which the guard does not need.
-    """
-    decision = task.get("decision")
-    if not decision or decision.get("outcome") != "approved":
-        return None
-    completed = task["status"] in DONE_STATUSES
-    try:
-        payload = check_decision_seal(task)
-    except ValueError as error:
-        if completed and "seal" not in decision:
-            return {"kind": "no-seal", "severity": "note", "message": history_message(task["id"], sealed=False)}
-        return {"kind": "invalid-seal" if "seal" in decision else "no-seal", "severity": "error", "message": str(error)}
-    fingerprints = fingerprints or Fingerprints(profile, catalog)
-    if not fingerprints.holds(task.get("profile_fingerprint")):
-        changes = rule_changes(task, profile, catalog) if explain else None
-        if completed:
-            return {"kind": "earlier-rules", "severity": "note", "message": history_message(task["id"], changes)}
-        return {"kind": "earlier-rules", "severity": "error", "message": stale_approval_message(task["id"], changes)}
-    # An approval over the project's limit (incident.py) covers no more work; a completed task is history.
-    if not completed and (expired := incident.expired_problem(task, profile)):
-        return expired
-    # A completed task's record is history: a squash merge is expected to take its revision out of the history.
-    found = None if completed or root is None else signature_or_history_problem(task, root, profile, payload, outside)
-    if not found:
-        return None
-    return {"kind": found[0], "severity": "note" if found[0] == EARLIER_SIGNERS else "error", "message": found[1]}
 
 
 def require_approval(task: dict, profile: dict, catalog: dict, root: Path | None = None) -> None:

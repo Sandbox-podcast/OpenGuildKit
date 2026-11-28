@@ -10,6 +10,9 @@ every folder, what host scan finds there: the agent tools, the MCP servers and t
 folder without a profile where agents already work is named. --policy FILE compares each project with the
 minimum a JSON file describes, read and never written, and --strict ends in 1 when one falls short.
 --format csv prints one line per folder under a header that does not change.
+
+Entry: add_parser, run
+Tests: tests/test_command_output_budget.py, tests/test_performance.py, tests/test_projects.py
 """
 
 import csv
@@ -31,7 +34,7 @@ from .shell import shell_word
 from .storage import print_json, read_json
 from .tasks import list_tasks
 from .tasks_blockers import unresolved_blockers
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 SHOWN_MATCHES = 50

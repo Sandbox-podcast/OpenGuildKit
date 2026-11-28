@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 from openguildkit.cli import main
 from openguildkit.storage import write_json
-from tests.test_hosts import AGENT_FORMS, claude_denies, codex_forbids
 from tests.support import openguildkit_on_path, run_cli
+from tests.test_hosts import AGENT_FORMS, claude_denies, codex_forbids
 
 REPO = Path(__file__).resolve().parents[1]
 EXAMPLE = REPO / "examples" / "request-status"

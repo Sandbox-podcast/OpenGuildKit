@@ -22,7 +22,7 @@ Instructions for a coding agent that changes this repository. `tests/test_agent_
 ## Change
 
 - Code, CLI and documentation in English; `web/` and `README.fr.md` in French.
-- `tests/test_architecture.py` holds modules under 2,000 lines, `cli.py` under 1,500, command functions under 120.
+- `tests/test_architecture.py` holds code files under 40,000 bytes (`tests/byte_budget.json` lists the ceilings of larger ones), `cli.py` under 1,500 lines, command functions under 120.
 - A new module, test file or entry point goes in `docs/agents/map.json`, or `tests/test_agent_native.py` fails.
 - A new command gets a test that runs it (`tests/test_cli_coverage.py`). Tests run the CLI through `tests/support.py`.
 - `docs/testing.md` is a table of four columns: add a test file to the row of its area.

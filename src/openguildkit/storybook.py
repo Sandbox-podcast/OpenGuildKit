@@ -6,9 +6,11 @@ The CLI never runs npm and never opens the network. It writes the refs file that
 the known stories in .openguildkit/storybook.json so boards can cite a story and its state. From the
 application's sources it writes an inventory, proposals the team decides on, and for validated items
 only, Design Tokens, CSF3 stories and an index that the team edits.
+
+Entry: committed_path, ref_id, index_file, read_index, components, compare
+Tests: tests/test_storybook.py, tests/test_storybook_extract.py
 """
 
-import hashlib
 import json
 import os
 import re
@@ -21,8 +23,7 @@ from . import clock
 from .detect import walk
 from .sensitive import refuse_link_credentials
 from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
-from .storage import file_sha256, json_text, project_lock, read_json, write_json, write_text
-from .wording import plural
+from .storage import file_sha256, project_lock, read_json, write_json
 
 RECORD = "storybook.json"
 REFS_FILE = "openguildkit-refs.json"
@@ -173,7 +174,7 @@ def compare(project: list[dict], company: list[dict]) -> dict:
 # Dependencies of the company library against the project's.
 
 
-def _project_dependencies(package: dict) -> dict:
+def project_dependencies(package: dict) -> dict:
     merged = {}
     for field in ("dependencies", "devDependencies", "peerDependencies"):
         for name, spec in (package.get(field) or {}).items():
@@ -192,7 +193,7 @@ def _installed_version(root: Path, name: str) -> str | None:
 
 def dependency_conflicts(library: dict, package: dict, root: Path) -> list[dict]:
     """The company library's peer dependencies and shared dependencies against the project's versions."""
-    project = _project_dependencies(package)
+    project = project_dependencies(package)
     optional = {name for name, meta in (library.get("peerDependenciesMeta") or {}).items()
                 if isinstance(meta, dict) and meta.get("optional")}
     rows = []
@@ -471,7 +472,6 @@ def scope_entry(state: Path, today: date | None = None) -> dict | None:
 
 INVENTORY = "storybook/inventory.json"
 PROPOSALS = "storybook/proposals.json"
-MANIFEST = "storybook/generated.json"
 STATUSES = ("proposed", "validated", "rejected")
 MODULE_SUFFIXES = (".tsx", ".jsx", ".ts", ".js")
 _SYNTHETIC_TEXT = {"label", "title", "text", "heading", "placeholder", "description", "name", "caption", "message"}
@@ -491,7 +491,7 @@ def _screen(component: dict) -> bool:
         or component["name"].endswith(("Page", "Screen", "View"))
 
 
-def _story_name(name: str, component: str, props: dict, basis: str | None) -> str:
+def story_name(name: str, component: str, props: dict, basis: str | None) -> str:
     """A story is named for the state it shows; one named like its component is its default state."""
     if name.casefold() != component.casefold():
         return name
@@ -534,6 +534,22 @@ def validate_proposals(data: dict) -> dict:
     if not isinstance(data, dict) or data.get("schema_version") != 1 or not all(
             isinstance(data.get(field), list) for field in ("components", "variants", "tokens")):
         raise ValueError("Proposals need schema_version 1 and lists of components, variants and tokens.")
+    _check_proposal_items(data)
+    for item in data["components"]:
+        _check_proposed_component(item)
+    components = {item["key"] for item in data["components"]}
+    for item in data["variants"]:
+        if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
+                isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
+                for prop, value in item["props"].items()):
+            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
+    _check_proposed_tokens(data["tokens"])
+    return data
+
+
+def _check_proposal_items(data: dict) -> None:
+    """Each item of the proposals has a unique key, a status and a name; one seen only in a preview stays a
+    hypothesis."""
     keys = set()
     for field in ("components", "variants", "tokens"):
         for item in data[field]:
@@ -545,33 +561,70 @@ def validate_proposals(data: dict) -> dict:
             item["name"] = _check_name(item.get("name"), item["key"])
             if item.get("basis") == "preview":
                 item["confidence"] = "hypothesis"
-    for item in data["components"]:
-        if item.get("export", "named") not in ("named", "default") or not (
-                "public" not in item or (isinstance(item["public"], str) and JS_IDENTIFIER.fullmatch(item["public"])
-                                         and item["public"] != "default")):
-            raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
-                             "the component is exported under.")
-        if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
-            raise ValueError(f"{item['key']}: args and sample_args must be objects.")
-        callbacks = item.get("callback_props", [])
-        if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
-            raise ValueError(f"{item['key']}: callback_props lists prop names.")
-    components = {item["key"] for item in data["components"]}
-    for item in data["variants"]:
-        if item.get("component") not in components or not isinstance(item.get("props"), dict) or not all(
-                isinstance(prop, str) and (value is None or isinstance(value, (str, int, float, bool)))
-                for prop, value in item["props"].items()):
-            raise ValueError(f"{item['key']}: a variant names one of the components and gives props with literal values.")
-    for item in data["tokens"]:
+
+
+def _check_proposed_component(item: dict) -> None:
+    """A proposed component's export and public name, its args and sample args, its callback props."""
+    if item.get("export", "named") not in ("named", "default") or not (
+            "public" not in item or (isinstance(item["public"], str) and JS_IDENTIFIER.fullmatch(item["public"])
+                                     and item["public"] != "default")):
+        raise ValueError(f"{item['key']}: export is named or default, and public is the JavaScript name "
+                         "the component is exported under.")
+    if any(field in item and not isinstance(item[field], dict) for field in ("args", "sample_args")):
+        raise ValueError(f"{item['key']}: args and sample_args must be objects.")
+    callbacks = item.get("callback_props", [])
+    if not isinstance(callbacks, list) or not all(isinstance(prop, str) and prop for prop in callbacks):
+        raise ValueError(f"{item['key']}: callback_props lists prop names.")
+
+
+def _check_proposed_tokens(tokens: list) -> None:
+    """Each token name is a dotted path; a validated name is used once and is not also a group."""
+    for item in tokens:
         segments = item["name"].split(".")
         if any(not segment or segment.startswith("$") or "{" in segment or "}" in segment for segment in segments):
             raise ValueError(f"{item['key']}: a token name is a dotted path whose parts do not start with $ "
                              "and contain no braces.")
-    validated = [item["name"] for item in data["tokens"] if item["status"] == "validated"]
+    validated = [item["name"] for item in tokens if item["status"] == "validated"]
     for name in validated:
         if validated.count(name) > 1 or any(other.startswith(name + ".") for other in validated):
             raise ValueError(f"Validated token {name} is used twice or is also a group.")
-    return data
+
+
+def _proposed_component(item: dict) -> dict:
+    """The proposal of a component of the inventory, with the props a story needs filled."""
+    return {
+        "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
+        "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
+        "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
+        "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
+        "text_props": [prop["name"] for prop in item["props"]
+                       if "default" not in prop and "sample" not in prop
+                       and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
+        "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
+        "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
+        "callback_props": [prop["name"] for prop in item["props"] if prop.get("callback")],
+    }
+
+
+def _merged_items(fresh: list[dict], previous: list[dict], counts: dict) -> list[dict]:
+    """The fresh proposals with the decisions and names already in the file kept, then the earlier ones no longer
+    observed; counts receives how many are new, kept and not observed."""
+    decided = ("status", "name", "props", "args", "note")
+    earlier = {item["key"]: item for item in previous}
+    items = []
+    for item in fresh:
+        if item["key"] in earlier:
+            counts["kept"] += 1
+            item.update({key: earlier[item["key"]][key] for key in decided if key in earlier[item["key"]]})
+        else:
+            counts["new"] += 1
+        items.append(item)
+    seen = {item["key"] for item in items}
+    for key, item in earlier.items():
+        if key not in seen:
+            counts["not_observed"] += 1
+            items.append({**item, "observed": False})
+    return items
 
 
 def propose(root: Path, state: Path, inventory_path: Path | None = None, proposals_path: Path | None = None) -> dict:
@@ -588,21 +641,10 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
     token_names = {item["key"]: name if short.count(name) == 1 else _token_name(item, short=False)
                    for item, name in zip(inventory["tokens"], short)}
     fresh = {
-        "components": [{
-            "key": f"component:{item['name']}", "name": item["name"], "status": "proposed",
-            "kind": "screen" if _screen(item) else "component", "confidence": item["confidence"],
-            "file": item["file"], "line": item["line"], "export": item["export"], "usages": item["usages"],
-            "children": item["children"], **({"public": item["public"]} if "public" in item else {}),
-            "text_props": [prop["name"] for prop in item["props"]
-                           if "default" not in prop and "sample" not in prop
-                           and not prop.get("required") and prop["name"].casefold() in _SYNTHETIC_TEXT],
-            "required_props": [prop["name"] for prop in item["props"] if prop.get("required")],
-            "sample_args": {prop["name"]: prop["sample"] for prop in item["props"] if "sample" in prop},
-            "callback_props": [prop["name"] for prop in item["props"] if prop.get("callback")],
-        } for item in inventory["components"]],
+        "components": [_proposed_component(item) for item in inventory["components"]],
         "variants": [{
             "key": f"variant:{item['key']}", "component": f"component:{item['component']}",
-            "name": _story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
+            "name": story_name(_variant_name(item["props"]), item["component"], item["props"], item["basis"]),
             "props": item["props"], "status": "proposed",
             "confidence": item["confidence"], "basis": item["basis"], "occurrences": item["occurrences"],
             "origins": item["origins"],
@@ -613,26 +655,11 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
             "origins": item["origins"],
         } for item in inventory["tokens"]],
     }
-    decided = ("status", "name", "props", "args", "note")
     result = {"schema_version": 1, "inventory": {
         "path": committed_path(root, inventory_path), "sha256": file_sha256(inventory_path)}}
     counts = {"new": 0, "kept": 0, "not_observed": 0}
     for field in ("components", "variants", "tokens"):
-        earlier = {item["key"]: item for item in previous[field]}
-        items = []
-        for item in fresh[field]:
-            if item["key"] in earlier:
-                counts["kept"] += 1
-                item.update({key: earlier[item["key"]][key] for key in decided if key in earlier[item["key"]]})
-            else:
-                counts["new"] += 1
-            items.append(item)
-        seen = {item["key"] for item in items}
-        for key, item in earlier.items():
-            if key not in seen:
-                counts["not_observed"] += 1
-                items.append({**item, "observed": False})
-        result[field] = items
+        result[field] = _merged_items(fresh[field], previous[field], counts)
     validate_proposals(result)
     with project_lock(state):
         write_json(proposals_path, result)
@@ -641,247 +668,6 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
                               for item in result[field])}
 
 
-def _color_value(value: str) -> dict:
-    digits = value[1:]
-    channels = [int(digits[index:index + 2], 16) for index in range(0, len(digits), 2)]
-    color = {"colorSpace": "srgb", "components": [round(channel / 255, 4) for channel in channels[:3]],
-             "hex": "#" + digits[:6]}
-    if len(channels) == 4:
-        color["alpha"] = round(channels[3] / 255, 4)
-    return color
-
-
-def _dtcg_token(item: dict) -> dict | None:
-    """A validated token in the Design Tokens Format Module 2025.10."""
-    kind, value = item["kind"], item["value"]
-    if kind == "color" and re.fullmatch(r"#[0-9a-f]{6}([0-9a-f]{2})?", value):
-        token = {"$type": "color", "$value": _color_value(value)}
-    elif kind in ("spacing", "radius", "font-size", "dimension") and re.fullmatch(r"\d*\.?\d+(px|rem)", value):
-        number = float(value[:-3] if value.endswith("rem") else value[:-2])
-        token = {"$type": "dimension", "$value": {"value": int(number) if number.is_integer() else number,
-                                                   "unit": "rem" if value.endswith("rem") else "px"}}
-    elif kind == "font-family":
-        token = {"$type": "fontFamily",
-                 "$value": [part.strip().strip("'\"") for part in value.split(",") if part.strip()]}
-    else:
-        return None
-    token["$description"] = f"Extracted from {plural(item['occurrences'], 'occurrence')} in the application."
-    token["$extensions"] = {"org.openguildkit": {"origins": item["origins"], "confidence": item["confidence"]}}
-    return token
-
-
-def _identifier(name: str, taken: set) -> str:
-    words = re.findall(r"[A-Za-z0-9]+", unicodedata.normalize("NFKD", name))
-    identifier = "".join(word[:1].upper() + word[1:] for word in words) or "Story"
-    if identifier[0].isdigit():
-        identifier = "Story" + identifier
-    candidate, number = identifier, 2
-    while candidate in taken:
-        candidate, number = f"{identifier}{number}", number + 1
-    taken.add(candidate)
-    return candidate
-
-
 JS_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 
 
-def _js(value) -> str:
-    return json.dumps(value, ensure_ascii=False)
-
-
-class _Code(str):
-    """A fixed piece of TypeScript written as is in a story, such as a callback that does nothing."""
-
-
-NO_OP = _Code("() => {}")
-
-
-def _js_object(values: dict, indent: str) -> str:
-    if not values:
-        return "{}"
-    lines = [f"{indent}  {key if JS_IDENTIFIER.fullmatch(key) else _js(key)}: "
-             f"{value if isinstance(value, _Code) else _js(value)}," for key, value in values.items()]
-    return "{\n" + "\n".join(lines) + f"\n{indent}}}"
-
-
-def _import_path(out: Path, root: Path, file: str) -> str:
-    target = (root / file).with_suffix("")
-    relative = Path(os.path.relpath(target, out)).as_posix()
-    return relative if relative.startswith(".") else f"./{relative}"
-
-
-def _imported_as(component: dict) -> str:
-    """The import clause that binds the component's name to what its module really exports."""
-    name = component["key"].split(":", 1)[1]
-    if component["export"] == "default":
-        return f"{{ default as {name} }}"
-    public = component.get("public", name)
-    return f"{{ {public} }}" if public == name else f"{{ {public} as {name} }}"
-
-
-def _story_args(component: dict) -> dict:
-    samples = {prop: f"Sample {prop}" for prop in component.get("text_props", [])}
-    if component.get("children") and "children" not in component.get("required_props", []):
-        samples["children"] = component["name"]
-    callbacks = {prop: NO_OP for prop in component.get("callback_props", [])}
-    return {**samples, **callbacks, **component.get("sample_args", {}), **component.get("args", {})}
-
-
-def _story_file(component: dict, variants: list[dict], args: dict, out: Path, root: Path, framework: str) -> str:
-    name = component["key"].split(":", 1)[1]
-    source = _js(_import_path(out, root, component["file"]))
-    binding = name if component["export"] == "default" else _imported_as(component)
-    types = _js(framework)
-    lines = [
-        "// Generated by openguildkit storybook generate from the validated proposals.",
-        "// Edit freely: once this file changes, generate leaves it as it is.",
-        f"import type {{ Meta, StoryObj }} from {types};",
-        f"import {binding} from {source};",
-        "",
-        "const meta = {",
-        f"  title: {_js('Design system/' + component['name'])},",
-        f"  component: {name},",
-        f"  args: {_js_object(args, '  ')},",
-        f"  parameters: {{ openguildkit: {{ definition: {_js(component['file'] + ':' + str(component['line']))} }} }},",
-        f"}} satisfies Meta<typeof {name}>;",
-        "export default meta;",
-        "",
-        "type Story = StoryObj<typeof meta>;",
-    ]
-    taken = {name}
-    # Observed states first, then the hypotheses to confirm against the original screens.
-    stories = sorted(variants, key=lambda item: (item["confidence"] != "observed", item["name"].casefold())) or [
-        {"name": "Default", "props": {}, "origins": [], "confidence": component["confidence"], "basis": "usage"}]
-    for variant in stories:
-        parameters = {"origins": variant["origins"], "confidence": variant["confidence"], "basis": variant.get("basis")}
-        story = _story_name(variant["name"], name, variant["props"], variant.get("basis"))
-        lines.extend([
-            "",
-            f"export const {_identifier(story, taken)}: Story = {{",
-            f"  name: {_js(story)},",
-            f"  args: {_js_object(variant['props'], '  ')},",
-            f"  parameters: {{ openguildkit: {_js(parameters)} }},",
-            "};",
-        ])
-    return "\n".join(lines) + "\n"
-
-
-# Storybook framework packages for React, in the order a project that lists several is read.
-REACT_FRAMEWORKS = ("@storybook/nextjs-vite", "@storybook/nextjs", "@storybook/react-vite", "@storybook/react-webpack5")
-
-
-def detect_framework(root: Path) -> str:
-    """The Storybook framework package the stories import: the one package.json lists, else one for its stack."""
-    package = root / "package.json"
-    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
-    listed = [name for name in REACT_FRAMEWORKS if name in dependencies]
-    if listed:
-        return listed[0]
-    return "@storybook/nextjs-vite" if "next" in dependencies else "@storybook/react-vite"
-
-
-def _setup_warnings(root: Path, framework: str) -> list[str]:
-    warnings = []
-    package = root / "package.json"
-    dependencies = _project_dependencies(read_json(package)) if package.is_file() else {}
-    missing = sorted({"storybook", framework} - dependencies.keys())
-    if missing:
-        warnings.append(f"Missing Storybook dependencies in package.json: {', '.join(missing)}.")
-    if not any((root / ".storybook" / name).is_file() for name in MAIN_FILES):
-        warnings.append("Missing Storybook configuration (.storybook/main.ts or .storybook/main.js).")
-    if warnings:
-        warnings.append(f"Set up the project first with npm create storybook@{STORYBOOK_VERSION}, "
-                        "or add the missing settings to your existing Storybook.")
-    return warnings
-
-
-def generate(root: Path, state: Path, proposals_path: Path | None = None, out: Path | None = None,
-             framework: str | None = None) -> dict:
-    """Write DTCG tokens, CSF3 stories and an index for the validated proposals only.
-
-    A file the team changed since it was generated is never overwritten: its hash is kept in the manifest.
-    """
-    proposals = validate_proposals(read_json(proposals_path or state / PROPOSALS))
-    root = root.resolve()
-    framework = framework or detect_framework(root)
-    out = (out or root / "src" / "design-system").resolve()
-    if root not in (out, *out.parents):
-        raise ValueError("Generate the design system inside the project.")
-    components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
-    files: dict[Path, str] = {}
-    skipped = []
-    warnings = []
-    by_component: dict[str, list] = {key: [] for key in components}
-    for variant in proposals["variants"]:
-        if variant["status"] != "validated":
-            continue
-        if variant["component"] in by_component:
-            by_component[variant["component"]].append(variant)
-        else:
-            skipped.append({"key": variant["key"], "reason": "its component is not validated"})
-    names = [item["key"].split(":", 1)[1] for item in components.values()]
-    if len(set(name.casefold() for name in names)) != len(names):
-        raise ValueError("Two validated components share a name.")
-    for key, component in components.items():
-        if "file" not in component or "export" not in component:
-            skipped.append({"key": key, "reason": "no definition in the application"})
-            continue
-        if component["file"].startswith(OUTSIDE):
-            skipped.append({"key": key, "reason": f"defined outside the project ({component['file']}); copy it into "
-                                                  "the project or extract from a folder next to it"})
-            continue
-        name = key.split(":", 1)[1]
-        args = _story_args(component)
-        variants = by_component[key]
-        missing = [prop for prop in component.get("required_props", []) if prop not in args
-                   and (not variants or any(prop not in variant["props"] for variant in variants))]
-        if missing:
-            warnings.append(f"{name}: add sample args for {', '.join(missing)} in the proposals or the story.")
-        files[out / f"{name}.stories.tsx"] = _story_file(component, variants, args, out, root, framework)
-    if files:
-        warnings.extend(_setup_warnings(root, framework))
-    tokens: dict = {}
-    for item in proposals["tokens"]:
-        if item["status"] != "validated":
-            continue
-        token = _dtcg_token(item)
-        if token is None:
-            skipped.append({"key": item["key"], "reason": "no Design Tokens type for this value"})
-            continue
-        group = tokens
-        *parents, last = item["name"].split(".")
-        for part in parents:
-            group = group.setdefault(part, {})
-        group[last] = token
-    if tokens:
-        files[out / "design.tokens.json"] = json_text(tokens)
-    exported = [component for component in components.values()
-                if "file" in component and not component["file"].startswith(OUTSIDE)]
-    if exported:
-        files[out / "index.ts"] = "// Generated by openguildkit storybook generate: the validated components.\n" + "".join(
-            f"export {_imported_as(item)} from {_js(_import_path(out, root, item['file']))};\n" for item in exported)
-    manifest_path = state / MANIFEST
-    with project_lock(state):
-        manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
-        result = {"framework": framework, "written": [], "unchanged": [], "kept": [], "skipped": skipped}
-        for path, content in sorted(files.items(), key=lambda item: item[0].as_posix()):
-            relative = committed_path(root, path)
-            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            if path.exists():
-                current = file_sha256(path)
-                if current == digest:
-                    result["unchanged"].append(relative)
-                    manifest["files"][relative] = digest
-                    continue
-                if manifest["files"].get(relative) != current:
-                    result["kept"].append(relative)
-                    continue
-            write_text(path, content)
-            manifest["files"][relative] = digest
-            result["written"].append(relative)
-        result["left"] = sorted(path for path in manifest["files"]
-                                if path not in {committed_path(root, item) for item in files} and (root / path).exists())
-        write_json(manifest_path, manifest)
-    if warnings:
-        result["warnings"] = warnings
-    return result

@@ -10,19 +10,12 @@ import sys
 from pathlib import Path
 
 from . import host_coverage, managed, org_policy_cli
-from .catalog import replaced_boards, undated_sources
+from .catalog_queries import replaced_boards, undated_sources
 from .command import Command
 from .doc_links import doc_link
-from .guard import (
-    NO_TASK,
-    approval_text,
-    ci_guard,
-    covering_approvals,
-    exported_decisions,
-    guard_mode,
-    hook_command,
-    scope_note,
-)
+from .guard import NO_TASK, approval_text, covering_approvals, guard_mode, hook_command, scope_note
+from .guard_ci import ci_guard
+from .guard_records import exported_decisions
 from .hosts import HOOK_HOSTS, OFF_PATH, apply_host_settings, approval_warning, host_controls
 from .lock import (
     LOCK_FILE,
@@ -37,13 +30,13 @@ from .lock import (
 )
 from .org_catalog import unaccepted_replacements
 from .project import STATE_DIR, load_profile, state_path
-from .project_rules import Fingerprints
 from .project_instructions import RuleError
+from .project_rules import Fingerprints
 from .references import load_references
 from .storage import print_json
 from .tasks import list_tasks
 from .tasks_list_cli import sharing_issues
-from .tools import load_tools
+from .tool_registry import load_tools
 from .wording import plural
 
 HOST_STATUS_LABELS = {"instruction": "by instruction", "human": "by a person"}

@@ -9,15 +9,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.support import run_cli, subprocess_environment
-
+from openguildkit.board_brief import board_brief
 from openguildkit.brains import brief_knowledge, knowledge_gaps, write_brain_skeleton
-from openguildkit.catalog import CatalogError, board_replacements, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog
+from openguildkit.catalog_queries import board_replacements
+from openguildkit.consultation import consult
 from openguildkit.lock import apply_lock, locked_records
 from openguildkit.references import find_references, load_references, with_pattern_references
-from openguildkit.tools import load_tools
-from openguildkit.consultation import board_brief, consult
 from openguildkit.routing import trigger_matches
+from openguildkit.tool_registry import load_tools
+from tests.support import run_cli, subprocess_environment
 
 REPO = Path(__file__).resolve().parents[1]
 CASES = json.loads(Path(__file__).with_name("routing_cases_new_brains.json").read_text(encoding="utf-8"))

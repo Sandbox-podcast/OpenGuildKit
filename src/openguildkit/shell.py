@@ -3,6 +3,9 @@
 A word that needs quoting goes between single quotes, inside which neither a POSIX shell nor PowerShell expands
 anything: `$`, a backtick and a double quote stay as typed. Only the escape of a single quote inside differs, so
 the form follows the platform: PowerShell on Windows, a POSIX shell elsewhere. cmd.exe reads neither form.
+
+Entry: shell_word, shell_command
+Tests: tests/test_next_steps.py, tests/test_projects.py
 """
 
 import os

@@ -7,9 +7,8 @@ import unittest
 from pathlib import Path
 
 from openguildkit.storage import write_json
-from tests.test_results import GDPR_DPIA, GDPR_RECORD, TASK, ResultCase
-
 from tests.support import CapturedCli
+from tests.test_results import GDPR_DPIA, GDPR_RECORD, TASK, ResultCase
 
 SMALL_BUG = {"kind": "bug", "surface": "service", "data": "internal", "research": "local", "concerns": ["none"],
              "context": "The CSV export of request statuses leaves the status column empty."}

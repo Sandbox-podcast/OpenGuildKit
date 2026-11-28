@@ -1,5 +1,9 @@
 """Declared versions and version ranges: the ones detection keeps in the stack, and the one reading of a range that
-pattern matching and the Storybook dependency report share."""
+pattern matching and the Storybook dependency report share.
+
+Entry: declared_version, version_key, parse_version, parse_range, satisfies, lower_bounds
+Tests: tests/test_detect_versions.py
+"""
 
 import re
 

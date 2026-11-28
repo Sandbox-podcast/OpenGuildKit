@@ -1,4 +1,14 @@
-"""Command-line interface for OpenGuildKit."""
+"""Command-line interface for OpenGuildKit.
+
+Entry: command_parser, main, COMMANDS
+Tests: tests/e2e/test_admin_guide.py, tests/e2e/test_board_passes.py, tests/e2e/test_campaign_links.py,
+tests/e2e/test_catalog_lock.py, tests/e2e/test_cli_flow.py, tests/e2e/test_export_ci.py, tests/e2e/test_field_kit.py,
+tests/e2e/test_host_rehearsal.py, tests/test_ci_jobs.py, tests/test_dead_code.py, tests/test_detect_versions.py,
+tests/test_determinism.py, tests/test_doc_examples.py, tests/test_gemini_host.py, tests/test_host_scan.py,
+tests/test_host_surfaces.py, tests/test_install_script.py, tests/test_org_catalog.py, tests/test_product_docs.py,
+tests/test_rule_checks.py, tests/test_sample_project.py, tests/test_test_suite.py, tests/test_upgrade.py,
+tests/test_upgrades.py, tests/test_workflows.py
+"""
 
 import argparse
 import sys
@@ -7,10 +17,11 @@ from importlib import import_module
 from pathlib import Path
 
 from . import cli_surface, host_coverage, managed, org_policy_cli, tasks_cli
-from .cli_errors import error_message, print_trace, reader_closed
+from .cli_errors import error_message, print_trace
 from .cli_surface import VersionAction, add_by, format_option, hoist_global_options, polish, take_by_warning
 from .command import Command
 from .hosts import HOSTS
+from .terminal import reader_closed, utf8_streams, warn
 
 # The port of openguildkit ui, here so that the help does not import the web server; webui.DEFAULT_PORT is the
 # same number (tests/test_performance.py compares the help with it).
@@ -195,12 +206,7 @@ def _run(args) -> int | None:
 
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
-        # Redirected output is consumed by agents and scripts on every platform.
-        for stream in (sys.stdout, sys.stderr):
-            if not stream.isatty() and hasattr(stream, "reconfigure"):
-                stream.reconfigure(encoding="utf-8", errors="backslashreplace")
-        if hasattr(sys.stderr, "reconfigure"):
-            sys.stderr.reconfigure(errors="backslashreplace")
+        utf8_streams()  # Redirected output is consumed by agents and scripts on every platform.
     argv = hoist_global_options(sys.argv[1:] if argv is None else argv)
     parser = command_parser(cli_surface.deferred_modules(argv))
     if not argv:
@@ -211,8 +217,8 @@ def main(argv: list[str] | None = None) -> int:
     by_warning = take_by_warning()
     if getattr(args, "project", None) is not None and not args.project.is_dir():
         what = "is not a folder" if args.project.exists() else "does not exist"
-        print(f"OpenGuildKit: The project folder {args.project.as_posix()} {what}. Check --project, or create the "
-              "folder and run openguildkit init in it.", file=sys.stderr)
+        warn(f"The project folder {args.project.as_posix()} {what}. Check --project, or create the folder and run "
+             "openguildkit init in it.")
         return 2 if args.command == "ci-check" else 1
     try:
         code = _run(args) or 0
@@ -224,8 +230,9 @@ def main(argv: list[str] | None = None) -> int:
         return reader_closed()
     except (OSError, ValueError, EOFError) as error:
         print_trace()
-        print(f"OpenGuildKit: {error_message(error, parser, args)}", file=sys.stderr)
+        warn(error_message(error, parser, args))
         return 2 if args.command == "ci-check" else 1
     except KeyboardInterrupt:
-        print("\nOpenGuildKit: Cancelled.", file=sys.stderr)
+        print(file=sys.stderr)
+        warn("Cancelled.")
         return 130

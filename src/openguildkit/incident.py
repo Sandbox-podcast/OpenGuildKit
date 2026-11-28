@@ -5,6 +5,9 @@ hook then refuses every edit inside the project, even under an approved task, an
 of a base revision that is frozen, except the one that lifts the freeze. `approval.max_age_days` ends the cover of an
 approval after that many days. Both only restrict, so no terminal is needed to set them; lifting or loosening one
 weakens a protection and is a person's act at a terminal (profile_cli). A project that sets neither is unchanged.
+
+Entry: frozen, frozen_text, max_age_days, expired_problem, lifts_freeze
+Tests: tests/test_incident.py
 """
 
 from datetime import UTC, datetime

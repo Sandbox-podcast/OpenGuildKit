@@ -10,7 +10,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.storage import write_json
-
 from tests.support import subprocess_environment
 from tests.test_results import EXAMPLE, TASK, ResultCase
 

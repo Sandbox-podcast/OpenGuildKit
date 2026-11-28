@@ -1,11 +1,11 @@
 import json
 import unittest
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
+from openguildkit.consultation import consult
 from openguildkit.project import validate_profile
 from openguildkit.project_instructions import render_instructions
 from openguildkit.project_rules import resolved_profile, rule_plan
-from openguildkit.consultation import consult
 
 
 class RulePlanTests(unittest.TestCase):

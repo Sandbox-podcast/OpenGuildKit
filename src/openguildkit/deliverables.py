@@ -4,6 +4,9 @@ approval and the checks a reviewer runs on the result.
 Templates live in registry/deliverables/ (and .openguildkit/catalog/deliverables/ for a
 project). `deliverable new` turns an approved task into a draft; `deliverable check` says what
 is still missing before the brain and the owner review it.
+
+Entry: project_path, load_deliverables, launch_notice, utm_link, new_draft, draft_problems
+Tests: tests/test_deliverables.py
 """
 
 import json
@@ -14,7 +17,13 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
 from .catalog import (
-    CatalogError, package_file, record_files, validate_fields, validate_id, validate_list, validate_sources,
+    CatalogError,
+    package_file,
+    record_files,
+    validate_fields,
+    validate_id,
+    validate_list,
+    validate_sources,
     validate_text,
 )
 from .storage import write_text

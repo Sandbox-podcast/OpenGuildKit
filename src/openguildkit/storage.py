@@ -1,4 +1,8 @@
-"""Local state helpers shared by the profile and task commands."""
+"""Local state helpers shared by the profile and task commands.
+
+Entry: parse_json, load_json, unique_fields, read_bytes, read_json, file_signature, json_text, print_json
+Tests: tests/test_storage.py
+"""
 
 import hashlib
 import json
@@ -9,7 +13,6 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-
 
 # Windows refuses to replace a file while another process reads it, and to read it while it is
 # being replaced; POSIX systems do neither.

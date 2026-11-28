@@ -5,6 +5,9 @@ the change, with what the decision asked (expected outcome, the board's recommen
 disagreements left open, its decision criteria) and its own lens. It returns findings, each with a file, a line, a
 severity and an action; task complete keeps a blocking finding, or one left to the person, as an open point. A task
 whose diff no board reviewed closes as before.
+
+Entry: delivered_change, board_brief, record_findings, print_overview, open_points, exported_review
+Tests: tests/test_before_delivered_review.py, tests/test_command_output_budget.py
 """
 
 import json
@@ -13,11 +16,10 @@ from pathlib import Path
 from . import clock, git, lazy_re
 from .sensitive import redact_credentials
 from .storage import print_json
+from .tasks_record import ACTIONS, SEVERITIES
 from .wording import plural
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
-SEVERITIES = ("blocking", "important", "minor")
-ACTIONS = ("fix", "defer", "decision")
 # The diff printed in one brief. The rest is one git command away, which the brief prints.
 DIFF_LIMIT = 6000
 # A diff names its files as they are on disk, accents included.

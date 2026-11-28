@@ -364,7 +364,7 @@ def catalog_bundle() -> bool:
     than from its record files, as a checkout without the bundle does."""
     from openguildkit import catalog
 
-    return catalog._read_bundle(catalog._registry()) is not None
+    return catalog._read_bundle(catalog.registry_folder()) is not None
 
 
 def report(results: dict) -> dict:

@@ -1,4 +1,8 @@
-"""Match project context to versioned rule packs."""
+"""Match project context to versioned rule packs.
+
+Entry: role_choices, technology_key, technology_version, version_at_least, stack_contexts, is_stack_pattern
+Tests: tests/test_patterns.py
+"""
 
 import unicodedata
 from collections import Counter

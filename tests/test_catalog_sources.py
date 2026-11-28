@@ -7,10 +7,10 @@ import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog, tracking_parameters
+from openguildkit.catalog import CatalogError, load_catalog, tracking_parameters, validate_entry
 from openguildkit.references import load_references
 from openguildkit.storage import read_json, write_json
-from openguildkit.tools import load_tools
+from openguildkit.tool_registry import load_tools
 
 # The address each source publishes for its pages, checked offline: getbem.com answers 404 for /naming/
 # and 200 for /naming (link check of 22 November 2026).

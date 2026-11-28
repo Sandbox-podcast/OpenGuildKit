@@ -17,7 +17,6 @@ import unittest
 from pathlib import Path
 
 from openguildkit.cli import command_parser
-
 from tests.test_workflows import TEMPLATES, USES, WORKFLOWS, parse, run_text, steps
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -5,13 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
+from openguildkit.consultation import _board_template
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.references import find_references, load_references
 from openguildkit.rule_checks import evaluate_check
 from openguildkit.storage import write_json
-from openguildkit.consultation import _board_template
-
 from tests.support import CapturedCli
 
 SURFACES = (["customer"], ["service"], ["infrastructure"], ["business"])

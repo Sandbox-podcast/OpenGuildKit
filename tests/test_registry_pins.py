@@ -3,9 +3,10 @@
 import copy
 import unittest
 
-from openguildkit import surfaces
+from openguildkit import surface_servers
 from openguildkit.catalog import CatalogError
-from openguildkit.tools import _validate_tool, load_tools, review_facts
+from openguildkit.tool_registry import _validate_tool, load_tools
+from openguildkit.tools import review_facts
 from tests.test_tool_registry import local_tool
 
 # The servers of the registry whose launch names no one version (npm, PyPI or Docker), each with the day it was counted.
@@ -19,8 +20,8 @@ def unfixed_servers() -> set[str]:
     found = set()
     for tool in load_tools().values():
         for server in tool["servers"]:
-            package = surfaces._package_of(server["command"], server["args"]) if server["transport"] == "stdio" else None
-            if package and surfaces._pin(*package)[0] is False:
+            package = surface_servers._package_of(server["command"], server["args"]) if server["transport"] == "stdio" else None
+            if package and surface_servers._pin(*package)[0] is False:
                 found.add(server["id"])
     return found
 
@@ -30,8 +31,8 @@ class RegistryPinTests(unittest.TestCase):
         """Issue #489: the registry wrote no version, so tools apply wrote launches that pull the latest at each start."""
         for tool in load_tools().values():
             for server in tool["servers"]:
-                package = surfaces._package_of(server["command"], server["args"]) if server["transport"] == "stdio" else None
-                if package and surfaces._pin(*package)[0] and server["id"] not in ("terraform-mcp-server", "mailchimp-marketing-local"):
+                package = surface_servers._package_of(server["command"], server["args"]) if server["transport"] == "stdio" else None
+                if package and surface_servers._pin(*package)[0] and server["id"] not in ("terraform-mcp-server", "mailchimp-marketing-local"):
                     with self.subTest(server=server["id"]):
                         self.assertEqual(server.get("pin_read"), "2026-11-28")
         playwright = next(server for server in load_tools()["playwright"]["servers"] if server["id"] == "playwright-mcp")

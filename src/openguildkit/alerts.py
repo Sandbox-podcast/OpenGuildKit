@@ -6,6 +6,9 @@ already produced (npm audit, pip-audit, OSV-Scanner or GitHub Dependabot alerts)
 whatever scanner reported it, with a life cycle: open, confirmed, dismissed or resolved.
 Tasks link the alerts that concern them; a confirmed critical alert blocks their approval and
 completion until it is resolved or a person records why it is accepted.
+
+Entry: read_report, register_path, load_register, save_register, import_report
+Tests: tests/test_alerts.py
 """
 
 import codecs
@@ -376,34 +379,12 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
         changes["scope"] = scope
     if not report["analyzed"]:
         changes["nothing_analyzed"] = NOTHING_ANALYZED[tool]
-    for alert in reported:
-        alerts, change, unaccepted = _absorb(alerts, alert, tool, today, scope)
-        current = _unscoped(alerts, alert)[0] if change == "unscoped" else next(
-            entry for entry in alerts if _same(entry, alert, scope))
-        if change in ("new", "reopened"):
-            changes[change].append(current["id"])
-        if change == "unscoped":
-            changes.setdefault("unscoped", []).append(current["id"])
-        if unaccepted:
-            changes["acceptance_removed"].append(current["id"])
-        changes["reported"].append(current["id"])
-        if task_id and task_id not in current["tasks"]:
-            current["tasks"] = sorted([*current["tasks"], task_id])
+    alerts = _absorb_reported(alerts, reported, tool, today, scope, task_id, changes)
     reported_ids = set(changes["reported"])
     source = {"tool": tool, "file": path.name, "sha256": digest, "date": today, "dependencies": report["analyzed"]}
     if scope:
         source["scope"] = scope
-    skipped = report.get("skipped", [])
-    for alert in alerts:
-        # A report that analyzed nothing, or skipped the alert's package, cannot show that an alert is gone; nor can a
-        # report of another scope.
-        if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"] or (
-                (alert["ecosystem"], alert["package"]) in skipped) or alert.get("scope") != scope:
-            continue
-        alert["scanners"] = [name for name in alert["scanners"] if name != tool]
-        if not alert["scanners"] and alert["status"] in ACTIVE:
-            alert.update(resolved_from=alert["status"], status="resolved", resolved_on=today, resolved_by=source)
-            changes["resolved"].append(alert["id"])
+    _resolve_absent(alerts, report, reported_ids, scope, source, changes)
     if not scope and any(alert.get("scope") for alert in alerts):
         changes["other_scopes"] = sorted({alert["scope"] for alert in alerts if alert.get("scope")})
     changes = {key: sorted(set(value)) if isinstance(value, list) else value for key, value in changes.items()}
@@ -417,6 +398,44 @@ def import_report(register: dict, path: Path, task_id: str | None = None, today:
         entry["scope"] = scope
     imports = [*register.get("imports", []), entry][-IMPORTS_KEPT:]
     return {**register, "alerts": alerts, "imports": imports}, changes
+
+
+def _absorb_reported(alerts: list[dict], reported: list[dict], tool: str, today: str, scope: str | None,
+                     task_id: str | None, changes: dict) -> list[dict]:
+    """The register's alerts with each alert of the report merged, noted in changes as new, reopened, unscoped,
+    without its acceptance, and reported; with task_id, each is linked to that task."""
+    for alert in reported:
+        alerts, change, unaccepted = _absorb(alerts, alert, tool, today, scope)
+        current = _unscoped(alerts, alert)[0] if change == "unscoped" else next(
+            entry for entry in alerts if _same(entry, alert, scope))
+        if change in ("new", "reopened"):
+            changes[change].append(current["id"])
+        if change == "unscoped":
+            changes.setdefault("unscoped", []).append(current["id"])
+        if unaccepted:
+            changes["acceptance_removed"].append(current["id"])
+        changes["reported"].append(current["id"])
+        if task_id and task_id not in current["tasks"]:
+            current["tasks"] = sorted([*current["tasks"], task_id])
+    return alerts
+
+
+def _resolve_absent(alerts: list[dict], report: dict, reported_ids: set, scope: str | None, source: dict,
+                    changes: dict) -> None:
+    """Take the scanner off the alerts of its scope that its report no longer lists, and resolve those no scanner
+    lists anymore."""
+    tool = report["tool"]
+    skipped = report.get("skipped", [])
+    for alert in alerts:
+        # A report that analyzed nothing, or skipped the alert's package, cannot show that an alert is gone; nor can a
+        # report of another scope.
+        if alert["id"] in reported_ids or tool not in alert.get("scanners", []) or not report["analyzed"] or (
+                (alert["ecosystem"], alert["package"]) in skipped) or alert.get("scope") != scope:
+            continue
+        alert["scanners"] = [name for name in alert["scanners"] if name != tool]
+        if not alert["scanners"] and alert["status"] in ACTIVE:
+            alert.update(resolved_from=alert["status"], status="resolved", resolved_on=source["date"], resolved_by=source)
+            changes["resolved"].append(alert["id"])
 
 
 def find_alert(register: dict, alert_id: str) -> dict:

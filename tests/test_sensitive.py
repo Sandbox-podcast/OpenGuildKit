@@ -12,13 +12,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit.board_entries import received_value
 from openguildkit.sensitive import (
-    CREDENTIAL_SHAPES, credential_kind, personal_data_kinds, redact_credentials, redact_data,
+    CREDENTIAL_SHAPES,
+    credential_kind,
+    personal_data_kinds,
+    redact_credentials,
+    redact_data,
 )
 from openguildkit.storage import write_json
-from openguildkit.tools import load_tools, plan_connections
-from openguildkit.workflow import _received
-
+from openguildkit.tool_registry import load_tools
+from openguildkit.tools import plan_connections
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]
@@ -292,11 +296,11 @@ class CostTests(unittest.TestCase):
 
     def test_an_error_line_cuts_a_long_value_before_looking_for_secrets(self):
         searched = []
-        with patch("openguildkit.workflow.redact_credentials", side_effect=lambda text: searched.append(text) or text):
-            received = _received("a" * 200_000)
+        with patch("openguildkit.board_entries.redact_credentials", side_effect=lambda text: searched.append(text) or text):
+            received = received_value("a" * 200_000)
         self.assertLess(len(searched[0]), 5_000)
         self.assertEqual(len(received), 60)
-        self.assertEqual(_received(f"Key {SAMPLES['a GitHub token']}"), '"Key [credential]"')
+        self.assertEqual(received_value(f"Key {SAMPLES['a GitHub token']}"), '"Key [credential]"')
 
     def test_a_long_line_still_hides_the_secret_it_ends_with(self):
         for text in ("a_" * 2_000 + "DB_PASSWORD=Xq7vLm2pRt9w", "a_" * 2_000 + " dbPassword=Xq7vLm2pRt9w",
