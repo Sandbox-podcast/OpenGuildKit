@@ -51,10 +51,11 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
     from .startup import guard_declared_off
+    from .terminal import interactive
 
     if guard_declared_off(project):  # Before importing the guard: an edit costs the interpreter and one read (#539).
         try:
-            if not sys.stdin.isatty():
+            if not interactive():  # As the guard asks it.
                 sys.stdin.buffer.read()  # Read the host's input, as the guard does, so its write never fails.
         except (OSError, ValueError, AttributeError):
             pass

@@ -493,7 +493,7 @@ class StartupTests(unittest.TestCase):
                     self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
                     loaded = imported(result.stderr)
                     self.assertEqual(sorted(name for name in loaded if name.startswith("openguildkit.")),
-                                     ["openguildkit.startup", "openguildkit.storage"])
+                                     ["openguildkit.startup", "openguildkit.storage", "openguildkit.terminal"])
 
     def test_the_active_edit_hook_leaves_out_tempfile_and_the_deferred_commands(self):
         """Issue #539: the hook imported tempfile, and with it shutil's compressors and random, to write nothing."""
