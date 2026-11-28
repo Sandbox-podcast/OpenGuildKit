@@ -1094,7 +1094,7 @@
       "module": "src/openguildkit/rule_plan_text.py",
       "role": "Prints the rule plan as a person reads it, for `preview` and for the confirmation `init` asks: patterns, regulations, packs and conflicts.",
       "entry": [
-        "_print_rule_plan"
+        "print_rule_plan"
       ],
       "tests": [
         "tests/test_command_output_budget.py",

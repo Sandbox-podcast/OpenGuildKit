@@ -3,7 +3,7 @@
 The plan lists the patterns with why they apply, the regulations, the packs in the order `AGENTS.md` lists them, and
 the conflicts between packs.
 
-Entry: `_print_rule_plan`
+Entry: `print_rule_plan`
 Tests: `tests/test_proportionate_setup.py`, `tests/test_command_output_budget.py`
 """
 
@@ -13,7 +13,7 @@ from .project import RULES_NOTE
 from .storage import json_text
 
 
-def _print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
+def print_rule_plan(plan: dict, as_json: bool, file=None) -> None:
     file = file or sys.stdout
     if as_json:
         print(json_text(plan), end="", file=file)

@@ -32,7 +32,7 @@ from .project import (
 )
 from .project_checks import propose_checks
 from .prompts import prompt_questions
-from .rule_plan_text import _print_rule_plan
+from .rule_plan_text import print_rule_plan
 from .storage import print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
 from .tasks_cli import sharing_issues
@@ -183,15 +183,7 @@ def command_parser() -> argparse.ArgumentParser:
                        help="Agent to configure (other: the Agent Skills folder .agents/skills/).")
     agent.add_argument("--user", action="store_true", help="Install in the home folder for every project.")
     agent.add_argument("--force", action="store_true", help="Replace modified files, keeping a .previous copy.")
-    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
-    host.add_argument("mode", choices=("check", "apply", "scan", "managed"),
-                      help="check reports each rule; apply writes the host settings; scan reads the instruction files "
-                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands; "
-                           "managed prints the settings file an administrator deploys by MDM for one host.")
-    host.add_argument("--json", action="store_true", help="Print the report as JSON.")
-    host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
-    _format_option(host, "With scan, print the findings")
-    managed.add_options(host)
+    _host_parser(commands)
     update = commands.add_parser("update", help="Show what the installed catalog would change and adopt it.")
     update.add_argument("--apply", action="store_true", help="Adopt the installed catalog's records for this project.")
     update.add_argument("--json", action="store_true", help="Print the changes as JSON.")
@@ -208,6 +200,19 @@ def command_parser() -> argparse.ArgumentParser:
 
     tasks_cli.add_parser(commands)
     return parser
+
+
+def _host_parser(commands) -> None:
+    """The host command: check, apply, scan and managed, with their options."""
+    host = commands.add_parser("host", help="Show or apply the rules the host agent can enforce, or scan its files.")
+    host.add_argument("mode", choices=("check", "apply", "scan", "managed"),
+                      help="check reports each rule; apply writes the host settings; scan reads the instruction files "
+                           "and agent settings for hidden characters, phrases that cancel the rules and risky commands; "
+                           "managed prints the settings file an administrator deploys by MDM for one host.")
+    host.add_argument("--json", action="store_true", help="Print the report as JSON.")
+    host.add_argument("--strict", action="store_true", help="With scan: exit 1 on any finding, not only an error.")
+    _format_option(host, "With scan, print the findings")
+    managed.add_options(host)
 
 
 def _pending_catalog_changes(lock: dict | None, live: dict, profile: dict, bundled: dict) -> list[str]:
@@ -720,7 +725,7 @@ def _print_selection(plan: dict) -> None:
 
 def _confirm_rule_plan(plan: dict) -> None:
     print("", file=sys.stderr)
-    _print_rule_plan(plan, False, file=sys.stderr)
+    print_rule_plan(plan, False, file=sys.stderr)
     print("Write this profile and these rules? [Y/n]", file=sys.stderr)
     print("> ", end="", file=sys.stderr, flush=True)
     if input().strip().casefold() not in ("", "y", "yes", "o", "oui"):
@@ -1366,7 +1371,7 @@ def _run(args) -> int | None:
             profile = setup_profile(read_json(args.answers), catalog, _setup_questions(root, state, catalog)[0])[0]
         else:
             profile = load_profile(state, catalog)
-        _print_rule_plan(rule_plan(profile, catalog), args.json)
+        print_rule_plan(rule_plan(profile, catalog), args.json)
     elif args.command == "recommend":
         if args.answers:
             questions = _setup_questions(root, state, catalog)[0]
