@@ -177,9 +177,9 @@ class ActivationTests(ProjectCase):
         before = self.profile()
         after = {**before, "separate_requester": True}
         on, = profile_cli.weakening_changes(before, after, catalog)
-        self.assertEqual(on[1], ["profile", "set", "separate-requester", "on", "--by", "NAME", "--reason", "WHY"])
+        self.assertEqual(on[1], ["profile", "set", "separate-requester", "on", "--by", "INITIALS", "--reason", "WHY"])
         off, = profile_cli.weakening_changes(after, before, catalog)
-        self.assertEqual(off[1], ["profile", "set", "separate-requester", "off", "--by", "NAME", "--reason", "WHY"])
+        self.assertEqual(off[1], ["profile", "set", "separate-requester", "off", "--by", "INITIALS", "--reason", "WHY"])
         with self.assertRaises(profile_cli.Weakening):
             profile_cli.save_edited(self.root, self.root / ".openguildkit", after, "Page", "Edited in the page")
         self.assertNotIn("separate_requester", self.profile())
@@ -202,7 +202,7 @@ class ActivationTests(ProjectCase):
         self.turn_on()
         result = run_cli(self.root, "profile", "export", stdin="")
         self.assertNotIn("separate_requester", json.loads(result.stdout))
-        self.assertIn("openguildkit profile set separate-requester on --by NAME --reason WHY", result.stderr)
+        self.assertIn("openguildkit profile set separate-requester on --by INITIALS --reason WHY", result.stderr)
 
 
 class SeparationTests(ProjectCase):
@@ -221,7 +221,7 @@ class SeparationTests(ProjectCase):
                 _, error = self.decide(by=name, code=1)
                 self.assertIn("Ann Lee requested task retry and cannot approve it", error)
                 self.assertIn("another person", error)
-                self.assertIn("openguildkit task decide retry --approve --by NAME --reason WHY", error)
+                self.assertIn("openguildkit task decide retry --approve --by INITIALS --reason WHY", error)
                 self.assertEqual(self.task()["status"], "reviewed")
         _, error = self.run_cli("task", "decision-payload", "retry", "--by", "ann lee", "--reason", "x", code=1)
         self.assertIn("cannot approve it", error)

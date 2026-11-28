@@ -40,7 +40,7 @@ Start from the [guard workflow template](../integrations/github/openguildkit-gua
 A local approval detects an accidental edit and proves nobody. When the guard enforces, require signed approvals at a terminal:
 
 ```bash
-openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by NAME --reason WHY
+openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by INITIALS --reason WHY
 ```
 
 Repeat `--approver` for each approver, add the key of each to the allowed signers file, and commit both ([signed approvals](workflow.md#signed-approvals)). An approver joins by the same two edits.
@@ -70,7 +70,7 @@ openguildkit check
 
 | What happened | What to do |
 |---|---|
-| An approval must stop holding | The person who approved runs `openguildkit task revoke ID --by NAME --reason WHY`, then `openguildkit task export ID` and commits the record: `guard --ci` then refuses it ([task workflow](workflow.md)) |
+| An approval must stop holding | The person who approved runs `openguildkit task revoke ID --by INITIALS --reason WHY`, then `openguildkit task export ID` and commits the record: `guard --ci` then refuses it ([task workflow](workflow.md)) |
 | An agent wrote outside an approved scope | `guard --ci` refuses the pull request when no valid record covers the file. Review the change against the approved brief and open a new task for what is outside it |
 | A key may be compromised | Remove the principal and the key as in step 5 and commit; a new signature of that principal is refused |
 | A credential or a name reached a record | [Personal data](personal-data.md) says where each field is kept and how to replace a name |

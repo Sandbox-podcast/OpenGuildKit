@@ -516,7 +516,7 @@ def blocking_alerts(register: dict, task: dict) -> list[str]:
     """Why the task's confirmed critical alerts stop its approval and completion."""
     return [
         f"Dependency alert {alert['id']} ({alert['package']} {alert['version']}) is confirmed and critical: "
-        f"resolve it, or have a person run openguildkit alerts accept {alert['id']} --by NAME --reason WHY."
+        f"resolve it, or have a person run openguildkit alerts accept {alert['id']} --by INITIALS --reason WHY."
         for alert in task_alerts(register, task, ("confirmed",))
         if alert["severity"] == "critical" and not alert.get("accepted")
     ]

@@ -16,6 +16,7 @@ from pathlib import Path
 from . import clock
 from .sensitive import redact_credentials
 from .storage import print_json, project_lock, read_json, write_json
+from .wording import plural
 from .workflow import TaskStateError, blocker_list, is_decision_task
 
 SEVERITIES = ("blocking", "important", "minor")
@@ -215,7 +216,7 @@ def _problems(task: dict, change: dict, payload: object) -> tuple[str | None, li
         board = None
     unknown = sorted(set(payload) - {"board", "findings"})
     if unknown:
-        problems.append(f"unexpected field(s): {', '.join(unknown)}; a file has board and findings only.")
+        problems.append(f"unexpected {'field' if len(unknown) == 1 else 'fields'}: {', '.join(unknown)}; a file has board and findings only.")
     findings = payload.get("findings")
     if not isinstance(findings, list):
         return board, [], [*problems, "findings: expected a list, empty when the board found nothing."]
@@ -237,7 +238,7 @@ def _finding_problems(item: dict, where: str, change: dict) -> list[str]:
     problems = []
     unknown = sorted(set(item) - {"file", "line", "severity", "action", "finding"})
     if unknown:
-        problems.append(f"{where}: unexpected field(s) {', '.join(unknown)}.")
+        problems.append(f"{where}: unexpected {'field' if len(unknown) == 1 else 'fields'} {', '.join(unknown)}.")
     file, line = item.get("file"), item.get("line")
     if not isinstance(file, str) or file not in change["files"]:
         problems.append(f"{where}.file: got {file!r}; name a file of the change: {', '.join(change['files']) or 'none'}.")
@@ -291,8 +292,8 @@ def status_line(task: dict) -> str:
     rows = status["boards"]
     done = [row for row in rows if row["reviewed"] and not row["stale"]]
     blocking = [f"{row['board']}, {where}" for row in rows if row["reviewed"] for where in row["blocking"]]
-    line = f"{len(done)} board(s) of {len(rows)} reviewed the delivered diff"
-    line += f"; {len(blocking)} blocking finding(s) ({'; '.join(blocking)})." if blocking else "; no blocking finding."
+    line = f"{plural(len(done), 'board')} of {len(rows)} reviewed the delivered diff"
+    line += f"; {plural(len(blocking), 'blocking finding')} ({'; '.join(blocking)})." if blocking else "; no blocking finding."
     stale = [row["board"] for row in rows if row["reviewed"] and row["stale"]]
     if stale:
         line += f" {', '.join(stale)} reviewed an earlier revision than the delivered one."
@@ -347,7 +348,7 @@ def run(args, root: Path, state: Path, task: dict) -> None:
                 raise ValueError(f"{args.submit.as_posix()}: {error}") from None
             write_json(task_path(state, args.id), updated)
         findings = updated["delivered_review"]["boards"][board]["findings"]
-        print(f"{board}: {len(findings)} finding(s) recorded.")
+        print(f"{board}: {plural(len(findings), 'finding')} recorded.")
         print(status_line(updated))
         return
     if args.board:
@@ -368,10 +369,10 @@ def _print_overview(args, task: dict, change: dict) -> None:
     more = f" and {len(change['files']) - 20} more" if len(change["files"]) > 20 else ""
     revision = "the working tree" if change["revision"] == "working tree" else _short(change["revision"])
     print(f"Delivered diff of task {task['id']}: approved revision {_short(change['base'])} to {revision}, "
-          f"{len(change['files'])} file(s): {shown or 'none'}{more}.")
+          f"{plural(len(change['files']), 'file')}: {shown or 'none'}{more}.")
     print("Each board reads it in its own pass (a subagent when the host has them), with its brief:")
     for row in status["boards"]:
         state = ("not reviewed" if not row["reviewed"] else "reviewed an earlier revision" if row["stale"]
-                 else f"reviewed, {row['findings']} finding(s)")
+                 else f"reviewed, {plural(row['findings'], 'finding')}")
         print(f"  openguildkit task diff-review {task['id']} --board {row['board']}   [{state}]")
     print(status_line(task))

@@ -677,7 +677,7 @@ test('exports a completed task for Documentalist, then records and revokes a sha
   await expect(row.getByText('Autres livrables visibles : docs-site', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Masquer les avertissements' }).click();
   await row.getByRole('button', { name: 'Accès retiré' }).click();
-  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by NAME/)).toBeVisible();
+  await expect(page.getByText(/docs share revoke --id [a-f0-9]{8} --by INITIALS/)).toBeVisible();
 
   await page.getByRole('tab', { name: /Relevés de décision/ }).click();
   await expect(page.getByRole('button', { name: /request-status/ }).first()).toBeVisible();
@@ -718,7 +718,7 @@ test('hands a profile change that weakens a protection to the terminal', async (
   await page.getByLabel('Recherche publique').selectOption('public-sources');
   await page.getByRole('button', { name: 'Enregistrer et synchroniser' }).click();
   const terminal = page.getByRole('dialog', { name: /Changement du profil : à faire dans ton terminal/ });
-  await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by NAME --reason WHY');
+  await expect(terminal.getByLabel('Commande')).toContainText('profile set research public-sources --by INITIALS --reason WHY');
   await terminal.getByRole('button', { name: 'J’ai compris' }).click();
   const profile = await api<{ text: string }>(page, './api/files/read', { path: '.openguildkit/project.json' });
   expect(JSON.parse(profile.body.text).research).toBe('local-only');

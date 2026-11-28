@@ -16,7 +16,7 @@ A field marked "absent when empty" is written only when it holds something. Date
 |---|---|---|---|
 | `schema_version` | Whole number; 1 is the only version | 1 | Written by `init` |
 | `name` | Text on one line | The folder name at `init` | Written by `init` |
-| `sector` | Sector ID of the catalog (`openguildkit catalog`) | `general` | `profile set sector ID --by NAME --reason WHY` |
+| `sector` | Sector ID of the catalog (`openguildkit catalog`) | `general` | `profile set sector ID --by INITIALS --reason WHY` |
 | `stack` | List of technology names | Empty | Written by `init`; `detect` proposes it |
 | `components` | List of `{"id", "stack"}` with an optional `"path"`; an ID is lowercase letters, digits and hyphens, 64 characters at most. Absent when empty | Absent | Written by `init` |
 | `roles` | List of role IDs (`openguildkit patterns --role ID` lists the roles). Absent when empty | Absent | `profile add role` and `profile remove role` |
@@ -36,7 +36,7 @@ A field marked "absent when empty" is written only when it holds something. Date
 | `checks` | List of commands `task verify` runs; every one is mandatory | Empty | `profile add check` and `profile remove check` |
 | `personal_data` | `true` or `false` (written from `yes` or `no`); absent when it was not asked | Asked at `init` | `profile set personal-data yes\|no` |
 | `people_decisions` | `true` or `false`; absent when it was not asked | Asked at `init` | `profile set people-decisions yes\|no` |
-| `declined` | List of pattern IDs, or `{"id", "by", "on", "reason"}`: patterns a person declined, never proposed again. Absent when empty | Absent | `profile decline PATTERN --by NAME --reason WHY` |
+| `declined` | List of pattern IDs, or `{"id", "by", "on", "reason"}`: patterns a person declined, never proposed again. Absent when empty | Absent | `profile decline PATTERN --by INITIALS --reason WHY` |
 | `changes` | List of `{"change", "by", "on", "reason"}`: the history of the profile commands. Absent when empty | Absent | Written by every `profile` command |
 | `ask_every_rule` | `true`, or absent: every rule is asked of every task instead of the ones that concern it | Absent | `profile set ask-every-rule yes\|no` |
 | `light_paths` | List of folder or file globs the short lane covers. Absent or empty: the lane is off | Absent | `profile set light-paths GLOB...`; `none` turns it off ([short lane](workflow.md#short-lane)) |

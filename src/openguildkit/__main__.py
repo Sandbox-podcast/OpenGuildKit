@@ -58,6 +58,9 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
             pass
         return 0
     except OSError as error:
+        from .cli_errors import print_trace
+
+        print_trace()
         print(f"OpenGuildKit: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

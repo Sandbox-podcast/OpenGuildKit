@@ -190,9 +190,9 @@ Les mots qu'OpenGuildKit emploie dans ses commandes, ses questions et ses messag
 
 ### `revoke` · retirer une approbation
 
-**EN** What a person does, at a terminal with `task revoke ID --by NAME --reason WHY`, to withdraw an approval that should no longer cover the work; the web interface refuses it and gives the command.
+**EN** What a person does, at a terminal with `task revoke ID --by INITIALS --reason WHY`, to withdraw an approval that should no longer cover the work; the web interface refuses it and gives the command.
 
-**FR** Ce que fait une personne, dans son terminal avec `task revoke ID --by NAME --reason WHY`, pour retirer une approbation qui ne doit plus couvrir le travail ; l'interface web le refuse et donne la commande.
+**FR** Ce que fait une personne, dans son terminal avec `task revoke ID --by INITIALS --reason WHY`, pour retirer une approbation qui ne doit plus couvrir le travail ; l'interface web le refuse et donne la commande.
 
 ### `seal` · sceau
 

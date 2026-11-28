@@ -127,7 +127,7 @@ Turning a feature on connects nothing. `features enable` prints the `tools plan`
 
 ## From a project's stack to its servers
 
-1. Name the tools in the profile, in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know; `openguildkit profile add tool Jira --by NAME --reason WHY` adds one later. The profile then holds `"tools": ["Jira", "Factorial", "Snyk"]`.
+1. Name the tools in the profile, in the words the team uses. `openguildkit init` asks for them, proposes the tools the repository shows signs of, and keeps the names the registry does not know; `openguildkit profile add tool Jira --by INITIALS --reason WHY` adds one later. The profile then holds `"tools": ["Jira", "Factorial", "Snyk"]`.
 2. `openguildkit tools recommend` resolves those names and adds what the repository shows: a `.github/workflows` folder, a `sentry-sdk` dependency, a `.storybook` folder, a `playwright.config.ts`. Names it does not know are listed apart.
 3. `openguildkit tools plan jira factorial snyk` prints what would be configured and writes nothing:
 
@@ -339,7 +339,7 @@ When tools are connected, each board's brief lists the ones it can query, and a 
 
 Use one of the project's connected tools. When recording a review, the CLI warns if the tool falls outside that board's scope. For a live tool, it warns when the local journals hold no call with the cited record: live host calls do not appear in them, so check those citations in the host.
 
-Evidence read from a mock is synthetic. It may be recorded, so a demo or a rehearsal completes, even behind a proceed with high confidence, and it is always labelled: the review warns that the cited record comes from the mock, or that the mock holds no such record and nothing supports the citation; the decision brief and the approval prompt carry one line, `Mock data: N evidence item(s) come from mock tools, ...`, and the exported decision record lists them under `mock_evidence`.
+Evidence read from a mock is synthetic. It may be recorded, so a demo or a rehearsal completes, even behind a proceed with high confidence, and it is always labelled: the review warns that the cited record comes from the mock, or that the mock holds no such record and nothing supports the citation; the decision brief and the approval prompt carry one line, `Mock data: N evidence items come from mock tools, ...`, and the exported decision record lists them under `mock_evidence`.
 
 Use HTTPS links without credentials for public evidence. The CLI checks the literal hostname and query without resolving the host. Cite internal evidence with a project file or a connected tool. A board only reads during a review. Creating a ticket, logging time or posting a message is an external action the person authorizes.
 

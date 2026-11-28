@@ -84,7 +84,7 @@ For `guard --ci`, a problem is an `error` when the guard mode of the base revisi
 
 #### `catalog-org-replaced`
 
-`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by NAME --reason WHY` at a terminal.
+`warning`, on `.openguildkit/catalog/COLLECTION/ID.json`. The project catalog replaces a record of the [organization catalog](catalog-format.md#organization-catalog) the project follows, and no person accepted it for this edition of the record. If the person agrees, run `openguildkit org-catalog accept COLLECTION/ID --by INITIALS --reason WHY` at a terminal.
 
 #### `approvals-not-signed`
 

@@ -1007,7 +1007,7 @@ class MockEvidenceTests(unittest.TestCase):
             code, _, err = run("--project", root, "task", "review", "status", "--file", root / "review.json")
             self.assertEqual(code, 0, err)
             self.assertIn("comes from the jira mock, synthetic sample data", err)
-            line = "Mock data: 1 evidence item(s) come from mock tools, synthetic sample data and not the real systems: " \
+            line = "Mock data: 1 evidence item comes from mock tools, synthetic sample data and not the real systems: " \
                    f"product #{len(product['evidence'])} jira:SUP-142."
             self.assertIn(line, run("--project", root, "task", "challenge", "status")[1])
             with patching.patch("sys.stdin.isatty", return_value=True), patching.patch("builtins.input", return_value="status"):

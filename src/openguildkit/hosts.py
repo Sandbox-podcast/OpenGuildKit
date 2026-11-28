@@ -414,7 +414,7 @@ def approval_warning(profile: dict) -> str | None:
         return None
     return ("OpenGuildKit: guard is enforce but approvals are not signed: a local seal only detects accidental edits, "
             "and an agent that can write files could forge one. A person requires signed approvals at their terminal: "
-            "openguildkit profile set approval signed --signers PATH --approver NAME --by NAME --reason WHY "
+            "openguildkit profile set approval signed --signers PATH --approver NAME --by INITIALS --reason WHY "
             f"({doc_link('docs/workflow.md', 'signed-approvals')}).")
 
 

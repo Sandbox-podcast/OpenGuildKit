@@ -22,6 +22,7 @@ from .patterns import (
 )
 from .rule_checks import describe_check
 from .storage import read_json, write_json, write_text
+from .wording import plural
 
 STATE_DIR = ".openguildkit"
 SCHEMA_VERSION = 1
@@ -1123,7 +1124,7 @@ def rule_plan(profile: dict, catalog: dict) -> dict:
         "rule_warning": (
             f"{count} rules in force. A task is asked only the rules that concern it, but each pattern adds rules "
             f"to read and to answer: above {RULE_WARNING}, check that each pattern below concerns the project and "
-            "decline the others (openguildkit profile decline PATTERN --by NAME --reason WHY)."
+            "decline the others (openguildkit profile decline PATTERN --by INITIALS --reason WHY)."
             if count > RULE_WARNING else None
         ),
         "patterns": [
@@ -1665,7 +1666,7 @@ def check_instructions(root: Path, profile: dict, catalog: dict) -> None:
     edited = hand_edits(current, generated)
     if edited:
         raise RuleError(
-            f"The OpenGuildKit block of AGENTS.md was edited by hand ({len(edited)} line(s), first: {edited[0][:80]}). "
+            f"The OpenGuildKit block of AGENTS.md was edited by hand ({plural(len(edited), 'line')}, first: {edited[0][:80]}). "
             "openguildkit sync replaces the block: move your own text outside the markers first.",
             "instructions-edited", ["AGENTS.md"],
         )

@@ -84,6 +84,10 @@ py -3 -m venv .venv
 
 Check the version you installed with `openguildkit --version`. From the project to equip, run `openguildkit init`, then `openguildkit host apply` when the host is Claude Code, Codex or Gemini CLI (`check` fails until the host settings are applied), then `openguildkit check`. On Windows, use the full path to `openguildkit.exe` from the installed environment, or activate that environment first. Commit the generated profile, `.openguildkit/catalog.lock.json` and the instructions for the team. `openguildkit ui` then opens the project in the browser, on 127.0.0.1: the wheel ships the built interface.
 
+## Complete the commands
+
+`openguildkit completion bash` and `openguildkit completion zsh` print a script that completes the commands, their options and their values: add `eval "$(openguildkit completion bash)"` to `~/.bashrc`, or `eval "$(openguildkit completion zsh)"` to `~/.zshrc` after `compinit`. [Every command and option](cli.md) is also written in one page.
+
 ## Set up the agent
 
 The wheel ships the agent skill and the subagents (board, market analyst, dependency watch) of the same version. From the project:
@@ -95,7 +99,7 @@ openguildkit integrations --host gemini-cli    # .agents/skills/openguildkit, th
 openguildkit integrations --host other         # .agents/skills/openguildkit, for another agent
 ```
 
-Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version (for the skill, one note next to `SKILL.md` covers its `references/` files too). `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code, Codex or Gemini CLI, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for details. For a project set up before, change the host with `openguildkit profile set host claude-code --by NAME --reason WHY` (or `codex`, or `gemini-cli`) and run the same command.
+Add `--user` to install them in your home folder for every project. A file you changed is kept and reported; `--force` replaces it and saves your version as `.previous`. Each folder gets `openguildkit-version.txt` with the installed version, or the name of the file kept at another version (for the skill, one note next to `SKILL.md` covers its `references/` files too). `openguildkit init` asks for the agent host and the board guard (`observe` unless you choose otherwise) and, when the host is Claude Code, Codex or Gemini CLI, prints `openguildkit host apply` as the next step: it installs the host settings and hooks. With the host `other` (the default), OpenGuildKit writes no host settings: see [other agents](../integrations/README.md#other-agents) for details. For a project set up before, change the host with `openguildkit profile set host claude-code --by INITIALS --reason WHY` (or `codex`, or `gemini-cli`) and run the same command.
 
 For another agent (the host `other`), the whole path is:
 

@@ -13,6 +13,7 @@ matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole s
 import re
 
 from .doc_links import doc_link
+from .wording import plural
 
 LANE = "light"
 MAX_PATHS = 50
@@ -198,7 +199,8 @@ def outside_message(task_id: str, task_paths: list[str], light_paths: list[str],
     the paths are held to."""
     shown = ", ".join(outside[:10]) + (f" and {len(outside) - 10} more" if len(outside) > 10 else "")
     return (f"Short-lane task {task_id} covers only {', '.join(task_paths)}, within the light_paths of {where} "
-            f"({', '.join(light_paths)}), and {len(outside)} changed file(s) are outside: {shown}. Rules, dependencies, "
+            f"({', '.join(light_paths)}), and {plural(len(outside), 'changed file')} {'is' if len(outside) == 1 else 'are'} outside: {shown}. "
+            f"Rules, dependencies, "
             f"the profile and agent instructions are never in the lane. Move the work to the full path: openguildkit "
             f'task new "BRIEF" --follows {task_id}.')
 
@@ -262,7 +264,7 @@ def board_for(paths: list[str]) -> tuple[str, str]:
 def activation_command(paths: list[str] | tuple[str, ...]) -> str:
     from .shell import shell_command
 
-    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "NAME", "--reason", "WHY"])
+    return shell_command(["openguildkit", "profile", "set", "light-paths", *paths, "--by", "INITIALS", "--reason", "WHY"])
 
 
 def _usable(paths: list[str] | None) -> list[str]:
@@ -347,7 +349,7 @@ def proposed_routing(task: dict, profile: dict, catalog: dict) -> dict | None:
     if board not in set(profile.get("boards") or catalog["boards"]):
         raise ValueError(
             f"The short lane calls for the {board} board for {', '.join(task['paths'])}, and this project has not "
-            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by NAME "
+            f"enabled it: a person adds it at their terminal (openguildkit profile add board {board} --by INITIALS "
             f"--reason WHY), or the work takes the full path ({FULL_PATH}).")
     return {board: [reason]}
 

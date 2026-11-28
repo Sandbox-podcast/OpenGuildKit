@@ -27,7 +27,7 @@ openguildkit market unknown ID --text "What is still unknown" [--remove]
 openguildkit market watch ID --competitor SLUG --url https://... --kind "release notes" [--every-days 30]
 openguildkit market due ID
 openguildkit market checked ID --url https://...
-openguildkit market provided ID --url https://... --by NAME
+openguildkit market provided ID --url https://... --by INITIALS
 openguildkit market change ID --competitor SLUG --what "..." --source https://... --date YYYY-MM-DD --verified-by NAME
 openguildkit market check ID
 ```

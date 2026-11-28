@@ -19,6 +19,7 @@
         "main"
       ],
       "tests": [
+        "tests/test_cli_errors.py",
         "tests/test_performance.py"
       ],
       "doc": "docs/architecture.md"
@@ -245,6 +246,31 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/cli_errors.py",
+      "role": "What the CLI says when a command ends on an error: the Python trace on request (OPENGUILDKIT_DEBUG=1), and the option that named a file.",
+      "entry": [
+        "print_trace",
+        "error_message"
+      ],
+      "tests": [
+        "tests/test_cli_errors.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/cli_surface.py",
+      "role": "What a person sees of the CLI before it runs: the help pages, the options every command shares, and where the global options may be typed.",
+      "entry": [
+        "polish",
+        "add_by",
+        "hoist_global_options"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/clock.py",
       "role": "The two clocks: the date records are written with (`SOURCE_DATE_EPOCH`) and the real time decisions are made with.",
       "entry": [
@@ -265,6 +291,20 @@
         "tests/test_market.py",
         "tests/test_portal_verification.py",
         "tests/test_publishing.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/completion_cli.py",
+      "role": "The `completion` command and the reference of the commands (docs/cli.md), both written from the parser: scripts that complete the commands, the options and their values in bash and zsh.",
+      "entry": [
+        "add_parser",
+        "run",
+        "script",
+        "reference"
+      ],
+      "tests": [
+        "tests/test_completion_cli.py"
       ],
       "doc": "docs/architecture.md"
     },
@@ -1353,6 +1393,17 @@
         "tests/test_org_catalog.py",
         "tests/test_performance.py",
         "tests/test_webui.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/wording.py",
+      "role": "The words of the outputs: a count with its noun, in the singular when the count is one.",
+      "entry": [
+        "plural"
+      ],
+      "tests": [
+        "tests/test_cli_surface.py"
       ],
       "doc": "docs/architecture.md"
     },

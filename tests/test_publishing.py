@@ -77,7 +77,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn('project_version: "1.4.0"', reference)
         self.assertEqual(reference.count("- Users only see their own requests."), 1)
         self.assertRegex(reference, r"Checks before release: 1 passed, [1-9][0-9]* not applicable")
-        self.assertRegex(reference, r"[1-9][0-9]* objection\(s\) between the boards were not deliberated")
+        self.assertRegex(reference, r"[1-9][0-9]* objections? between the boards (was|were) not deliberated")
         self.assertNotIn("tests/test_access.py", reference)
         self.assertNotIn("recommendation", reference)
         blog = next((site / "blog").glob(f"*-{TASK}.md"))
@@ -591,7 +591,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         register.write_text(json.dumps(data), encoding="utf-8")
         output, _ = self.run_cli("docs", "share", "check", code=1)
         self.assertIn("remove reader@example.test from space docs.example.test/p/support-portal", output)
-        self.assertIn(f"openguildkit docs share revoke --id {share_id} --by NAME", output)
+        self.assertIn(f"openguildkit docs share revoke --id {share_id} --by INITIALS", output)
         self.assertEqual(self.shares()[0]["remove"], ["reader@example.test"])
 
     def test_check_keeps_an_address_that_another_running_share_still_covers(self):
@@ -611,7 +611,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn(f"keep reader@example.test: share {second} gives the same space until {later}", output)
         self.assertIn("remove other@example.test from space docs.example.test/p/support-portal", output)
         self.assertNotIn("remove reader@example.test", output)
-        self.assertIn(f"openguildkit docs share revoke --id {first} --by NAME", output)
+        self.assertIn(f"openguildkit docs share revoke --id {first} --by INITIALS", output)
         self.assertEqual(self.shares()[0]["remove"], ["other@example.test"])
         data["shares"][0]["recipients"] = ["reader@example.test"]
         register.write_text(json.dumps(data), encoding="utf-8")
@@ -732,7 +732,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertIn("revoked", output)
         self.assertIn("removes an address from the whole space docs.example.test/p/support-portal", output)
         self.assertIn("Other shares give reader@example.test the same space", output)
-        self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+        self.assertIn(f"openguildkit docs share revoke --id {second} --by INITIALS", output)
         self.assertNotIn(third, output)
         output, _ = self.run_cli("docs", "share", "revoke", "--id", second, "--by", "Camille")
         self.assertNotIn("--id", output)
@@ -788,7 +788,7 @@ class PublishingTests(CapturedCli, unittest.TestCase):
         self.assertEqual(self.shares()[0]["kept"], {"Client@example.test": {"share": second, "until": later}})
         output, _ = self.run_cli("docs", "share", "revoke", "--id", first, "--by", "Camille")
         self.assertIn("Other shares give Client@example.test the same space", output)
-        self.assertIn(f"openguildkit docs share revoke --id {second} --by NAME", output)
+        self.assertIn(f"openguildkit docs share revoke --id {second} --by INITIALS", output)
 
     def test_an_observation_kept_under_the_default_port_stays_with_its_space(self):
         """An earlier version keyed the observation of https://HOST:443/p/S as HOST:443/p/S; the file is not rewritten."""

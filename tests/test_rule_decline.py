@@ -159,7 +159,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
         answers, notes = self.cli("profile", "export")
         self.assertNotIn("declined_rules", answers)
         self.assertNotIn("Camille", answers + notes)
-        self.assertIn(f"openguildkit profile decline rule {RULE} --by NAME --reason WHY", notes)
+        self.assertIn(f"openguildkit profile decline rule {RULE} --by INITIALS --reason WHY", notes)
 
 
 class NothingChangesWithoutADeclinedRuleTests(unittest.TestCase):

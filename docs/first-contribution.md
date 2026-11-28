@@ -54,7 +54,7 @@ openguildkit brains --id hr
 python -m unittest discover -s tests
 ```
 
-Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gap(s).`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
+Expected result: the first commands print nothing on error output, `brains --check` reports `27 brains, 0 gaps.`, `brains --id hr` lists your lens, and the tests pass. A refused record names the file and the field.
 
 If you changed triggers, add a brief that must and one that must not select the brain to `tests/routing_cases.json`.
 

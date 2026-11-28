@@ -16,6 +16,7 @@ from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS, as_list, open_points, 
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
 from .rule_checks import describe_check
+from .wording import plural
 
 
 def profile_settings(profile: dict) -> dict:
@@ -791,8 +792,8 @@ def _pack_command(task_id: str) -> str:
 
 
 def _other_packs_line(count: int, task_id: str) -> str:
-    return (f"{count} other packs are in force for other boards (AGENTS.md names them; one pack's rules: "
-            f"{_pack_command(task_id)}).") if count else ""
+    return (f"{plural(count, 'other pack')} {'is' if count == 1 else 'are'} in force for other boards (AGENTS.md names them; "
+            f"one pack's rules: {_pack_command(task_id)}).") if count else ""
 
 
 def pack_rules(consultation: dict, pack_id: str) -> str:
