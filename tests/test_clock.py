@@ -17,7 +17,7 @@ from openguildkit.market import scope_entry as market_scope
 from openguildkit.storybook import scope_entry as storybook_scope
 from openguildkit.workflow import _evidence_day
 from openguildkit.storage import write_json
-from openguildkit.tasks import expired_on
+from openguildkit.tasks_blockers import expired_on
 from tests.support import run_cli
 from tests.test_approval_lifecycle import ApprovalCase
 

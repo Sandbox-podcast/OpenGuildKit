@@ -2,7 +2,7 @@
 
 Every act left to a person, and every question asked at a terminal, starts with `interactive()`. Python's
 `isatty()` is true on Windows for any character device, the NUL device included: there the handle of standard
-input must also be a console.
+input must also be a console. `typed()` is the one place where a person confirms an act by typing its name.
 """
 import os
 import sys
@@ -21,6 +21,16 @@ def interactive() -> bool:
     except (AttributeError, OSError, ValueError):
         return True  # A stand-in stream with no device behind it: its own answer stands.
     return console(descriptor)
+
+
+def typed(expected: str, prompt: str, *, refusal: str | Exception, cancelled: str) -> None:
+    """The person types `expected` at this terminal, or the act stops: ValueError(refusal) without a terminal (or the
+    exception given), ValueError(cancelled) when they type anything else. The prompt goes to standard error."""
+    if not interactive():
+        raise refusal if isinstance(refusal, Exception) else ValueError(refusal)
+    print(prompt, end="", file=sys.stderr, flush=True)
+    if input().strip() != expected:
+        raise ValueError(cancelled)
 
 
 def console(descriptor: int) -> bool:

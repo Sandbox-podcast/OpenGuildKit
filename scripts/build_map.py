@@ -126,8 +126,8 @@ class Module:
 
     def branch(self, function: str, word: str, depth: int = 1) -> tuple[str, str, int] | None:
         """Where `function` handles `word`: (module, function, line) of the function its branch hands the command to,
-        or of the branch itself. Looks in a module-level dictionary of actions too, and in the functions of this module
-        that `function` calls."""
+        or of the branch itself. Looks in a module-level dictionary of actions too, whose handler may be imported, and
+        in the functions of this module that `function` calls."""
         node = self.functions.get(function)
         if node is None:
             return None
@@ -140,8 +140,7 @@ class Module:
                 for key, value in zip(statement.value.keys, statement.value.values, strict=True):
                     if isinstance(key, ast.Constant) and key.value == word:
                         found = self.delegate([ast.Expr(value)], word) if isinstance(value, ast.Lambda) else (
-                            (self.path.name, value.id) if isinstance(value, ast.Name) and value.id in self.functions
-                            else None)
+                            self.callee(ast.Call(value, [], [])) if isinstance(value, ast.Name) else None)
                         if found:
                             return (*found, 0)
         for call in (item for item in ast.walk(node) if isinstance(item, ast.Call) and depth):

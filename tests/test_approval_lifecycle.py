@@ -28,7 +28,7 @@ from openguildkit.project import STATE_DIR, load_profile, project_root
 from openguildkit.project_rules import profile_fingerprint
 from openguildkit.catalog import load_catalog
 from openguildkit.storage import read_json, write_json
-from openguildkit.tasks import kept_passes
+from openguildkit.tasks_review import kept_passes
 from openguildkit.webui import Refused, check_request
 from tests.test_hosts import claude_denies, codex_forbids
 from tests.support import CapturedCli, run_cli, subprocess_environment

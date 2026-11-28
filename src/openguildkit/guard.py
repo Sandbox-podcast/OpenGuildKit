@@ -95,7 +95,7 @@ NOT_COVERING = ("draft", "consulting", "reviewed", "changes-requested", "done", 
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still holds (tasks.approval_problem).
+    """Approved tasks, not yet done, whose approval still holds (tasks_approval.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
     and checked in full, so the index never decides what is covered. One git call checks the approved revisions of
@@ -899,7 +899,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: "str
                        tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
-    The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
+    The record's twin of tasks_approval.approval_problem: the same wording, an error for an approval not yet completed
     and a note for a completed one, whose record is history. tasks holds the task records the caller already read,
     by ID; a local task it lacks is read here.
     """

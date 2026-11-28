@@ -95,7 +95,6 @@ mypy_excluded = [
   "src/openguildkit/storybook_extract.py",
   "src/openguildkit/surfaces.py",
   "src/openguildkit/tasks.py",
-  "src/openguildkit/tasks_cli.py",
   "src/openguildkit/terminal.py",
   "src/openguildkit/tools.py",
   "src/openguildkit/tools_cli.py",

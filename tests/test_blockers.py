@@ -14,7 +14,9 @@ from openguildkit.catalog import load_catalog
 from openguildkit.project import validate_profile
 from openguildkit.project_rules import resolved_profile
 from openguildkit.decisions import check_decision
-from openguildkit.tasks import complete_task, record_decision, record_review, resolve_blocker, verification_blocker_problems
+from openguildkit.tasks_blockers import resolve_blocker, verification_blocker_problems
+from openguildkit.tasks_closing import complete_task, record_decision
+from openguildkit.tasks_review import record_review
 from openguildkit.consultation import consult
 from openguildkit.workflow import blocker_list, handoff
 

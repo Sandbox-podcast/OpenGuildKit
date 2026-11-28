@@ -18,7 +18,7 @@ from .project import DRAFT_MARK
 from .project_rules import resolved_profile
 from .shell import shell_command
 from .storage import write_json
-from .tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
+from .tasks_closing import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
 from .wording import plural
 from .workflow import exported_blockers, objections
 

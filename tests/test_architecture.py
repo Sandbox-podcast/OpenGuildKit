@@ -65,6 +65,16 @@ class ModuleShapeTests(unittest.TestCase):
                 self.assertLessEqual(set(parameters), allowed)
         self.assertNotIn("cli", imported_modules(parsed(PACKAGE / "profile_cli.py"), top_level=True))
 
+    def test_no_module_of_the_task_path_passes_500_lines_and_each_action_takes_one_argument(self):
+        """Issue #506: tasks.py and tasks_cli.py held the whole task path in 3,235 lines; issue #507: the 25 actions
+        took six parameters each, 52 of which they never read."""
+        long = {path.name: count for path in PACKAGE.glob("tasks*.py")
+                if (count := len(path.read_text(encoding="utf-8").splitlines())) > 500}
+        self.assertEqual(long, {})
+        for action, handler in tasks_cli.HANDLERS.items():
+            with self.subTest(action=action):
+                self.assertEqual(list(inspect.signature(handler).parameters), ["command"])
+
     def test_routing_the_questionnaire_and_the_agent_text_live_apart_from_the_workflow(self):
         # Routing changes with each catalog edition: its module and its table of cases do without the workflow.
         self.assertIn("routing", imported_modules(parsed(PACKAGE / "workflow.py"), top_level=True))

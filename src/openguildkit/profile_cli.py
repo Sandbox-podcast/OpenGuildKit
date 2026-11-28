@@ -27,7 +27,7 @@ from .sensitive import redact_credentials
 from .shell import shell_word
 from .storage import print_json, project_lock, write_json
 from .tasks import tasks_touched
-from .terminal import interactive
+from .terminal import typed
 from .tools import load_tools, match_tools
 from .wording import plural
 
@@ -613,13 +613,10 @@ def _voids(voided: list[str]) -> str:
 def _confirm(change: str, target: str, weakened: list[tuple[str, list[str]]], voided: list[str]) -> None:
     """A change that weakens a protection is typed by the person at a terminal, never run by an agent."""
     what = "; ".join(text for text, _ in weakened)
-    if not interactive():
-        raise Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
+    refusal = Weakening(f"'{change}' weakens a protection ({what}): it is the person's decision. Ask them to run the "
                         f"same command at an interactive terminal.{_voids(voided)} Nothing was written.", weakened)
-    print(f"'{change}' weakens a protection of the project ({what}).{_voids(voided)} Type {target} to confirm: ",
-          end="", file=sys.stderr, flush=True)
-    if input().strip() != target:
-        raise ValueError("Profile change cancelled. Nothing was written.")
+    typed(target, f"'{change}' weakens a protection of the project ({what}).{_voids(voided)} Type {target} to confirm: ",
+          refusal=refusal, cancelled="Profile change cancelled. Nothing was written.")
 
 
 def voided_approvals(state: Path, profile: dict, catalog: dict) -> list[str]:

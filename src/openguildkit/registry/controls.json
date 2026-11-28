@@ -19,9 +19,9 @@
       ],
       "code": [
         {
-          "file": "src/openguildkit/tasks_cli.py",
-          "symbol": "_decide",
-          "line": 644
+          "file": "src/openguildkit/tasks_decide_cli.py",
+          "symbol": "run_decide",
+          "line": 91
         },
         {
           "file": "src/openguildkit/terminal.py",
@@ -249,7 +249,7 @@
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "write_change",
-          "line": 630
+          "line": 627
         },
         {
           "file": "src/openguildkit/profile_cli.py",
@@ -327,7 +327,7 @@
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 177
+          "line": 178
         }
       ],
       "in_dossier": [],

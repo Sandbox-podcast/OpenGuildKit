@@ -69,7 +69,7 @@ from .prompts import prompt_questions
 from .rule_plan_text import print_recommendations, print_rule_plan
 from .storage import print_json, project_lock, read_json, write_json
 from .tasks import list_tasks, read_task, task_path, tasks_touched
-from .tasks_cli import sharing_issues
+from .tasks_list_cli import sharing_issues
 from .terminal import interactive
 from .tools import detect_tools, load_tools, match_tools
 from .wording import plural

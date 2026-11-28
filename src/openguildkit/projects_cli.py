@@ -28,7 +28,8 @@ from .project import STATE_DIR, load_profile, state_path
 from .project_setup import GUARD_MODES
 from .shell import shell_word
 from .storage import print_json, read_json
-from .tasks import list_tasks, unresolved_blockers
+from .tasks import list_tasks
+from .tasks_blockers import unresolved_blockers
 from .tools import load_tools
 from .wording import plural
 

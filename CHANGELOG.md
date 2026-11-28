@@ -4,6 +4,9 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Code: `tasks.py` (1,822 lines) and `tasks_cli.py` (1,793) split into eleven modules of 150 to 440 lines along the task path, code moved unchanged; `tasks_cli.py` imports 51 names from 21 modules instead of 143 from 28, and the moved public names stay readable from `tasks` for one release (#506)
+- `task` actions: each of the 25 handlers takes one `TaskCommand` (`tasks_command.py`) instead of six parameters, 52 of which were never read; ten of the new task modules have no mypy error and leave `mypy_excluded` (mypy errors 295 to 245) (#507)
+- Confirmations typed at a terminal: the eleven prompts of `task decide`, `revoke`, `clear`, `waive`, `authorize`, `complete --by`, `verify --cannot-run`, `alerts`, `org-catalog` and `profile` go through `terminal.typed`, and the four lock, re-read and write blocks of `task` through one function; a test fails on any other comparison with `input()`; messages unchanged (#461)
 - JSON files of a project: a file nested too deeply (200 000 `[`) in the tools, deliverables or tool mocks of the catalog, or in `.claude/settings.json`, is refused in one line `OpenGuildKit: <path>: JSON nested too deeply` instead of a Python traceback; in `.mcp.json` or `package.json` it is left aside like any invalid file (#460)
 - `task verify`: a check that runs past its time limit keeps what it printed as text in its log, accents and line breaks included, instead of `b'...'` (#510)
 - `trace`: decisions are ordered by the time of their approval, not by its day and then the task ID, and changes are counted from the decision that holds and comes latest in the history, so two approvals of one day no longer report "no decision covers this change" (#525)
