@@ -268,6 +268,8 @@ class BeforeTheRolesTests(unittest.TestCase):
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)
+        # An upgrade that raises INSTRUCTIONS_LAYOUT asks for one openguildkit sync, which rewrites AGENTS.md alone.
+        run_cli(self.root, "sync")
 
     def test_issue_475_the_old_records_read_and_export_as_before(self):
         """Issue #475: a project without roles reads its earlier approvals, and writes its record byte for byte."""
