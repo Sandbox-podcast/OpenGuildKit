@@ -143,6 +143,23 @@ _KUBE_API = lazy_re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\
 _KUBE_KIND = lazy_re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
 
 
+def _entry_names(entries: list) -> tuple[list[str], list[str]]:
+    """The names of the files and of the folders a folder lists, without symbolic links or SKIPPED_DIRECTORIES."""
+    files, folders = [], []
+    for entry in entries:
+        try:
+            if entry.is_symlink():
+                continue
+            if entry.is_dir():
+                if entry.name not in SKIPPED_DIRECTORIES:
+                    folders.append(entry.name)
+            elif entry.is_file():
+                files.append(entry.name)
+        except OSError:
+            continue
+    return files, folders
+
+
 def walk(root: Path, max_depth: int | None = None):
     """Each folder from root down, depth first in name order, as (folder, parts, files, folders).
 
@@ -160,18 +177,7 @@ def walk(root: Path, max_depth: int | None = None):
                 entries = sorted(listing, key=lambda entry: entry.name)
         except OSError:
             continue
-        files, folders = [], []
-        for entry in entries:
-            try:
-                if entry.is_symlink():
-                    continue
-                if entry.is_dir():
-                    if entry.name not in SKIPPED_DIRECTORIES:
-                        folders.append(entry.name)
-                elif entry.is_file():
-                    files.append(entry.name)
-            except OSError:
-                continue
+        files, folders = _entry_names(entries)
         yield folder, parts, files, folders
         if max_depth is None or len(parts) < max_depth:
             pending.extend((folder / name, (*parts, name)) for name in reversed(folders))
