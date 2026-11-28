@@ -138,7 +138,7 @@ export const remember = (key: string | null, argv: string[] | null) => {
   if (key && argv && CATALOG.test(argv.join('\u0001'))) catalogKeys.add(key);
 };
 /** Commands that can change the catalog in force or the profile. */
-export const changesCatalog = (argv: string[]) => ['update', 'sync', 'init', 'integrations'].includes(argv[0]);
+export const changesCatalog = (argv: string[]) => ['update', 'sync', 'init', 'integrations'].includes(argv[0] ?? '');
 
 /** Marks the cache stale; mounted views reload. 'project' keeps what depends only on the catalog. */
 export function invalidate(scope: 'all' | 'project' = 'all') {

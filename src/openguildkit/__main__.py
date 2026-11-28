@@ -1,7 +1,8 @@
 """Start openguildkit, as python -m openguildkit and as the installed openguildkit command.
 
 Host hooks run openguildkit guard --hook before every edit an agent makes. That call goes straight to the guard,
-without importing the rest of the CLI; every other command, and a hook call written any other way, goes to cli.main,
+without importing the rest of the CLI, and ends before importing the guard when the profile declares it off; a bare
+--version answers without the CLI too. Every other command, and a hook call written any other way, goes to cli.main,
 which parses it as before.
 """
 
@@ -49,6 +50,16 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
                 stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         if hasattr(sys.stderr, "reconfigure"):
             sys.stderr.reconfigure(errors="backslashreplace")
+    from .startup import guard_declared_off
+    from .terminal import interactive
+
+    if guard_declared_off(project):  # Before importing the guard: an edit costs the interpreter and one read (#539).
+        try:
+            if not interactive():  # As the guard asks it.
+                sys.stdin.buffer.read()  # Read the host's input, as the guard does, so its write never fails.
+        except (OSError, ValueError, AttributeError):
+            pass
+        return 0
     from .guard import hook_command
 
     try:
@@ -75,7 +86,15 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    call = hook_call(sys.argv[1:] if argv is None else list(argv))
+    arguments = sys.argv[1:] if argv is None else list(argv)
+    bare = arguments[2:] if arguments[:1] == ["--project"] else arguments[1:] if arguments[:1] and \
+        arguments[0].startswith("--project=") else arguments
+    if bare == ["--version"]:  # Without the CLI, whose import costs four times the interpreter's start (#539).
+        from .startup import package_version
+
+        print(f"openguildkit {package_version()}")
+        return 0
+    call = hook_call(arguments)
     if call is not None:
         return _run_hook(*call, console=argv is None)
     from .cli import main as cli_main

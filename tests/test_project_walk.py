@@ -133,3 +133,71 @@ class WalkTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LargeRepositoryLookupTests(unittest.TestCase):
+    """A bug brief's code is looked for in the file the brief names first, then in every source file of a Git
+    repository; a walk stopped at its limit says so instead of calling the rest absent."""
+
+    BRIEF = ("The status page crashes: `render17()` returns the wrong label in services/svc-9/file_9.ts and "
+             "`missingHelper()` is never called.")
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        for index in range(10):  # More source files than the limit the tests set, the named one walked last.
+            folder = self.root / "services" / f"svc-{index}"
+            folder.mkdir(parents=True)
+            (folder / f"file_{index}.ts").write_text(f"export function render{index}() {{ return {index}; }}\n",
+                                                    encoding="utf-8")
+        (self.root / "services" / "svc-9" / "file_9.ts").write_text("export function render17() { return 1; }\n",
+                                                                   encoding="utf-8")
+
+    def lookup(self, brief=BRIEF):
+        from openguildkit import consultation
+
+        with patch.object(consultation, "MAX_SCANNED_FILES", 4):
+            return consultation.code_lookup(brief, self.root)
+
+    def git(self, *arguments):
+        import shutil
+        import subprocess
+
+        if shutil.which("git") is None:
+            self.skipTest("git is not installed")
+        subprocess.run(["git", "-C", str(self.root), *arguments], check=True, capture_output=True)
+
+    def test_a_function_of_the_file_the_brief_names_is_found_past_the_limit(self):
+        """Issue #536: past 5,000 source files, a function defined in the very file the brief names was called absent."""
+        missing, not_searched = self.lookup()
+        self.assertNotIn("render17()", missing + not_searched)
+        self.assertEqual((missing, not_searched), ([], ["missingHelper()"]))
+
+    def test_a_walk_stopped_at_its_limit_is_said_incomplete_not_absent(self):
+        """Issue #536: a name the walk did not reach was listed as not found in the project."""
+        from openguildkit.catalog import load_catalog
+        from openguildkit.consultation import consult
+        from openguildkit.project import resolved_profile, validate_profile
+
+        missing, not_searched = self.lookup("`render8()` and src/absent.ts are named.")
+        self.assertEqual(missing, [])
+        self.assertEqual(not_searched, ["src/absent.ts", "render8()"])
+        catalog = load_catalog()
+        profile = resolved_profile(validate_profile(json.loads((EXAMPLE / "profile.json").read_text()), catalog),
+                                   catalog)
+        task = {"id": "t", "brief": "`render8()` crashes.", "answers": {
+            **json.loads((EXAMPLE / "answers.json").read_text()), "kind": "bug"}}
+        consultation = consult(profile, catalog, task, code_not_searched=not_searched)
+        self.assertIn("stopped at 5,000 source files before finding: src/absent.ts, render8()",
+                      consultation["markdown"])
+        self.assertNotIn("not found", consultation["markdown"])
+
+    def test_in_a_git_repository_every_source_file_is_searched(self):
+        """Issue #536: a Git repository is searched whole, and a name really absent is still listed."""
+        self.git("init", "-q")
+        self.git("add", "services/svc-0")  # One file tracked, the others untracked: both are searched.
+        (self.root / "node_modules" / "dep").mkdir(parents=True)
+        (self.root / "node_modules" / "dep" / "index.js").write_text("function missingHelper() {}\n", encoding="utf-8")
+        self.assertEqual(self.lookup("`render8()`, `render0()` and `missingHelper()` in src/absent.ts and file_7.ts."),
+                         (["src/absent.ts", "missingHelper()"], []))

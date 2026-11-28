@@ -3,7 +3,7 @@
  * deliverables, connect the tools of the stack with their MCP servers or mocks, and extract a design system.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { setQuery, useRoute } from '@/app/router';
+import { setQuery, useRoute } from '@/shared/router';
 import { Badge, Button, Empty, Notice, Panel, Tabs, TextArea, TextField } from '@/shared/ui/core';
 import { Dialog } from '@/shared/ui/overlay';
 import { Markdown } from '@/shared/ui/markdown';
@@ -956,14 +956,14 @@ function Authorizations({ task }: { task: TaskRecord }) {
             'authorize',
             task.id,
             '--action',
-            v.action,
+            v.action!,
             '--target',
-            v.target,
+            v.target!,
             v.decision === 'allow' ? '--allow' : '--deny',
             '--by',
-            v.by,
+            v.by!,
             '--reason',
-            v.reason,
+            v.reason!,
           ];
           if (v.decision === 'allow')
             showTerminal({
@@ -1070,7 +1070,7 @@ function Deliverables() {
             },
           ]}
           onSubmit={(v) =>
-            act(['deliverable', 'new', v.template, '--task', v.task, ...(v.tool ? ['--tool', v.tool] : []), '--output', v.output], {
+            act(['deliverable', 'new', v.template!, '--task', v.task!, ...(v.tool ? ['--tool', v.tool] : []), '--output', v.output!], {
               success: 'Brouillon écrit',
             })
           }
@@ -1744,7 +1744,9 @@ function Storybook() {
             { name: 'title', label: 'Titre dans la barre latérale', placeholder: 'Design system Acme' },
           ]}
           onSubmit={(v) =>
-            act(['storybook', 'compose', v.ref, '--url', v.url, ...(v.title ? ['--title', v.title] : [])], { success: 'Référence ajoutée' })
+            act(['storybook', 'compose', v.ref!, '--url', v.url!, ...(v.title ? ['--title', v.title] : [])], {
+              success: 'Référence ajoutée',
+            })
           }
         />
         <p className="tiny muted">

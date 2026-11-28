@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from openguildkit import results
 from openguildkit.results import validate_result
 from openguildkit.storage import write_json
 
@@ -837,3 +838,20 @@ class ResultProblemsTests(ResultCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CommandTimeoutTests(unittest.TestCase):
+    def test_the_log_of_a_command_past_its_time_limit_holds_its_output_as_text(self):
+        """Issue #510: after a timeout the log held b'ligne 1: echec du test \\xc3\\xa9\\nsecond\\n'."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = ("import sys, time; sys.stdout.buffer.write('ligne 1: echec du test é\\nsecond\\n'.encode()); "
+                      "sys.stdout.flush(); time.sleep(3)")
+            (root / "slow.py").write_text(script, encoding="utf-8")
+            with patch.object(results, "COMMAND_TIMEOUT", 1):
+                outcome = results._run_command(root, root / ".openguildkit", {"id": "t1"}, {"id": "unit"},
+                                               f'"{sys.executable}" slow.py')
+            log = (root / outcome["evidence"]).read_text(encoding="utf-8")
+        self.assertIsNone(outcome["exit_code"])
+        self.assertIn("Timed out after 1 seconds.\nligne 1: echec du test é\nsecond\n", log)
+        self.assertNotIn("b'", log)

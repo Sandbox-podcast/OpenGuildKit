@@ -161,6 +161,7 @@ class TaskIndexTests(CapturedCli, unittest.TestCase):
 
     def test_an_index_that_cannot_be_written_only_costs_time(self):
         self.approve("approved-one")
+        self.index.unlink()  # Written by the approval, which reads the index for the last approval.
         with patch("openguildkit.task_index.os.replace", side_effect=PermissionError("read-only")):
             self.assertEqual(self.covered(), ["approved-one"])
             self.edit()
@@ -317,3 +318,53 @@ class TaskListIndexTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LastApprovalIndexTests(unittest.TestCase):
+    """task decide and task challenge find the project's last approval from the index, reading one record."""
+
+    setUpClass = classmethod(TaskListIndexTests.setUpClass.__func__)
+    setUp = TaskListIndexTests.setUp
+    age_records = TaskListIndexTests.age_records
+    CLOSED = TaskListIndexTests.CLOSED
+
+    def last_approval(self):
+        """The last approval, and the task records read to find it."""
+        with patch("openguildkit.tasks.read_task", wraps=tasks.read_task) as reader:
+            found = tasks.last_approval(self.root / ".openguildkit")
+        return found, sorted(call.args[1] for call in reader.call_args_list)
+
+    def test_an_index_up_to_date_reads_only_the_record_of_the_last_approval(self):
+        """Issue #535: last_approval read every task record, 2.3 s for task decide at 1,000 tasks."""
+        expected, reads = self.last_approval()
+        self.assertEqual(expected["task"], "approved-0")
+        self.assertEqual(self.last_approval(), (expected, ["approved-0"]))
+        challenge = run_cli(self.root, "task", "challenge", "approved-0").stdout
+        self.index.unlink()
+        self.assertEqual(run_cli(self.root, "task", "challenge", "approved-0").stdout, challenge)
+
+    def test_a_missing_or_falsified_index_finds_the_same_approval(self):
+        """Issue #535: the index only saves reads; whatever it says, the last approval found is the same."""
+        expected = self.last_approval()[0]
+        data = json.loads(self.index.read_text(encoding="utf-8"))
+
+        def entry(name, **fields):
+            return {**data, "tasks": {**data["tasks"], name: {**data["tasks"][name], **fields}}}
+
+        for state, content in (
+                ("missing", None), ("not json", "not json"),
+                ("an approval the record does not hold", entry("consulted-0.json", approved="2999-01-01T00:00:00Z")),
+                ("an approval date that is not text", entry("approved-0.json", approved=7)),
+                ("an entry without the date", entry("approved-0.json", approved=None) | {
+                    "tasks": {name: {key: value for key, value in item.items() if key != "approved"}
+                              for name, item in data["tasks"].items()}}),
+                ("a stale stamp", entry("approved-0.json", approved=None,
+                                        stamp=[data["tasks"]["approved-0.json"]["stamp"][0] + 1,
+                                               *data["tasks"]["approved-0.json"]["stamp"][1:]]))):
+            with self.subTest(index=state):
+                if content is None:
+                    self.index.unlink(missing_ok=True)
+                else:
+                    self.index.write_text(content if isinstance(content, str) else json.dumps(content),
+                                          encoding="utf-8")
+                self.assertEqual(self.last_approval()[0], expected)

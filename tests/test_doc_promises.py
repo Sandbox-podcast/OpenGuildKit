@@ -100,7 +100,7 @@ class MarketStaleObservationTests(unittest.TestCase):
 
 
 class ApprovalNeutralChangeTests(Project):
-    """docs/patterns.md and docs/workflow.md: only a change of the rules, the checks or the boards voids an approval;
+    """docs/patterns.md and docs/workflow/decide.md: only a change of the rules, the checks or the boards voids an approval;
     a new tool or the guard leaves it standing."""
 
     RULE = "Only a change of the rules, the checks or the boards voids an approval"
@@ -111,8 +111,8 @@ class ApprovalNeutralChangeTests(Project):
     def test_both_pages_give_the_rule(self):
         section = (REPO / "docs" / "patterns.md").read_text(encoding="utf-8").split(
             "## Change the profile after setup", 1)[1].split("\n## ", 1)[0]
-        workflow = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8")
-        for page, text in (("patterns.md", section), ("workflow.md", workflow)):
+        workflow = (REPO / "docs" / "workflow" / "decide.md").read_text(encoding="utf-8")
+        for page, text in (("patterns.md", section), ("workflow/decide.md", workflow)):
             with self.subTest(page=page):
                 self.assertIn(self.RULE, text)
                 self.assertRegex(text, r"A new (tool or convention|convention or tool), the guard[^.]*leave approvals "

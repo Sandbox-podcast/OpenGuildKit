@@ -1,9 +1,9 @@
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
-// The product (src/project, src/shared) must not reach into the demo: what the build of the product leaves out.
-// The files that do today are counted in style-baseline.json (npm run lint); a new import fails.
-const DEMO = ['@/domain', '@/domain/*', '@/adapters/*', '@/features/*', '@/fixtures/*', '@/app/*'].map((group) => ({
+// The product (src/project, src/shared) must not reach into the demo (src/demo), which the build of the product leaves
+// out; tests/project/boundary.test.ts walks the imports from src/main.tsx as well.
+const DEMO = ['@/demo', '@/demo/*', '**/demo/*'].map((group) => ({
   group: [group],
   message: 'The demo is not in the package: the product must not import it (#500).',
 }));

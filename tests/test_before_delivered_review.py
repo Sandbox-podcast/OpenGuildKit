@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.support import run_cli
+from tests.support import registry_days_on_the_real_clock, run_cli
 
 REPO = Path(__file__).resolve().parents[1]
 NO_FINGERPRINT = "no fingerprint: cleared before OpenGuildKit recorded one"
@@ -31,9 +31,12 @@ class BeforeDeliveredReviewTests(unittest.TestCase):
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content.encode("utf-8"))
+        registry_days_on_the_real_clock(self)
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)
+        # An upgrade that raises INSTRUCTIONS_LAYOUT asks for one openguildkit sync, which rewrites AGENTS.md alone.
+        run_cli(self.root, "sync")
 
     def run_old(self, command: str):
         result = run_cli(self.root, *shlex.split(command), expect=None)

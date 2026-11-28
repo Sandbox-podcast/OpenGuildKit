@@ -263,12 +263,13 @@
           "transport": "stdio",
           "command": "npx",
           "args": [
-            "@mondaydotcomorg/monday-api-mcp@latest"
+            "@mondaydotcomorg/monday-api-mcp@3.3.1"
           ],
           "package": {
             "registry": "npm",
             "name": "@mondaydotcomorg/monday-api-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "MONDAY_TOKEN"
@@ -307,12 +308,13 @@
           "transport": "stdio",
           "command": "uvx",
           "args": [
-            "redmine-mcp-server"
+            "redmine-mcp-server@2.24.0"
           ],
           "package": {
             "registry": "pypi",
             "name": "redmine-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "REDMINE_URL",

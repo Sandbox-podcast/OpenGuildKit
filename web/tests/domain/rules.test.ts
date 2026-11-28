@@ -1,14 +1,14 @@
 /** Sensitive business rules (brief §12.1), each tested independently of the screens. */
 import { describe, expect, it } from 'vitest';
-import catalogue from '@/fixtures/catalogue.json';
-import { previewCatalogueImport, type Reference } from '@/adapters/catalogue';
-import { COUNCIL_SCENARIOS } from '@/adapters/simulation/council';
-import { EXPERT_SEEDS } from '@/fixtures/experts';
-import { backupOf, loadWorkspace, previewBackup, saveWorkspace, type KeyValueStore } from '@/adapters/storage';
-import { check } from '@/domain/engine';
-import { cmd } from '@/domain/commands';
-import { emptyState } from '@/domain/state';
-import { allReferences, closureBlocked, closureReport, effectiveExceptionStatus, resolveRules, resultFreshness, shareStatus } from '@/domain/selectors';
+import catalogue from '@/demo/fixtures/catalogue.json';
+import { previewCatalogueImport, type Reference } from '@/demo/adapters/catalogue';
+import { COUNCIL_SCENARIOS } from '@/demo/adapters/simulation/council';
+import { EXPERT_SEEDS } from '@/demo/fixtures/experts';
+import { backupOf, loadWorkspace, previewBackup, saveWorkspace, type KeyValueStore } from '@/demo/adapters/storage';
+import { check } from '@/demo/domain/engine';
+import { cmd } from '@/demo/domain/commands';
+import { emptyState } from '@/demo/domain/state';
+import { allReferences, closureBlocked, closureReport, effectiveExceptionStatus, resolveRules, resultFreshness, shareStatus } from '@/demo/domain/selectors';
 import { agent, human, nova, ok, refused, run, ticks } from './helpers';
 
 const YANIS = human('u-yanis');

@@ -3,7 +3,7 @@
 With OPENGUILDKIT_DEBUG=1, an error turned into one line prints its traceback on standard error first; the hook
 that runs before every edit imports only this module for it, and `traceback` is loaded only when it is asked for.
 
-Entry: print_trace, error_message
+Entry: print_trace, error_message, reader_closed
 Tests: tests/test_cli_errors.py
 """
 
@@ -46,3 +46,17 @@ def error_message(error: BaseException, parser, args) -> str:
                     and Path(str(filename)).as_posix().endswith(Path(str(value)).as_posix()):
                 return text.replace(f"Cannot open {filename}", f"Cannot open {action.option_strings[0]} {value}", 1)
     return text
+
+
+def reader_closed() -> int:
+    """The reader of the output stopped early, as `| head` does: end quietly, like a command that finished.
+
+    Standard output then points at the null device, so the interpreter's last flush cannot fail again.
+    """
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, sys.stdout.fileno())
+        os.close(null)
+    except (OSError, ValueError, AttributeError):
+        pass  # Not a real file descriptor, as when a test captures the output: nothing is flushed at exit.
+    return 0

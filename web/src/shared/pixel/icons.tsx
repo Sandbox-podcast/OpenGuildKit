@@ -2,7 +2,7 @@
  * Pixel icons (9×9 bitmaps) rendered as inline SVG in `currentColor`, so they follow the
  * text colour and contrast of their context. Statuses always pair an icon with text.
  */
-import type { IconName } from '@/domain/machines';
+import type { IconName } from '@/shared/tone';
 
 const B: Record<string, string[]> = {
   dot: ['.........', '.........', '...###...', '..#####..', '..#####..', '..#####..', '...###...', '.........', '.........'],
@@ -70,12 +70,15 @@ const paths = new Map<string, string>();
 function pathOf(name: string): string {
   const hit = paths.get(name);
   if (hit) return hit;
-  const rows = B[name] ?? B.dot;
+  const rows = B[name] ?? B.dot!;
   let d = '';
   rows.forEach((row, y) => {
     let x = 0;
     while (x < row.length) {
-      if (row[x] !== '#') { x++; continue; }
+      if (row[x] !== '#') {
+        x++;
+        continue;
+      }
       let len = 1;
       while (row[x + len] === '#') len++;
       d += `M${x} ${y}h${len}v1h-${len}z`;
@@ -88,7 +91,16 @@ function pathOf(name: string): string {
 
 export function Icon({ name, size = 18, label, className }: { name: PixelIconName; size?: number; label?: string; className?: string }) {
   return (
-    <svg className={`px-icon ${className ?? ''}`} width={size} height={size} viewBox="0 0 9 9" shapeRendering="crispEdges" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    <svg
+      className={`px-icon ${className ?? ''}`}
+      width={size}
+      height={size}
+      viewBox="0 0 9 9"
+      shapeRendering="crispEdges"
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
       <path d={pathOf(name)} fill="currentColor" />
     </svg>
   );

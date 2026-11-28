@@ -159,10 +159,9 @@ class ByOptionTests(unittest.TestCase):
 
     def test_no_command_proposed_by_the_tool_asks_for_a_name(self):
         """Issue #493: 49 strings of src proposed `--by NAME`, against the rule of the initials."""
-        # The managed block of AGENTS.md: a block changed without INSTRUCTIONS_LAYOUT raised reads as edited by hand.
-        kept = {"agent_workflow.py"}
+        # The managed block of AGENTS.md (agent_workflow.py) included: it changed with INSTRUCTIONS_LAYOUT raised.
         sources = [path for path in (REPO / "src" / "openguildkit").rglob("*")
-                   if path.is_file() and path.suffix in (".py", ".md") and path.name not in kept]
+                   if path.is_file() and path.suffix in (".py", ".md")]
         found = [path.relative_to(REPO).as_posix() for path in sources
                  if "--by NAME" in (text := path.read_text(encoding="utf-8")) or '"--by", "NAME"' in text]
         self.assertEqual(found, [])

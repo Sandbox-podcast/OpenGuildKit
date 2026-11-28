@@ -270,9 +270,9 @@ class PlanTests(unittest.TestCase):
         self.assertTrue(search["read_only"])
         self.assertIn("read-only", search["review"]["read_only"])
         sonar = plan_connections(TOOLS, ["sonarqube"], "codex", read_only=True)[0]
-        self.assertIn("without a tag", sonar["review"]["version"])
+        self.assertIn("pinned by tag", sonar["review"]["version"])
         args = sonar["entry"]["args"]
-        self.assertLess(args.index("SONARQUBE_READ_ONLY=true"), args.index("sonarsource/sonarqube-mcp"))
+        self.assertLess(args.index("SONARQUBE_READ_ONLY=true"), args.index("sonarsource/sonarqube-mcp:1.33.0.5260"))
         self.assertEqual(args[args.index("SONARQUBE_READ_ONLY=true") - 1], "-e")
         # A named server without a read-only mode is planned as it is, with a warning, never silently.
         gmail = plan_connections(TOOLS, ["google-workspace/gmail-mcp"], "codex", read_only=True)[0]
@@ -823,7 +823,7 @@ class ReviewPlanTests(unittest.TestCase):
                     forwarded = {args[index + 1] for index, arg in enumerate(args[:-1]) if arg == "-e"}
                     self.assertLessEqual(set(server["env"]), forwarded, f"{tool['id']}/{server['id']}")
         entry = plan_connections(TOOLS, ["sonarqube"], "codex")[0]["entry"]
-        self.assertIn("SONARQUBE_URL", entry["args"][entry["args"].index("sonarsource/sonarqube-mcp") - 1])
+        self.assertIn("SONARQUBE_URL", entry["args"][entry["args"].index("sonarsource/sonarqube-mcp:1.33.0.5260") - 1])
         local = copy.deepcopy(TOOL)
         local["servers"][0] = {
             **{key: value for key, value in REMOTE.items() if key != "url"}, "transport": "stdio", "command": "docker",
@@ -846,7 +846,8 @@ class ReviewPlanTests(unittest.TestCase):
         self.assertEqual(teams["read_only"], NOT_DOCUMENTED + " (looked for on 2026-11-21)")
         self.assertTrue(any(line.startswith("microsoft-teams/work-iq-cli") for line in teams["alternatives"]))
         sonar = plan_connections(TOOLS, ["sonarqube"], "codex")[0]["review"]
-        self.assertIn("without a tag: the documented command pulls latest at every start", sonar["version"])
+        self.assertIn("sonarqube-mcp:1.33.0.5260: pinned by tag. Version read in the package registry on 2026-11-28",
+                      sonar["version"])
         self.assertIn("SONARQUBE_URL", sonar["credentials"])
         self.assertIn("pinned by tag", plan_connections(TOOLS, ["terraform/terraform-mcp-server"], "codex")[0]["review"]["version"])
         self.assertIn("no version to pin", plan_connections(TOOLS, ["jira"], "codex")[0]["review"]["version"])

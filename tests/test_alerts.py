@@ -501,5 +501,43 @@ class AlertFlowTests(CapturedCli, unittest.TestCase):
         self.assertIn(CRITICAL, self.cli("alerts", "list", "--task", "dep-form-parser-ghsa-xxxx-yyyy-zzzz"))
 
 
+class AlertAndDossierTests(CapturedCli, unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        write_json(self.root / "profile.json", json.loads((EXAMPLE / "profile.json").read_text(encoding="utf-8")))
+        self.cli("init", "--answers", self.root / "profile.json")
+        self.cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", "status")
+
+    def test_an_import_for_a_task_that_was_consulted_says_to_consult_again(self):
+        quiet, _ = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--task", "status")
+        self.assertNotIn("consult", quiet)
+        self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json")
+        same, _ = self.cli("alerts", "import", FIXTURES / "npm-audit-critical.json", "--task", "status")
+        self.assertNotIn("consult", same)
+        note, _ = self.cli("alerts", "import", FIXTURES / "pip-audit.json", "--task", "status")
+        self.assertIn("consult it again with openguildkit task consult status --reuse-answers", note)
+        note, _ = self.cli("task", "alerts", "status", "--import", FIXTURES / "npm-audit-critical.json")
+        self.assertIn("task consult status --reuse-answers", note)
+
+    def test_a_dossier_about_another_subject_is_flagged_in_the_consultation(self):
+        market = self.root / ".openguildkit" / "market"
+        market.mkdir(parents=True, exist_ok=True)
+        dossier = json.loads((EXAMPLE.parent / "market-dossier" / "support-portals.json").read_text(encoding="utf-8"))
+        dossier.update(id="storage", title="Cold storage vendors", market="Object storage in Europe",
+                       feature="Archive tiers for rarely read files")
+        write_json(market / "storage.json", dossier)
+        output, _ = self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "storage")
+        self.assertEqual(sum("shares no word with the task brief" in line for line in output.splitlines()), 1)
+        scope = json.loads(self.cli("task", "show", "status")[0])["consultation"]["scope"]
+        self.assertIn("shares no word with the task brief", scope["market"]["relevance"])
+        write_json(market / "support-portals.json", json.loads(
+            (EXAMPLE.parent / "market-dossier" / "support-portals.json").read_text(encoding="utf-8")))
+        self.cli("task", "consult", "status", "--answers", EXAMPLE / "answers.json", "--market", "support-portals")
+        scope = json.loads(self.cli("task", "show", "status")[0])["consultation"]["scope"]
+        self.assertNotIn("relevance", scope["market"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,9 +2,10 @@
 workstation, and what `host check` reads back of them.
 
 `openguildkit host managed --host H --os S` prints the file of one host, or writes it into the folder it is given, and
-says where each system expects it and which channel an MDM has. It installs nothing and writes nowhere else. The
-facts about the hosts (paths, channels, key names) are those of the pages the audit of issue #453 read on 2026-11-26;
-they were not read again when this module was written, and what no page was read for is marked "à vérifier".
+says where each system expects it and which channel an MDM has. It installs nothing and writes nowhere else. With
+--allow FILE, the allow list of `host scan` (allowlist.py) becomes the locks of the host where the page of the host
+shows a form it maps to. The facts about the hosts (paths, channels, key names) are those of the pages read on
+2026-11-28 (PAGES_READ); what no page was read for is marked "à vérifier" and not written.
 
 Entry: add_options, run, only_managed_hooks.
 Tests: tests/test_managed_settings.py.
@@ -14,13 +15,13 @@ import json
 import sys
 from pathlib import Path
 
-from . import hosts
+from . import allowlist, hosts
 from .doc_links import doc_link
-from .storage import write_text
+from .storage import load_json, write_text
 
 OS_NAMES = ("macos", "linux", "windows")
 FRAGMENT = "50-openguildkit.json"
-AUDIT_READ = "2026-11-26"
+PAGES_READ = "2026-11-28"
 TARGETS: dict[str, dict] = {
     "claude-code": {
         "file": FRAGMENT,
@@ -31,32 +32,30 @@ TARGETS: dict[str, dict] = {
                     "windows": "the registry key HKLM\\SOFTWARE\\Policies\\ClaudeCode"},
         "pages": ("https://code.claude.com/docs/en/managed-settings.md",
                   "https://code.claude.com/docs/en/settings-reference.md"),
-        "notes": (("The folder managed-settings.d/ sits next to managed-settings.json: the page names it, and where it "
-                   "stands on Linux and Windows is à vérifier."),
-                  ("Not written, value or form not read (à vérifier): permissions.disableBypassPermissionsMode, "
-                   "allowedMcpServers, availableModels. The Edit rules on the protected files of a project are not "
-                   "written either: the hooks refuse those edits, and a path rule is relative to the settings source.")),
+        "notes": (("permissions.disableBypassPermissionsMode is \"disable\": no one enters bypassPermissions mode, and "
+                   "Claude Code rejects --dangerously-skip-permissions."),
+                  ("The Edit rules on the protected files of a project are not written: the hooks refuse those edits, "
+                   "and a path rule is relative to the settings source.")),
     },
     "codex": {
         "file": "requirements.toml",
         "where": {"macos": "/etc/codex/", "linux": "/etc/codex/", "windows": "%ProgramData%\\OpenAI\\Codex\\"},
         "channel": {"macos": "MDM, domain com.openai.codex, key requirements_toml_base64 (this file, base64 encoded)"},
-        "pages": ("https://learn.chatgpt.com/docs/enterprise/managed-configuration.md",),
-        "notes": (("Only [features] hooks = true is written: it keeps a user from turning the hooks off. The key names of "
-                   "managed hooks and of forbidden rules in requirements.toml, and the macOS place of the file, are "
-                   "à vérifier (the reference of requirements.toml was not read). The hooks come from the project's "
-                   ".codex/hooks.json (host apply)."),),
+        "pages": ("https://learn.chatgpt.com/docs/enterprise/managed-configuration.md",
+                  "https://developers.openai.com/codex/hooks.md"),
+        "notes": (("The guard hooks are managed hooks under [hooks], and [features] hooks = true keeps a user from "
+                   "turning them off. allow_managed_hooks_only is not written: other hooks keep running. In a project "
+                   "where host apply wrote .codex/hooks.json too, the guard runs twice, with the same answer."),),
     },
     "gemini-cli": {
         "file": "settings.json",
         "where": {"macos": "/Library/Application Support/GeminiCli/", "linux": "/etc/gemini-cli/",
                   "windows": "C:\\ProgramData\\gemini-cli\\"},
         "channel": {},
-        "pages": ("https://geminicli.com/docs/reference/configuration/",),
-        "notes": (("This file is the whole system settings file: it replaces one already there, so merge by hand. Its "
-                   "keys hooks and hooksConfig.enabled are those of the project file ({gemini_page}); that the "
-                   "system file reads them the same way is à vérifier. It overrides the other settings files of "
-                   "Gemini CLI."),),
+        "pages": ("https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md",),
+        "notes": (("This file is the whole system settings file: it replaces one already there, so merge by hand. It "
+                   "overrides the other settings files of Gemini CLI, and its keys hooks and hooksConfig.enabled are "
+                   "settings of every file ({gemini_page})."),),
     },
 }
 CLAUDE_FOLDERS = {"darwin": "/Library/Application Support/ClaudeCode", "win32": "C:\\Program Files\\ClaudeCode"}
@@ -72,7 +71,8 @@ def add_options(host) -> None:
     host.add_argument("--command", dest="hook_command", default="openguildkit",
                       help="With managed: the command the hooks run (default openguildkit; give a full path).")
     host.add_argument("--allow", type=Path, metavar="FILE", help="With scan: an allow list of MCP servers, models and "
-                      "provider addresses; what it does not name is an error.")
+                      "provider addresses; what it does not name is an error. With managed: the same list, written as "
+                      "the locks of the host where its page shows how.")
     host.add_argument("--block-on-failure", action="store_true",
                       help="With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).")
 
@@ -81,26 +81,64 @@ def _quoted(command: str) -> str:
     return f'"{command}"' if any(char.isspace() for char in command) else command
 
 
-def _content(host: str, command: str, block: bool) -> str:
+def _codex_hooks(command: str) -> list[str]:
+    """The guard hooks as the [hooks] tables of requirements.toml, in the shape of the Codex hooks page."""
+    lines = []
+    for event, groups in hosts.guard_hooks("codex", _quoted(command)).items():
+        for group in groups:
+            lines += ["", f"[[hooks.{event}]]"] + ([f"matcher = {json.dumps(group['matcher'])}"] if "matcher" in group else [])
+            for handler in group["hooks"]:
+                lines += ["", f"[[hooks.{event}.hooks]]",
+                          *(f"{key} = {json.dumps(value)}" for key, value in handler.items())]
+    return lines
+
+
+def _locks(host: str, allow: dict | None) -> tuple[dict, list[str]]:
+    """The keys of the Claude Code file that the allow list becomes, and what is not written, with why."""
+    if allow is None:
+        return {}, []
+    if host != "claude-code":
+        page = "the server's name as well as its command or address" if host == "codex" else "names of servers"
+        return {}, [(f"The allow list is not written for {host}: its page asks {page}, which the list does not hold. "
+                     "Check it with openguildkit host scan --allow FILE in each project.")]
+    keys, left = {}, []
+    if "models" in allow:
+        keys["availableModels"] = allow["models"]
+    if "mcp_servers" in allow:
+        addresses = [item for item in allow["mcp_servers"] if item.lower().startswith(("http://", "https://"))]
+        if len(addresses) == len(allow["mcp_servers"]):
+            keys["allowedMcpServers"] = [{"serverUrl": item} for item in addresses]
+        else:
+            left.append("allowedMcpServers is not written: a server named by package or command needs its exact "
+                        "command line (serverCommand), which the list does not hold, and a partial list would block "
+                        "every other local server.")
+    if "endpoints" in allow:
+        left.append("The provider addresses of the list are not written: no managed key for them was read.")
+    return keys, left
+
+
+def _content(host: str, command: str, block: bool, allow: dict | None = None) -> tuple[str, list[str]]:
+    locks, left = _locks(host, allow)
     if host == "codex":
-        return ("# Managed by OpenGuildKit: deploy it with your MDM (openguildkit host managed --host codex).\n"
-                "[features]\nhooks = true\n")
+        return ("\n".join(["# Managed by OpenGuildKit: deploy it with your MDM (openguildkit host managed --host codex).",
+                           "[features]", "hooks = true", *_codex_hooks(command)]) + "\n"), left
     if host == "claude-code":
         settings = {"hooks": hosts.guard_hooks(host, _quoted(command), block),
-                    "permissions": {"deny": list(hosts.CLAUDE_APPROVAL_RULES)}}
+                    "permissions": {"deny": list(hosts.CLAUDE_APPROVAL_RULES), "disableBypassPermissionsMode": "disable"},
+                    **locks}
     else:
         settings = {"hooks": hosts.guard_hooks(host, _quoted(command)), "hooksConfig": {"enabled": True}}
-    return json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
+    return json.dumps(settings, indent=2, ensure_ascii=False) + "\n", left
 
 
-def _guidance(host: str, system: str, shown_at: str | None) -> list[str]:
+def _guidance(host: str, system: str, shown_at: str | None, left: list[str]) -> list[str]:
     target = TARGETS[host]
     lines = [f"Deploy it at: {target['where'][system]}{target['file']}"]
     if system in target["channel"]:
         lines.append(f"MDM channel: {target['channel'][system]}")
-    lines += [f"Read on {AUDIT_READ} by the audit of issue #453, not read again: {page}" for page in target["pages"]]
+    lines += [f"Read on {PAGES_READ}: {page}" for page in target["pages"]]
     readme = doc_link("integrations/README.md", "gemini-cli")
-    lines += [f"Note: {note.format(gemini_page=readme)}" for note in target["notes"]]
+    lines += [f"Note: {note.format(gemini_page=readme)}" for note in [*target["notes"], *left]]
     return [*lines, "Nothing was installed" + (f": the file is at {shown_at}." if shown_at else ": copy it with your MDM.")]
 
 
@@ -112,16 +150,15 @@ def run(args) -> int:
         raise ValueError("host managed prints the file as it is deployed, so --json is not an option of it.")
     if args.block_on_failure and args.host != "claude-code":
         raise ValueError("--block-on-failure is the onFailure setting of a Claude Code hook: the other files have none.")
-    if args.hook_command != "openguildkit" and args.host == "codex":
-        raise ValueError("--command names the command of the hooks: the Codex file holds none.")
-    text = _content(args.host, args.hook_command, args.block_on_failure)
+    allow = allowlist.load_allow(args.allow) if args.allow else None
+    text, left = _content(args.host, args.hook_command, args.block_on_failure, allow)
     if args.output is None:
         print(text, end="")
-        print("\n".join(_guidance(args.host, args.os, None)), file=sys.stderr)
+        print("\n".join(_guidance(args.host, args.os, None, left)), file=sys.stderr)
         return 0
     path = args.output / args.host / TARGETS[args.host]["file"]
     write_text(path, text)
-    print("\n".join([f"Wrote {path.as_posix()}", *_guidance(args.host, args.os, path.as_posix())]))
+    print("\n".join([f"Wrote {path.as_posix()}", *_guidance(args.host, args.os, path.as_posix(), left)]))
     return 0
 
 
@@ -131,7 +168,7 @@ def _managed_files() -> list[tuple[Path, dict]]:
     found = []
     for path in [CLAUDE_FOLDER / "managed-settings.json", *sorted((CLAUDE_FOLDER / "managed-settings.d").glob("*.json"))]:
         try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
+            data = load_json(path)
         except (OSError, ValueError):
             continue
         if isinstance(data, dict):

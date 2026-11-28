@@ -1,13 +1,16 @@
 """The pages written for a reader (administration, support, threat model, host coverage, troubleshooting) stay true:
 each names its reader, its links lead somewhere, its commands exist, and what it says of the code follows the code."""
 
+import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
-from openguildkit import hosts
+from openguildkit import host_coverage, hosts
 from openguildkit.decisions import PAYLOAD_VERSIONS
 from openguildkit.project import SCHEMA_VERSION
+from tests.support import run_cli
 from tests.test_doc_links import anchors
 from tests.test_entry_pages import _commands, _parse_error
 
@@ -111,7 +114,31 @@ class HostCoverageTests(unittest.TestCase):
         section = self.page.split("### What the Claude Code page says about a cloud session", 1)[1]
         self.assertIn("none of a repository's `.claude/settings.json` permission rules, hooks, or `env` apply", section)
         self.assertIn("https://code.claude.com/docs/en/settings", section)
-        self.assertIn("2026-11-26", section)
+        self.assertIn("Read again on 2026-11-28", section)
+        self.assertIn("doesn't reach a cloud session", section)
+
+    def test_the_table_of_the_page_is_the_one_host_check_matrix_prints(self):
+        """Issue #476: the matrix was written by hand; the page now carries the rows of host_coverage.py."""
+        self.assertIn(host_coverage.markdown_table(), self.page)
+        with tempfile.TemporaryDirectory(prefix="ogk-matrix-") as folder:
+            printed = run_cli(Path(folder), "host", "check", "--matrix").stdout
+            self.assertEqual(printed, host_coverage.markdown_table())
+            report = json.loads(run_cli(Path(folder), "host", "check", "--matrix", "--json").stdout)
+            refused = run_cli(Path(folder), "host", "apply", "--matrix", expect=1)
+        self.assertEqual(report["statuses"], sorted(STATUSES, key=list(host_coverage.STATUSES).index))
+        self.assertEqual(len(report["rows"]), len(self.rows))
+        for row in report["rows"]:
+            with self.subTest(row=(row["host"], row["surface"])):
+                self.assertEqual(set(row["controls"]), set(host_coverage.CONTROLS))
+                statuses = {control["status"] for control in row["controls"].values()}
+                self.assertLessEqual(statuses, STATUSES)
+                if statuses & {"enforced", "none"}:
+                    self.assertTrue(row["pages"] and DAY.fullmatch(row["read"] or ""))
+                if row["host"] in hosts.EDIT_MATCHERS:
+                    self.assertEqual(row["edit_tools"], hosts.EDIT_MATCHERS[row["host"]].split("|"))
+        self.assertEqual({row["host"] for row in report["rows"]},
+                         {*hosts.HOOK_HOSTS, *hosts.UNHOOKED_TOOLS, "other"})
+        self.assertIn("--matrix is an option of openguildkit host check.", refused.stderr)
 
     def test_the_matrix_of_the_hosts_has_a_column_for_each_host_init_offers_and_a_version_row(self):
         """Issue #491: the table of what the host enforces had no column for Gemini CLI."""

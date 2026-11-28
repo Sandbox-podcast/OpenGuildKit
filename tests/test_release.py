@@ -120,6 +120,17 @@ class VersionTest(unittest.TestCase):
                 self.assertIn("sha256sum --strict -c", install["run"])
 
 
+class BlameIgnoreTest(unittest.TestCase):
+    def test_each_line_of_the_blame_ignore_file_is_a_comment_or_a_full_commit_hash(self):
+        """GitHub skips the commits of .git-blame-ignore-revs in blame; a short or mistyped hash would be ignored."""
+        lines = (ROOT / ".git-blame-ignore-revs").read_text(encoding="utf-8").splitlines()
+        hashes = [line for line in lines if line.strip() and not line.startswith("#")]
+        self.assertTrue(hashes)
+        for line in hashes:
+            with self.subTest(line=line):
+                self.assertRegex(line, r"^[0-9a-f]{40}$")
+
+
 class ChangelogTest(unittest.TestCase):
     def test_the_next_version_lists_the_changes_users_see_since_the_last_release(self):
         text = _read("CHANGELOG.md")

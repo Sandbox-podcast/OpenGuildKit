@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MACHINES, type TransitionDef } from '@/domain/machines';
-import { terminalCommand } from '@/domain/terminal';
+import { MACHINES, type TransitionDef } from '@/demo/domain/machines';
+import { terminalCommand } from '@/demo/domain/terminal';
 import { nova } from './helpers';
 
 describe('decisions recorded at a terminal', () => {

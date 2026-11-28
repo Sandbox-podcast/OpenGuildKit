@@ -11,6 +11,7 @@ import re
 import tomllib
 from pathlib import Path
 
+from . import lazy_re
 from .stack_versions import declared_version, version_key
 
 # The folders no walk of the project enters: version control, OpenGuildKit's state, dependencies, virtual
@@ -128,29 +129,29 @@ def _sdk_note(spec: object) -> str:
     exact = declared[0].isdigit()
     return f"SDK {'==' if exact else ''}{declared}, the service itself has no version"
 
-_VERSION = re.compile(r"\d+(?:\.\d+){0,2}")
-_GEM = re.compile(r"""(?m)^\s*gem\s+["']([\w.-]+)["'](?:\s*,\s*["']([^"']+)["'])?""")
-_ANDROID_PLUGIN = re.compile(r"com\.android\.(?:application|library|tools\.build:gradle)|"
+_VERSION = lazy_re.compile(r"\d+(?:\.\d+){0,2}")
+_GEM = lazy_re.compile(r"""(?m)^\s*gem\s+["']([\w.-]+)["'](?:\s*,\s*["']([^"']+)["'])?""")
+_ANDROID_PLUGIN = lazy_re.compile(r"com\.android\.(?:application|library|tools\.build:gradle)|"
                              r"libs\.plugins\.android\.(?:application|library)")
-_KOTLIN_PLUGIN = re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin|"
+_KOTLIN_PLUGIN = lazy_re.compile(r"org\.jetbrains\.kotlin|kotlin\(\s*[\"']|kotlin-android|libs\.plugins\.kotlin|"
                             r"plugin:\s*[\"']kotlin[\"'-]")
 # Ktor server: the Gradle plugin, a server artifact, or the server libraries of the Ktor version catalog. The
 # client artifacts (ktor-client-*) are not a server, so an Android app that calls an API does not match.
 _KTOR_PLUGIN = "io.ktor.plugin"
-_KTOR_SERVER_ARTIFACT = re.compile(r"""io\.ktor:ktor-server-[\w-]+(?::([^'"\s)]+))?""")
-_KTOR_BOM = re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
-_KTOR_SETTINGS_CATALOG = re.compile(
+_KTOR_SERVER_ARTIFACT = lazy_re.compile(r"""io\.ktor:ktor-server-[\w-]+(?::([^'"\s)]+))?""")
+_KTOR_BOM = lazy_re.compile(r"""io\.ktor:ktor-bom:([^'"\s)]+)""")
+_KTOR_SETTINGS_CATALOG = lazy_re.compile(
     r"""create\(\s*["'](\w+)["']\s*\)\s*\{\s*from\(\s*["']io\.ktor:ktor-version-catalog:([^"']+)["']""")
-_REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
+_REQUIREMENT = lazy_re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*([^;#]*)")
 # A Mix project's Elixir requirement and its Phoenix dependency; text after a # is a comment.
-_MIX_ELIXIR = re.compile(r'(?m)^[^#\n]*\belixir:[ \t]*"([^"\n]+)"')
-_MIX_PHOENIX = re.compile(r'(?m)^[^#\n]*\{[ \t]*:phoenix[ \t]*,[ \t]*(?:"([^"\n]+)")?')
+_MIX_ELIXIR = lazy_re.compile(r'(?m)^[^#\n]*\belixir:[ \t]*"([^"\n]+)"')
+_MIX_PHOENIX = lazy_re.compile(r'(?m)^[^#\n]*\{[ \t]*:phoenix[ \t]*,[ \t]*(?:"([^"\n]+)")?')
 # What Mix writes next to mix.exs: the fetched dependencies and the build, each with mix.exs files of its own.
 MIX_OUTPUT = ("deps", "_build")
-_AIRFLOW_IMPORT = re.compile(r"(?m)^[ \t]*(?:from|import)[ \t]+airflow\b")
-_DBT_VERSION = re.compile(r"""(?m)^require-dbt-version:[ \t]*(\[[^\]\n]*\]|"[^"\n]*"|'[^'\n]*')""")
-_KUBE_API = re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
-_KUBE_KIND = re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
+_AIRFLOW_IMPORT = lazy_re.compile(r"(?m)^[ \t]*(?:from|import)[ \t]+airflow\b")
+_DBT_VERSION = lazy_re.compile(r"""(?m)^require-dbt-version:[ \t]*(\[[^\]\n]*\]|"[^"\n]*"|'[^'\n]*')""")
+_KUBE_API = lazy_re.compile(r"""(?m)^apiVersion:[ \t]+["']?(?:([a-z0-9.-]+)/)?v\d+(?:[a-z]+\d+)?["']?[ \t]*(?:#.*)?$""")
+_KUBE_KIND = lazy_re.compile(r"""(?m)^kind:[ \t]+["']?([A-Z][A-Za-z0-9]*)["']?[ \t]*(?:#.*)?$""")
 
 
 def walk(root: Path, max_depth: int | None = None):

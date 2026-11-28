@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BUDGET_KB, bundleProblems, sizeKb } from '../../scripts/bundle.mjs';
+import { BUDGET_KB, bundleProblems, sizeKb, unnamedClasses } from '../../scripts/bundle.mjs';
 
 const folders = [];
 function build(files) {
@@ -15,7 +15,9 @@ function build(files) {
   }
   return folder;
 }
-afterEach(() => { for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true });
+});
 
 describe('npm run bundle', () => {
   it('counts each file in 4 KB blocks, as du -sk does', () => {
@@ -58,5 +60,16 @@ describe('npm run bundle', () => {
 
   it('refuses a folder without the page', () => {
     expect(bundleProblems(build({ 'assets/index.js': 10 }))[0]).toMatch(/index\.html is missing/);
+  });
+
+  /** Issue #500: 37 % of the CSS of the wheel styled classes that only the demo names. */
+  it('refuses a build whose CSS styles a class no script of the build names', () => {
+    const folder = build({ 'index.html': 700, 'assets/index.css': 0 });
+    writeFileSync(join(folder, 'assets', 'index.css'), '.panel{}.council-table td{}.tone-ai{}.row:not(.wide){}');
+    writeFileSync(join(folder, 'assets', 'index.js'), 'h("div",{className:"panel row"});const t=`tone-${x}`;');
+    expect(bundleProblems(folder)).toEqual([
+      'The CSS styles .council-table, which no script of the build names: move the rule to src/demo/styles or drop it.',
+    ]);
+    expect(unnamedClasses('@media (max-width:9px){.a .b{}}', 'className:"a b"')).toEqual([]);
   });
 });

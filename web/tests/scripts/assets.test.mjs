@@ -8,7 +8,7 @@ describe('images of the build', () => {
   /** Issue #513: the header showed a 543 x 181 logo of 46 KB at 108 x 36. */
   it('serves the header a logo under 15 KB, and keeps the large one for the installation screen', () => {
     expect(statSync(at('public/assets/brand/logo-header.webp')).size).toBeLessThan(15_000);
-    const brand = readFileSync(at('src/app/Brand.tsx'), 'utf8');
+    const brand = readFileSync(at('src/shared/Brand.tsx'), 'utf8');
     expect(brand).toContain("size === 'hero' ? BRAND.logo : BRAND.logoHeader");
   });
 

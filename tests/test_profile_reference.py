@@ -29,6 +29,13 @@ def page_fields() -> list[str]:
     return re.findall(r"^\| `(\w+)` \|", table, re.MULTILINE)
 
 
+def page_rows() -> dict[str, list[str]]:
+    """Each row of the table, by field: its cells after the field."""
+    table = PAGE.read_text(encoding="utf-8").split("## The 30 fields", 1)[1].split("\n## ", 1)[0]
+    return {match.group(1): [cell.strip() for cell in re.split(r"(?<!\\)\|", match.group(2))[1:-1]]
+            for match in re.finditer(r"^\| `(\w+)` (\|.*)$", table, re.MULTILINE)}
+
+
 def problems(value, schema: dict, root: dict, path: str = "$") -> list[str]:
     """What keeps value from matching schema: the keywords this schema uses, no more (the standard library has no validator)."""
     if "$ref" in schema:
@@ -119,6 +126,26 @@ class ProfileReferenceTests(unittest.TestCase):
                        {"declined_rules": [{"id": "python", "by": "CM", "on": "2026-11-27", "reason": "x"}]}):
             with self.subTest(change=change):
                 self.assertNotEqual(problems({**profile, **change}, schema, schema), [])
+
+    def test_every_profile_command_the_page_cites_exists_and_every_one_is_cited(self):
+        """Issue #491: the page was written by hand; a setting or a list the profile command gains must reach it."""
+        from openguildkit.profile_cli import LIST_FIELDS, SET_FIELDS
+        cited = re.findall(r"profile (add|remove|set) ([a-z-]+)", " ".join(row[2] for row in page_rows().values()))
+        known = {"add": LIST_FIELDS, "remove": LIST_FIELDS, "set": SET_FIELDS}
+        self.assertEqual(sorted({f"{verb} {kind}" for verb, kind in cited if kind not in known[verb]}), [])
+        self.assertEqual(sorted(set(SET_FIELDS) - {kind for verb, kind in cited if verb == "set"}), [])
+        self.assertEqual(sorted(set(LIST_FIELDS) - {kind for verb, kind in cited if verb == "add"}), [])
+
+    def test_the_values_of_a_setting_in_the_page_and_the_schema_are_those_the_code_accepts(self):
+        """Issue #491: host, guard and research list their values in three places: the code is the source."""
+        from openguildkit.profile_cli import SET_FIELDS
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        rows = page_rows()
+        for field in ("host", "guard", "research"):
+            with self.subTest(field=field):
+                accepted = set(SET_FIELDS[field])
+                self.assertEqual(set(schema["properties"][field]["enum"]), accepted)
+                self.assertEqual(set(re.findall(r"`([a-z-]+)`", rows[field][0])), accepted)
 
 
 if __name__ == "__main__":

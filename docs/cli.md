@@ -83,6 +83,8 @@ Say whether an approved task covers the work, for hooks and CI.
 - `--base BASE`: Base revision for --ci (default origin/main).
 - `--require-signed`: With --ci, fail while the base revision's approvals are local and cannot be verified.
 - `--org-catalog NAME=PATH`: With --ci, the copy of the organization catalog that the lock calls NAME.
+- `--org-policy PATH`: With --ci and --org-commit, the copy of the organization catalog whose policy.json sets the minimum, instead of the one the base revision pins.
+- `--org-commit SHA`: With --org-policy, the full SHA of the policy commit.
 - `--json`: Print the result as JSON.
 - `--format {text,sarif}`: With --ci, print the problems as SARIF 2.1.0 for code scanning instead of text.
 
@@ -316,11 +318,11 @@ Remove entries from a list.
 
 ### profile set
 
-Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, the freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), or a setup answer.
+Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, the freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), the paths closed to the agents (restricted-paths), or a setup answer.
 
-- `FIELD`: The setting to change. One of: approval, approver-roles, ask-every-rule, freeze, guard, host, light-paths, max-approval-age, people-decisions, personal-data, research, sector, separate-requester, waivers.
+- `FIELD`: The setting to change. One of: approval, approver-roles, ask-every-rule, freeze, guard, host, light-paths, max-approval-age, people-decisions, personal-data, research, restricted-paths, sector, separate-requester, waivers.
 - `VALUE`: Its new value (light-paths: a folder or file glob such as 'docs/**', or none).
-- `[PATH ...]`: light-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.
+- `[PATH ...]`: light-paths and restricted-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.
 - `--signers PATH`: approval signed: the allowed signers file, a path inside the project.
 - `--approver NAME`: approval signed: a person whose signature approves a task; repeat for each.
 - `--allowed-by NAME`: waivers allowed: a person who may waive a blocker; repeat for each.
@@ -524,6 +526,12 @@ Accept, at a terminal, a project record that replaces a record of the organizati
 - `--by INITIALS`: Your initials or team handle, not your full name: it is committed.
 - `--reason WHY`: Why, in one line.
 
+### org-catalog policy
+
+Show the minimum the organization policy of the pinned commit requires, and where the profile is under it.
+
+- `--json`: Print it as JSON.
+
 ### org-catalog off
 
 Stop following the organization catalog, at a terminal.
@@ -585,8 +593,9 @@ Show or apply the rules the host agent can enforce, or scan its files.
 - `--os {macos,linux,windows}`: With managed: the system it will be deployed on.
 - `--output PATH`: With managed: a folder to write the file in (default: print it).
 - `--command HOOK_COMMAND`: With managed: the command the hooks run (default openguildkit; give a full path).
-- `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error.
+- `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error. With managed: the same list, written as the locks of the host where its page shows how.
 - `--block-on-failure`: With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).
+- `--matrix`: With check: print the coverage of every host and surface; needs no project.
 
 ## update
 

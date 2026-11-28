@@ -97,5 +97,77 @@ class CliRunnerTests(unittest.TestCase):
         self.assertIn("usage:", usage.stderr)
 
 
+PASSING = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n"
+FAILING = ("import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+           "        self.assertEqual('kept', 'trace of the failure')\n")
+SLOW = "import time\nimport unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        time.sleep(30)\n"
+
+
+class ParallelRunnerTests(unittest.TestCase):
+    """scripts/run_tests.py: one process per test file, several at once, with the verdict of unittest discover."""
+
+    def tree(self, files: dict[str, str]) -> Path:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        root = Path(folder.name)
+        for name, text in {"tests/__init__.py": "", **files}.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_text(text, encoding="utf-8")
+        (root / "scripts").mkdir()
+        shutil.copy(REPO / "scripts" / "run_tests.py", root / "scripts" / "run_tests.py")
+        return root
+
+    def run_both(self, root: Path) -> tuple[subprocess.CompletedProcess, int]:
+        parallel = subprocess.run([sys.executable, "scripts/run_tests.py", "--jobs", "2"], cwd=root,
+                                  capture_output=True, text=True, check=False, env=support.subprocess_environment())
+        discover = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"], cwd=root,
+                                  capture_output=True, text=True, check=False, env=support.subprocess_environment())
+        return parallel, discover.returncode
+
+    def test_issue_451_a_failing_file_prints_its_whole_trace_and_fails_like_discover(self):
+        """Issue #451: the suite runs one file per process, and a failure keeps its trace and its exit code."""
+        root = self.tree({"tests/test_ok.py": PASSING, "tests/test_bad.py": FAILING,
+                          "tests/e2e/__init__.py": "", "tests/e2e/test_deep.py": PASSING,
+                          "tests/fixtures/test_not_a_package.py": FAILING})
+        parallel, discover = self.run_both(root)
+        self.assertEqual((parallel.returncode != 0, discover != 0), (True, True), parallel.stdout)
+        self.assertIn("===== tests/test_bad.py failed", parallel.stdout)
+        self.assertIn("AssertionError: 'kept' != 'trace of the failure'", parallel.stdout)
+        self.assertNotIn("test_ok", parallel.stdout)
+        self.assertIn("3 test file(s), 3 tests, 1 failed", parallel.stdout)
+        (root / "tests" / "test_bad.py").write_text(PASSING, encoding="utf-8")
+        parallel, discover = self.run_both(root)
+        self.assertEqual((parallel.returncode, discover), (0, 0), parallel.stdout)
+        self.assertEqual(parallel.stdout.count("\n"), 1, parallel.stdout)
+
+    def test_issue_451_a_failure_or_the_deadline_stops_what_runs_and_starts_nothing_more(self):
+        """Issue #451: with stop_on_failure or past the deadline, the files left are named, not run."""
+        root = self.tree({"tests/test_slow.py": SLOW, "tests/test_bad.py": FAILING, "tests/test_ok.py": PASSING})
+        runner = support.load_script(root / "scripts" / "run_tests.py")
+        stopped = runner.run(["tests/test_slow.py", "tests/test_bad.py", "tests/test_ok.py"], 2, stop_on_failure=True,
+                             root=root)
+        self.assertEqual([path for path, _ in stopped["failed"]], ["tests/test_bad.py"])
+        self.assertEqual((stopped["stopped"], stopped["not_run"]), (["tests/test_slow.py"], ["tests/test_ok.py"]))
+        self.assertLess(stopped["seconds"], 20)
+        late = runner.run(["tests/test_slow.py", "tests/test_ok.py"], 1, deadline=0, root=root)
+        self.assertEqual((late["passed"], late["failed"]), ([], []))
+        self.assertEqual(late["stopped"] + late["not_run"], ["tests/test_slow.py", "tests/test_ok.py"])
+
+    def test_issue_451_a_failure_whose_output_the_console_cannot_encode_is_printed_all_the_same(self):
+        """Issue #451: on Windows, a failed file whose output held a byte that is not UTF-8 stopped the runner with a
+        UnicodeEncodeError: the console's cp1252 has no U+FFFD for the byte it decoded."""
+        undecodable = FAILING.replace("        self.assertEqual", "        import sys\n        sys.stdout.buffer.write(b'caf\\xe9\\n')\n"
+                                      "        sys.stdout.flush()\n        self.assertEqual")
+        root = self.tree({"tests/test_bad.py": undecodable})
+        parallel = subprocess.run([sys.executable, "scripts/run_tests.py", "--jobs", "1"], cwd=root, capture_output=True,
+                                  check=False, env=support.subprocess_environment({"PYTHONIOENCODING": "cp1252"}))
+        output = parallel.stdout.decode("cp1252") + parallel.stderr.decode("cp1252")
+        self.assertEqual(parallel.returncode, 1, output)
+        self.assertNotIn("UnicodeEncodeError", output)
+        self.assertIn("===== tests/test_bad.py failed", output)
+        self.assertIn("AssertionError: 'kept' != 'trace of the failure'", output)
+        self.assertIn("1 test file(s), 1 tests, 1 failed", output)
+
+
 if __name__ == "__main__":
     unittest.main()

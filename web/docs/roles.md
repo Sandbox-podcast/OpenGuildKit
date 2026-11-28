@@ -2,7 +2,7 @@
 
 > Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
 
-Matrice générée depuis [permissions.ts](../src/domain/permissions.ts) avec `npm run docs:roles`. Une case vide indique que le rôle ne donne pas cette capacité.
+Matrice générée depuis [permissions.ts](../src/demo/domain/permissions.ts) avec `npm run docs:roles`. Une case vide indique que le rôle ne donne pas cette capacité.
 
 | Capacité | Propriétaire | Admin | Mainteneur | Contributeur | Lecteur | Auditeur | Agent IA |
 | --- | --- | --- | --- | --- | --- | --- | --- |

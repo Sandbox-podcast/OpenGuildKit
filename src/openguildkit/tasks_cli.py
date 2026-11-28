@@ -10,9 +10,10 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import alerts_cli, audit_log, delivered_review, light_lane, requester, roles
+from . import audit_log, delivered_review, light_lane, requester, roles
+from .alerts import STATUS_CHOICES as ALERT_STATUSES
 from .alerts import blocking_alerts, load_register
-from .brains import brief_knowledge, consultation_context
+from .brains import BriefKnowledge, consultation_context
 from .catalog import board_replacements
 from .cli_surface import add_by
 from .clock import today
@@ -372,7 +373,7 @@ def _alerts_options(command) -> None:
                          help="npm audit, pip-audit, OSV-Scanner or Dependabot JSON report.")
     command.add_argument("--set", dest="alert_id", metavar="ALERT", help="Alert ID to review.")
     command.add_argument("--link", metavar="ALERT", help="Link an alert of the register to the task.")
-    command.add_argument("--status", choices=alerts_cli.STATUS_CHOICES, help="Review status for --set.")
+    command.add_argument("--status", choices=ALERT_STATUSES, help="Review status for --set.")
     add_by(command)
     command.add_argument("--reason", default="", help="Reason, required to dismiss.")
     command.add_argument("--json", action="store_true", help="Print the alerts as JSON.")
@@ -1114,6 +1115,8 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
+    audit_log.record(root, f"blocker.{details['kind']}", task=args.id, blocker=args.blocker, by=args.by,
+                     signer=details.get("signer"), until=details.get("until"))
     print(details["kind"])
 
 
@@ -1230,7 +1233,9 @@ def _outcome(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
 
 def _alerts(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """The task's dependency alerts: import, link and review them."""
-    alerts_cli.task_command(args, state, task)
+    from .alerts_cli import task_command  # Not imported by the other task commands (#539).
+
+    task_command(args, state, task)
 
 
 def _runs(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1330,6 +1335,7 @@ def _route(args, root: Path, state: Path, profile: dict, catalog: dict, task: di
 def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """Record the answers and prepare the consultation of the boards, under the project lock."""
     # Only a consultation reads the reference library and the Storybook record: the other commands start without.
+    from .alerts_cli import consultation_task
     from .references import load_references, with_pattern_references
     from .storybook import scope_entry as storybook_scope_entry
 
@@ -1371,14 +1377,10 @@ def _consult(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
         scoped_profile = task_scope_profile(profile, catalog, answers.get("components", []))
         active = set(scoped_profile["packs"])
         context = consultation_context(current_task, answers, scoped_profile, catalog)
-        knowledge = {board_id: brief_knowledge(board_id, catalog, families, active, context)
-                     for board_id in catalog["boards"]}
         registry = load_tools(state / "catalog" / "tools")
-        for board_id in catalog["boards"]:
-            usable = connected_tools(state, registry, board_id)
-            if usable:
-                knowledge[board_id]["tools"] = usable
-        result = record_consultation(alerts_cli.consultation_task(state, current_task), answers, profile, catalog,
+        knowledge = BriefKnowledge(catalog, families, active, context,
+                                   lambda board_id: connected_tools(state, registry, board_id))
+        result = record_consultation(consultation_task(state, current_task), answers, profile, catalog,
                                      _selection(args), controls, market, storybook_scope_entry(state), knowledge,
                                      connected_tools(state, registry), root,
                                      args.revised_brief)
@@ -1542,7 +1544,10 @@ def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task
         if read_task(state, args.id) != task:
             raise ValueError("The task changed while you were deciding. Review it and retry.")
         write_task(task_path(state, args.id), result)
-    print(result["authorizations"][-1]["decision"])
+    entry = result["authorizations"][-1]
+    audit_log.record(root, "task.authorized", task=args.id, action=entry["action"], target=entry["target"],
+                     decision=entry["decision"], by=entry["by"])
+    print(entry["decision"])
 
 
 def _handoff(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
@@ -1575,7 +1580,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = light_lane.declare(args.lane, args.paths, profile)
-    requested_by = requester.declared(args.requested_by, profile)
+    requested_by = requester.declared(args.requested_by, profile, root)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():

@@ -6,15 +6,16 @@ import json
 import os
 import re
 import unicodedata
+from collections.abc import Iterator
 from datetime import date, timedelta
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
-from . import clock
+from . import clock, lazy_re
 from .rule_checks import validate_check
-from .storage import file_signature
+from .storage import file_signature, load_json, unique_fields
 from .wording import plural
 
 
@@ -28,9 +29,9 @@ ENTRY_FIELDS = {"id", "title", "description", "sources"}
 # The bundled packs, boards, sectors and patterns in one file of registry/, validated when it was built:
 # scripts/build_catalog_bundle.py writes it before the wheel is built, and Git ignores it.
 BUNDLE_FILE = "catalog.bundle.json"
-ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
-MIN_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
+ID_PATTERN = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+VERSION_PATTERN = lazy_re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+MIN_VERSION_PATTERN = lazy_re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){0,3}")
 EXPORT_EXPIRY_ID = "export-link-expiry"
 LEGACY_EXPORT_CHECK = {"kind": "field", "path": "export.json", "field": "downloadLinkMinutes", "integer": True, "min": 1}
 MAX_EVIDENCE = 5
@@ -39,7 +40,7 @@ DATA_ANSWERS = ("none", "internal", "personal", "regulated", "unsure")
 # A method is preselected for its roles; a regulation only for its sectors or personal data.
 PATTERN_KINDS = ("method", "regulation")
 MAX_SAFE_INTEGER = (1 << 53) - 1
-CHECKED_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+CHECKED_PATTERN = lazy_re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 UNDATED_SOURCE = (
     "{label}.checked is missing: open the page, check what the record says against it, "
     'then add "checked": "YYYY-MM-DD" with that day\'s date after its url'
@@ -59,13 +60,16 @@ class CatalogError(ValueError):
     """A catalog record or dependency is invalid."""
 
 
-def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise CatalogError(f"duplicate JSON field {key!r}")
-        result[key] = value
-    return result
+def record_files(directory) -> Iterator[tuple[Any, Any]]:
+    """Each .json file of a catalog folder, in the order of its name, with its JSON: a file that cannot be read or
+    parsed raises CatalogError prefixed with its path."""
+    for path in sorted(directory.iterdir(), key=lambda item: item.name):
+        if path.name.endswith(".json"):
+            try:
+                record = load_json(path, pairs=unique_fields)
+            except (OSError, ValueError) as error:
+                raise CatalogError(f"{path}: {error}") from error
+            yield path, record
 
 
 def validate_fields(
@@ -218,7 +222,7 @@ def recorded_value(task: dict, check_id: str, item: dict | None = None) -> dict:
     return {"value": " ".join(value.split())}
 
 
-_NUMBER = re.compile(r"(?<![\w.])[-+]?[0-9]+(?:[.,][0-9]+)?")
+_NUMBER = lazy_re.compile(r"(?<![\w.])[-+]?[0-9]+(?:[.,][0-9]+)?")
 BOUND_FIELDS = ("min", "above", "max")
 
 
@@ -600,14 +604,9 @@ def _registry():
 def _read_records(collection: str, directory, entries: dict, bundled: bool, overlays: list,
                   replaceable: frozenset = frozenset()) -> None:
     """Validate the record files of one folder and add them to entries."""
-    for path in sorted(directory.iterdir(), key=lambda item: item.name):
-        if not path.name.endswith(".json"):
-            continue
+    for path, entry in record_files(directory):
         try:
-            entry = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_fields)
             entry, overlay = _load_entry(collection, path, entry, entries, bundled, replaceable)
-        except RecursionError as exc:
-            raise CatalogError(f"{path}: JSON nested too deeply") from exc
         except (OSError, ValueError) as exc:
             raise CatalogError(f"{path}: {exc}") from exc
         entries[entry["id"]] = entry

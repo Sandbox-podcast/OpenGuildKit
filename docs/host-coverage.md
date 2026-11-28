@@ -21,8 +21,10 @@ A cell `enforced` or `none` names the page read and the day. The status of a hoo
 | Host | Surface | Hook before an edit | Approval command refused | Pages read |
 |---|---|---|---|---|
 | `claude-code` | Terminal, with `host apply` | `partial`: the hooks run on `Edit`, `Write`, `MultiEdit` and `NotebookEdit`; a write by the shell or by a script is not stopped | `partial`: deny rules match a command line; a script file gets around them | [Hooks](https://code.claude.com/docs/en/hooks) and [permissions](https://code.claude.com/docs/en/permissions), read 2026-11-21 |
-| `claude-code` | Editor extension, desktop application | `not established` | `not established` | None read |
-| `claude-code` | Cloud session (claude.ai/code) | `none` | `none` | [Settings](https://code.claude.com/docs/en/settings), read 2026-11-26 by the author of issue #476, who quotes it below; not read again for this page: to verify |
+| `claude-code` | Editor extension, desktop application | `not established`: the settings page says they read the same files as the terminal; no session was run | `not established` | [Settings](https://code.claude.com/docs/en/settings), read 2026-11-28 |
+| `claude-code` | Cloud thread in a project (claude.ai/code) | `none`: none of the repository's `.claude/settings.json` hooks apply | `none`: none of its permission rules apply | [Settings](https://code.claude.com/docs/en/settings), read 2026-11-28 |
+| `claude-code` | Cloud session on one repository, outside a project's threads | `not established`: the page says `.claude/settings.json` is read; whether the hook's `openguildkit` is installed in the cloud environment is not | `not established`: the page says the file is read; no session was run | [Settings](https://code.claude.com/docs/en/settings), read 2026-11-28 |
+| `claude-code` | Cloud session on several repositories | `none`: only `enabledPlugins` and `extraKnownMarketplaces` are read from each `.claude/settings.json` | `none`: permission rules are not read | [Settings](https://code.claude.com/docs/en/settings), read 2026-11-28 |
 | `claude-code` | Action or headless run in CI | `not established` | `not established` | None read |
 | `codex` | Terminal, trusted project, with `host apply` | `partial`: `.codex/hooks.json` runs before `apply_patch`; Codex reads project settings only once the project is trusted | `partial`: `.codex/rules/openguildkit.rules` forbids the commands as written, and an exact prefix does not match `--project /other/path` | [Rules](https://learn.chatgpt.com/docs/agent-configuration/rules) and [hooks](https://learn.chatgpt.com/docs/hooks), read 2026-11-21 |
 | `codex` | Cloud, CI | `not established` | `not established` | None read |
@@ -36,8 +38,15 @@ No host was started in a live session to check these settings: the hooks are run
 
 ### What the Claude Code page says about a cloud session
 
-Read on 2026-11-26 at https://code.claude.com/docs/en/settings by the author of issue #476, who quotes: "in a cloud thread in a project, none of a repository's `.claude/settings.json` permission rules, hooks, or `env` apply" and "a `managed-settings.json` file or MDM profile on your device doesn't reach a cloud session".
-OpenGuildKit writes its hooks and deny rules to `.claude/settings.json`, so in a cloud session neither the hooks nor the deny rules apply, and the pull request check (`guard --ci`) is the only barrier there. Read the page again before relying on this: it is quoted, not read for this page.
+Read again on 2026-11-28 at https://code.claude.com/docs/en/settings, section "Settings in cloud sessions".
+It says that "in a cloud thread in a project, none of a repository's `.claude/settings.json` permission rules, hooks, or `env` apply".
+It says that a session with one repository outside a project's threads reads `.claude/settings.json`, as part of the clone, and that a session with several repositories reads only `enabledPlugins` and `extraKnownMarketplaces` from it.
+It also says that "a `managed-settings.json` file or MDM profile on your device doesn't reach a cloud session", while the organization's server-managed settings do.
+
+OpenGuildKit writes its hooks and deny rules to `.claude/settings.json`.
+In a cloud thread of a project, and in a session on several repositories, neither applies, and the pull request check (`guard --ci`) is the only barrier there.
+In a session on one repository, the file is read, but the hook runs `openguildkit`, and whether the cloud environment has it installed is not established: count on `guard --ci`.
+A managed settings file deployed by `host managed` does not reach any cloud session.
 
 ## Agents launched in CI
 
@@ -46,4 +55,6 @@ On `pull_request`, GitHub runs the pull request's own copy of a workflow: list `
 
 ## Keeping this page true
 
-The hosts of the first rows are the ones `host apply` writes hooks for (`HOOK_HOSTS` in `hosts.py`), and the rows `cursor` and `copilot` are the tools it knows to have no usable hook (`UNHOOKED_TOOLS`, with the pages and the day each was read). `tests/test_doc_pages.py` fails when one of those lists changes and this page does not follow.
+The table above is printed by `openguildkit host check --matrix`, and `openguildkit host check --matrix --json` gives the same rows to a fleet view; neither needs a project.
+Its rows come from `host_coverage.py`: the hosts of the first rows are the ones `host apply` writes hooks for (`HOOK_HOSTS` in `hosts.py`, with the edit tools of `EDIT_MATCHERS`), and the rows `cursor` and `copilot` are the tools it knows to have no usable hook (`UNHOOKED_TOOLS`, with the pages and the day each was read).
+`tests/test_doc_pages.py` fails when this table and the command differ: change the rows in the code, then paste the output of the command here.

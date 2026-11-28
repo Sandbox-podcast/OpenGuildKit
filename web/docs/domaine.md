@@ -2,15 +2,15 @@
 
 > Démonstration Atelier Nova : cette page décrit la maquette, pas le produit. [Ce qui les distingue](interface-projet.md#ce-qui-distingue-la-démonstration)
 
-`AppState` contient les organisations, les utilisateurs, les tables d'objets, le catalogue local, la session et les préférences. Un produit regroupe des dépôts et modules. Un projet de travail référence son produit principal, son responsable et la version du Blueprint qu'il suit. Les relations entre produits conservent leurs périmètres respectifs. [Types](../src/domain/types.ts)
+`AppState` contient les organisations, les utilisateurs, les tables d'objets, le catalogue local, la session et les préférences. Un produit regroupe des dépôts et modules. Un projet de travail référence son produit principal, son responsable et la version du Blueprint qu'il suit. Les relations entre produits conservent leurs périmètres respectifs. [Types](../src/demo/domain/types.ts)
 
-Une session de Conseil garde le contexte et les règles examinés, les expertises, leurs contributions et les options. Une décision peut produire une quête. La quête relie tâches, critères, livrables, contrôles et approbations. Un résultat relie une exécution et ses entrées à des preuves. Les Chroniques parcourent ces relations dans les deux sens. [Sélecteurs](../src/domain/selectors.ts)
+Une session de Conseil garde le contexte et les règles examinés, les expertises, leurs contributions et les options. Une décision peut produire une quête. La quête relie tâches, critères, livrables, contrôles et approbations. Un résultat relie une exécution et ses entrées à des preuves. Les Chroniques parcourent ces relations dans les deux sens. [Sélecteurs](../src/demo/domain/selectors.ts)
 
-`execute` applique la commande sur une copie de travail et conserve l'état précédent en cas de refus. `check` utilise les mêmes gardes pour les commandes proposées par l'interface. Les événements et le résultat sont enregistrés avec les autres mutations. [Moteur](../src/domain/engine.ts)
+`execute` applique la commande sur une copie de travail et conserve l'état précédent en cas de refus. `check` utilise les mêmes gardes pour les commandes proposées par l'interface. Les événements et le résultat sont enregistrés avec les autres mutations. [Moteur](../src/demo/domain/engine.ts)
 
 ## États et transitions
 
-[`machines.ts`](../src/domain/machines.ts) définit les états, leurs libellés, les transitions autorisées et la capacité requise. [`transition`](../src/domain/commands/transitions.ts) vérifie l'état de départ, le périmètre, l'acteur, la justification et les gardes spécifiques à l'objet avant d'appliquer les effets.
+[`machines.ts`](../src/demo/domain/machines.ts) définit les états, leurs libellés, les transitions autorisées et la capacité requise. [`transition`](../src/demo/domain/commands/transitions.ts) vérifie l'état de départ, le périmètre, l'acteur, la justification et les gardes spécifiques à l'objet avant d'appliquer les effets.
 
 | Objet | Chemin principal | Autres issues |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ Une session de Conseil garde le contexte et les règles examinés, les expertise
 | Exception | Brouillon, demandée, approuvée | Refus, révocation, expiration |
 | Partage local | Actif | Expiration, révocation |
 
-Le résultat de contrôle distingue non évalué, réussi, échoué, non concluant et non applicable. `resultFreshness` évalue séparément la validité du résultat en comparant ses entrées au contexte courant. Le résultat initial reste accessible. [Validité](../src/domain/selectors.ts)
+Le résultat de contrôle distingue non évalué, réussi, échoué, non concluant et non applicable. `resultFreshness` évalue séparément la validité du résultat en comparant ses entrées au contexte courant. Le résultat initial reste accessible. [Validité](../src/demo/domain/selectors.ts)
 
 ## Règles et couverture
 
@@ -73,5 +73,5 @@ Le résultat de contrôle distingue non évalué, réussi, échoué, non conclua
 | RG-38 Partage local | `oversight.createShare`, `openShare`, `selectors.shareStatus` | Domaine et Parcours, audience, refus, révocation. Domaine, échéance. |
 | RG-39 Chroniques et compensation | `engine.execute`, `oversight.compensateEvent` | Parcours, chaîne d'objets dans les Chroniques. Compensation disponible pour les actions listées dans `COMPENSABLE`, sans test dédié. |
 | RG-40 État dérivé | `selectors.kingdomStats`, `notifications`, `allReferences`, `app/store.ts` | Domaine et Interface, comptage du catalogue. Parcours, guide à 20 étapes selon les objets. |
-| RG-41 Import | `adapters/storage.ts`, `adapters/catalogue.ts`, `knowledge.applyCatalogueImport`, `shared/ui/content.tsx` | Domaine et Interface, sauvegarde invalide. Domaine, doublons et protocoles d'URL. Rendu des aperçus relu. |
+| RG-41 Import | `adapters/storage.ts`, `adapters/catalogue.ts`, `knowledge.applyCatalogueImport`, `demo/ui/content.tsx` | Domaine et Interface, sauvegarde invalide. Domaine, doublons et protocoles d'URL. Rendu des aperçus relu. |
 | RG-42 Récupération et répétition | `engine.execute`, `app/store.ts`, `adapters/storage.ts`, `forge.retryRun`, `app/App.tsx` | Domaine, sauvegarde illisible, conversion et relance. Interface, rechargement et route inexistante. |

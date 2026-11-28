@@ -11,6 +11,8 @@ Any agent that reads `AGENTS.md` and runs shell commands can follow the OpenGuil
 | `claude-code/agents/market-analyst.md` | Claude Code subagent that fills and refreshes a market dossier through `openguildkit market` commands, within the research policy |
 | `claude-code/agents/dependency-watch.md` | Claude Code subagent that runs the project's scanners, imports their reports into the alert register and opens a task per new confirmed alert |
 | `github/openguildkit-dependency-watch.yml`, `github/openguildkit-market-watch.yml` | Scheduled jobs: import a scanner report, open a task per new confirmed alert and propose the alert register in a pull request (the scanner runs in a read-only job; in guard mode `enforce` the pull request needs a review task's exported decision, and its checks wait for a maintainer's approval because the job's `GITHUB_TOKEN` opened it: [docs/alerts.md](../docs/alerts.md#the-pull-request-and-the-guard)); open an issue per competitor source due for review |
+| `github/openguildkit-org-catalog-update.yml` | Scheduled job: when the organization catalog moved past the commit the lock pins, open a pull request that shows what the new commit brings; a person pins it from that branch ([docs/catalog-format.md](../docs/catalog-format.md#organization-catalog)) |
+| `github/openguildkit-status.yml` | On each push to the default branch: keep `projects . --surfaces --json` as an artifact, which `gh` gathers for a fleet view without clones ([docs/workflow/several-projects.md](../docs/workflow/several-projects.md#a-fleet-without-clones)) |
 
 Both agents use the same `SKILL.md` format (a folder with a `SKILL.md` file and `name` and `description` in the front matter).
 
@@ -65,13 +67,21 @@ When the repository also holds the files of Cursor (`.cursor`, `.cursorrules`) o
 
 Gemini CLI (`"host": "gemini-cli"`) is the third host with hooks, and the only rule it enforces is the last-but-one row: the board before every change, through hooks in `.gemini/settings.json` (see [Gemini CLI](#gemini-cli)). For the other rows it behaves as the column "Other hosts": research and approval stay instructions, and `host check` says so.
 
-`host check` reports each rule as enforced, partial (the setting is in place and the detail says what still gets around it), missing (the host could enforce it but the setting is absent), by instruction (the agent follows the instruction and a person checks) or by a person (a person decides); `--json` gives the statuses `enforced`, `partial`, `missing`, `instruction` and `human`. The rule that keeps the agent from approving is `partial` at best: deny rules match a command line, and a script file that runs the command or opens a pseudo-terminal gets around them. `host check` exits with code 1 while a setting is missing, and with 0 when nothing is missing, even if some rules stay with the instructions or with a person: no setting of the host can enforce those. `openguildkit check` fails too while a setting is missing. Codex reads project settings only once the project is trusted. `host apply` adds its `web_search` line as a top-level key outside the `openguildkit tools` block and refuses to write when the result would not read back as `web_search = "disabled"`. Deny rules match the command line only: they are friction, not a security boundary. See [what the hosts document](#what-the-host-documentation-says) for what they miss. A local approval seal only detects accidental edits, so with `"guard": "enforce"` `host check` and `check` print a one-line warning until the project requires [signed approvals](../docs/workflow.md#signed-approvals), the only approval that resists an agent that can write files.
+`host check` reports each rule as enforced, partial (the setting is in place and the detail says what still gets around it), missing (the host could enforce it but the setting is absent), by instruction (the agent follows the instruction and a person checks) or by a person (a person decides); `--json` gives the statuses `enforced`, `partial`, `missing`, `instruction` and `human`. The rule that keeps the agent from approving is `partial` at best: deny rules match a command line, and a script file that runs the command or opens a pseudo-terminal gets around them. `host check` exits with code 1 while a setting is missing, and with 0 when nothing is missing, even if some rules stay with the instructions or with a person: no setting of the host can enforce those. `openguildkit check` fails too while a setting is missing. Codex reads project settings only once the project is trusted. `host apply` adds its `web_search` line as a top-level key outside the `openguildkit tools` block and refuses to write when the result would not read back as `web_search = "disabled"`. Deny rules match the command line only: they are friction, not a security boundary. See [what the hosts document](#what-the-host-documentation-says) for what they miss. A local approval seal only detects accidental edits, so with `"guard": "enforce"` `host check` and `check` print a one-line warning until the project requires [signed approvals](../docs/workflow/decide.md#signed-approvals), the only approval that resists an agent that can write files.
 
 The hooks call `openguildkit` by name. When that command is not on the PATH of the workstation running `host check` (a virtual environment that is not activated, for example), the board control reads `missing`. In `enforce`, `host apply` writes `"onFailure": "block"` on the Claude Code pre-edit hook, so a hook that cannot start refuses the edit instead of letting it through; this needs Claude Code 2.1.295 or later, and `host check` reports the hook as `missing` without it. In `observe` the key is not written. In `enforce`, `host apply` also writes `"disableAllHooks": false` in `.claude/settings.json`: Claude Code honours `"disableAllHooks": true` from a user's own settings unless the project says `false`, and `host check` reports the board as `missing` without it. Codex and Gemini CLI have no such setting: install OpenGuildKit on the PATH (with `pipx`, for example) or start the agent from the activated environment.
 
 ### Paths the team closes to the agent
 
-A team can say that a folder (customer exports, secrets, scoring models) is closed to the agent. A person writes it in `.openguildkit/project.json`; no `profile set` command writes it yet:
+A team can say that a folder (customer exports, secrets, scoring models) is closed to the agent:
+
+```bash
+openguildkit profile set restricted-paths 'data/customers/**' 'secrets/**' --by DP --reason "Customer exports"
+openguildkit profile set restricted-paths 'data/customers/**' --by DP --reason "Secrets moved"   # lifts secrets/**: a person, at a terminal
+openguildkit profile set restricted-paths none --by DP --reason "Exports deleted"                # a person, at a terminal
+```
+
+The command writes the paths in `.openguildkit/project.json`, with who, when and why in its history. Closing a path asks nothing; lifting one weakens a protection, so an agent's command is refused and a person types it at a terminal. A person may also write the setting by hand, with a class and boards, which the command replaces:
 
 ```json
 "restricted_paths": [{"paths": ["data/customers/**", "secrets/**"], "class": "restricted", "boards": ["security", "legal"]}]
@@ -79,15 +89,17 @@ A team can say that a folder (customer exports, secrets, scoring models) is clos
 
 `paths` are project paths, without a leading `/` or `..` and without parentheses. `class` and `boards` are kept for the decision a later change will make and nothing reads them yet. The setting is read when the host acts, so it leaves standing approvals standing, as the guard and the host do.
 
+With the guard on, the `pre-edit` hook of the three hosts refuses an edit of a restricted path in `enforce` (and flags it in `observe`), even under an approved task: the person edits it, or lifts the path. The match ignores case, so `Data/Customers/x.csv` is refused too. The hook sees edits, not reads.
+
 | Host | What `host apply` and `host check` do |
 |---|---|
 | Claude Code | `host apply` adds `Read(/PATH)` and `Edit(/PATH)` to `permissions.deny` of `.claude/settings.json` for each path, and keeps the rules of the team; `host check` reports `restricted-paths` as `enforced` or `missing`. Those rules apply to its file tools: a shell command (`cat`, `sed`, a script) is not covered by them (à vérifier: the permissions page was not read again for this). |
-| Codex | Nothing: no setting of Codex that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
-| Gemini CLI | Nothing: no setting of Gemini CLI that refuses a read of a path was read (à vérifier). `host check` says so, as a rule `by instruction`. |
+| Codex | No setting of Codex that refuses a read of a path was read (à vérifier): `host check` says so, as a rule `by instruction`. With the guard on, its `pre-edit` hook refuses an edit. |
+| Gemini CLI | No setting of Gemini CLI that refuses a read of a path was read (à vérifier): `host check` says so, as a rule `by instruction`. With the guard on, its `pre-edit` hook refuses an edit. |
 | Other hosts | Nothing. |
 
-Not done yet, though issue #519 asks for it: `profile set restricted-paths` with its history and its confirmation at a terminal, the `pre-edit` hook that refuses an edit on a restricted path even under an approved task, and the removal of the rules `host apply` wrote when a path leaves the setting.
-A rule it wrote cannot be told from the same rule the team wrote, so `host apply` removes none: delete the stale rule by hand. How `host apply` should recognise its own rules is an open question of that issue.
+When `profile set restricted-paths` lifts a path, its line in the history names it (`set restricted-paths data/customers/** (lifted: secrets/**)`), and the next `host apply` removes the `Read(/PATH)` and `Edit(/PATH)` rules of that path from `.claude/settings.json`, leaving every other rule as it is.
+A rule `host apply` wrote cannot be told from the same rule the team wrote: both go. A path lifted by an edit of `project.json`, by hand or in the web page, is not in that history, so its rules stay: delete them by hand.
 OpenGuildKit does not write the paths into `AGENTS.md` either, so an agent of Codex or Gemini CLI is not told about them.
 
 ### What the host documentation says
@@ -131,7 +143,7 @@ openguildkit task authorize ID --action external-api --target api.example.com --
 - counts every changed file as work, `.openguildkit/project.json` and the catalog lock included, except the decision records themselves, and requires each one in the `files` of a valid record the pull request brings: a record copied into another change does not cover it, and the check names the files no record lists;
 - recomputes each record's seal from its payload, checks that the payload names the record's task and the base rules, and verifies the signature when the base profile requires signed approvals;
 - refuses a record whose task already had another approval on the base revision: new work needs a new task. A record of the same approval (same seal, same consultation) passes, so the record that adds the completion can come in a pull request of its own; it covers only the files its base version listed;
-- with local approvals on the base revision, says that the records cannot be verified: whoever can write a record can recompute its seal. `guard --ci --require-signed` fails the check until the base revision requires [signed approvals](../docs/workflow.md#signed-approvals);
+- with local approvals on the base revision, says that the records cannot be verified: whoever can write a record can recompute its seal. `guard --ci --require-signed` fails the check until the base revision requires [signed approvals](../docs/workflow/decide.md#signed-approvals);
 - names a changed workflow file that runs the check (see [Protect the check](#protect-the-check));
 - refuses a record placed anywhere but directly in `.openguildkit/decisions/`, where `task export` writes it, and reads the base revision's records at any depth below that folder, so a record merged in a subfolder still binds its approval;
 - refuses a new approval whose approved revision is not in the history of the pull request (an approval given on an abandoned branch and copied into another change), with the message `task list` gives;

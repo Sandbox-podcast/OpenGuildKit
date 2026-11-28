@@ -1,6 +1,6 @@
 /** Search across the project: places, tasks, brains, references and patterns. Enter opens the first result. */
 import { useMemo, useState } from 'react';
-import { navigate } from '@/app/router';
+import { navigate } from '@/shared/router';
 import { PLACES } from '@/shared/places';
 import { Dialog } from '@/shared/ui/overlay';
 import { Icon, type PixelIconName } from '@/shared/pixel/icons';

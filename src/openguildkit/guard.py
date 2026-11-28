@@ -13,11 +13,10 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path, PurePosixPath
 
-from . import incident, light_lane, requester, roles
+from . import git, incident, lazy_re, light_lane, org_policy, requester, roles
 from .catalog import load_catalog
 from .decisions import (
     CLOCK_SKEW,
@@ -45,8 +44,10 @@ from .delivered_review import exported_review
 from .doc_links import doc_link
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import copies_read_from, organization_in, parse_copies
-from .project import STATE_DIR, Fingerprints, load_profile, project_root, state_path
+from .project import STATE_DIR, Fingerprints, load_profile, project_root, restricted_paths, state_path
 from .results import DONE_STATUSES, verification_of
+from .startup import MODES as MODES  # The modes, named here for the callers of the guard.
+from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
 from .tasks import (
@@ -64,10 +65,8 @@ from .wording import plural
 from .workflow import TaskStateError, exported_blockers, mock_evidence
 from .workstation import no_profile_answer
 
-MODES = ("off", "observe", "enforce")
-# The mode when the profile cannot be read: the hook refuses edits, as in enforce, and says why.
-UNKNOWN_MODE = "unknown"
-_PATCH_FILE = re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
+FLAGGED = "Edit flagged, not blocked"  # the words of an edit observe lets through; the audit log reads them
+_PATCH_FILE = lazy_re.compile(r"^\*\*\* (?:(?:Update|Add|Delete) File|Move to): (.+)$", re.MULTILINE)
 # Files the CLI writes through its own commands and the host settings the guard relies on.
 PROTECTED = (
     f"{STATE_DIR}/tasks/", f"{STATE_DIR}/{DECISIONS_DIR}/", f"{STATE_DIR}/project.json", f"{STATE_DIR}/{LOCK_FILE}",
@@ -237,7 +236,7 @@ def _context(event: str, text: str, dialect: str = "claude") -> str:
 
 # What the guard found: an approved task covers the work, no task covers it, the edit touches a file the guard
 # relies on or the allowed signers file, the guard could not check, or the edit stays outside the project's work.
-HOOK_OUTCOMES = ("covered", "uncovered", "lane", "protected", "signers", "unchecked", "outside")
+HOOK_OUTCOMES = ("covered", "uncovered", "lane", "protected", "signers", "restricted", "unchecked", "outside")
 SCOPE_NOTE = (
     "The guard does not compare the edited files with a task's scope: keep this work within the approved brief "
     "and bring anything else back to the person."
@@ -276,7 +275,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)
-    verdict = "Edit refused" if refuse else "Edit flagged, not blocked (guard: observe)"
+    verdict = "Edit refused" if refuse else f"{FLAGGED} (guard: observe)"
     if mode == UNKNOWN_MODE:
         detail += "; the profile cannot be read, so the guard cannot know its mode and refuses edits as in enforce"
     if outcome == "covered":
@@ -292,6 +291,10 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     if outcome == "protected":
         message = (f"OpenGuildKit: {detail} is written by the openguildkit commands and the guard relies on it. "
                    f"{verdict}: ask the person to run the openguildkit command that changes it.")
+    elif outcome == "restricted":
+        message = (f"OpenGuildKit: {detail} is a restricted path of the project (restricted_paths in "
+                   f".openguildkit/project.json): agents neither read nor edit it, even under an approved task. "
+                   f"{verdict}: ask the person.")
     elif outcome == "signers":
         message = (f"OpenGuildKit: {detail} lists the keys that may sign approvals: only the person changes it, in a "
                    f"commit they review, even under an approved task. {verdict}: ask the person.")
@@ -327,6 +330,10 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     inside = [relative for relative in (_project_relative(root, path) for path in edited_paths(hook_input)) if relative]
     if freeze and inside:  # Whatever the mode and the approvals: the person lifts the freeze.
         return 2, "", f"OpenGuildKit: Edit refused: {incident.frozen_text(freeze)}. {incident.LIFT}"
+    closed = [pattern.casefold() for pattern in restricted_paths(profile)]
+    restricted = [relative for relative in inside if any(light_lane.matches(pattern, relative.casefold()) for pattern in closed)]
+    if restricted:  # Even under an approved task: the person edits a restricted path, or changes the setting.
+        return hook_answer(event, mode, "restricted", ", ".join(restricted), dialect)
     signers = signers_file(root, profile)
     keys = [relative for relative in inside if signers and relative.casefold() == signers.casefold()]
     host = profile.get("host")
@@ -350,32 +357,20 @@ def guard_hook(event: str, root: Path, state: Path, profile: dict, catalog: dict
     return hook_answer(event, mode, "outside")
 
 
-def _declared_mode(project: Path | None) -> str:
-    """The guard mode written in the profile, read without validation; unknown when it cannot be read."""
-    try:
-        start = project.resolve() if project is not None else Path.cwd().resolve()
-        roots = [start] if project is not None else [start, *start.parents]
-        state = next((root / STATE_DIR for root in roots if (root / STATE_DIR).is_dir()), None)
-        if state is None:
-            return "off"
-        mode = read_json(state / "project.json").get("guard", "off")
-    except Exception:
-        return UNKNOWN_MODE
-    return mode if mode in MODES else UNKNOWN_MODE
-
-
 def _one_line(error: BaseException) -> str:
     text = str(error) if isinstance(error, ValueError) else f"{type(error).__name__}: {error}"
     return " ".join(text.split()) or type(error).__name__
 
 
 def run_hook(event: str, raw: str | None, project: Path | None, load) -> tuple[int, str, str]:
-    """The answer of _decide_hook; a refusal is also written in the audit log, when a person turned it on."""
+    """The answer of _decide_hook; a refusal, or an edit flagged in observe, is also written in the audit log, when a
+    person turned it on."""
     answer = _decide_hook(event, raw, project, load)
-    if answer[0] == 2:
+    flagged = answer[0] == 0 and event == "pre-edit" and FLAGGED in answer[1]
+    if answer[0] == 2 or flagged:
         from . import audit_log
 
-        audit_log.refused(raw, project)
+        audit_log.refused(raw, project, "guard.flagged" if flagged else "guard.refused")
     return answer
 
 
@@ -385,7 +380,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
     load() returns the project root, state, profile and catalog; it may raise. A profile that declares the guard
     off ends the hook before load(): whatever the catalog and the profile say, the answer is to let the edit through.
     """
-    if _declared_mode(project) == "off":
+    if declared_mode(project) == "off":
         return no_profile_answer(event, project) or hook_answer(event, "off", "outside")
     mode, dialect = None, "claude"
     try:
@@ -400,7 +395,7 @@ def _decide_hook(event: str, raw: str | None, project: Path | None, load) -> tup
         dialect = hook_dialect(hook_input)
         return guard_hook(event, root, state, profile, catalog, hook_input)
     except Exception as error:  # A guard that cannot decide must not let an edit through in enforce mode.
-        return hook_answer(event, mode or _declared_mode(project), "unchecked", _one_line(error), dialect)
+        return hook_answer(event, mode or declared_mode(project), "unchecked", _one_line(error), dialect)
 
 
 def project_loader(project: Path | None, catalog_in_force=None):
@@ -605,15 +600,19 @@ def _refuse_foreign_record(root: Path, path: Path, task: dict) -> None:
                          "with --output to another file, or open it again under another ID.")
 
 
-def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, check=False)
+def _git(root: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+    result = git.run(root, *args, stdin=stdin)
+    if result is None:
+        raise ValueError("guard --ci needs Git: it is not installed or not on the PATH.")
+    return result
 
 
-def _git_lines(root: Path, *args: str) -> list[str]:
-    result = _git(root, *args)
+def _git_lines(root: Path, command: str, *args: str) -> list[str]:
+    """The file names a Git command lists, as they are on disk (-z)."""
+    result = _git(root, command, "-z", *args)
     if result.returncode:
-        raise ValueError(f"git {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
-    return [line for line in result.stdout.decode("utf-8", errors="replace").splitlines() if line.strip()]
+        raise ValueError(f"git {command} {' '.join(args)} failed: {result.stderr.decode(errors='replace').strip()}")
+    return [line for line in git.split_names(result.stdout) if line.strip()]
 
 
 def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
@@ -627,8 +626,7 @@ def _base_files(root: Path, base: str, names: list[str]) -> dict[str, bytes]:
     if not names:
         return {}
     asked = "".join(f"{base}:{name}\n" for name in names).encode("utf-8")
-    output = io.BytesIO(subprocess.run(["git", "-C", str(root), "cat-file", "--batch"], input=asked,
-                                       capture_output=True, check=False).stdout)
+    output = io.BytesIO(_git(root, "cat-file", "--batch", stdin=asked).stdout)
     files = {}
     for name in names:
         # "<object> <type> <size>", then the content and a newline; or "<name> missing" alone.
@@ -710,7 +708,7 @@ def _record_check(record: dict, relative: str, fingerprint: str | Fingerprints, 
     return "invalid-record", message, code
 
 
-_COMMIT = re.compile(r"[0-9a-f]{7,64}")
+_COMMIT = lazy_re.compile(r"[0-9a-f]{7,64}")
 
 
 def in_history(history: Path, commit: object) -> bool:
@@ -718,7 +716,7 @@ def in_history(history: Path, commit: object) -> bool:
     is outside its history."""
     if not isinstance(commit, str) or not _COMMIT.fullmatch(commit):
         return False
-    return _git(history, "merge-base", "--is-ancestor", commit, "HEAD").returncode == 0
+    return git.text(history, "merge-base", "--is-ancestor", commit, "HEAD") is not None
 
 
 def _earlier_withdrawal(earlier: dict, task_id: str) -> bool:
@@ -808,9 +806,9 @@ def _record_fault(record: dict, relative: str, fingerprint: str | Fingerprints, 
     return None
 
 
-_CONFLICT_START = re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
-_CONFLICT_END = re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
-_APPROVER = re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_CONFLICT_START = lazy_re.compile(r"^<<<<<<< ?(.*)$", re.MULTILINE)
+_CONFLICT_END = lazy_re.compile(r"^>>>>>>> ?(.*)$", re.MULTILINE)
+_APPROVER = lazy_re.compile(r'"by"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
 
 def conflict_message(path: Path, relative: str) -> str | None:
@@ -967,12 +965,9 @@ def export_withdrawal(root: Path, state: Path, task: dict, output: Path | None =
 
 def untracked_files(root: Path) -> list[str]:
     """The new files Git does not track yet, ignored files and decision records left out: no record lists them."""
-    result = _git(root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
-    if result.returncode:
-        return []
     prefix = f"{STATE_DIR}/{DECISIONS_DIR}/"
-    return sorted(path for path in result.stdout.decode("utf-8", errors="replace").split("\0")
-                  if path and not path.startswith(prefix))
+    return sorted(path for path in git.names(root, "ls-files", "--others", "--exclude-standard", "--full-name") or []
+                  if not path.startswith(prefix))
 
 
 def _earlier_records(files: dict[str, bytes]) -> dict:
@@ -999,7 +994,7 @@ def _no_base_profile(root: Path) -> str:
                 "Run openguildkit init to add one.")
     expected = ("The base revision has no OpenGuildKit profile: nothing is enforced, which is expected for the pull "
                 "request that adds it.")
-    mode = _declared_mode(root)
+    mode = declared_mode(root)
     if mode == UNKNOWN_MODE:
         return f"{expected} The profile of this change cannot be read: fix it before it is merged."
     return (f"{expected} The guard reads its mode from the base revision, so once the profile is merged the next pull "
@@ -1024,7 +1019,7 @@ def _uncovered(work: list[str], covers: dict) -> str | None:
 
     covers maps each valid record's task to the files it covers, None when it lists none.
     """
-    listed = {path for files in covers.values() for path in files or []}
+    listed = {git.unquote(path) for files in covers.values() for path in files or []}
     missing = [path for path in work if path not in listed]
     if not missing:
         return None
@@ -1135,7 +1130,7 @@ def _journal_mismatch(root: Path, record: dict) -> str | None:
 
 
 def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False, findings: list | None = None,
-             org_catalog: list[str] | None = None) -> dict:
+             org_catalog: list[str] | None = None, org_policy_copy: tuple[str, str] | None = None) -> dict:
     """Check that the changes since base come with a decision valid under the base revision's rules.
 
     The mode, the profile, the catalog lock and the allowed signers come from base, so a pull request
@@ -1143,7 +1138,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     a record of an approval already on base covers only the files its base version listed, so re-exporting an
     old approval cannot stretch it over new work. catalog_for(state) loads the catalog of a state directory, inside
     copies_read_from: the copy of an organization catalog is looked for from the real root, or at the NAME=PATH given
-    as org_catalog. require_signed makes local approvals a problem.
+    as org_catalog. require_signed makes local approvals a problem. An organization policy (org_policy.py), from
+    org_policy_copy (PATH, SHA) or else the base revision's pin, fails a profile under its minimum, and every change
+    while it freezes the repositories.
 
     A list given as findings receives each problem and note as a finding of docs/sarif.md (code, level, message, path,
     line): a problem is an error, a note stays a note, and the path is the file it concerns, None when none does.
@@ -1167,6 +1164,8 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
     notes = [_workflow_note(running)] if running else []
     for path in running:
         flag("guard-workflow-edited", notes[0], path, "note")
+    import tempfile  # guard --ci only: the edit hook starts without it (#539).
+
     with tempfile.TemporaryDirectory() as directory:
         base_root = Path(directory)
         names = _git_lines(root, "ls-tree", "-r", "--name-only", base, "--", STATE_DIR)
@@ -1187,6 +1186,9 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
                                                             changed, records):
             problems.append(flag("guard-frozen", f"This change cannot be accepted: {incident.frozen_text(freeze)}. "
                                                  f"{incident.LIFT}"))
+        floor = [flag(code, message[0].upper() + message[1:]) for code, message in org_policy.ci_problems(
+            org_policy_copy, root, base_state, profile, catalog, parse_copies(org_catalog), bool(changed))]
+        problems += floor
         if policy["mode"] == "signed":
             _extract_base(root, base, base_root, [PurePosixPath(policy["allowed_signers"]).as_posix()])
         fingerprint = Fingerprints(profile, catalog)
@@ -1257,5 +1259,5 @@ def ci_guard(root: Path, base: str, catalog_for, *, require_signed: bool = False
             notes.append(flag("approvals-not-signed", f"{_local_records()}, or pass --require-signed to fail this check until "
                                                       "they are.", None, "note"))
     ok = not problems and (not work or bool(valid))
-    return {"mode": "enforce" if freeze else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
+    return {"mode": "enforce" if freeze or floor else guard_mode(profile), "changed": len(work), "decisions": valid, "records": where,
             "problems": problems, "notes": notes, "ok": ok}

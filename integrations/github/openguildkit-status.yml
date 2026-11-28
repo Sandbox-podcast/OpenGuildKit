@@ -1,0 +1,54 @@
+# Copy to .github/workflows/openguildkit-status.yml in each repository of a fleet, with or without OpenGuildKit.
+# On each push to the default branch it runs openguildkit projects . --surfaces --json in the repository and keeps
+# the result as the artifact openguildkit-status, for 90 days. A security officer then gathers the status of every
+# repository with gh, without cloning any (docs/workflow.md, "A fleet without clones"). The job writes nothing in the
+# repository and reads it with a read-only token. Add --policy FILE to the command to name the gaps to a minimum.
+name: OpenGuildKit status
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    concurrency: openguildkit-status
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # 2026-10-22 v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install OpenGuildKit
+        # Set the release your project uses and the wheel's hash from that release's SHA256SUMS.txt
+        # (docs/install.md). The step fails until the hash matches the downloaded wheel.
+        env:
+          OPENGUILDKIT_TAG: v0.17.0
+          OPENGUILDKIT_WHEEL: openguildkit-0.17.0-py3-none-any.whl
+          OPENGUILDKIT_WHEEL_SHA256: replace-with-the-wheel-hash-from-SHA256SUMS.txt
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" \
+            "https://github.com/Sandbox-podcast/OpenGuildKit/releases/download/$OPENGUILDKIT_TAG/$OPENGUILDKIT_WHEEL"
+          printf '%s  %s\n' "$OPENGUILDKIT_WHEEL_SHA256" "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL" | sha256sum --strict -c -
+          python -m pip install "$RUNNER_TEMP/$OPENGUILDKIT_WHEEL"
+      - name: Read the status of the repository
+        # Each file names its repository and revision, so that the gathered files say where they come from.
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          openguildkit projects . --surfaces --json > projects.json
+          jq --arg repository "$REPOSITORY" --arg revision "$REVISION" \
+            '{repository: $repository, revision: $revision} + .' projects.json > openguildkit-status.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
+        with:
+          name: openguildkit-status
+          path: openguildkit-status.json
+          if-no-files-found: error
+          retention-days: 90

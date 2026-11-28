@@ -36,7 +36,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/build_map.py --check`, to add: regenerates in memory, compares with the committed file, exits 1 with the entries that differ.
 
-**Today.** Map present and tested since #364, written by hand, without commands. Issue #502.
+**Today.** `scripts/build_map.py` adds the tests that import each module, the fixtures and the `commands` section, and `--check` runs in `tests/test_agent_native.py`; role, entry points and documentation page are still written in the map, and the modules carry no `Entry:` or `Tests:` header. Issue #502.
 
 ### `map-query-command`
 
@@ -46,7 +46,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `python scripts/check_fast.py --plan src/openguildkit/results.py | wc -c` prints 1024 at most and runs no test.
 
-**Today.** `check_fast.py` takes `--base` only. Issue #502.
+**Today.** `python scripts/check_fast.py --plan PATH` or `--plan "task new"`, tested under 1 KB. Issue #502.
 
 ### `byte-budget-ratchet`
 
@@ -66,7 +66,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A ratchet test that counts, per file, the lines over 400 characters outside tables and fails when a count goes up.
 
-**Today.** 594 such lines in 110 Markdown files. Issue #505.
+**Today.** `tests/test_workflow_pages.py` holds `docs/workflow.md` and the pages of `docs/workflow/` at one sentence per line and none over 400 characters, and every tracked Markdown file under 40,000 bytes but a list that only shrinks; the other pages are not split yet (529 lines over 400 characters outside tables on 2026-11-28, 594 before). Issue #505.
 
 ### `handler-named-after-command`
 
@@ -106,7 +106,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `tests/test_architecture.py`, to extend: each module has its test file or is in an exception list that can only shrink; no test file name contains `fixes`, `audit`, `core` or `misc`.
 
-**Today.** 54 % of modules. Issue #488.
+**Today.** 54 % of modules; `test_core.py` and `test_audit_fixes.py` are gone, their 15 tests moved to `test_approval_lifecycle.py`, `test_catalog_sources.py`, `test_upgrades.py`, `test_alerts.py` and `test_project_checks.py`. Issue #488.
 
 ## Diagnose
 
@@ -242,7 +242,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** A timed test that changes the module with the most attached tests in a copy and runs `scripts/check_fast.py` under 30 seconds.
 
-**Today.** The command exists (#365); no module of five measured stays under the budget. Issue #456.
+**Today.** Parallel processes, closest test first, stop at the first failure and at the 30 s budget; the timed test runs under `OPENGUILDKIT_PERF=1`. Issue #456.
 
 ### `lint-and-type-ratchet`
 

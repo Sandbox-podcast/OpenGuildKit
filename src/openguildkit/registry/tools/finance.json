@@ -400,12 +400,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "@xeroapi/xero-mcp-server@latest"
+            "@xeroapi/xero-mcp-server@0.0.18"
           ],
           "package": {
             "registry": "npm",
             "name": "@xeroapi/xero-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth-or-token",
           "env": [
             "XERO_CLIENT_ID",

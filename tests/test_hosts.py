@@ -342,7 +342,7 @@ class RestrictedPathTests(CapturedCli, unittest.TestCase):
         self.restrict(restricted)
 
     def restrict(self, restricted) -> None:
-        """The person writes the setting by hand in project.json, as no profile command sets it yet."""
+        """The person writes the setting by hand in project.json (profile set restricted-paths writes paths only)."""
         profile = json.loads(self.profile.read_text(encoding="utf-8"))
         if restricted is None:
             profile.pop("restricted_paths", None)
@@ -397,6 +397,65 @@ class RestrictedPathTests(CapturedCli, unittest.TestCase):
                 self.assertIn("restricted_paths", error)
                 self.assertIn("project.json", error)
                 self.assertEqual(len(error.strip().splitlines()), 1)
+
+    def deny(self) -> list[str]:
+        return json.loads((self.root / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["deny"]
+
+    def test_issue_519_profile_set_restricted_paths_closes_them_and_host_apply_writes_then_removes_their_rules(self):
+        """Issue #519: no profile command set the paths, and host apply never removed a Read rule it had written."""
+        settings = self.root / ".claude" / "settings.json"
+        settings.parent.mkdir()
+        settings.write_text(json.dumps({"permissions": {"deny": ["Read(./.env)"]}}), encoding="utf-8")
+        self.init("claude-code", restricted=None)
+        output, _ = self.run_cli("profile", "set", "restricted-paths", "data/customers/**", "secrets/**", "--by", "DP",
+                                 "--reason", "Customer exports")
+        self.assertIn("Run openguildkit host apply", output)
+        profile = json.loads(self.profile.read_text(encoding="utf-8"))
+        self.assertEqual(profile["restricted_paths"], [{"paths": ["data/customers/**", "secrets/**"]}])
+        self.run_cli("host", "apply")
+        self.assertEqual([rule for rule in self.deny() if rule in self.RULES or rule == "Read(./.env)"],
+                         ["Read(./.env)", *self.RULES])
+        self.run_cli("profile", "set", "restricted-paths", "data/customers/**", "--by", "DP", "--reason", "Secrets moved",
+                     typed="data/customers/**")
+        self.run_cli("host", "apply")
+        self.assertIn("Read(/data/customers/**)", self.deny())
+        self.assertNotIn("Read(/secrets/**)", self.deny())
+        self.assertNotIn("Edit(/secrets/**)", self.deny())
+        self.assertIn("Read(./.env)", self.deny())
+
+    def test_issue_519_lifting_a_restricted_path_is_refused_without_a_terminal(self):
+        """Issue #519: removing a restricted path is a lowered protection, the person's decision at a terminal."""
+        self.init("claude-code", restricted=None)
+        self.run_cli("profile", "set", "restricted-paths", "secrets/**", "--by", "DP", "--reason", "Secrets")
+        _, error = self.run_cli("profile", "set", "restricted-paths", "none", "--by", "DP", "--reason", "x", code=1)
+        self.assertIn("1 restricted path lifted (secrets/**)", error)
+        self.assertIn("interactive terminal", error)
+        self.assertIn("restricted_paths", self.profile.read_text(encoding="utf-8"))
+        self.run_cli("profile", "set", "restricted-paths", "none", "--by", "DP", "--reason", "x", typed="none")
+        self.assertNotIn("restricted_paths", self.profile.read_text(encoding="utf-8"))
+
+    def test_issue_519_the_hook_refuses_an_edit_of_a_restricted_path_even_under_an_approved_task(self):
+        """Issue #519: the hook knew approved tasks, not the sensitivity of a path."""
+        from tests.test_guard import EXAMPLE, TASK
+
+        self.init("claude-code", guard="enforce", restricted=None)
+        self.run_cli("task", "new", "--file", EXAMPLE / "brief.md", "--id", TASK)
+        self.run_cli("task", "consult", TASK, "--answers", EXAMPLE / "answers.json")
+        template = json.loads(self.run_cli("task", "template", TASK)[0])
+        write_json(self.root / "review.json", {"consultation_id": template["consultation_id"],
+                                               **json.loads((EXAMPLE / "review.json").read_text())})
+        self.run_cli("task", "review", TASK, "--file", self.root / "review.json")
+        self.run_cli("task", "decide", TASK, "--approve", "--by", "Camille", "--reason", "Agreed", typed=TASK)
+        self.run_cli("profile", "set", "restricted-paths", "data/customers/**", "--by", "DP", "--reason", "Exports")
+
+        def edit(path):
+            return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit",
+                               "tool_input": {"file_path": str(self.root / path), "new_string": "x"}})
+
+        self.run_cli("guard", "--hook", "pre-edit", stdin=edit("app.py"))
+        _, error = self.run_cli("guard", "--hook", "pre-edit", stdin=edit("Data/Customers/export.csv"), code=2)
+        self.assertIn("Data/Customers/export.csv is a restricted path of the project", error)
+        self.assertIn("even under an approved task", error)
 
     def test_the_setting_leaves_standing_approvals_standing(self):
         """The paths are read when the host acts, like the guard and the host: they are not rules of a task."""

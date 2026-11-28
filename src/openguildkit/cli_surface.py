@@ -6,6 +6,7 @@ Tests: tests/test_cli_surface.py
 """
 
 import argparse
+from importlib import import_module
 from pathlib import Path
 
 from .doc_links import doc_link
@@ -24,6 +25,42 @@ COMMAND_ORDER = [name for _, names in GROUPS for name in names]
 # The options of the root that may also follow the command: `openguildkit check --project DIR`.
 FORMATS = ("text", "sarif")
 GLOBAL_OPTIONS = ("--project", "--policy-repo", "--policy-commit")
+# Command modules the CLI imports only to run their command or show its help: each one's command and its line in the
+# root's help, which tests/test_performance.py compares with the module's own. Another command starts without them,
+# and without the mock MCP server tools_cli loads (#539).
+DEFERRED_COMMANDS = {
+    "tools_cli": ("tools", ("Browse the tools of a company stack and their MCP servers, connect them or rehearse "
+                            "with mocks.")),
+    "alerts_cli": ("alerts", ("Import scanner reports into the project's dependency alert register and review the "
+                              "alerts.")),
+    "market_cli": ("market", ("Create and update a market dossier, check it and list the competitor sources due for "
+                              "review.")),
+    "storybook_cli": ("storybook", "Compose the company Storybook, record its stories and extract a design system."),
+}
+
+
+def deferred_modules(argv: list[str]) -> frozenset[str]:
+    """The modules of DEFERRED_COMMANDS that the command argv runs does not need: every one when argv names no
+    command, as for the root's help, and none when it cannot be told."""
+    words = iter(argv)
+    for word in words:
+        if word == "--":
+            return frozenset()
+        if word in GLOBAL_OPTIONS:
+            next(words, None)
+        elif not word.startswith("-"):
+            return frozenset(module for module, (command, _) in DEFERRED_COMMANDS.items() if command != word)
+    return frozenset(DEFERRED_COMMANDS)
+
+
+def add_module_parsers(commands, left_out: frozenset[str], modules: tuple[str, ...]) -> None:
+    """The command and options of each command module, in this order; a deferred module left out (deferred_modules)
+    gets its command's line of the root's help only, and is not imported."""
+    for module in modules:
+        if module in left_out:
+            commands.add_parser(DEFERRED_COMMANDS[module][0], help=DEFERRED_COMMANDS[module][1])
+        else:
+            import_module(f"{__package__}.{module}").add_parser(commands)
 
 # The placeholder of the options that come back in many commands; any other takes the name of its option.
 PLACEHOLDERS = {"--reason": "WHY", "--task": "TASK", "--id": "ID", "--board": "BOARD", "--url": "URL", "--until": "DATE",
@@ -43,7 +80,7 @@ class VersionAction(argparse.Action):
                          help=help or "show program's version number and exit")
 
     def __call__(self, parser, namespace, values, option_string=None):
-        from .lock import package_version
+        from .startup import package_version
 
         print(f"openguildkit {package_version()}")
         parser.exit()

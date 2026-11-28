@@ -30,6 +30,8 @@ Copy the [example policy repository files](https://github.com/Sandbox-podcast/Op
 }
 ```
 
+For a minimum every repository keeps (guard mode, signed approvals, required packs, a freeze), put a `policy.json` in the organization catalog and run `openguildkit guard --ci --org-policy PATH --org-commit SHA` from the organization's required workflow (the organization policy of `docs/catalog-format.md`).
+
 Start in observation mode. Use `openguildkit-ci onboard` to create a profile proposal, and `openguildkit-ci github-approve-profile` to verify the maintainer's approval. Older numeric-version policy files and existing coordinator profiles remain supported.
 
 The GitHub commands (`github`, `watch`, `gate --github` and `merge`) accept a profile with an `adoption` block only after verifying its approval. Set `profileMaintainer` for the project. The active profile must equal the proposal PR merged by that maintainer into `profileRef`, as returned by `github-approve-profile`, and that merge must be in the branch history. Without `profileMaintainer`, the project is refused. The local commands (`check`, `reconcile`, `gate` without `--github` and `brief`) read the `adoption` block as committed and rely on the access rules of the branch they read.

@@ -45,13 +45,33 @@ const WATER: Ramp = ['#60bb9f', '#378977', '#205648', '#12342c'];
 const PINE: Ramp = ['#5e9480', '#386a57', '#264d40', '#102d27'];
 
 const RIVER: Point[] = [
-  [334, -3], [333, 32], [326, 65], [330, 93], [349, 113],
-  [361, 146], [384, 180], [420, 214], [467, 238], [516, 251], [566, 257],
+  [334, -3],
+  [333, 32],
+  [326, 65],
+  [330, 93],
+  [349, 113],
+  [361, 146],
+  [384, 180],
+  [420, 214],
+  [467, 238],
+  [516, 251],
+  [566, 257],
 ];
 const PLAZA: Point = [267, 222];
 const FOOTPRINTS: Record<PlaceKey, number> = {
-  royaume: 35, blueprint: 27, guilde: 38, conseil: 37, quetes: 24, bibliotheque: 30,
-  forge: 34, tour: 15, observatoire: 30, documentation: 28, chroniques: 22, intendance: 38, arsenal: 26,
+  royaume: 35,
+  blueprint: 27,
+  guilde: 38,
+  conseil: 37,
+  quetes: 24,
+  bibliotheque: 30,
+  forge: 34,
+  tour: 15,
+  observatoire: 30,
+  documentation: 28,
+  chroniques: 22,
+  intendance: 38,
+  arsenal: 26,
 };
 
 export function terrainUrl(territories: Territory[]): string {
@@ -64,15 +84,15 @@ function landPatch(g: Grid, points: Point[], color: string) {
   for (let y = Math.min(...ys); y < Math.max(...ys); y++) {
     const intersections: number[] = [];
     for (let i = 0; i < points.length; i++) {
-      const [x1, y1] = points[i];
-      const [x2, y2] = points[(i + 1) % points.length];
+      const [x1, y1] = points[i]!;
+      const [x2, y2] = points[(i + 1) % points.length]!;
       if (y >= Math.min(y1, y2) && y < Math.max(y1, y2)) {
-        intersections.push(Math.round(x1 + (x2 - x1) * (y - y1) / (y2 - y1)));
+        intersections.push(Math.round(x1 + ((x2 - x1) * (y - y1)) / (y2 - y1)));
       }
     }
     intersections.sort((a, b) => a - b);
     for (let i = 0; i + 1 < intersections.length; i += 2) {
-      g.hline(intersections[i], y, intersections[i + 1] - intersections[i], color);
+      g.hline(intersections[i]!, y, intersections[i + 1]! - intersections[i]!, color);
     }
   }
 }
@@ -93,13 +113,38 @@ function conifer(w: number, h: number, variant: number) {
   const center = Math.floor(w / 2);
   g.rect(center - 1, h - 7, 3, 6, STONE[2]).vline(center - 1, h - 7, 5, STONE[1]);
   for (let tier = 3; tier >= 0; tier--) {
-    const top = Math.round(tier * (h - 11) / 4);
+    const top = Math.round((tier * (h - 11)) / 4);
     const bottom = top + Math.round(h * 0.4) + tier;
     const left = center - Math.min(center - 1, 2 + tier * 2 + variant);
     const right = center + Math.min(center - 1, 2 + tier * 2);
-    landPatch(g, [[center, top], [left, bottom], [center - 1, bottom + 1], [right, bottom]], PINE[3]);
-    landPatch(g, [[center, top + 2], [left + 1, bottom - 1], [center, bottom - 3]], PINE[1]);
-    landPatch(g, [[center + 1, top + 3], [center + 1, bottom - 2], [right - 1, bottom - 1]], PINE[2]);
+    landPatch(
+      g,
+      [
+        [center, top],
+        [left, bottom],
+        [center - 1, bottom + 1],
+        [right, bottom],
+      ],
+      PINE[3],
+    );
+    landPatch(
+      g,
+      [
+        [center, top + 2],
+        [left + 1, bottom - 1],
+        [center, bottom - 3],
+      ],
+      PINE[1],
+    );
+    landPatch(
+      g,
+      [
+        [center + 1, top + 3],
+        [center + 1, bottom - 2],
+        [right - 1, bottom - 1],
+      ],
+      PINE[2],
+    );
     g.hline(left + 1, bottom - 1, Math.max(1, center - left - 2), PINE[0]);
   }
   return g;
@@ -107,9 +152,17 @@ function conifer(w: number, h: number, variant: number) {
 
 function paintRiver(g: Grid, random: ReturnType<typeof rng>) {
   g.stroke(RIVER, 18, GROUND[0]).stroke(RIVER, 15, STONE[3]);
-  g.stroke(RIVER.map(([x, y]) => [x + 2, y + 2]), 12, STONE[2]);
+  g.stroke(
+    RIVER.map(([x, y]) => [x + 2, y + 2]),
+    12,
+    STONE[2],
+  );
   g.stroke(RIVER, 11, WATER[3]).stroke(RIVER, 8, WATER[2]);
-  g.stroke(RIVER.map(([x, y]) => [x - 3, y + 1]), 4, WATER[1]);
+  g.stroke(
+    RIVER.map(([x, y]) => [x - 3, y + 1]),
+    4,
+    WATER[1],
+  );
   for (let i = 0; i < 1400; i++) {
     const x = 308 + Math.floor(random() * 253);
     const y = Math.floor(random() * 272);
@@ -118,7 +171,7 @@ function paintRiver(g: Grid, random: ReturnType<typeof rng>) {
       g.hline(x, y, 1 + Math.floor(random() * 4), random() > 0.76 ? WATER[0] : WATER[3]);
     }
   }
-  for (let y = 5; y < 21; y += 3) g.hline(328 + Math.floor(y / 3) % 3, y, 8, WATER[0]);
+  for (let y = 5; y < 21; y += 3) g.hline(328 + (Math.floor(y / 3) % 3), y, 8, WATER[0]);
   g.hline(327, 23, 15, WATER[3]).hline(331, 24, 13, WORLD_COLORS.paleMint);
   g.hline(322, 27, 12, WATER[1]).hline(334, 28, 6, WATER[0]);
 }
@@ -143,9 +196,18 @@ function paintPaths(g: Grid, random: ReturnType<typeof rng>) {
     [doors.chroniques.door, [216, 257], [232, 242], PLAZA],
     [doors.intendance.door, [309, 257], [282, 251], PLAZA],
     [doors.arsenal.door, [452, 110], [453, 123], [430, 146], [410, 166], doors.quetes.door],
-    [PLAZA, [267, 275]], [[14, 275], [545, 275]],
+    [PLAZA, [267, 275]],
+    [
+      [14, 275],
+      [545, 275],
+    ],
   ];
-  for (const road of lanes) g.stroke(road.map(([x, y]) => [x, y + 2]), 6, WORLD_COLORS.ink);
+  for (const road of lanes)
+    g.stroke(
+      road.map(([x, y]) => [x, y + 2]),
+      6,
+      WORLD_COLORS.ink,
+    );
   for (const road of lanes) g.stroke(road, 5, PATH[2]).stroke(road, 3, PATH[1]);
   for (let i = 0; i < 7200; i++) {
     const x = Math.floor(random() * MAP_W);
@@ -188,8 +250,8 @@ function paintWoodland(g: Grid, random: ReturnType<typeof rng>) {
       const edge = tx < 26 || tx > 535 || ty < 28 || g.get(tx, ty) === GROUND[0];
       const density = edge ? 0.64 : 0.07;
       if (random() > density || !ground.has(g.get(tx, ty))) continue;
-      if (buildings.some(p => Math.abs(tx - p.door[0]) < 32 && ty >= p.y - 3 && ty <= p.door[1] + 11)) continue;
-      const tree = trees[Math.floor(random() * trees.length)];
+      if (buildings.some((p) => Math.abs(tx - p.door[0]) < 32 && ty >= p.y - 3 && ty <= p.door[1] + 11)) continue;
+      const tree = trees[Math.floor(random() * trees.length)]!;
       g.ellipse(tx + 2, ty + 1, Math.floor(tree.w / 2), 4, WORLD_COLORS.ink);
       g.blit(tree, tx - Math.floor(tree.w / 2), ty - tree.h + 1);
     }
@@ -207,7 +269,9 @@ function lantern(g: Grid, x: number, y: number) {
 function garden(g: Grid, x: number, y: number) {
   g.ellipse(x + 2, y + 1, 8, 4, GROUND[0]).ellipse(x, y, 6, 3, STONE[1]);
   g.ellipse(x, y - 1, 5, 3, PINE[2]).hline(x - 3, y - 3, 4, PINE[0]);
-  g.set(x - 2, y - 2, PINE[0]).set(x, y - 3, WORLD_COLORS.paleMint).set(x + 3, y, WORLD_COLORS.seaGlass);
+  g.set(x - 2, y - 2, PINE[0])
+    .set(x, y - 3, WORLD_COLORS.paleMint)
+    .set(x + 3, y, WORLD_COLORS.seaGlass);
 }
 
 function paintTerrace(g: Grid, territory: Territory, index: number, count: number) {
@@ -233,13 +297,91 @@ function drawTown(territories: Territory[]): Grid {
   const g = new Grid(MAP_W, mapHeight(territories.length));
   const random = rng(248);
   g.rect(0, 0, g.w, g.h, GROUND[0]);
-  landPatch(g, [[0, 104], [86, 68], [155, 57], [236, 70], [280, 54], [323, 85], [354, 157], [321, 206], [246, 268], [0, 272]], GROUND[2]);
-  landPatch(g, [[0, 38], [79, 7], [198, 0], [291, 10], [323, 39], [318, 82], [245, 111], [174, 82], [87, 111], [0, 142]], GROUND[1]);
-  landPatch(g, [[375, 26], [470, 0], [560, 0], [560, 242], [512, 235], [465, 214], [417, 181], [386, 114]], GROUND[2]);
-  landPatch(g, [[0, 261], [74, 267], [117, 243], [192, 274], [319, 257], [453, 273], [560, 261], [560, g.h], [0, g.h]], GROUND[1]);
-  ridge(g, [[-7, 112], [18, 89], [32, 67], [65, 47], [82, 26], [118, 12], [151, 4], [186, -10]]);
-  ridge(g, [[394, 5], [426, 9], [455, 1], [488, 8], [532, -5], [566, 10]]);
-  ridge(g, [[31, 246], [71, 254], [111, 241], [135, 243]]);
+  landPatch(
+    g,
+    [
+      [0, 104],
+      [86, 68],
+      [155, 57],
+      [236, 70],
+      [280, 54],
+      [323, 85],
+      [354, 157],
+      [321, 206],
+      [246, 268],
+      [0, 272],
+    ],
+    GROUND[2],
+  );
+  landPatch(
+    g,
+    [
+      [0, 38],
+      [79, 7],
+      [198, 0],
+      [291, 10],
+      [323, 39],
+      [318, 82],
+      [245, 111],
+      [174, 82],
+      [87, 111],
+      [0, 142],
+    ],
+    GROUND[1],
+  );
+  landPatch(
+    g,
+    [
+      [375, 26],
+      [470, 0],
+      [560, 0],
+      [560, 242],
+      [512, 235],
+      [465, 214],
+      [417, 181],
+      [386, 114],
+    ],
+    GROUND[2],
+  );
+  landPatch(
+    g,
+    [
+      [0, 261],
+      [74, 267],
+      [117, 243],
+      [192, 274],
+      [319, 257],
+      [453, 273],
+      [560, 261],
+      [560, g.h],
+      [0, g.h],
+    ],
+    GROUND[1],
+  );
+  ridge(g, [
+    [-7, 112],
+    [18, 89],
+    [32, 67],
+    [65, 47],
+    [82, 26],
+    [118, 12],
+    [151, 4],
+    [186, -10],
+  ]);
+  ridge(g, [
+    [394, 5],
+    [426, 9],
+    [455, 1],
+    [488, 8],
+    [532, -5],
+    [566, 10],
+  ]);
+  ridge(g, [
+    [31, 246],
+    [71, 254],
+    [111, 241],
+    [135, 243],
+  ]);
   for (let i = 0; i < 4600; i++) {
     const x = Math.floor(random() * g.w);
     const y = Math.floor(random() * g.h);
@@ -258,8 +400,27 @@ function drawTown(territories: Territory[]): Grid {
   bridge(g, 394, 192);
   fountain(g);
   paintWoodland(g, random);
-  for (const [x, y] of [[89, 133], [205, 196], [292, 248], [447, 217], [523, 222], [143, 265]]) garden(g, x, y);
-  for (const [x, y] of [[106, 92], [208, 102], [281, 199], [317, 208], [445, 149], [535, 205], [115, 254], [367, 264], [462, 264]]) lantern(g, x, y);
+  for (const [x, y] of [
+    [89, 133],
+    [205, 196],
+    [292, 248],
+    [447, 217],
+    [523, 222],
+    [143, 265],
+  ] as const)
+    garden(g, x, y);
+  for (const [x, y] of [
+    [106, 92],
+    [208, 102],
+    [281, 199],
+    [317, 208],
+    [445, 149],
+    [535, 205],
+    [115, 254],
+    [367, 264],
+    [462, 264],
+  ] as const)
+    lantern(g, x, y);
   territories.forEach((territory, index) => paintTerrace(g, territory, index, territories.length));
   return g;
 }

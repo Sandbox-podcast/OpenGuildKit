@@ -5,7 +5,7 @@ import { Grid } from './painter';
 type CharacterKey = keyof typeof miniatures.rows;
 
 function characterKey(key: string): CharacterKey {
-  return Object.hasOwn(miniatures.rows, key) ? key as CharacterKey : 'human-1';
+  return Object.hasOwn(miniatures.rows, key) ? (key as CharacterKey) : 'human-1';
 }
 
 export function portraitUrl(key: string, size = 96): string {

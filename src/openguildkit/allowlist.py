@@ -10,8 +10,9 @@ Entry: load_allow, mcp_allowed, address_allowed.
 Tests: tests/test_host_surfaces.py.
 """
 
-import json
 from pathlib import Path
+
+from .storage import load_json
 
 AXES = ("mcp_servers", "models", "endpoints")
 
@@ -19,7 +20,7 @@ AXES = ("mcp_servers", "models", "endpoints")
 def load_allow(path: Path) -> dict:
     """The lists of the file: a JSON object with the axes, or with an `allow` object that holds them."""
     try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        data = load_json(path)
     except (OSError, ValueError) as error:
         raise ValueError(f"The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}.") from error
     block = data.get("allow", data) if isinstance(data, dict) else None

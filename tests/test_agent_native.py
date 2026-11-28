@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -39,6 +40,7 @@ def _load(name: str):
 
 check_fast = _load("check_fast")
 agent_cost = _load("agent_cost")
+build_map = _load("build_map")
 
 
 def _git(root, *args):
@@ -123,6 +125,62 @@ class MapTests(unittest.TestCase):
         files = sorted(path.relative_to(REPO).as_posix() for path in (REPO / "tests").rglob("test_*.py"))
         self.assertEqual([relative for relative in files if relative not in attached], [])
 
+    def test_issue_502_the_committed_map_is_what_build_map_writes(self):
+        """Issue #502: the map was kept by hand and missed 76 attachments of a test to a module it imports."""
+        text = (REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8")
+        built = build_map.build(self.map)
+        self.assertEqual(build_map.differences(self.map, built), [], "run python scripts/build_map.py")
+        self.assertEqual(build_map.dumps(built), text)
+        line = next(line for line in text.splitlines() if '"src/openguildkit/results.py"' in line)
+        self.assertEqual(json.loads(line.strip().rstrip(","))["module"], "src/openguildkit/results.py")
+
+    def test_issue_502_a_test_that_imports_a_module_without_being_attached_is_named(self):
+        """Issue #502: a test file that imports a module must be among the tests of that module."""
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        files = {"src/openguildkit/a.py": "", "src/openguildkit/b.py": "", "tests/__init__.py": "",
+                 "tests/test_a.py": "from openguildkit import a\nfrom openguildkit.b import thing\n",
+                 "tests/fixtures/sample.json": "{}", "tests/test_sample.py": "NAME = 'sample.json'\n"}
+        for name, text in files.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_text(text, encoding="utf-8")
+        entry = {"role": "R.", "entry": [], "doc": "docs/architecture.md"}
+        current = {"modules": [{"module": "src/openguildkit/a.py", **entry, "tests": ["tests/test_a.py"]},
+                               {"module": "src/openguildkit/b.py", **entry, "tests": []}]}
+        built = build_map.build(current, root)
+        found = [line for line in build_map.differences(current, built) if not line.startswith("commands")]
+        self.assertEqual(found, ["modules: src/openguildkit/b.py differs in tests",
+                                 "paths: tests/fixtures/sample.json is missing"])
+        self.assertEqual(built["paths"][0]["tests"], ["tests/test_sample.py"])
+        (root / "src" / "openguildkit" / "c.py").write_text("", encoding="utf-8")
+        self.assertIn("modules: src/openguildkit/c.py is missing", build_map.differences(built, build_map.build(built, root)))
+
+    def test_issue_502_each_terminal_command_leads_to_its_function(self):
+        """Issue #502: no command of the CLI led to the function that runs it."""
+        commands = self.map["commands"]
+        self.assertEqual([item["command"] for item in commands],
+                         [" ".join(words) for words in build_map.terminal_commands()])
+        self.assertGreaterEqual(len(commands), 94)
+        for item in commands:
+            with self.subTest(command=item["command"]):
+                lines = (REPO / item["module"]).read_text(encoding="utf-8").splitlines()
+                line = lines[item["line"] - 1].strip()
+                self.assertTrue(line.startswith((f"def {item['function']}(", "if ", "elif ")), line)
+
+    def test_issue_502_every_tracked_file_has_a_test_or_a_command_and_every_path_entry_exists(self):
+        """Issue #502: tests/support.py, SECURITY.md and the fixtures had no test, and the check failed on them."""
+        for item in self.map["paths"]:
+            with self.subTest(path=item["path"]):
+                self.assertTrue((REPO / item["path"]).exists())
+                self.assertTrue(item["tests"] or item.get("commands"))
+                self.assertTrue(all((REPO / test).is_file() for test in item["tests"]))
+                self.assertTrue(set(item.get("commands", [])) <= check_fast.COMMANDS.keys())
+        listed = subprocess.run(["git", "-C", str(REPO), "ls-files"], capture_output=True, text=True, check=False)
+        if listed.returncode:
+            self.skipTest("not a Git checkout")
+        self.assertEqual(check_fast.plan(listed.stdout.split(), self.map)["unattached"], [])
+
 
 class CheckFastTests(unittest.TestCase):
     def test_changed_files_select_their_tests_and_an_unattached_file_is_named(self):
@@ -136,7 +194,7 @@ class CheckFastTests(unittest.TestCase):
             "integrations/claude-code/agents/guild-board.md",
             "tests/test_deleted_example.py",
             "integrations/ci/package.json",
-            "integrations/chaosfolk/README.md",
+            "integrations/unmapped/README.md",
             "integrations/github/openguildkit-guard.yml",
             "scripts/install.sh",
             "docs/not-a-module.md",
@@ -146,11 +204,11 @@ class CheckFastTests(unittest.TestCase):
         self.assertIn("tests/test_agent_native.py", selected["tests"])
         self.assertIn("tests/test_integrations.py", selected["tests"])
         self.assertIn("tests/test_product_docs.py", selected["tests"])
-        self.assertEqual(selected["commands"], ["catalog", "web-typecheck", "node-tests"])
+        self.assertEqual(selected["commands"], ["catalog", "web-typecheck", "web-test", "node-tests"])
         self.assertNotIn("tests/test_deleted_example.py", selected["tests"])
         self.assertIn("tests/test_workflows.py", selected["tests"])
         self.assertIn("tests/test_install_script.py", selected["tests"])
-        self.assertEqual(selected["unattached"], ["integrations/chaosfolk/README.md"])
+        self.assertEqual(selected["unattached"], ["integrations/unmapped/README.md"])
 
     def test_documentation_workflow_script_and_coordinator_changes_each_have_a_test(self):
         module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
@@ -216,6 +274,110 @@ class CheckFastTests(unittest.TestCase):
         self.assertEqual(check_fast.plan(changed, module_map),
                          {"tests": [], "commands": [], "unattached": changed})
 
+    def test_issue_502_a_catalog_record_a_check_kind_support_security_and_a_fixture_run_tests(self):
+        """Issue #502: a renamed rule of a pack and a new check kind left the check green, and tests/support.py,
+        SECURITY.md or a fixture made it fail with no test run."""
+        module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
+        pack = check_fast.plan(["src/openguildkit/registry/packs/gdpr.json"], module_map)
+        self.assertIn("tests/test_regulatory_packs.py", pack["tests"])
+        self.assertIn("tests/test_pack_rules.py", pack["tests"])
+        self.assertEqual(pack["commands"], ["catalog"])
+        self.assertIn("tests/test_catalog_format_doc.py",
+                      check_fast.plan(["src/openguildkit/rule_checks.py"], module_map)["tests"])
+        for path in ("tests/support.py", "SECURITY.md", "tests/fixtures/upgrade/v0.16.1.json", "tests/__init__.py"):
+            with self.subTest(path=path):
+                selected = check_fast.plan([path], module_map)
+                self.assertTrue(selected["tests"])
+                self.assertEqual(selected["unattached"], [])
+        self.assertIn("tests/test_personal_data_doc.py", check_fast.plan(["SECURITY.md"], module_map)["tests"])
+        self.assertIn("tests/test_upgrade.py",
+                      check_fast.plan(["tests/fixtures/upgrade/v0.16.1.json"], module_map)["tests"])
+
+    def test_issue_456_the_plan_of_a_module_fits_in_a_kilobyte_and_runs_nothing(self):
+        """Issue #456: the check had no way to print its plan without running the tests."""
+        started = time.monotonic()
+        shown = subprocess.run([sys.executable, str(REPO / "scripts" / "check_fast.py"), "--plan",
+                                "src/openguildkit/results.py", "task new"], capture_output=True, text=True, check=False)
+        self.assertEqual(shown.returncode, 0, shown.stderr)
+        self.assertLessEqual(len(shown.stdout.encode()), 1024, shown.stdout)
+        self.assertIn("src/openguildkit/results.py: Records what was delivered", shown.stdout)
+        self.assertIn("task new: src/openguildkit/tasks_cli.py:", shown.stdout)
+        self.assertIn("test_results", shown.stdout)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def fast_repository(self, tests: dict[str, str]) -> Path:
+        """A Git repository with a module attached to `tests`, check_fast and its runner, and the module changed.
+
+        It ignores __pycache__/ as the repository does: otherwise the bytecode of run_tests, which check_fast imports,
+        is an untracked file with no test attached, and the check fails (#456)."""
+        root = _repository(self)
+        for name in ("check_fast", "run_tests"):
+            (root / "scripts").mkdir(exist_ok=True)
+            shutil.copy(REPO / "scripts" / f"{name}.py", root / "scripts" / f"{name}.py")
+        module_map = {"modules": [{"module": "src/openguildkit/a.py", "tests": sorted(tests)}], "paths": []}
+        _commit(root, {".gitignore": "__pycache__/\n", "src/openguildkit/a.py": "", "tests/__init__.py": "", **tests,
+                       "docs/agents/map.json": json.dumps(module_map)}, "base")
+        (root / "src" / "openguildkit" / "a.py").write_text("VALUE = 1\n", encoding="utf-8")
+        return root
+
+    def check(self, root: Path, *args: str) -> subprocess.CompletedProcess:
+        """check_fast as CI runs it: Python writes the bytecode of the runner it imports next to the script."""
+        environment = {key: value for key, value in os.environ.items()
+                       if key not in ("PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX")}
+        return subprocess.run([sys.executable, str(root / "scripts" / "check_fast.py"), *args], cwd=root,
+                              capture_output=True, text=True, check=False, env=environment)
+
+    def test_issue_456_a_failure_comes_first_and_stops_the_run_after_the_announced_count(self):
+        """Issue #456: the check ran everything in one process, with no count first and no stop at a failure."""
+        slow = "import time\nimport unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        time.sleep(30)\n"
+        bad = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.fail('broken')\n"
+        root = self.fast_repository({"tests/test_slow.py": slow, "tests/test_a.py": bad})
+        started = time.monotonic()
+        failed = self.check(root, "--base", "HEAD", "--jobs", "2")
+        self.assertEqual(failed.returncode, 1, failed.stdout)
+        self.assertTrue(failed.stdout.startswith("check_fast: 2 test file(s) and 0 command(s), 2 at once: failed in"))
+        self.assertEqual(failed.stdout.splitlines()[1], "===== tests/test_a.py failed")
+        self.assertIn("AssertionError: broken", failed.stdout)
+        self.assertLess(time.monotonic() - started, 20)
+
+    def test_issue_456_past_the_budget_nothing_starts_and_the_files_left_are_named(self):
+        """Issue #456: the check took up to 3 minutes for a 30 s budget nothing enforced."""
+        slow = "import time\nimport unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        time.sleep(30)\n"
+        root = self.fast_repository({"tests/test_slow.py": slow, "tests/test_a.py": "import unittest\n"})
+        started = time.monotonic()
+        passed = self.check(root, "--base", "HEAD", "--jobs", "1", "--budget", "2")
+        self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+        self.assertEqual(len(passed.stdout.splitlines()), 1, passed.stdout)
+        self.assertIn("Warning: check_fast: 1 test file(s) not run within the 2 s budget (--all runs them): test_slow",
+                      passed.stderr)
+        self.assertLess(time.monotonic() - started, 20)
+
+    def test_issue_456_an_unknown_base_is_one_line_that_names_base(self):
+        """Issue #456: without origin/main, the check printed Git's own error."""
+        root = self.fast_repository({"tests/test_a.py": "import unittest\n"})
+        missing = self.check(root)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertEqual(missing.stdout, "")
+        self.assertEqual(missing.stderr.strip().count("\n"), 0, missing.stderr)
+        self.assertIn("--base HEAD", missing.stderr)
+
+    @unittest.skipUnless(os.environ.get("OPENGUILDKIT_PERF") == "1", "timed: set OPENGUILDKIT_PERF=1")
+    def test_issue_456_a_change_of_the_module_with_the_most_tests_ends_within_the_budget(self):
+        """Issue #456: a one-line change of storage.py ran 62 test files for 238 s."""
+        module_map = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))
+        largest = max(module_map["modules"], key=lambda item: len(item["tests"]))["module"]
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name) / "copy"
+        subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(root)], check=True)
+        with (root / largest).open("a", encoding="utf-8") as handle:
+            handle.write("# touched\n")
+        started = time.monotonic()
+        result = self.check(root, "--base", "HEAD")
+        seconds = time.monotonic() - started
+        self.assertEqual(result.returncode, 0, result.stdout[-3000:])
+        self.assertLessEqual(seconds, check_fast.BUDGET + 10, f"{largest}: {seconds:.1f} s")
+
 
 class RootInstructionsTests(unittest.TestCase):
     """AGENTS.md is what an agent reads first: short, and every path and command in it exists."""
@@ -230,6 +392,8 @@ class RootInstructionsTests(unittest.TestCase):
         paths = [path for path in re.findall(r"`((?:src|scripts|tests|docs|web|integrations)/[\w./-]+)`", text)
                  if path not in built]
         modules = re.findall(r"\b(tests\.test_\w+)\b", text)
+        listed = json.loads((REPO / "docs" / "agents" / "map.json").read_text(encoding="utf-8"))["paths"]
+        paths_entries = {item["path"] for item in listed}
         self.assertGreater(len(paths), 5)
         for path in paths:
             with self.subTest(path=path):
@@ -239,7 +403,7 @@ class RootInstructionsTests(unittest.TestCase):
                 self.assertTrue((REPO / (module.replace(".", "/") + ".py")).is_file(), module)
         for script in re.findall(r"python (scripts/\w+\.py)", text):
             with self.subTest(script=script):
-                self.assertIn(script, check_fast.EXTRA)
+                self.assertIn(script, paths_entries)
 
     def test_each_convention_has_a_rule_a_reason_a_check_and_an_issue(self):
         text = (REPO / "docs" / "agents" / "conventions.md").read_text(encoding="utf-8")

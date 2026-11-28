@@ -3,6 +3,7 @@
 For: an administrator or a tech lead who rolls OpenGuildKit out to a team or to many repositories, runs it, and answers an incident. Every command below is typed by a person; none is run by the agent for them.
 
 This guide follows the order of the work and sends to the page that holds the detail. The commands are read by `tests/test_doc_pages.py`: each one must be accepted by the CLI, and each link must lead to a page and a heading that exist.
+`tests/e2e/test_admin_guide.py` replays steps 2 to 8 on two Git repositories, from `init` to a revoked approval that `guard --ci` refuses; step 1, which downloads a release, is not replayed.
 
 ## 1. Install on each workstation
 
@@ -27,7 +28,7 @@ openguildkit init --answers answers.json
 ```
 
 Run the first command in the repository that holds the profile and the second in each other repository. The export carries the patterns, packs, boards, guard and conventions.
-People's names, the history of changes, the signers file, component paths and check commands stay behind, and a setting that names a person or lowers a protection is typed again by a person at a terminal there ([reuse the profile](workflow.md#reuse-the-profile-in-another-repository)). `init --answers` needs `norms` when `personal_data` is `yes` ([troubleshooting](troubleshooting.md#setup)).
+People's names, the history of changes, the signers file, component paths and check commands stay behind, and a setting that names a person or lowers a protection is typed again by a person at a terminal there ([reuse the profile](workflow/following-the-work.md#reuse-the-profile-in-another-repository)). `init --answers` needs `norms` when `personal_data` is `yes` ([troubleshooting](troubleshooting.md#setup)).
 
 ## 4. Require the check in CI
 
@@ -41,9 +42,12 @@ A local approval detects an accidental edit and proves nobody. When the guard en
 
 ```bash
 openguildkit profile set approval signed --signers .openguildkit/allowed_signers --approver CM --by INITIALS --reason WHY
+openguildkit host apply
 ```
 
-Repeat `--approver` for each approver, add the key of each to the allowed signers file, and commit both ([signed approvals](workflow.md#signed-approvals)). An approver joins by the same two edits.
+`host apply` adds the rule that denies the agent an edit of the allowed signers file; `check` fails until it has run.
+
+Repeat `--approver` for each approver, add the key of each to the allowed signers file, and commit both ([signed approvals](workflow/decide.md#signed-approvals)). An approver joins by the same two edits.
 An approver leaves by removing their principal from `approvers` and their key from the file: what they approved keeps holding and their new signature is refused ([when an approver leaves](personal-data.md#when-an-approver-leaves)).
 
 ## 6. See all the repositories

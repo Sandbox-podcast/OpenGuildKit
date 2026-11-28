@@ -9,6 +9,7 @@ import re
 import unicodedata
 from functools import lru_cache
 
+from . import lazy_re
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
 
 
@@ -140,10 +141,10 @@ NO_DISCIPLINE = (
 )
 
 
-_APOSTROPHES = re.compile("[\u2019\u2018\u02bc\u00b4`]")
+_APOSTROPHES = lazy_re.compile("[\u2019\u2018\u02bc\u00b4`]")
 
 
-_SEPARATORS = re.compile(r"[/_|]")
+_SEPARATORS = lazy_re.compile(r"[/_|]")
 
 
 _PLURAL = "(?:s|es|x)?"
@@ -159,13 +160,20 @@ def normalize_text(value: str) -> str:
     return " ".join(_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", folded)).split())
 
 
+# What normalize_text does to an ASCII character: the one apostrophe and the separators it folds.
+_ASCII_FOLD = str.maketrans({"`": "'", "/": " ", "_": " ", "|": " "})
+
+
 def normalize_with_offsets(value: str) -> tuple[str, list[int]]:
     """normalize_text, with the index in value of each character it returns, to quote the words as written."""
-    pieces = []
-    for index, character in enumerate(value):
-        for piece in unicodedata.normalize("NFKD", character).casefold():
-            if not unicodedata.combining(piece):
-                pieces.append((_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", piece)), index))
+    pieces: list[tuple[str, int]] = []
+    if value.isascii():  # No accent to drop and one character for one: fold the whole text at once.
+        pieces = list(zip(value.lower().translate(_ASCII_FOLD), range(len(value)), strict=True))
+    else:
+        for index, character in enumerate(value):
+            for piece in unicodedata.normalize("NFKD", character).casefold():
+                if not unicodedata.combining(piece):
+                    pieces.append((_SEPARATORS.sub(" ", _APOSTROPHES.sub("'", piece)), index))
     characters, offsets = [], []
     for piece, index in pieces:
         if piece.isspace():
@@ -259,7 +267,7 @@ _CHANGE_WORDS = frozenset((
 
 
 # "payments are out of scope", "paiements hors périmètre": a negation written after the subject.
-_AFTER_NEGATION = re.compile(
+_AFTER_NEGATION = lazy_re.compile(
     r"^(?:\S+\s+){0,2}?(?:out of scope|not in scope|outside the scope|hors (?:du )?(?:perimetre|scope|sujet)|"
     r"not (?:concerned|affected)|pas concernee?s?)(?![\w-])"
 )
@@ -273,7 +281,7 @@ _LIST_WORDS = frozenset((
 
 
 # A clause ends at punctuation, a line break or a contrasting conjunction.
-_CLAUSE_END = re.compile(r"[.,;:!?()\[\]{}\n\r\u2022\u2013\u2014]")
+_CLAUSE_END = lazy_re.compile(r"[.,;:!?()\[\]{}\n\r\u2022\u2013\u2014]")
 
 
 _CLAUSE_WORDS = frozenset(("but", "however", "yet", "although", "though", "whereas", "mais", "cependant"))

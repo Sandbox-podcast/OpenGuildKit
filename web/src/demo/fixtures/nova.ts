@@ -1,0 +1,2502 @@
+/**
+ * "Atelier Nova" — fictional B2B SaaS publisher used for the demonstration (brief §10).
+ * Every company, person, repository and signal is fictional. Dates are relative to the
+ * loading time so expirations and freshness stay coherent whenever the demo is opened.
+ *
+ * Contents:
+ *  - main journey ready to play: export of customer data on Atlas CRM (unknown retention,
+ *    prepared council, suggested references);
+ *  - a completed mission whose whole chain stays consultable (audit log of logins);
+ *  - error, refusal, expiry, stale evidence and budget situations.
+ */
+import type { Draft } from 'immer';
+import { COUNCIL_SCENARIOS } from '@/demo/adapters/simulation/council';
+import { generateContent } from '@/demo/adapters/simulation/generation';
+import { digest } from '@/demo/adapters/simulation/runs';
+import { allReferences } from '@/demo/domain/selectors';
+import { DAY, insert } from '@/demo/domain/engine';
+import { DEFAULT_SETTINGS, INTEGRATIONS, seedExperts } from '@/demo/domain/commands/workspace';
+import type { AppState, AuditEvent, Content, ContextFact, Deliverable, ID, Ref, RuleVersion } from '@/demo/domain/types';
+import { CONTROL_SEEDS, controlFromSeed, SKILL_SEEDS, skillFromSeed } from './seeds';
+import { CLI_PACKS, packReferenceIds } from './registry';
+
+export const NOVA = 'org-nova';
+type D = Draft<AppState>;
+
+const USERS = [
+  { id: 'u-camille', name: 'Camille Roche', title: 'Directrice produit', portrait: 'human-1', role: 'owner' },
+  { id: 'u-yanis', name: 'Yanis Belkacem', title: 'Responsable technique Atlas CRM', portrait: 'human-2', role: 'maintainer' },
+  { id: 'u-ines', name: 'Inès Morel', title: 'Responsable sécurité et conformité', portrait: 'human-3', role: 'admin' },
+  { id: 'u-theo', name: 'Théo Garnier', title: 'Développeur', portrait: 'human-4', role: 'contributor' },
+  { id: 'u-lea', name: 'Léa Fontaine', title: 'Chargée de compte', portrait: 'human-5', role: 'reader' },
+  { id: 'u-hugo', name: 'Hugo Martin', title: 'Auditeur externe (fictif)', portrait: 'human-6', role: 'auditor' },
+] as const;
+
+export function removeOrg(d: D, orgId: ID) {
+  for (const table of Object.values(d.db))
+    for (const [id, e] of Object.entries(table)) if ((e as { orgId?: ID }).orgId === orgId) delete (table as Record<ID, unknown>)[id];
+  delete d.orgs[orgId];
+  delete d.catalogue.favorites[orgId];
+}
+
+export function buildNova(d: D, now: number): ID {
+  removeOrg(d, NOVA);
+  const at = (days: number, hours = 10) => now + days * DAY + (hours - 10) * 3_600_000;
+  const ctx = { now, orgId: NOVA, actor: { type: 'system' as const } };
+  USERS.forEach((u) => (d.users[u.id] = { id: u.id, name: u.name, title: u.title, portrait: u.portrait }));
+  d.orgs[NOVA] = {
+    id: NOVA,
+    name: 'Atelier Nova',
+    activity: 'Éditeur SaaS B2B',
+    kind: 'demo',
+    createdAt: at(-180),
+    onboarding: { status: 'done', mode: 'existing', step: 5, answers: {}, updatedAt: at(-120) },
+    settings: { ...structuredClone(DEFAULT_SETTINGS), budget: { monthlyUnits: 400, used: 182 } },
+  };
+  USERS.forEach((u, i) => insert(d, 'member', { id: `mbr-nova-${i}`, orgId: NOVA, userId: u.id, role: u.role, since: at(-180 + i * 5) }));
+  insert(d, 'member', { id: 'mbr-nova-theo-ds', orgId: NOVA, userId: 'u-theo', role: 'maintainer', projectId: 'prj-ds', since: at(-60) });
+
+  /* ---------------------------------------------------------- products, projects, relations */
+  const products = [
+    {
+      id: 'prd-atlas',
+      name: 'Atlas CRM',
+      description: 'CRM multi-clients pour les équipes commerciales de PME.',
+      ownerId: 'u-yanis',
+      color: '#69C4D4',
+      stack: ['TypeScript', 'Node.js', 'React', 'PostgreSQL'],
+      territory: 0,
+      repos: [
+        {
+          id: 'repo-atlas-api',
+          name: 'atlas-api',
+          language: 'TypeScript',
+          modules: [
+            { id: 'mod-contacts', name: 'contacts' },
+            { id: 'mod-export', name: 'export' },
+            { id: 'mod-audit', name: 'audit' },
+          ],
+        },
+        { id: 'repo-atlas-web', name: 'atlas-web', language: 'React', modules: [{ id: 'mod-admin', name: 'admin' }] },
+      ],
+    },
+    {
+      id: 'prd-billing',
+      name: 'Nova Billing',
+      description: 'Facturation et relances pour les clients d’Atlas CRM.',
+      ownerId: 'u-theo',
+      color: '#7DD3A8',
+      stack: ['Python', 'FastAPI', 'PostgreSQL'],
+      territory: 1,
+      repos: [
+        {
+          id: 'repo-billing',
+          name: 'billing-service',
+          language: 'Python',
+          modules: [
+            { id: 'mod-invoices', name: 'factures' },
+            { id: 'mod-exports', name: 'exports-comptables' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'prd-portal',
+      name: 'Portail Client',
+      description: 'Espace en ligne des clients finaux des utilisateurs d’Atlas.',
+      ownerId: 'u-camille',
+      color: '#A78BFA',
+      stack: ['TypeScript', 'React'],
+      territory: 2,
+      repos: [{ id: 'repo-portal', name: 'portal-web', language: 'React', modules: [{ id: 'mod-docs', name: 'documents' }] }],
+    },
+    {
+      id: 'prd-ds',
+      name: 'Nova Design System',
+      description: 'Composants et jetons partagés par toutes les interfaces.',
+      ownerId: 'u-camille',
+      color: '#E8B86D',
+      stack: ['TypeScript', 'React', 'Storybook'],
+      territory: 3,
+      repos: [{ id: 'repo-ui', name: 'nova-ui', language: 'TypeScript', modules: [{ id: 'mod-buttons', name: 'boutons' }] }],
+    },
+  ];
+  products.forEach((p) => insert(d, 'product', { ...p, orgId: NOVA }));
+  [
+    { id: 'rel-1', fromProductId: 'prd-portal', toProductId: 'prd-atlas', kind: 'appelle', note: 'API publique v1 (contacts, documents).' },
+    { id: 'rel-2', fromProductId: 'prd-atlas', toProductId: 'prd-billing', kind: 'appelle', note: 'Statut de facturation des comptes.' },
+    {
+      id: 'rel-3',
+      fromProductId: 'prd-billing',
+      toProductId: 'prd-atlas',
+      kind: 'partage des données',
+      note: 'Comptes clients synchronisés chaque nuit.',
+    },
+    { id: 'rel-4', fromProductId: 'prd-atlas', toProductId: 'prd-ds', kind: 'intègre', note: 'Composants d’interface.' },
+    { id: 'rel-5', fromProductId: 'prd-portal', toProductId: 'prd-ds', kind: 'intègre', note: 'Composants d’interface.' },
+  ].forEach((r) => insert(d, 'relation', { ...r, orgId: NOVA, kind: r.kind as 'appelle' }));
+  const project = (id: string, productId: string, name: string, summary: string, ownerId: string, extra: Record<string, unknown> = {}) =>
+    insert(d, 'project', {
+      id,
+      orgId: NOVA,
+      productId,
+      name,
+      summary,
+      ownerId,
+      status: 'active',
+      blueprintVersion: 2,
+      linkedProductIds: [],
+      environments: ['Développement', 'Recette', 'Production'],
+      storage: ['PostgreSQL'],
+      dataSensitivity: 'Données personnelles',
+      createdAt: at(-90),
+      ...extra,
+    });
+  project(
+    'prj-export',
+    'prd-atlas',
+    'Export des données clients',
+    'Permettre à un administrateur d’exporter les données de ses clients.',
+    'u-yanis',
+    { linkedProductIds: ['prd-portal', 'prd-billing'], storage: ['PostgreSQL', 'Stockage objet chiffré'], createdAt: at(-6) },
+  );
+  project(
+    'prj-audit',
+    'prd-atlas',
+    'Journal d’audit des connexions',
+    'Tracer les connexions des utilisateurs de chaque client (mission terminée).',
+    'u-yanis',
+    { createdAt: at(-45) },
+  );
+  project('prj-billing', 'prd-billing', 'Relances de facturation', 'Automatiser les relances et les exports comptables.', 'u-theo', {
+    linkedProductIds: ['prd-atlas'],
+    dataSensitivity: 'Données de facturation',
+  });
+  project(
+    'prj-portal',
+    'prd-portal',
+    'Espace documents du portail',
+    'Permettre aux clients finaux de retrouver leurs documents.',
+    'u-camille',
+    { linkedProductIds: ['prd-atlas', 'prd-ds'] },
+  );
+  project('prj-ds', 'prd-ds', 'Design system v2', 'Faire évoluer les composants partagés et leurs jetons.', 'u-camille', {
+    dataSensitivity: 'Aucune donnée personnelle',
+  });
+  project('prj-legacy', 'prd-atlas', 'Ancien module de rapports', 'Rapports PDF remplacés par les tableaux de bord.', 'u-yanis', {
+    status: 'archived',
+    statusReason: 'Remplacé par les tableaux de bord intégrés.',
+    blueprintVersion: 1,
+    createdAt: at(-170),
+  });
+
+  /* ---------------------------------------------------------- rules and blueprint */
+  const rv = (
+    p: Partial<RuleVersion> & Pick<RuleVersion, 'title' | 'statement'>,
+    n = 1,
+    status: RuleVersion['status'] = 'published',
+    day = -120,
+  ): RuleVersion => ({
+    number: n,
+    status,
+    referenceIds: [],
+    scope: { level: 'org' },
+    ownerId: 'u-ines',
+    criticality: 'moyenne',
+    blocking: false,
+    derogable: true,
+    policy: 'additive',
+    expectedControlIds: [],
+    authorId: 'u-ines',
+    justification: 'Profil initial',
+    createdAt: at(day),
+    ...p,
+  });
+  const rules: { id: string; code: string; versions: RuleVersion[] }[] = [
+    {
+      id: 'rul-iso',
+      code: 'SEC-ISO-01',
+      versions: [
+        rv({
+          title: 'Isolation stricte des données entre clients',
+          statement:
+            'Toute lecture ou écriture de données métier est filtrée par l’identifiant du client courant et couverte par un test à deux clients.',
+          referenceIds: ['owasp-application-security-verification-standard-5-0-0', 'owasp-api-security-top-10-2023'],
+          criticality: 'critique',
+          blocking: true,
+          derogable: false,
+          policy: 'imposed',
+          expectedControlIds: ['ctl-isolation'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-perm',
+      code: 'SEC-PERM-03',
+      versions: [
+        rv({
+          title: 'Permission dédiée pour les opérations sensibles',
+          statement: 'Une opération qui exporte, supprime ou partage des données exige une permission dédiée, distincte du rôle.',
+          referenceIds: ['principe-du-moindre-privilege', 'role-based-access-control-rbac'],
+          criticality: 'haute',
+          blocking: true,
+          expectedControlIds: ['ctl-perm'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-ret',
+      code: 'PRIV-RET-02',
+      versions: [
+        rv(
+          {
+            title: 'Durée de disponibilité des fichiers exportés',
+            statement: 'Un fichier contenant des données personnelles n’est disponible que pendant la durée fixée, puis supprimé.',
+            referenceIds: [
+              'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+              'protection-des-donnees-des-la-conception-et-par-defaut',
+            ],
+            criticality: 'haute',
+            blocking: true,
+            derogable: false,
+            policy: 'adjustable',
+            parameter: { name: 'durée maximale', unit: 'jours', value: 30, min: 1, max: 30 },
+            ownerId: 'u-ines',
+          },
+          1,
+          'published',
+          -40,
+        ),
+      ],
+    },
+    {
+      id: 'rul-log',
+      code: 'OPS-LOG-01',
+      versions: [
+        rv({
+          title: 'Journalisation des opérations sur données personnelles',
+          statement: 'Chaque opération qui expose des données personnelles produit un événement d’audit horodaté avec son auteur.',
+          referenceIds: ['nist-cybersecurity-framework-csf-2-0'],
+          criticality: 'moyenne',
+        }),
+      ],
+    },
+    {
+      id: 'rul-tst',
+      code: 'QA-TST-01',
+      versions: [
+        rv({
+          title: 'Tests automatisés des critères d’acceptation',
+          statement: 'Chaque critère d’acceptation vérifiable est couvert par un test automatisé exécuté avant clôture.',
+          referenceIds: ['test-automation-pyramid', 'integration-testing'],
+          blocking: true,
+          ownerId: 'u-yanis',
+          expectedControlIds: ['ctl-tests'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-dep',
+      code: 'DEP-VUL-01',
+      versions: [
+        rv({
+          title: 'Aucune dépendance vulnérable connue',
+          statement: 'Aucune dépendance livrée ne présente de vulnérabilité connue de gravité haute sans correctif ni atténuation.',
+          referenceIds: ['software-composition-analysis-sca', 'common-vulnerabilities-and-exposures-cve'],
+          criticality: 'haute',
+          blocking: true,
+          expectedControlIds: ['ctl-deps'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-a11y',
+      code: 'A11Y-01',
+      versions: [
+        rv({
+          title: 'Accessibilité des composants (WCAG 2.2 AA)',
+          statement:
+            'Chaque composant interactif expose ses états par du texte et un symbole, annonce ses changements et respecte les contrastes AA.',
+          referenceIds: ['wcag-2-2', 'wai-aria-1-2'],
+          blocking: true,
+          ownerId: 'u-camille',
+          expectedControlIds: ['ctl-a11y'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-doc',
+      code: 'DOC-01',
+      versions: [
+        rv({
+          title: 'Documentation versionnée des fonctionnalités',
+          statement: 'Toute fonctionnalité livrée dispose d’un guide qui indique les versions qu’il décrit.',
+          referenceIds: ['diataxis', 'docs-as-code'],
+          criticality: 'basse',
+          ownerId: 'u-camille',
+          expectedControlIds: ['ctl-doc'],
+        }),
+      ],
+    },
+    {
+      id: 'rul-com',
+      code: 'CODE-COM-01',
+      versions: [
+        rv({
+          title: 'Messages de commit structurés',
+          statement: 'Chaque commit suit le format Conventional Commits.',
+          referenceIds: ['conventional-commits'],
+          criticality: 'basse',
+          ownerId: 'u-yanis',
+        }),
+      ],
+    },
+    {
+      id: 'rul-rev',
+      code: 'CODE-REV-01',
+      versions: [
+        rv({
+          title: 'Relecture indépendante',
+          statement: 'Toute modification est approuvée par une personne distincte de son auteur.',
+          referenceIds: ['code-review'],
+          criticality: 'haute',
+          blocking: true,
+          derogable: false,
+          policy: 'imposed',
+          ownerId: 'u-yanis',
+        }),
+      ],
+    },
+    {
+      id: 'rul-perf',
+      code: 'PERF-01',
+      versions: [
+        rv({
+          title: 'Budget de temps de réponse de l’API',
+          statement: 'Le 95e centile des temps de réponse de l’API reste sous la valeur fixée, mesurée en recette.',
+          referenceIds: ['service-level-objective-slo', 'load-testing'],
+          scope: { level: 'product', productId: 'prd-atlas' },
+          policy: 'adjustable',
+          parameter: { name: 'p95', unit: 'ms', value: 500, min: 200, max: 1000 },
+          ownerId: 'u-yanis',
+        }),
+      ],
+    },
+    {
+      id: 'rul-perf-exp',
+      code: 'PERF-01-EXP',
+      versions: [
+        rv(
+          {
+            title: 'Budget de l’API d’export',
+            statement: 'Le module export accepte un p95 de 800 ms pour la demande d’export (la génération est asynchrone).',
+            referenceIds: ['service-level-objective-slo'],
+            scope: { level: 'module', repoId: 'repo-atlas-api', moduleId: 'mod-export' },
+            policy: 'adjustable',
+            parameter: { name: 'p95', unit: 'ms', value: 800, min: 200, max: 1000 },
+            adapts: 'rul-perf',
+            ownerId: 'u-yanis',
+            justification: 'La demande enregistre seulement la tâche ; 800 ms reste dans les bornes de PERF-01.',
+          },
+          1,
+          'published',
+          -40,
+        ),
+      ],
+    },
+    {
+      id: 'rul-br-gh',
+      code: 'CODE-BR-01',
+      versions: [
+        rv(
+          {
+            title: 'Branches courtes avec pull request (GitHub flow)',
+            statement: 'Toute modification passe par une branche courte et une pull request vers la branche principale.',
+            referenceIds: ['github-flow', 'pull-requests'],
+            ownerId: 'u-theo',
+            conflictGroup: 'Stratégie de branches',
+            authorId: 'u-theo',
+            justification: 'Harmoniser les pratiques des équipes.',
+          },
+          1,
+          'draft',
+          -2,
+        ),
+      ],
+    },
+    {
+      id: 'rul-br-tbd',
+      code: 'CODE-BR-02',
+      versions: [
+        rv(
+          {
+            title: 'Intégration continue sur le tronc',
+            statement: 'Les modifications sont intégrées au moins une fois par jour sur la branche principale, derrière des feature flags.',
+            referenceIds: ['trunk-based-development', 'feature-flags'],
+            ownerId: 'u-theo',
+            conflictGroup: 'Stratégie de branches',
+            authorId: 'u-theo',
+            justification: 'Proposition de l’équipe plateforme.',
+          },
+          1,
+          'draft',
+          -2,
+        ),
+      ],
+    },
+  ];
+  rules.forEach((r) => insert(d, 'rule', { ...r, orgId: NOVA }));
+
+  const f = (
+    key: string,
+    section: string,
+    label: string,
+    value: string,
+    provenance: ContextFact['provenance'] = 'declared',
+    extra: Partial<ContextFact> = {},
+  ): ContextFact => ({
+    key,
+    section,
+    label,
+    value,
+    provenance,
+    source:
+      provenance === 'observed'
+        ? 'Analyse simulée du dépôt atlas-api'
+        : provenance === 'inferred'
+          ? 'Déduit de l’analyse du dépôt'
+          : provenance === 'unknown'
+            ? 'Identifiée lors du cadrage de l’export'
+            : 'Questionnaire',
+    ...extra,
+  });
+  const baseFacts: ContextFact[] = [
+    f('org.name', 'Organisation', 'Nom de l’organisation', 'Atelier Nova'),
+    f('org.activity', 'Organisation', 'Activité', 'Éditeur SaaS B2B'),
+    f('users', 'Organisation', 'Utilisateurs', 'Équipes commerciales de PME (2 400 organisations clientes)'),
+    f('countries', 'Organisation', 'Pays', 'France, Union européenne'),
+    f(
+      'responsibilities',
+      'Équipe',
+      'Responsabilités',
+      'Produit : Camille Roche ; Technique : Yanis Belkacem ; Sécurité et conformité : Inès Morel',
+    ),
+    f('stack', 'Technique', 'Langages et frameworks', 'TypeScript, Node.js, React, Python', 'observed'),
+    f('architecture', 'Technique', 'Architecture', 'Monolithe modulaire par produit, API publique versionnée', 'inferred', {
+      confirmedBy: 'u-yanis',
+    }),
+    f('databases', 'Technique', 'Bases de données', 'PostgreSQL (partitionnée par tenant_id)', 'observed'),
+    f('storage', 'Technique', 'Stockage', 'Stockage objet chiffré, préfixe par client', 'declared'),
+    f('hosting', 'Technique', 'Hébergement', 'Cloud public, région UE'),
+    f('environments', 'Technique', 'Environnements', 'Développement, Recette, Production'),
+    f('tenancy', 'Données et exigences', 'Multi-clients', 'Oui, multi-clients (isolation logique par tenant_id)'),
+    f('data.personal', 'Données et exigences', 'Données personnelles', 'Oui'),
+    f('data.sensitive', 'Données et exigences', 'Données sensibles', 'Aucune'),
+    f(
+      'customer.requirements',
+      'Données et exigences',
+      'Exigences clients',
+      'Questionnaires sécurité des grands comptes ; clause de réversibilité des données',
+    ),
+    f('a11y', 'Qualité et exploitation', 'Accessibilité', 'WCAG 2.2 niveau AA'),
+    f('performance', 'Qualité et exploitation', 'Performance', 'p95 API < 500 ms'),
+    f('operations', 'Qualité et exploitation', 'Exploitation', 'Astreinte interne'),
+  ];
+  const v1Rules = ['rul-iso', 'rul-perm', 'rul-log', 'rul-tst', 'rul-dep', 'rul-a11y', 'rul-doc', 'rul-com', 'rul-rev', 'rul-perf'].map(
+    (ruleId) => ({ ruleId, version: 1 }),
+  );
+  const v2Facts = [
+    ...baseFacts,
+    f('export.retention', 'Données et exigences', 'Durée de disponibilité d’un fichier exporté', '', 'unknown', {
+      blocks: ['export-donnees'],
+    }),
+  ];
+  insert(d, 'blueprint', {
+    id: 'bp-nova',
+    orgId: NOVA,
+    name: 'Blueprint Atelier Nova',
+    versions: [
+      {
+        number: 1,
+        status: 'published',
+        context: baseFacts.filter((x) => x.key !== 'storage'),
+        rules: v1Rules,
+        exclusions: [
+          {
+            refId: 'payment-card-industry-data-security-standard-pci-dss-v4-0-1',
+            reason: 'Les paiements sont confiés à un prestataire externe : aucune donnée de carte ne transite par nos systèmes.',
+            authorId: 'u-ines',
+            at: at(-120),
+          },
+        ],
+        authorId: 'u-camille',
+        justification: 'Profil initial issu du questionnaire et de l’analyse du dépôt atlas-api.',
+        createdAt: at(-125),
+        submittedAt: at(-122),
+        publishedAt: at(-120),
+        reviewerId: 'u-ines',
+      },
+      {
+        number: 2,
+        status: 'published',
+        context: v2Facts,
+        rules: [...v1Rules, { ruleId: 'rul-ret', version: 1 }, { ruleId: 'rul-perf-exp', version: 1 }],
+        exclusions: [
+          {
+            refId: 'payment-card-industry-data-security-standard-pci-dss-v4-0-1',
+            reason: 'Les paiements sont confiés à un prestataire externe : aucune donnée de carte ne transite par nos systèmes.',
+            authorId: 'u-ines',
+            at: at(-120),
+          },
+        ],
+        authorId: 'u-yanis',
+        justification:
+          'Ajout de la règle de disponibilité des exports et du budget de l’API d’export. Inconnue identifiée : durée de disponibilité.',
+        basedOn: 1,
+        createdAt: at(-42),
+        submittedAt: at(-41),
+        publishedAt: at(-40),
+        reviewerId: 'u-ines',
+      },
+      {
+        number: 3,
+        status: 'draft',
+        context: structuredClone(v2Facts),
+        rules: [
+          ...v1Rules,
+          { ruleId: 'rul-ret', version: 1 },
+          { ruleId: 'rul-perf-exp', version: 1 },
+          { ruleId: 'rul-br-gh', version: 1 },
+          { ruleId: 'rul-br-tbd', version: 1 },
+        ],
+        exclusions: [
+          {
+            refId: 'payment-card-industry-data-security-standard-pci-dss-v4-0-1',
+            reason: 'Les paiements sont confiés à un prestataire externe : aucune donnée de carte ne transite par nos systèmes.',
+            authorId: 'u-ines',
+            at: at(-120),
+          },
+        ],
+        authorId: 'u-theo',
+        justification: 'Choisir une stratégie de branches commune aux équipes.',
+        basedOn: 2,
+        createdAt: at(-2),
+      },
+    ],
+  });
+
+  /* ---------------------------------------------------------- guild, skills, controls, packs */
+  seedExperts(d, { ...ctx, now: at(-120) }, NOVA, 'u-camille', 'u-ines');
+  const market = d.db.expert[`exp-${NOVA}-market`];
+  market.budget = { units: 20, used: 20 };
+  d.db.expert[`exp-${NOVA}-engineering`].memory.push(
+    'Les tables métier d’Atlas CRM sont partitionnées par tenant_id (observation du dépôt atlas-api).',
+  );
+  d.db.expert[`exp-${NOVA}-security`].memory.push(
+    'Le contrôle CTL-ISO a détecté un défaut d’isolation dans le journal d’audit (v1), corrigé en v2.',
+  );
+  d.db.expert[`exp-${NOVA}-product`].instructions.push({
+    number: 2,
+    text: 'Reformule le besoin, sépare faits et hypothèses, propose des critères vérifiables et chiffre l’impact avec la grille RICE quand les données existent.',
+    status: 'proposed',
+    authorId: 'u-camille',
+    at: at(-1),
+  });
+  insert(d, 'approval', {
+    id: 'apr-instr',
+    orgId: NOVA,
+    subject: { kind: 'expert', id: `exp-${NOVA}-product`, version: 2 },
+    purpose: 'instruction',
+    authorId: 'u-camille',
+    approverId: 'u-ines',
+    requireDistinct: true,
+    status: 'expected',
+    createdAt: at(-1),
+  });
+  SKILL_SEEDS.forEach((sk) => insert(d, 'skill', skillFromSeed(sk, NOVA, now)));
+  d.db.skill[`skl-code-${NOVA}`].update = { version: '1.4.0', status: 'proposed', at: at(-1) };
+  const ruleIdByCode = Object.fromEntries(rules.map((r) => [r.code, r.id]));
+  CONTROL_SEEDS.forEach((c) => insert(d, 'control', controlFromSeed(c, c.key, NOVA, ruleIdByCode)));
+  const refs = allReferences(d as AppState);
+  CLI_PACKS.forEach((p) =>
+    insert(d, 'pack', {
+      id: `pck-cli-${p.id}`,
+      orgId: NOVA,
+      name: p.title,
+      description: `${p.description} (pack ${p.id} ${p.version} du registre CLI, ${p.rules.length} règle(s))`,
+      refIds: packReferenceIds(p, refs),
+      origin: 'cli',
+      cliId: p.id,
+      enabled: ['owasp-asvs', 'secure-sdlc', 'react', 'typescript', 'web-accessibility'].includes(p.id),
+    }),
+  );
+  insert(d, 'pack', {
+    id: 'pck-saas',
+    orgId: NOVA,
+    name: 'SaaS multi-clients',
+    description: 'Références à examiner pour toute fonctionnalité exposant des données de clients.',
+    refIds: [
+      'owasp-application-security-verification-standard-5-0-0',
+      'owasp-api-security-top-10-2023',
+      'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+      'principe-du-moindre-privilege',
+      'role-based-access-control-rbac',
+      'protection-des-donnees-des-la-conception-et-par-defaut',
+    ],
+    origin: 'local',
+    enabled: true,
+  });
+  insert(d, 'collection', {
+    id: 'col-export',
+    orgId: NOVA,
+    name: 'Lot export de données',
+    description: 'Références consultées pour l’export des données clients.',
+    refIds: [
+      'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+      'owasp-api-security-top-10-2023',
+      'openapi-specification',
+      'csv-rfc-4180',
+      'wcag-2-2',
+    ],
+  });
+  insert(d, 'collection', {
+    id: 'col-launch',
+    orgId: NOVA,
+    name: 'Exemples à retrouver facilement',
+    description: 'Les repères les plus cités dans l’équipe.',
+    refIds: [
+      'conventional-commits',
+      'semantic-versioning',
+      'camelcase',
+      'pep-8-style-guide-for-python-code',
+      'solid',
+      'openapi-specification',
+      'owasp-application-security-verification-standard-5-0-0',
+      'supply-chain-levels-for-software-artifacts-slsa-1-2',
+      'iso-iec-27001-2022',
+      'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+      'wcag-2-2',
+      'storybook',
+      'opentelemetry',
+      'finops-framework',
+      'scrum',
+      'rice',
+      'diataxis',
+      'model-context-protocol-mcp',
+      'agent2agent-a2a',
+    ],
+  });
+  d.catalogue.favorites[NOVA] = [
+    'owasp-application-security-verification-standard-5-0-0',
+    'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+    'wcag-2-2',
+  ];
+  d.catalogue.proposals = d.catalogue.proposals.filter((p) => p.id !== 'rpr-nova-openapi');
+  const openapi = refs.find((r) => r.id === 'openapi-specification');
+  if (openapi)
+    d.catalogue.proposals.push({
+      id: 'rpr-nova-openapi',
+      refId: openapi.id,
+      incoming: {
+        ...openapi,
+        description: `${openapi.description} La veille simulée signale une nouvelle version mineure de la spécification.`,
+        edition: '20 novembre 2026 (proposition simulée)',
+      },
+      changes: ['description', 'edition'],
+      status: 'proposed',
+      at: at(-1),
+      origin: 'Veille des références (simulation)',
+    });
+
+  const app = (
+    id: string,
+    projectId: string,
+    refId: string,
+    status: 'applicable' | 'not_applicable' | 'to_clarify',
+    reason: string,
+    validated: boolean,
+    authorId = 'u-ines',
+    suggestedBy?: string,
+  ) => insert(d, 'applicability', { id, orgId: NOVA, projectId, refId, status, reason, authorId, validated, suggestedBy, at: at(-5) });
+  app(
+    'app-1',
+    'prj-export',
+    'reglement-general-sur-la-protection-des-donnees-ue-2016-679',
+    'applicable',
+    'L’export contient des données personnelles de contacts européens.',
+    true,
+  );
+  app(
+    'app-2',
+    'prj-export',
+    'owasp-api-security-top-10-2023',
+    'applicable',
+    'Nouvel endpoint d’API exposant des données de clients.',
+    false,
+    'agent:security',
+    'Gardien (agent IA)',
+  );
+  app(
+    'app-3',
+    'prj-export',
+    'analyse-d-impact-relative-a-la-protection-des-donnees-aipd',
+    'to_clarify',
+    'Volume et finalité à confirmer avec le responsable de traitement.',
+    false,
+    'agent:privacy',
+    'Magistrat (agent IA)',
+  );
+  app(
+    'app-4',
+    'prj-export',
+    'csv-rfc-4180',
+    'applicable',
+    'Format du fichier exporté.',
+    false,
+    'agent:engineering',
+    'Bâtisseur (agent IA)',
+  );
+  app(
+    'app-5',
+    'prj-export',
+    'payment-card-industry-data-security-standard-pci-dss-v4-0-1',
+    'not_applicable',
+    'Aucune donnée de carte de paiement dans l’export.',
+    true,
+  );
+  app(
+    'app-6',
+    'prj-export',
+    'directive-nis-2-ue-2022-2555',
+    'to_clarify',
+    'Qualification de l’entité à faire par la direction juridique.',
+    true,
+    'u-camille',
+  );
+
+  /* ---------------------------------------------------------- integrations */
+  const intStatus = ['available', 'error', 'expired', 'not_configured', 'disconnected', 'available'] as const;
+  INTEGRATIONS.forEach((i, n) =>
+    insert(d, 'integration', {
+      ...i,
+      id: `int-${NOVA}-${n}`,
+      orgId: NOVA,
+      status: intStatus[n],
+      changedAt: at(-n - 1),
+      account: intStatus[n] === 'not_configured' ? undefined : 'atelier-nova-demo',
+      detail: n === 1 ? `${i.detail} Dernière erreur simulée : jeton refusé par le service de démonstration.` : i.detail,
+    }),
+  );
+
+  /* ---------------------------------------------------------- completed mission: audit log */
+  const ctrlInputs = (ruleIds: string[], deliverableId: string, version: number) => ({
+    blueprintVersion: 2,
+    rules: ruleIds.map((ruleId) => ({ ruleId, version: 1 })),
+    controlVersion: 1,
+    subject: { deliverableId, version },
+    params: {},
+  });
+  insert(d, 'council', {
+    id: 'cns-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    title: 'Journal d’audit des connexions',
+    objective: 'Permettre aux administrateurs clients de consulter les connexions de leurs utilisateurs.',
+    scenario: null,
+    context: 'Demande récurrente des grands comptes dans les questionnaires sécurité.',
+    documentIds: [],
+    constraints: ['Isolation stricte entre clients', 'Conservation 12 mois'],
+    ruleIds: ['rul-iso', 'rul-log'],
+    participantIds: [`exp-${NOVA}-product`, `exp-${NOVA}-security`, `exp-${NOVA}-engineering`],
+    ownerId: 'u-yanis',
+    status: 'done',
+    blueprintVersion: 2,
+    requiredFacts: [],
+    contributions: [
+      {
+        id: 'ctb-a1',
+        expertId: `exp-${NOVA}-product`,
+        at: at(-44),
+        round: 1,
+        facts: ['Cité dans 6 questionnaires sécurité sur 10.'],
+        hypotheses: [],
+        questions: [],
+        risks: ['Perdre des renouvellements de grands comptes.'],
+        recommendation: 'Prioriser une vue simple des connexions.',
+        sourceRefIds: ['jobs-to-be-done'],
+        stances: { 'opt-1': 'pour', 'opt-2': 'réservé' },
+        simulated: true,
+      },
+      {
+        id: 'ctb-a2',
+        expertId: `exp-${NOVA}-security`,
+        at: at(-44),
+        round: 1,
+        facts: ['Les événements de connexion sont stockés dans la table activities.'],
+        hypotheses: [],
+        questions: [],
+        risks: ['Une requête non filtrée exposerait les connexions d’autres clients.'],
+        recommendation: 'Vue intégrée, contrôle d’isolation bloquant.',
+        reservation: 'Test à deux clients obligatoire.',
+        sourceRefIds: ['owasp-application-security-verification-standard-5-0-0'],
+        stances: { 'opt-1': 'pour', 'opt-2': 'contre' },
+        simulated: true,
+      },
+      {
+        id: 'ctb-a3',
+        expertId: `exp-${NOVA}-engineering`,
+        at: at(-44),
+        round: 1,
+        facts: [],
+        hypotheses: ['La pagination suffit jusqu’à 12 mois d’historique.'],
+        questions: [],
+        risks: [],
+        recommendation: 'Vue intégrée paginée.',
+        sourceRefIds: ['clean-architecture'],
+        stances: { 'opt-1': 'pour', 'opt-2': 'réservé' },
+        simulated: true,
+      },
+    ],
+    options: [
+      {
+        id: 'opt-1',
+        title: 'Vue intégrée dans l’administration',
+        summary: 'Page « Connexions » paginée dans Atlas.',
+        pros: ['Simple', 'Tracé'],
+        cons: ['Pas d’export'],
+        impacts: { délai: '1 sprint' },
+        blocking: [],
+      },
+      {
+        id: 'opt-2',
+        title: 'Flux vers l’outil SIEM du client',
+        summary: 'Envoi des événements vers un outil externe.',
+        pros: ['Intégration avancée'],
+        cons: ['Plus long', 'Dépend du client'],
+        impacts: { délai: '3 sprints' },
+        blocking: [],
+      },
+    ],
+    annotations: [
+      {
+        id: 'ann-a1',
+        text: 'La Sécurité s’oppose au flux externe tant que la signature des événements n’est pas définie.',
+        authorId: 'u-yanis',
+        contributionIds: ['ctb-a2'],
+        optionId: 'opt-2',
+        at: at(-44),
+      },
+    ],
+    clarifications: [],
+    createdAt: at(-45),
+  });
+  insert(d, 'decision', {
+    id: 'dec-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    councilId: 'cns-audit',
+    title: 'Journal d’audit des connexions',
+    number: 1,
+    status: 'approved',
+    optionId: 'opt-1',
+    optionTitle: 'Vue intégrée dans l’administration',
+    justification: 'Répond aux questionnaires sécurité en un sprint ; le flux SIEM sera réexaminé si la demande se confirme.',
+    ownerId: 'u-yanis',
+    authorId: 'u-yanis',
+    considered: { blueprintVersion: 2, rules: v1Rules },
+    questIds: ['qst-audit'],
+    questPlan: [],
+    createdAt: at(-43),
+    decidedAt: at(-42),
+  });
+  insert(d, 'approval', {
+    id: 'apr-dec-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    subject: { kind: 'decision', id: 'dec-audit', version: 1 },
+    purpose: 'décision',
+    authorId: 'u-yanis',
+    approverId: 'u-ines',
+    requireDistinct: true,
+    status: 'approved',
+    decidedBy: 'u-ines',
+    decidedAt: at(-42),
+    createdAt: at(-43),
+  });
+
+  const auditCode = (fixed: boolean): Content => ({
+    kind: 'files',
+    files: [
+      {
+        path: 'src/audit/logins.ts',
+        language: 'typescript',
+        body: `import { db } from '../db';\n\n/** Lists the login events of the current tenant, newest first. */\nexport async function listLogins(tenantId: string, page: number) {\n  return db.query(\n${fixed ? `    'SELECT id, user_id, at, ip FROM activities WHERE tenant_id = $1 AND kind = $2 ORDER BY at DESC LIMIT 50 OFFSET $3',\n    [tenantId, 'login', page * 50],` : `    'SELECT id, user_id, at, ip FROM activities WHERE kind = $1 ORDER BY at DESC LIMIT 50 OFFSET $2',\n    ['login', page * 50],`}\n  );\n}\n`,
+      },
+      {
+        path: 'src/audit/controller.ts',
+        language: 'typescript',
+        body: `import { requirePermission } from '../auth';\nimport { listLogins } from './logins';\n\nexport async function getLogins(ctx) {\n  requirePermission(ctx.user, 'export');\n  return listLogins(ctx.user.tenantId, Number(ctx.query.page ?? 0));\n}\n`,
+      },
+    ],
+  });
+  const gctx = {
+    projectName: 'Journal d’audit des connexions',
+    productName: 'Atlas CRM',
+    questTitle: 'Journal d’audit des connexions',
+    objective: 'Permettre aux administrateurs clients de consulter les connexions de leurs utilisateurs.',
+    criteria: ['Seules les connexions du client sont visibles', 'Pagination par 50', 'Accès réservé aux administrateurs'],
+    variant: 'initial' as const,
+    scenario: 'generic' as const,
+  };
+  const bpRef: Ref = { kind: 'blueprint', id: 'bp-nova', version: 2 };
+  const dv = (
+    id: string,
+    projectId: string,
+    type: Deliverable['type'],
+    title: string,
+    status: Deliverable['status'],
+    versions: { content: Content; note: string; day: number; author: string | null; proposal?: boolean; describes?: Ref[] }[],
+    extra: Partial<Deliverable> = {},
+  ) =>
+    insert(d, 'deliverable', {
+      id,
+      orgId: NOVA,
+      projectId,
+      type,
+      title,
+      status,
+      current: versions.filter((v) => !v.proposal).length,
+      ownerId: 'u-yanis',
+      createdAt: at(versions[0].day),
+      versions: versions.map((v, i) => ({
+        number: i + 1,
+        content: v.content,
+        authorId: v.author,
+        authorKind: (v.author?.startsWith('u-') ? 'human' : v.author ? 'agent' : 'system') as 'human' | 'agent' | 'system',
+        createdAt: at(v.day),
+        note: v.note,
+        simulated: !v.author?.startsWith('u-'),
+        proposal: !!v.proposal,
+        describes: v.describes ?? [bpRef],
+      })),
+      ...extra,
+    });
+  const auditDoc = (extra: string): Content => ({
+    kind: 'markdown',
+    body: `# Consulter le journal des connexions\n\nCe guide s’adresse aux administrateurs d’une organisation cliente d’Atlas CRM.\n\n## Ouvrir le journal\n1. Ouvrez **Administration › Sécurité › Connexions**.\n2. Les connexions de votre organisation s’affichent, les plus récentes en premier.\n\n## Ce que vous voyez\n- Date et heure, utilisateur, adresse IP.\n- Uniquement les connexions de votre organisation.\n${extra}\n## Versions décrites\nAtlas CRM 4.11, Blueprint Atelier Nova v2.\n`,
+  });
+  dv(
+    'dlv-audit-spec',
+    'prj-audit',
+    'spec',
+    'Spécification — Journal d’audit des connexions',
+    'published',
+    [{ content: generateContent('spec', gctx).content, note: 'Première génération', day: -41, author: `exp-${NOVA}-product` }],
+    {
+      questId: 'qst-audit',
+      docCategory: 'référence',
+      docPath: 'Atlas CRM/Sécurité/Spécification du journal d’audit',
+      audience: 'Équipe produit',
+    },
+  );
+  dv(
+    'dlv-audit-adr',
+    'prj-audit',
+    'adr',
+    'ADR-011 — Stockage des événements de connexion',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'markdown',
+          body: '# ADR-011 — Stockage des événements de connexion\n\n- **Statut** : accepté\n- **Contexte** : les connexions sont déjà enregistrées dans la table activities.\n- **Décision** : réutiliser activities (kind = login) avec un index (tenant_id, at).\n- **Conséquences** : purge après 12 mois ; pas de nouveau stockage.\n',
+        },
+        note: 'Rédaction',
+        day: -41,
+        author: `exp-${NOVA}-architecture`,
+      },
+    ],
+    { questId: 'qst-audit', docCategory: 'explication', docPath: 'Atlas CRM/Architecture/ADR-011', audience: 'Équipe technique' },
+  );
+  dv(
+    'dlv-audit-code',
+    'prj-audit',
+    'code',
+    'Proposition de code — Journal des connexions',
+    'approved',
+    [
+      { content: auditCode(false), note: 'Première proposition', day: -40, author: `exp-${NOVA}-engineering` },
+      {
+        content: auditCode(true),
+        note: 'Correctif : filtre tenant_id ajouté après l’échec de CTL-ISO',
+        day: -38,
+        author: `exp-${NOVA}-engineering`,
+      },
+    ],
+    { questId: 'qst-audit' },
+  );
+  dv(
+    'dlv-audit-tests',
+    'prj-audit',
+    'tests',
+    'Tests — Journal des connexions',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'files',
+          files: [
+            {
+              path: 'tests/audit/logins.test.ts',
+              language: 'typescript',
+              body: "import { describe, it, expect } from 'vitest';\nimport { listLogins } from '../../src/audit/logins';\nimport { seedTwoTenants } from '../helpers';\n\ndescribe('journal des connexions', () => {\n  it('ne montre que les connexions du client', async () => {\n    const { tenantA, tenantB } = await seedTwoTenants();\n    const rows = (await listLogins(tenantA.id, 0)).rows;\n    expect(rows.some((r) => tenantB.userIds.includes(r.user_id))).toBe(false);\n  });\n});\n",
+            },
+          ],
+        },
+        note: 'Test à deux clients',
+        day: -39,
+        author: `exp-${NOVA}-quality`,
+      },
+    ],
+    { questId: 'qst-audit' },
+  );
+  dv(
+    'dlv-audit-api',
+    'prj-audit',
+    'api',
+    'Référence d’API — Connexions',
+    'published',
+    [
+      {
+        content: {
+          kind: 'api',
+          spec: "openapi: 3.1.0\ninfo:\n  title: Atlas CRM — Connexions\n  version: 1.0.0\npaths:\n  /v1/security/logins:\n    get:\n      summary: Lister les connexions de l’organisation\n      parameters: [{ name: page, in: query, schema: { type: integer, minimum: 0 } }]\n      responses:\n        '200': { description: Page de 50 connexions }\n        '403': { description: Permission manquante }\n",
+        },
+        note: 'Première version',
+        day: -39,
+        author: `exp-${NOVA}-engineering`,
+      },
+    ],
+    { questId: 'qst-audit', docCategory: 'api', docPath: 'Atlas CRM/API/Connexions', audience: 'Intégrateurs' },
+  );
+  dv(
+    'dlv-audit-doc',
+    'prj-audit',
+    'doc',
+    'Guide administrateur — Journal des connexions',
+    'published',
+    [
+      {
+        content: auditDoc(''),
+        note: 'Première version',
+        day: -38,
+        author: `exp-${NOVA}-documentation`,
+        describes: [bpRef, { kind: 'deliverable', id: 'dlv-audit-api', version: 1 }],
+      },
+      {
+        content: auditDoc('\n## Conservation\nLes connexions sont conservées 12 mois puis supprimées.\n'),
+        note: 'Ajout de la durée de conservation',
+        day: -36,
+        author: 'u-camille',
+        describes: [bpRef, { kind: 'deliverable', id: 'dlv-audit-api', version: 1 }],
+      },
+    ],
+    {
+      questId: 'qst-audit',
+      docCategory: 'guide',
+      docPath: 'Atlas CRM/Sécurité/Journal des connexions',
+      audience: 'Administrateurs clients',
+      ownerId: 'u-camille',
+    },
+  );
+  dv(
+    'dlv-atlas-changelog',
+    'prj-audit',
+    'changelog',
+    'Changelog — Atlas CRM',
+    'published',
+    [
+      {
+        content: {
+          kind: 'markdown',
+          body: '# Changelog\n\n## [4.11.0] — il y a 5 semaines\n### Ajouté\n- Journal des connexions pour les administrateurs.\n\n## [4.10.2]\n### Corrigé\n- Pagination des activités sur les comptes volumineux.\n',
+        },
+        note: 'Version 4.11.0',
+        day: -35,
+        author: `exp-${NOVA}-documentation`,
+      },
+    ],
+    { docCategory: 'changelog', docPath: 'Atlas CRM/Changelog', audience: 'Clients' },
+  );
+  insert(d, 'quest', {
+    id: 'qst-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    title: 'Journal d’audit des connexions',
+    objective: 'Permettre aux administrateurs clients de consulter les connexions de leurs utilisateurs.',
+    type: 'sécurité',
+    origin: 'decision',
+    originRef: { kind: 'decision', id: 'dec-audit', version: 1 },
+    decisionId: 'dec-audit',
+    ownerId: 'u-yanis',
+    priority: 'P1',
+    due: new Date(at(-36)).toISOString().slice(0, 10),
+    status: 'done',
+    criteria: [
+      { id: 'crt-a1', text: 'Seules les connexions du client sont visibles', required: true, met: true },
+      { id: 'crt-a2', text: 'Pagination par 50', required: true, met: true },
+      { id: 'crt-a3', text: 'Accès réservé aux administrateurs', required: true, met: true },
+    ],
+    expectedDeliverables: ['spec', 'code', 'tests', 'doc'],
+    deliverableIds: ['dlv-audit-spec', 'dlv-audit-adr', 'dlv-audit-code', 'dlv-audit-tests', 'dlv-audit-api', 'dlv-audit-doc'],
+    controlIds: ['ctl-isolation', 'ctl-tests', 'ctl-perm', 'ctl-doc'],
+    needsHumanApproval: true,
+    comments: [
+      {
+        id: 'cmt-a1',
+        authorId: 'u-ines',
+        text: 'Échec CTL-ISO sur la v1 : requête sans filtre client. Correctif attendu avant revue.',
+        at: at(-40),
+      },
+      { id: 'cmt-a2', authorId: 'u-yanis', text: 'Correctif v2 livré, contrôle relancé : réussi.', at: at(-38) },
+    ],
+    order: 0,
+    createdAt: at(-42),
+    closedAt: at(-35),
+    revision: 0,
+  });
+  ['Rédiger la spécification', 'Écrire la requête paginée', 'Ajouter le test à deux clients', 'Rédiger le guide'].forEach((title, i) =>
+    insert(d, 'task', {
+      id: `tsk-a${i}`,
+      orgId: NOVA,
+      questId: 'qst-audit',
+      title,
+      status: 'done',
+      assigneeId: i === 3 ? 'u-camille' : 'u-theo',
+      dependsOn: i ? [`tsk-a${i - 1}`] : [],
+      order: i,
+    }),
+  );
+  const run = (
+    id: string,
+    projectId: string,
+    controlId: string,
+    title: string,
+    inputs: ReturnType<typeof ctrlInputs>,
+    day: number,
+    outcome: 'passed' | 'failed',
+    observation: string,
+    actor = 'u-yanis',
+  ) => {
+    insert(d, 'run', {
+      id,
+      orgId: NOVA,
+      projectId,
+      kind: 'control',
+      controlId,
+      title,
+      inputs,
+      steps: [
+        'Préparer l’environnement simulé',
+        'Charger la version évaluée',
+        'Exécuter les vérifications',
+        'Consigner le résultat et la preuve',
+      ].map((label) => ({ label, status: 'done' as const })),
+      stepIndex: 4,
+      status: 'done',
+      log: [{ at: at(day), level: outcome === 'failed' ? 'error' : 'info', text: `Résultat : ${outcome} — ${observation}` }],
+      attempt: 1,
+      startedAt: at(day),
+      endedAt: at(day),
+      costPerStep: 2,
+      resultId: `res-${id}`,
+      actor: { type: 'human', userId: actor },
+      suspendable: true,
+      plannedFailure: null,
+    });
+    insert(d, 'result', {
+      id: `res-${id}`,
+      orgId: NOVA,
+      projectId,
+      runId: id,
+      controlId,
+      outcome,
+      observation,
+      inputs,
+      evaluatedAt: at(day),
+      simulated: true,
+    });
+    const excerpt = JSON.stringify(
+      { contrôle: controlId, livrable: inputs.subject, blueprint: 'v2', résultat: outcome, observation },
+      null,
+      2,
+    );
+    insert(d, 'evidence', {
+      id: `prv-${id}`,
+      orgId: NOVA,
+      projectId,
+      resultId: `res-${id}`,
+      runId: id,
+      controlId,
+      inputs,
+      at: at(day),
+      actor: { type: 'human', userId: actor },
+      provenance: 'Adaptateur de contrôle de démonstration',
+      digest: digest(excerpt),
+      excerpt,
+      simulated: true,
+    });
+  };
+  run(
+    'run-a1',
+    'prj-audit',
+    'ctl-isolation',
+    'CTL-ISO — Journal des connexions v1',
+    ctrlInputs(['rul-iso'], 'dlv-audit-code', 1),
+    -40,
+    'failed',
+    'Requête sans filtre client : « SELECT id, user_id, at, ip FROM activities WHERE kind = $1 … ».',
+  );
+  run(
+    'run-a2',
+    'prj-audit',
+    'ctl-isolation',
+    'CTL-ISO — Journal des connexions v2',
+    ctrlInputs(['rul-iso'], 'dlv-audit-code', 2),
+    -38,
+    'passed',
+    '1 requête vérifiée : filtre tenant_id présent.',
+  );
+  run(
+    'run-a3',
+    'prj-audit',
+    'ctl-perm',
+    'CTL-PERM — Journal des connexions v2',
+    ctrlInputs(['rul-perm'], 'dlv-audit-code', 2),
+    -38,
+    'passed',
+    'Le point d’entrée exige la permission.',
+  );
+  run(
+    'run-a4',
+    'prj-audit',
+    'ctl-tests',
+    'CTL-TST — Tests v1',
+    ctrlInputs(['rul-tst'], 'dlv-audit-tests', 1),
+    -38,
+    'passed',
+    '1 cas de test exécuté, réussi.',
+  );
+  run(
+    'run-a5',
+    'prj-audit',
+    'ctl-doc',
+    'CTL-DOC — Guide v2',
+    ctrlInputs(['rul-doc'], 'dlv-audit-doc', 2),
+    -36,
+    'passed',
+    'Structure conforme.',
+    'u-camille',
+  );
+  d.db.run['run-a2'].previousRunId = 'run-a1';
+  d.db.run['run-a2'].attempt = 2;
+  insert(d, 'finding', {
+    id: 'cst-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    severity: 'critique',
+    category: 'sécurité',
+    title: 'Défaut d’isolation dans le journal des connexions',
+    subject: { kind: 'deliverable', id: 'dlv-audit-code', version: 1 },
+    ruleId: 'rul-iso',
+    resultId: 'res-run-a1',
+    runId: 'run-a1',
+    observation: 'Requête sans filtre client.',
+    source: 'ctl-isolation',
+    ownerId: 'u-yanis',
+    status: 'resolved',
+    remediation: 'Ajouter le filtre tenant_id.',
+    questId: 'qst-audit',
+    createdAt: at(-40),
+  });
+  [
+    ['dlv-audit-spec', 1, -40],
+    ['dlv-audit-adr', 1, -40],
+    ['dlv-audit-code', 2, -37],
+    ['dlv-audit-tests', 1, -37],
+    ['dlv-audit-api', 1, -37],
+    ['dlv-audit-doc', 2, -36],
+    ['dlv-atlas-changelog', 1, -35],
+  ].forEach(([id, v, day], i) =>
+    insert(d, 'approval', {
+      id: `apr-a${i}`,
+      orgId: NOVA,
+      projectId: 'prj-audit',
+      subject: { kind: 'deliverable', id: id as string, version: v as number },
+      purpose: 'livrable',
+      authorId: 'u-yanis',
+      approverId: 'u-ines',
+      requireDistinct: true,
+      status: 'approved',
+      decidedBy: 'u-ines',
+      decidedAt: at(day as number),
+      createdAt: at((day as number) - 1),
+    }),
+  );
+  insert(d, 'approval', {
+    id: 'apr-close-audit',
+    orgId: NOVA,
+    projectId: 'prj-audit',
+    subject: { kind: 'quest', id: 'qst-audit', version: 8 },
+    purpose: 'clôture',
+    authorId: 'u-yanis',
+    approverId: 'u-ines',
+    requireDistinct: true,
+    status: 'approved',
+    decidedBy: 'u-ines',
+    decidedAt: at(-35),
+    createdAt: at(-36),
+  });
+  insert(d, 'share', {
+    id: 'shr-audit',
+    orgId: NOVA,
+    deliverableId: 'dlv-audit-doc',
+    version: 2,
+    audience: 'Clients grands comptes (fictifs)',
+    mode: 'lecture',
+    expiresAt: at(20),
+    status: 'active',
+    token: 'demo-audit-guide',
+    createdBy: 'u-camille',
+    createdAt: at(-34),
+    accessLog: [
+      { at: at(-33), visitor: 'Clients grands comptes', outcome: 'autorisé' },
+      { at: at(-30), visitor: 'Concurrent curieux', outcome: 'refusé' },
+    ],
+  });
+
+  /* ---------------------------------------------------------- portal: exception, pending review, expired share */
+  const portalCard: Content = {
+    kind: 'component',
+    name: 'DocumentCard',
+    description: 'Carte présentant un document du portail. Le statut est indiqué par une couleur.',
+    variants: [
+      { name: 'Repos', props: { state: 'idle', label: 'Facture mars 2026' } },
+      { name: 'Nouveau', props: { state: 'new', label: 'Contrat signé' } },
+      { name: 'Téléchargement', props: { state: 'pending', label: 'Préparation…' } },
+    ],
+    checks: ['Contraste vérifié'],
+  };
+  dv(
+    'dlv-portal-card',
+    'prj-portal',
+    'component',
+    'Composant — Carte de document',
+    'approved',
+    [{ content: portalCard, note: 'Première version', day: -9, author: `exp-${NOVA}-design` }],
+    { questId: 'qst-portal', ownerId: 'u-camille' },
+  );
+  dv(
+    'dlv-portal-gallery',
+    'prj-portal',
+    'gallery',
+    'Galerie — Composants du portail',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'gallery',
+          componentIds: ['dlv-portal-card', 'dlv-ds-button'],
+          intro: 'Composants utilisés par l’espace documents.',
+        },
+        note: 'Galerie initiale',
+        day: -8,
+        author: `exp-${NOVA}-design`,
+      },
+    ],
+    { ownerId: 'u-camille', docCategory: 'référence', docPath: 'Portail Client/Galerie de composants', audience: 'Équipe produit' },
+  );
+  dv(
+    'dlv-portal-tuto',
+    'prj-portal',
+    'doc',
+    'Tutoriel — Premiers pas sur le portail',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'markdown',
+          body: '# Premiers pas sur le portail\n\n1. Connectez-vous avec le lien reçu de votre fournisseur.\n2. Ouvrez **Mes documents**.\n3. Téléchargez une facture ou un contrat.\n\n## Versions décrites\nPortail Client 2.3.\n',
+        },
+        note: 'Première version',
+        day: -9,
+        author: `exp-${NOVA}-documentation`,
+      },
+    ],
+    {
+      questId: 'qst-portal',
+      ownerId: 'u-camille',
+      docCategory: 'tutoriel',
+      docPath: 'Portail Client/Tutoriels/Premiers pas',
+      audience: 'Clients finaux',
+    },
+  );
+  dv(
+    'dlv-portal-roadmap',
+    'prj-portal',
+    'roadmap',
+    'Roadmap — Portail Client',
+    'published',
+    [
+      {
+        content: generateContent('roadmap', { ...gctx, productName: 'Portail Client', questTitle: 'Espace documents' }).content,
+        note: 'T4 2026',
+        day: -20,
+        author: 'u-camille',
+      },
+    ],
+    { ownerId: 'u-camille', docCategory: 'roadmap', docPath: 'Portail Client/Roadmap', audience: 'Clients' },
+  );
+  dv(
+    'dlv-portal-landing',
+    'prj-portal',
+    'landing',
+    'Landing page — Espace documents',
+    'draft',
+    [
+      {
+        content: {
+          kind: 'landing',
+          hero: 'Tous vos documents, au même endroit',
+          subtitle: 'Factures, contrats et attestations de vos fournisseurs, disponibles à tout moment.',
+          features: [
+            { title: 'Classés automatiquement', text: 'Les documents arrivent rangés par type.' },
+            { title: 'Accessibles', text: 'Interface conçue pour le niveau AA du WCAG 2.2.' },
+            { title: 'Sécurisés', text: 'Chaque client ne voit que ses documents.' },
+          ],
+          cta: 'Découvrir le portail',
+          note: 'Contenu de démonstration, entreprise fictive.',
+        },
+        note: 'Brouillon',
+        day: -4,
+        author: `exp-${NOVA}-marketing`,
+      },
+    ],
+    { ownerId: 'u-camille', docCategory: 'commercial', docPath: 'Portail Client/Commercial/Landing', audience: 'Prospects' },
+  );
+  dv(
+    'dlv-portal-slides',
+    'prj-portal',
+    'presentation',
+    'Présentation — Lancement de l’espace documents',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'slides',
+          slides: [
+            { title: 'Espace documents', bullets: ['Un seul endroit pour les documents', 'Disponible sur mobile'], note: 'Ouverture' },
+            { title: 'Pour qui ?', bullets: ['Clients finaux des utilisateurs d’Atlas CRM'], note: '' },
+            { title: 'Calendrier', bullets: ['Recette en cours', 'Ouverture progressive'], note: 'Pas de date contractuelle.' },
+          ],
+        },
+        note: 'Version commerciale',
+        day: -6,
+        author: `exp-${NOVA}-commerce`,
+      },
+    ],
+    { ownerId: 'u-camille', docCategory: 'commercial', docPath: 'Portail Client/Commercial/Présentation', audience: 'Équipe commerciale' },
+  );
+  dv(
+    'dlv-portal-video',
+    'prj-portal',
+    'video',
+    'Storyboard — Espace documents en 40 secondes',
+    'draft',
+    [
+      {
+        content: {
+          kind: 'storyboard',
+          scenes: [
+            {
+              title: 'Accroche',
+              seconds: 6,
+              visual: 'Pile de papiers qui se range dans une tablette',
+              voice: 'Vos documents vous attendent.',
+            },
+            { title: 'Connexion', seconds: 10, visual: 'Écran de connexion du portail', voice: 'Un lien, et vous êtes chez vous.' },
+            { title: 'Recherche', seconds: 12, visual: 'Filtre « Factures 2026 »', voice: 'Retrouvez une facture en deux clics.' },
+            { title: 'Fin', seconds: 12, visual: 'Logo du portail', voice: 'Le portail client, chez votre fournisseur.' },
+          ],
+        },
+        note: 'Première découpe',
+        day: -3,
+        author: `exp-${NOVA}-marketing`,
+      },
+    ],
+    { ownerId: 'u-camille', docCategory: 'commercial', docPath: 'Portail Client/Commercial/Vidéo', audience: 'Prospects' },
+  );
+  insert(d, 'quest', {
+    id: 'qst-portal',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    title: 'Espace documents du portail',
+    objective: 'Permettre aux clients finaux de consulter et télécharger leurs documents.',
+    type: 'fonctionnalité',
+    origin: 'direct',
+    ownerId: 'u-camille',
+    priority: 'P2',
+    due: new Date(at(5)).toISOString().slice(0, 10),
+    status: 'review',
+    criteria: [
+      { id: 'crt-p1', text: 'Le client ne voit que ses documents', required: true, met: true },
+      { id: 'crt-p2', text: 'Tutoriel disponible', required: true, met: true },
+    ],
+    expectedDeliverables: ['component', 'doc'],
+    deliverableIds: ['dlv-portal-card', 'dlv-portal-tuto'],
+    controlIds: ['ctl-a11y'],
+    needsHumanApproval: true,
+    comments: [
+      {
+        id: 'cmt-p1',
+        authorId: 'u-camille',
+        text: 'CTL-A11Y échoue sur l’état « Nouveau » (couleur seule). Exception demandée le temps de livrer la v2 du composant.',
+        at: at(-6),
+      },
+    ],
+    order: 1,
+    createdAt: at(-12),
+    revision: 0,
+  });
+  ['Concevoir la carte', 'Rédiger le tutoriel'].forEach((title, i) =>
+    insert(d, 'task', {
+      id: `tsk-p${i}`,
+      orgId: NOVA,
+      questId: 'qst-portal',
+      title,
+      status: 'done',
+      assigneeId: 'u-camille',
+      dependsOn: [],
+      order: i,
+    }),
+  );
+  insert(d, 'run', {
+    id: 'run-p1',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    kind: 'control',
+    controlId: 'ctl-a11y',
+    title: 'CTL-A11Y — Carte de document v1',
+    inputs: {
+      blueprintVersion: 2,
+      rules: [{ ruleId: 'rul-a11y', version: 1 }],
+      controlVersion: 1,
+      subject: { deliverableId: 'dlv-portal-card', version: 1 },
+      params: {},
+    },
+    steps: [
+      { label: 'Préparer l’environnement simulé', status: 'done' },
+      { label: 'Charger la version évaluée', status: 'done' },
+      { label: 'Exécuter les vérifications', status: 'done' },
+      { label: 'Consigner le résultat et la preuve', status: 'done' },
+    ],
+    stepIndex: 4,
+    status: 'done',
+    log: [{ at: at(-6), level: 'error', text: 'États manquants : error, disabled ; annonce aria-live absente.' }],
+    attempt: 1,
+    startedAt: at(-6),
+    endedAt: at(-6),
+    costPerStep: 2,
+    resultId: 'res-p1',
+    actor: { type: 'human', userId: 'u-camille' },
+    suspendable: true,
+    plannedFailure: null,
+  });
+  insert(d, 'result', {
+    id: 'res-p1',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    runId: 'run-p1',
+    controlId: 'ctl-a11y',
+    outcome: 'failed',
+    observation: 'États manquants ou annonce absente : error, disabled.',
+    inputs: d.db.run['run-p1'].inputs,
+    evaluatedAt: at(-6),
+    simulated: true,
+  });
+  insert(d, 'evidence', {
+    id: 'prv-p1',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    resultId: 'res-p1',
+    runId: 'run-p1',
+    controlId: 'ctl-a11y',
+    inputs: d.db.run['run-p1'].inputs,
+    at: at(-6),
+    actor: { type: 'human', userId: 'u-camille' },
+    provenance: 'Adaptateur de contrôle de démonstration',
+    digest: digest('res-p1'),
+    excerpt: '{ "contrôle": "CTL-A11Y", "résultat": "failed" }',
+    simulated: true,
+  });
+  insert(d, 'finding', {
+    id: 'cst-portal',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    severity: 'moyenne',
+    category: 'qualité',
+    title: 'États accessibles incomplets sur la carte de document',
+    subject: { kind: 'deliverable', id: 'dlv-portal-card', version: 1 },
+    ruleId: 'rul-a11y',
+    resultId: 'res-p1',
+    runId: 'run-p1',
+    observation: 'Le statut « Nouveau » repose sur la couleur seule ; états erreur et désactivé absents.',
+    source: 'ctl-a11y',
+    ownerId: 'u-camille',
+    status: 'waived',
+    remediation: 'Ajouter un symbole et un texte au statut, compléter les états.',
+    createdAt: at(-6),
+  });
+  insert(d, 'exception', {
+    id: 'exc-portal',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    ruleId: 'rul-a11y',
+    subject: { deliverableId: 'dlv-portal-card', version: 1 },
+    scope: 'Carte de document v1, espace documents du portail',
+    reason: 'Ouverture progressive à 3 clients pilotes avant la v2 du composant.',
+    riskAccepted: 'Les personnes daltoniennes peuvent manquer le statut « Nouveau » pendant la phase pilote.',
+    compensatingMeasures: 'Libellé « Nouveau » ajouté dans le titre du document ; v2 du composant planifiée.',
+    ownerId: 'u-camille',
+    approverId: 'u-ines',
+    expiresAt: at(3),
+    status: 'approved',
+    authorId: 'u-camille',
+    decidedBy: 'u-ines',
+    createdAt: at(-6),
+  });
+  insert(d, 'approval', {
+    id: 'apr-close-portal',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    subject: { kind: 'quest', id: 'qst-portal', version: 2 },
+    purpose: 'clôture',
+    authorId: 'u-camille',
+    approverId: 'u-ines',
+    requireDistinct: true,
+    status: 'expected',
+    createdAt: at(-1),
+  });
+  [
+    ['dlv-portal-card', -8],
+    ['dlv-portal-tuto', -8],
+    ['dlv-portal-gallery', -7],
+    ['dlv-portal-slides', -5],
+  ].forEach(([id, day], i) =>
+    insert(d, 'approval', {
+      id: `apr-p${i}`,
+      orgId: NOVA,
+      projectId: 'prj-portal',
+      subject: { kind: 'deliverable', id: id as string, version: 1 },
+      purpose: 'livrable',
+      authorId: 'u-camille',
+      approverId: 'u-ines',
+      requireDistinct: true,
+      status: 'approved',
+      decidedBy: 'u-ines',
+      decidedAt: at(day as number),
+      createdAt: at((day as number) - 1),
+    }),
+  );
+  insert(d, 'approval', {
+    id: 'apr-p-roadmap',
+    orgId: NOVA,
+    projectId: 'prj-portal',
+    subject: { kind: 'deliverable', id: 'dlv-portal-roadmap', version: 1 },
+    purpose: 'livrable',
+    authorId: 'u-camille',
+    approverId: 'u-yanis',
+    requireDistinct: true,
+    status: 'approved',
+    decidedBy: 'u-yanis',
+    decidedAt: at(-19),
+    createdAt: at(-20),
+  });
+  insert(d, 'share', {
+    id: 'shr-portal',
+    orgId: NOVA,
+    deliverableId: 'dlv-portal-tuto',
+    version: 1,
+    audience: 'Clients pilotes (fictifs)',
+    mode: 'lecture',
+    expiresAt: at(-2),
+    status: 'active',
+    token: 'demo-portal-tuto',
+    createdBy: 'u-camille',
+    createdAt: at(-9),
+    accessLog: [{ at: at(-8), visitor: 'Clients pilotes', outcome: 'autorisé' }],
+  });
+
+  /* ---------------------------------------------------------- design system: stale evidence, prepared council */
+  const button = generateContent('component', { ...gctx, scenario: 'generic' }).content;
+  const tokensV1: Content = {
+    kind: 'component',
+    name: 'ColorTokens',
+    description: 'Jetons de couleur sémantiques. Chaque état associe un texte et un symbole ; annonces aria-live sur les changements.',
+    variants: [
+      { name: 'Succès', props: { state: 'success', label: 'Réussi' } },
+      { name: 'Erreur', props: { state: 'error', label: 'Échec' } },
+      { name: 'Désactivé', props: { state: 'disabled', label: 'Indisponible', disabled: true } },
+    ],
+    checks: ['Contraste ≥ 4,5:1'],
+  };
+  dv(
+    'dlv-ds-button',
+    'prj-ds',
+    'component',
+    'Composant — Bouton d’action longue (proposition)',
+    'draft',
+    [{ content: button, note: 'Proposition initiale', day: -3, author: `exp-${NOVA}-design` }],
+    { ownerId: 'u-camille' },
+  );
+  dv(
+    'dlv-ds-tokens',
+    'prj-ds',
+    'component',
+    'Composant — Jetons de couleur',
+    'draft',
+    [
+      { content: tokensV1, note: 'Jetons v1', day: -15, author: `exp-${NOVA}-design` },
+      {
+        content: {
+          ...tokensV1,
+          description: `${tokensV1.description} Ajout d’un jeton d’avertissement.`,
+          variants: [...tokensV1.variants, { name: 'Avertissement', props: { state: 'warning', label: 'Attention' } }],
+        },
+        note: 'Ajout du jeton d’avertissement',
+        day: -2,
+        author: 'u-theo',
+      },
+    ],
+    { questId: 'qst-ds', ownerId: 'u-camille' },
+  );
+  insert(d, 'run', {
+    id: 'run-ds1',
+    orgId: NOVA,
+    projectId: 'prj-ds',
+    kind: 'control',
+    controlId: 'ctl-a11y',
+    title: 'CTL-A11Y — Jetons de couleur v1',
+    inputs: {
+      blueprintVersion: 2,
+      rules: [{ ruleId: 'rul-a11y', version: 1 }],
+      controlVersion: 1,
+      subject: { deliverableId: 'dlv-ds-tokens', version: 1 },
+      params: {},
+    },
+    steps: [
+      { label: 'Préparer l’environnement simulé', status: 'done' },
+      { label: 'Charger la version évaluée', status: 'done' },
+      { label: 'Exécuter les vérifications', status: 'done' },
+      { label: 'Consigner le résultat et la preuve', status: 'done' },
+    ],
+    stepIndex: 4,
+    status: 'done',
+    log: [{ at: at(-14), level: 'info', text: '3 états vérifiés.' }],
+    attempt: 1,
+    startedAt: at(-14),
+    endedAt: at(-14),
+    costPerStep: 2,
+    resultId: 'res-ds1',
+    actor: { type: 'human', userId: 'u-theo' },
+    suspendable: true,
+    plannedFailure: null,
+  });
+  insert(d, 'result', {
+    id: 'res-ds1',
+    orgId: NOVA,
+    projectId: 'prj-ds',
+    runId: 'run-ds1',
+    controlId: 'ctl-a11y',
+    outcome: 'passed',
+    observation: '3 états vérifiés ; annonce aria-live présente.',
+    inputs: d.db.run['run-ds1'].inputs,
+    evaluatedAt: at(-14),
+    simulated: true,
+  });
+  insert(d, 'evidence', {
+    id: 'prv-ds1',
+    orgId: NOVA,
+    projectId: 'prj-ds',
+    resultId: 'res-ds1',
+    runId: 'run-ds1',
+    controlId: 'ctl-a11y',
+    inputs: d.db.run['run-ds1'].inputs,
+    at: at(-14),
+    actor: { type: 'human', userId: 'u-theo' },
+    provenance: 'Adaptateur de contrôle de démonstration',
+    digest: digest('res-ds1'),
+    excerpt: '{ "contrôle": "CTL-A11Y", "résultat": "passed", "livrable": "Jetons v1" }',
+    simulated: true,
+  });
+  insert(d, 'quest', {
+    id: 'qst-ds',
+    orgId: NOVA,
+    projectId: 'prj-ds',
+    title: 'Jetons de couleur v2',
+    objective: 'Ajouter le jeton d’avertissement et vérifier les contrastes.',
+    type: 'design',
+    origin: 'direct',
+    ownerId: 'u-theo',
+    priority: 'P3',
+    due: new Date(at(12)).toISOString().slice(0, 10),
+    status: 'doing',
+    criteria: [{ id: 'crt-d1', text: 'Contrastes AA vérifiés', required: true, met: false }],
+    expectedDeliverables: ['component'],
+    deliverableIds: ['dlv-ds-tokens'],
+    controlIds: ['ctl-a11y'],
+    needsHumanApproval: false,
+    comments: [],
+    order: 2,
+    createdAt: at(-15),
+    revision: 0,
+  });
+  insert(d, 'council', {
+    id: 'cns-ds',
+    orgId: NOVA,
+    projectId: 'prj-ds',
+    title: 'Bouton d’action longue partagé',
+    objective: 'Décider si le bouton d’action longue devient un composant partagé du design system.',
+    scenario: 'design-system',
+    context: 'Trois écrans utilisent des boutons d’attente différents.',
+    documentIds: ['dlv-ds-button'],
+    constraints: ['WCAG 2.2 AA'],
+    ruleIds: ['rul-a11y'],
+    participantIds: ['design', 'engineering', 'quality', 'documentation'].map((k) => `exp-${NOVA}-${k}`),
+    ownerId: 'u-camille',
+    status: 'prepared',
+    blueprintVersion: 2,
+    requiredFacts: [],
+    contributions: [],
+    options: structuredClone(generateCouncilOptions('design-system')),
+    annotations: [],
+    clarifications: [],
+    createdAt: at(-2),
+  });
+
+  /* ---------------------------------------------------------- billing: tool error, budget, blocked quest, stale doc */
+  dv(
+    'dlv-billing-code',
+    'prj-billing',
+    'code',
+    'Proposition de code — Exports comptables CSV',
+    'draft',
+    [
+      {
+        content: generateContent('code', { ...gctx, scenario: 'vuln' }).content,
+        note: 'Première proposition',
+        day: -3,
+        author: `exp-${NOVA}-engineering`,
+      },
+    ],
+    { questId: 'qst-billing-exports', ownerId: 'u-theo' },
+  );
+  dv(
+    'dlv-billing-ref',
+    'prj-billing',
+    'doc',
+    'Référence technique — Facturation',
+    'approved',
+    [
+      {
+        content: {
+          kind: 'markdown',
+          body: '# Référence technique — Facturation\n\n## Relances\nLes relances partent à J+7, J+15 et J+30.\n\n## Versions décrites\nNova Billing 1.8, Blueprint Atelier Nova v1.\n',
+        },
+        note: 'Rédaction',
+        day: -100,
+        author: 'u-theo',
+        describes: [{ kind: 'blueprint', id: 'bp-nova', version: 1 }],
+      },
+    ],
+    { ownerId: 'u-theo', docCategory: 'référence', docPath: 'Nova Billing/Référence technique', audience: 'Équipe technique' },
+  );
+  insert(d, 'approval', {
+    id: 'apr-b-ref',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    subject: { kind: 'deliverable', id: 'dlv-billing-ref', version: 1 },
+    purpose: 'livrable',
+    authorId: 'u-theo',
+    approverId: 'u-yanis',
+    requireDistinct: true,
+    status: 'approved',
+    decidedBy: 'u-yanis',
+    decidedAt: at(-99),
+    createdAt: at(-100),
+  });
+  insert(d, 'quest', {
+    id: 'qst-billing-exports',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    title: 'Exports comptables CSV',
+    objective: 'Fournir aux cabinets comptables un export CSV mensuel des factures.',
+    type: 'fonctionnalité',
+    origin: 'direct',
+    ownerId: 'u-theo',
+    priority: 'P2',
+    due: new Date(at(9)).toISOString().slice(0, 10),
+    status: 'doing',
+    criteria: [
+      { id: 'crt-b1', text: 'Fichier conforme à la RFC 4180', required: true, met: true },
+      { id: 'crt-b2', text: 'Aucune dépendance vulnérable', required: true, met: false },
+    ],
+    expectedDeliverables: ['code'],
+    deliverableIds: ['dlv-billing-code'],
+    controlIds: ['ctl-deps'],
+    needsHumanApproval: true,
+    comments: [],
+    order: 3,
+    createdAt: at(-5),
+    revision: 0,
+  });
+  insert(d, 'quest', {
+    id: 'qst-billing-relances',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    title: 'Relances automatiques',
+    objective: 'Envoyer automatiquement les relances de factures impayées.',
+    type: 'fonctionnalité',
+    origin: 'direct',
+    ownerId: 'u-theo',
+    priority: 'P2',
+    due: new Date(at(18)).toISOString().slice(0, 10),
+    status: 'blocked',
+    statusReason: 'En attente de l’accès au service d’envoi du prestataire (fictif).',
+    resumeTo: 'doing',
+    criteria: [{ id: 'crt-r1', text: 'Trois niveaux de relance', required: true, met: false }],
+    expectedDeliverables: ['spec', 'code'],
+    deliverableIds: [],
+    controlIds: [],
+    needsHumanApproval: true,
+    comments: [],
+    order: 4,
+    createdAt: at(-20),
+    revision: 0,
+  });
+  insert(d, 'task', {
+    id: 'tsk-r1',
+    orgId: NOVA,
+    questId: 'qst-billing-relances',
+    title: 'Obtenir l’accès au service d’envoi',
+    status: 'blocked',
+    statusReason: 'Contrat en signature',
+    assigneeId: 'u-theo',
+    dependsOn: [],
+    order: 0,
+  });
+  insert(d, 'task', {
+    id: 'tsk-r2',
+    orgId: NOVA,
+    questId: 'qst-billing-relances',
+    title: 'Programmer les relances',
+    status: 'todo',
+    assigneeId: 'u-theo',
+    dependsOn: ['tsk-r1'],
+    order: 1,
+  });
+  insert(d, 'task', {
+    id: 'tsk-r3',
+    orgId: NOVA,
+    questId: 'qst-billing-relances',
+    title: 'Tester les trois niveaux',
+    status: 'todo',
+    assigneeId: 'u-theo',
+    dependsOn: ['tsk-r2'],
+    order: 2,
+  });
+  insert(d, 'run', {
+    id: 'run-b1',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    kind: 'control',
+    controlId: 'ctl-deps',
+    questId: 'qst-billing-exports',
+    title: 'CTL-DEP — Exports comptables CSV v1',
+    inputs: {
+      blueprintVersion: 2,
+      rules: [{ ruleId: 'rul-dep', version: 1 }],
+      controlVersion: 1,
+      subject: { deliverableId: 'dlv-billing-code', version: 1 },
+      params: {},
+    },
+    steps: [
+      { label: 'Préparer l’environnement simulé', status: 'done' },
+      { label: 'Charger la version évaluée', status: 'done' },
+      { label: 'Exécuter les vérifications', status: 'error' },
+      { label: 'Consigner le résultat et la preuve', status: 'pending' },
+    ],
+    stepIndex: 2,
+    status: 'error',
+    statusReason: 'Erreur d’outil simulée : le service de vérification n’a pas répondu dans le délai (récupérable, relancez l’exécution).',
+    log: [
+      { at: at(-1), level: 'info', text: 'Exécution lancée.' },
+      {
+        at: at(-1),
+        level: 'error',
+        text: 'Erreur d’outil simulée : le service de vérification n’a pas répondu dans le délai (récupérable, relancez l’exécution).',
+      },
+    ],
+    attempt: 1,
+    startedAt: at(-1),
+    endedAt: at(-1),
+    costPerStep: 2,
+    actor: { type: 'human', userId: 'u-theo' },
+    suspendable: true,
+    plannedFailure: 'tool-error',
+  });
+  insert(d, 'run', {
+    id: 'run-b0',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    kind: 'skill',
+    skillId: `skl-video-${NOVA}`,
+    questId: 'qst-billing-relances',
+    title: 'Storyboard vidéo — tentative interrompue',
+    inputs: { blueprintVersion: 2, rules: [], params: { type: 'video' } },
+    steps: [
+      { label: 'Lire le contexte de la quête', status: 'done' },
+      { label: 'Appliquer les règles du Blueprint', status: 'error' },
+      { label: 'Rédiger le livrable', status: 'pending' },
+      { label: 'Enregistrer une nouvelle version', status: 'pending' },
+    ],
+    stepIndex: 1,
+    status: 'error',
+    statusReason: 'Budget de simulation atteint (400/400 unités) le mois précédent.',
+    log: [{ at: at(-12), level: 'error', text: 'Interrompue : budget de simulation atteint.' }],
+    attempt: 1,
+    startedAt: at(-12),
+    endedAt: at(-12),
+    costPerStep: 3,
+    actor: { type: 'human', userId: 'u-theo' },
+    suspendable: false,
+    plannedFailure: null,
+  });
+  insert(d, 'exception', {
+    id: 'exc-billing-old',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    ruleId: 'rul-dep',
+    scope: 'billing-service, dépendance pdf-kit 1.x',
+    reason: 'Correctif amont attendu.',
+    riskAccepted: 'Exposition limitée au réseau interne.',
+    compensatingMeasures: 'Filtrage en amont.',
+    ownerId: 'u-theo',
+    approverId: 'u-ines',
+    expiresAt: at(-10),
+    status: 'expired',
+    authorId: 'u-theo',
+    decidedBy: 'u-ines',
+    createdAt: at(-60),
+  });
+  insert(d, 'exception', {
+    id: 'exc-billing-draft',
+    orgId: NOVA,
+    projectId: 'prj-billing',
+    ruleId: 'rul-dep',
+    scope: 'Exports comptables CSV',
+    reason: 'Le correctif de csv-forge n’est pas encore publié.',
+    riskAccepted: '',
+    compensatingMeasures: '',
+    ownerId: 'u-theo',
+    status: 'draft',
+    authorId: 'u-theo',
+    createdAt: at(-1),
+  });
+
+  /* ---------------------------------------------------------- main journey: prepared council */
+  insert(d, 'council', {
+    id: 'cns-export',
+    orgId: NOVA,
+    projectId: 'prj-export',
+    title: 'Export des données clients',
+    objective: 'Permettre à un administrateur d’exporter les données de ses clients.',
+    scenario: 'export-donnees',
+    context:
+      'Demande récurrente des administrateurs clients ; trois grands comptes dépassent 200 000 contacts. La durée de disponibilité du fichier n’est pas fixée.',
+    documentIds: ['dlv-audit-adr'],
+    constraints: [
+      'Isolation stricte entre clients (SEC-ISO-01, non dérogeable)',
+      'Permission dédiée (SEC-PERM-03)',
+      'Durée de disponibilité à fixer (PRIV-RET-02)',
+    ],
+    ruleIds: ['rul-iso', 'rul-perm', 'rul-ret', 'rul-log'],
+    participantIds: ['product', 'design', 'engineering', 'security', 'privacy', 'performance'].map((k) => `exp-${NOVA}-${k}`),
+    ownerId: 'u-yanis',
+    status: 'prepared',
+    blueprintVersion: 2,
+    requiredFacts: ['export.retention'],
+    contributions: [],
+    options: structuredClone(generateCouncilOptions('export-donnees')),
+    annotations: [],
+    clarifications: [],
+    createdAt: at(-1),
+  });
+
+  /* ---------------------------------------------------------- observatory */
+  const comp = [
+    {
+      id: 'cmp-helio',
+      name: 'Helio CRM',
+      kind: 'direct',
+      description: 'CRM pour PME, fort en automatisation (entreprise fictive).',
+      strengths: ['Automatisations', 'Prix d’entrée bas'],
+      weaknesses: ['Peu de garanties sur la conservation des données'],
+      favorite: true,
+    },
+    {
+      id: 'cmp-corvex',
+      name: 'Corvex Relations',
+      kind: 'direct',
+      description: 'CRM pour grands comptes (entreprise fictive).',
+      strengths: ['Intégrations', 'Support dédié'],
+      weaknesses: ['Mise en place longue'],
+      favorite: false,
+    },
+    {
+      id: 'cmp-brindille',
+      name: 'Brindille Suite',
+      kind: 'indirect',
+      description: 'Suite bureautique avec carnet de contacts partagé (entreprise fictive).',
+      strengths: ['Déjà installée chez les clients'],
+      weaknesses: ['Pas de pipeline commercial'],
+      favorite: false,
+    },
+  ] as const;
+  comp.forEach((c) =>
+    insert(d, 'competitor', { ...c, strengths: [...c.strengths], weaknesses: [...c.weaknesses], orgId: NOVA, fictional: true }),
+  );
+  [
+    { id: 'src-helio', name: 'Blog produit Helio (fictif)', url: 'https://example.invalid/helio/blog', type: 'Blog produit' },
+    { id: 'src-corvex', name: 'Communiqués Corvex (fictifs)', url: 'https://example.invalid/corvex/presse', type: 'Communiqués' },
+    { id: 'src-brindille', name: 'Site Brindille (fictif)', url: 'https://example.invalid/brindille', type: 'Site public' },
+    {
+      id: 'src-eco',
+      name: 'Notes de version d’écosystème (fictives)',
+      url: 'https://example.invalid/ecosysteme',
+      type: 'Notes de version',
+    },
+  ].forEach((x) => insert(d, 'source', { ...x, orgId: NOVA, fictional: true, active: true }));
+  const sig = (
+    id: string,
+    competitorId: string | undefined,
+    sourceId: string,
+    type: 'fonctionnalité' | 'financement' | 'site' | 'écosystème' | 'annonce',
+    title: string,
+    day: number,
+    level: 'faible' | 'moyenne' | 'forte',
+    body: {
+      facts: string[];
+      interpretations: string[];
+      hypotheses: string[];
+      recommendations: string[];
+      reasons: string[];
+      context: string;
+    },
+    extra: Record<string, unknown> = {},
+  ) =>
+    insert(d, 'signal', {
+      id,
+      orgId: NOVA,
+      competitorId,
+      sourceId,
+      type,
+      title,
+      publishedAt: at(day),
+      consultedAt: at(day + 1),
+      context: body.context,
+      facts: body.facts,
+      interpretations: body.interpretations,
+      hypotheses: body.hypotheses,
+      recommendations: body.recommendations,
+      relevance: { level, reasons: body.reasons },
+      projectIds: ['prj-export'],
+      notes: [],
+      favorite: false,
+      fictional: true,
+      ...extra,
+    });
+  sig(
+    'sig-helio',
+    'cmp-helio',
+    'src-helio',
+    'fonctionnalité',
+    'Helio CRM (fictif) annonce un export « illimité et instantané »',
+    -4,
+    'forte',
+    {
+      context: 'Billet de blog fictif présentant un export complet en un clic.',
+      facts: ['Le billet annonce un export illimité et instantané.', 'Aucune mention de durée de conservation ni de traçabilité.'],
+      interpretations: ['Le concurrent fictif cible la réversibilité, critère d’achat des PME.'],
+      hypotheses: ['Nos grands comptes pourraient citer cette annonce lors des renouvellements.'],
+      recommendations: ['Examiner le positionnement en Conseil ; ne pas modifier la roadmap sans arbitrage.'],
+      reasons: ['Même besoin que la quête d’export', 'Deux opportunités commerciales citent ce concurrent'],
+    },
+    { favorite: true, opportunityId: 'opp-maitrise' },
+  );
+  sig('sig-corvex', 'cmp-corvex', 'src-corvex', 'financement', 'Corvex Relations (fictif) annonce une levée de fonds', -15, 'faible', {
+    context: 'Communiqué fictif.',
+    facts: ['Levée annoncée de 12 M€ (fictif).'],
+    interpretations: ['Accélération possible sur les grands comptes.'],
+    hypotheses: [],
+    recommendations: ['Surveiller les annonces produit des six prochains mois.'],
+    reasons: ['Pas d’impact direct sur les projets en cours'],
+  });
+  sig('sig-brindille', 'cmp-brindille', 'src-brindille', 'site', 'Brindille Suite (fictif) refond sa page « Contacts »', -9, 'faible', {
+    context: 'Nouvelle page publique fictive.',
+    facts: ['La page met en avant le partage de contacts.'],
+    interpretations: [],
+    hypotheses: ['Concurrence indirecte sur les très petites entreprises.'],
+    recommendations: [],
+    reasons: ['Segment marginal pour Atlas CRM'],
+  });
+  sig(
+    'sig-eco',
+    undefined,
+    'src-eco',
+    'écosystème',
+    'Une bibliothèque CSV (fictive) annonce une faille d’injection de formules',
+    -2,
+    'moyenne',
+    {
+      context: 'Note de version fictive de csv-forge.',
+      facts: ['csv-forge 2.3.x est concernée par SIM-2026-0042 (simulation).'],
+      interpretations: ['Les exports CSV de Nova Billing utilisent cette bibliothèque.'],
+      hypotheses: [],
+      recommendations: ['Lancer CTL-DEP sur les exports comptables.'],
+      reasons: ['Dépendance utilisée par un projet actif'],
+    },
+    { projectIds: ['prj-billing'], reevaluation: 'proposed' },
+  );
+  insert(d, 'opportunity', {
+    id: 'opp-maitrise',
+    orgId: NOVA,
+    title: 'Valoriser la maîtrise des données exportées',
+    description: 'Répondre aux annonces d’export concurrentes par la traçabilité, l’isolation et la durée limitée.',
+    signalIds: ['sig-helio'],
+    status: 'open',
+    createdAt: at(-3),
+  });
+
+  /* ---------------------------------------------------------- history */
+  const ev = (
+    id: string,
+    day: number,
+    actor: AuditEvent['actor'],
+    action: string,
+    summary: string,
+    object: Ref,
+    projectId?: string,
+    extra: Partial<AuditEvent> = {},
+  ) =>
+    insert(d, 'event', {
+      id,
+      orgId: NOVA,
+      projectId,
+      at: at(day),
+      actor,
+      action,
+      summary,
+      object,
+      provenance: 'local',
+      related: [],
+      ...extra,
+    });
+  const H = (userId: string) => ({ type: 'human' as const, userId });
+  const A = (key: string) => ({ type: 'agent' as const, expertId: `exp-${NOVA}-${key}` });
+  ev('evt-n01', -180, H('u-camille'), 'org.created', 'Organisation « Atelier Nova » créée', { kind: 'org', id: NOVA });
+  ev('evt-n02', -120, H('u-ines'), 'blueprint.publish', 'Publication du Blueprint v1 (relu par Inès Morel)', {
+    kind: 'blueprint',
+    id: 'bp-nova',
+    version: 1,
+  });
+  ev(
+    'evt-n03',
+    -40,
+    H('u-ines'),
+    'blueprint.publish',
+    'Publication du Blueprint v2 : ajout de PRIV-RET-02, inconnue « durée de disponibilité » identifiée',
+    { kind: 'blueprint', id: 'bp-nova', version: 2 },
+  );
+  ev(
+    'evt-n04',
+    -45,
+    H('u-yanis'),
+    'council.prepared',
+    'Session du Conseil préparée : « Journal d’audit des connexions »',
+    { kind: 'council', id: 'cns-audit' },
+    'prj-audit',
+  );
+  ev(
+    'evt-n05',
+    -44,
+    A('security'),
+    'council.contribution',
+    'Avis de Gardien versé au Conseil « Journal d’audit des connexions »',
+    { kind: 'council', id: 'cns-audit' },
+    'prj-audit',
+    { provenance: 'simulation' },
+  );
+  ev(
+    'evt-n06',
+    -43,
+    H('u-yanis'),
+    'decision.proposed',
+    'Décision proposée : « Vue intégrée dans l’administration »',
+    { kind: 'decision', id: 'dec-audit', version: 1 },
+    'prj-audit',
+  );
+  ev(
+    'evt-n07',
+    -42,
+    H('u-ines'),
+    'decision.approve',
+    'Approuver la décision — Journal d’audit des connexions (En revue → Approuvée)',
+    { kind: 'decision', id: 'dec-audit', version: 1 },
+    'prj-audit',
+  );
+  ev(
+    'evt-n08',
+    -42,
+    H('u-yanis'),
+    'decision.converted',
+    'Décision « Journal d’audit des connexions » convertie en 1 quête(s)',
+    { kind: 'decision', id: 'dec-audit', version: 1 },
+    'prj-audit',
+    { related: [{ kind: 'quest', id: 'qst-audit' }] },
+  );
+  ev(
+    'evt-n09',
+    -40,
+    A('engineering'),
+    'deliverable.generated',
+    'Livrable généré : « Proposition de code — Journal des connexions » (simulation)',
+    { kind: 'deliverable', id: 'dlv-audit-code', version: 1 },
+    'prj-audit',
+    { provenance: 'simulation' },
+  );
+  ev(
+    'evt-n10',
+    -40,
+    { type: 'system' },
+    'result.failed',
+    'CTL-ISO sur « Proposition de code — Journal des connexions » v1 : échoué',
+    { kind: 'result', id: 'res-run-a1' },
+    'prj-audit',
+    { provenance: 'simulation', related: [{ kind: 'evidence', id: 'prv-run-a1' }] },
+  );
+  ev(
+    'evt-n11',
+    -38,
+    A('engineering'),
+    'deliverable.version',
+    '« Proposition de code — Journal des connexions » passe en v2 (Correctif)',
+    { kind: 'deliverable', id: 'dlv-audit-code', version: 2 },
+    'prj-audit',
+    { provenance: 'simulation' },
+  );
+  ev(
+    'evt-n12',
+    -38,
+    { type: 'system' },
+    'result.passed',
+    'CTL-ISO sur « Proposition de code — Journal des connexions » v2 : réussi',
+    { kind: 'result', id: 'res-run-a2' },
+    'prj-audit',
+    { provenance: 'simulation', related: [{ kind: 'evidence', id: 'prv-run-a2' }] },
+  );
+  ev(
+    'evt-n13',
+    -35,
+    H('u-ines'),
+    'approval.approve',
+    'Validation de clôture accordée par Inès Morel (approbatrice distincte)',
+    { kind: 'approval', id: 'apr-close-audit' },
+    'prj-audit',
+  );
+  ev(
+    'evt-n14',
+    -35,
+    H('u-yanis'),
+    'quest.close',
+    'Clôturer — Journal d’audit des connexions (En revue → Terminée)',
+    { kind: 'quest', id: 'qst-audit' },
+    'prj-audit',
+  );
+  ev(
+    'evt-n15',
+    -34,
+    H('u-camille'),
+    'share.created',
+    'Lien de démonstration local créé pour « Guide administrateur — Journal des connexions » v2',
+    { kind: 'share', id: 'shr-audit' },
+    'prj-audit',
+    { provenance: 'démo' },
+  );
+  ev(
+    'evt-n16',
+    -6,
+    { type: 'system' },
+    'result.failed',
+    'CTL-A11Y sur « Composant — Carte de document » v1 : échoué',
+    { kind: 'result', id: 'res-p1' },
+    'prj-portal',
+    { provenance: 'simulation' },
+  );
+  ev(
+    'evt-n17',
+    -6,
+    H('u-ines'),
+    'exception.approve',
+    'Exception A11Y-01 approuvée pour la carte de document v1 (échéance dans 3 jours)',
+    { kind: 'exception', id: 'exc-portal' },
+    'prj-portal',
+  );
+  ev(
+    'evt-n18',
+    -2,
+    H('u-theo'),
+    'blueprint.draft',
+    'Nouvelle version 3 du Blueprint en préparation (basée sur la v2)',
+    { kind: 'blueprint', id: 'bp-nova', version: 3 },
+    undefined,
+    { justification: 'Choisir une stratégie de branches commune.' },
+  );
+  ev(
+    'evt-n19',
+    -1,
+    { type: 'system' },
+    'run.error',
+    'Erreur technique (simulée) : CTL-DEP — Exports comptables CSV v1',
+    { kind: 'run', id: 'run-b1' },
+    'prj-billing',
+    { provenance: 'simulation' },
+  );
+  ev(
+    'evt-n20',
+    -1,
+    H('u-yanis'),
+    'council.prepared',
+    'Session du Conseil préparée : « Export des données clients »',
+    { kind: 'council', id: 'cns-export' },
+    'prj-export',
+  );
+
+  d.seq = Math.max(d.seq, 1000);
+  d.session = { orgId: NOVA, actor: { type: 'human', userId: 'u-yanis' }, projectId: 'prj-export' };
+  return NOVA;
+}
+
+function generateCouncilOptions(key: string) {
+  return COUNCIL_SCENARIOS[key].options;
+}

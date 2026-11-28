@@ -1,0 +1,41 @@
+/* The rules of src/styles/components.css that only the Atelier Nova demo applies (#500). */
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--gap); }
+hr.sep { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
+ul.bullets li { margin: 2px 0; }
+.panel.inset { background: var(--bg-deep); }
+.btn-wrap { position: relative; display: inline-flex; flex-direction: column; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+@media (max-width: 760px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+.choice-group { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 350px) {
+  table.data.responsive { table-layout: fixed; }
+  table.data.responsive td .objlink { min-width: 0; flex-wrap: wrap; }
+}
+
+@media (max-width: 760px) {
+  table.data.responsive thead { display: none; }
+  table.data.responsive tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  table.data.responsive td { overflow-wrap: anywhere; }
+  table.data.responsive td::before { content: attr(data-label); color: var(--text-2); font-size: var(--fs-tiny); flex: 0 0 min(96px, 28%); }
+  table.data.responsive td .badge { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  table.data.responsive td.optional { display: none; }
+}
+
+.menu-pop { position: absolute; z-index: 70; background: var(--surface-2); min-width: 220px; padding: 4px; margin-top: 6px; }
+.menu-pop button, .menu-pop a { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 10px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; text-decoration: none; }
+.menu-pop .menu-label { padding: 6px 10px 2px; font-size: var(--fs-tiny); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.tooltip { position: relative; }
+.tooltip [role='tooltip'] { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #0a0c14; color: var(--text); padding: 6px 10px; font-size: var(--fs-small); width: max-content; max-width: 280px; z-index: 80; opacity: 0; pointer-events: none; transition: opacity var(--t-fast); box-shadow: 0 0 0 2px var(--border); }
+.tooltip:hover [role='tooltip'], .tooltip:focus-within [role='tooltip'] { opacity: 1; }
+.spinner { width: 12px; height: 12px; background: var(--accent); display: inline-block; animation: px-blink 1.2s steps(2) infinite; }
+.ai-mark { display: inline-flex; align-items: center; gap: 3px; color: var(--ai); font: 700 0.72rem var(--font-pixel); letter-spacing: 0.05em; padding: 0 4px; background: var(--tint-ai); }
+.diff { font: 0.84rem/1.5 var(--font-mono); background: var(--bg-deep); overflow: auto; box-shadow: inset 0 0 0 1px var(--border); }
+.diff .line { display: grid; grid-template-columns: 22px 1fr; white-space: pre-wrap; padding: 0 8px; }
+.diff .add { background: rgba(125, 211, 168, 0.12); color: #c6f0da; }
+.diff .del { background: rgba(242, 140, 114, 0.12); color: #ffd0c4; text-decoration: line-through; text-decoration-color: rgba(242, 140, 114, 0.5); }
+.diff .mark { color: var(--text-2); user-select: none; }
+.log .lvl-error { color: var(--danger); }
+.log .lvl-warn { color: var(--warning); }

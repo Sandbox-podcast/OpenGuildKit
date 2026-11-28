@@ -15,6 +15,7 @@ import time
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
+from . import lazy_re
 from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
 from .project import STATE_DIR, rule_text
@@ -134,7 +135,10 @@ def _run_command(root: Path, state: Path, task: dict, check: dict, command: str)
         )
         code, output = completed.returncode, completed.stdout + completed.stderr
     except subprocess.TimeoutExpired as error:
-        code, output = None, f"Timed out after {COMMAND_TIMEOUT} seconds.\n{error.stdout or ''}{error.stderr or ''}"
+        # What the command printed before its time ran out stays in bytes on POSIX, whatever text=True says.
+        caught = "".join(part.decode("utf-8", errors="replace") if isinstance(part, bytes) else part or ""
+                         for part in (error.stdout, error.stderr))
+        code, output = None, f"Timed out after {COMMAND_TIMEOUT} seconds.\n{caught}"
     log = state / "tasks" / f"{task['id']}-checks" / f"{check['id'].replace(':', '-').replace('/', '-')}.log"
     write_text(log, f"$ {command}\n{output[-LOG_TAIL:]}")
     evidence = log.relative_to(root).as_posix()
@@ -698,7 +702,7 @@ OTHER_TYPE_NAMES = {"dockerfile", "makefile", "package.json", "package-lock.json
 OTHER_TYPE_SUFFIXES = {".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rb", ".php", ".cs", ".sh", ".sql",
                        ".css", ".html", ".toml", ".yml", ".yaml", ".ini", ".cfg", ".lock", ".png", ".jpg", ".jpeg",
                        ".gif", ".svg", ".webp", ".log"}
-NOT_RUN = re.compile(r"\b(not|never|non|pas|without)\s+(been\s+)?(executed|run|ran|exécutée?s?|lancée?s?)\b"
+NOT_RUN = lazy_re.compile(r"\b(not|never|non|pas|without)\s+(been\s+)?(executed|run|ran|exécutée?s?|lancée?s?)\b"
                      r"|read from (the )?code|lu dans le code", re.IGNORECASE)
 
 

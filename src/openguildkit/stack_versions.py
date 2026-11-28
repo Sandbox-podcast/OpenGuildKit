@@ -3,6 +3,8 @@ pattern matching and the Storybook dependency report share."""
 
 import re
 
+from . import lazy_re
+
 # The Storybook release a project is told to create with npm create storybook@VERSION. It lives here, not in
 # storybook.py, so that the help of every command shows it without importing the Storybook module.
 STORYBOOK_VERSION = "10.6.6"
@@ -12,9 +14,9 @@ _VALUE = rf"(?:v?{_NUMERIC}(?:\.[xX*]|(?:[-+][a-z0-9.-]+)+|(?:a|b|rc)\d+)?|[xX*]
 _OPERATOR = r"===|==|!=|~=|~>|>=|<=|>|<|=|\^|~"
 _TERM = rf"(?:(?:{_OPERATOR})[ \t]*)?{_VALUE}"
 _CONSTRAINT = rf"{_TERM}(?:(?:[ \t]*(?:\|\|?|,)[ \t]*|[ \t]+-[ \t]+|[ \t]+){_TERM})*"
-_SPEC = re.compile(_CONSTRAINT, re.IGNORECASE | re.ASCII)
-STACK_VERSION = re.compile(rf"(?:@|\s+)({_CONSTRAINT})$", re.IGNORECASE | re.ASCII)
-_EXACT = re.compile(rf"(?:===|==|=)[ \t]*(v?{_NUMERIC})", re.IGNORECASE)
+_SPEC = lazy_re.compile(_CONSTRAINT, re.IGNORECASE | re.ASCII)
+STACK_VERSION = lazy_re.compile(rf"(?:@|\s+)({_CONSTRAINT})$", re.IGNORECASE | re.ASCII)
+_EXACT = lazy_re.compile(rf"(?:===|==|=)[ \t]*(v?{_NUMERIC})", re.IGNORECASE)
 
 
 def declared_version(value: object) -> str | None:
@@ -37,9 +39,9 @@ def version_key(version: str) -> tuple[int, ...]:
 # between alternatives, a fourth number and a prerelease such as 3.12rc1. A version is the tuple
 # (major, minor, patch, fourth, 1 for a release or 0 for a prerelease, prerelease).
 
-_PARTIAL = re.compile(r"v?(\d+|[x*])(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?"
+_PARTIAL = lazy_re.compile(r"v?(\d+|[x*])(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?(?:\.(\d+|[x*]))?"
                       r"(?:-([0-9a-z.-]+)|((?:a|b|rc)\d+))?(?:\+[0-9a-z.-]+)?", re.IGNORECASE)
-_COMPARATOR = re.compile(r"(\^|~>|~=|~|===|==|!=|>=|<=|>|<|=)?(.+)")
+_COMPARATOR = lazy_re.compile(r"(\^|~>|~=|~|===|==|!=|>=|<=|>|<|=)?(.+)")
 _OPERATORS = ("^", "~", "~>", "~=", "===", "==", "!=", ">=", "<=", ">", "<", "=")
 _PARTS = 4
 

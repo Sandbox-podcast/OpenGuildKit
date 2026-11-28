@@ -7,10 +7,9 @@ after the last decision. It reads and writes nothing else: no task, no record, n
 
 import hashlib
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
+from . import git
 from .decisions import exported_records
 from .guard import exported_decisions
 from .lock import project_catalog
@@ -60,15 +59,16 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
     """The decisions whose record lists the file, most recent first, the records that cannot be read, and the
     commits on the file after the last decision."""
     rows = {row["path"]: row for row in exported_decisions(root, state, profile, Fingerprints(profile, catalog))}
-    decisions, unreadable = [], []
+    decisions, unreadable, moments = [], [], {}
     for path, record in exported_records(state):
         shown = path.relative_to(root).as_posix()
         row = rows.get(shown) or {"status": "unreadable", "problem": None}
         files = record.get("files") if isinstance(record, dict) else None
         listed = isinstance(files, list) and all(isinstance(item, str) for item in files)
-        if listed and relative not in files:
+        # git.unquote: a record exported before names were read with -z holds Git's quoted form (issue #458).
+        if listed and relative not in {git.unquote(item) for item in files}:
             continue
-        if not listed or not isinstance(record.get("decision"), dict):
+        if not listed or not isinstance(record, dict) or not isinstance(record.get("decision"), dict):
             # A file that is not a record, or a record without its file list: it may cover this file or not.
             if record is None or files is not None:
                 message = row["problem"]["message"] if row.get("problem") else "it is not a decision record"
@@ -77,10 +77,14 @@ def trace(root: Path, state: Path, profile: dict, catalog: dict, relative: str) 
                 unreadable.append({"record": shown, "message": message})
             continue
         decisions.append(_decision(root, shown, record, row))
-    decisions.sort(key=lambda item: (item["date"] or "", item["task"]), reverse=True)
+        moments[shown] = (str(record["decision"].get("at", "")), str(record.get("completed_at", "")))
+    decisions.sort(key=lambda item: (moments[item["record"]], item["task"]), reverse=True)
     result = {"path": relative, "decisions": decisions, "unreadable": unreadable, "changed_since": None, "note": None}
     if decisions:
-        result["changed_since"], result["note"] = _changed_since(root, relative, decisions[0])
+        # Changes are counted from the decision that holds and comes latest in the history, whatever its date says.
+        holding = [item for item in decisions if item["holds"]] or decisions[:1]
+        found = [_changed_since(root, relative, item) for item in holding]
+        result["changed_since"], result["note"] = min(found, key=lambda pair: len(pair[0]["commits"]) if pair[0] else 1e9)
         # task show prints the exported record of a task this copy does not hold, so the command fits both.
         result["next"] = f"openguildkit task show {decisions[0]['task']}"
     else:
@@ -136,12 +140,9 @@ def _evidence_changed(root: Path, result: dict) -> list[str]:
 
 
 def _git(root: Path, *args: str) -> list[str] | None:
-    """The lines Git prints, or None when it fails. Optional locks are off: reading never refreshes the index."""
-    if shutil.which("git") is None:
-        return None
-    result = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=False,
-                            encoding="utf-8", errors="replace", env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
-    return None if result.returncode else [line for line in result.stdout.splitlines() if line.strip()]
+    """The lines Git prints, or None when it fails or is not installed."""
+    output = git.text(root, *args)
+    return None if output is None else [line for line in output.splitlines() if line.strip()]
 
 
 def _changed_since(root: Path, relative: str, latest: dict) -> tuple[dict | None, str | None]:

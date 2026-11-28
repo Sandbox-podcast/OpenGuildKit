@@ -7,13 +7,17 @@ built in a temporary folder: the request status example (guard off), the same
 project with 500 tasks of which 5 are approved (guard enforce), that project
 again inside a Git repository whose commit the approvals record, a project of
 500 tasks closed and exported as the normal path leaves them, a web project
-whose node_modules holds FILES files (50 000 by default), a monorepo of 200
+in a Git repository with 5 000 source files whose node_modules holds FILES files
+(50 000 by default), a monorepo of 200
 packages, a Git repository whose base revision holds 200 exported decision
 records, for guard --ci, and a folder of 30 copies of the example project for
-`projects`. Python caches the bytecode in that folder, as an installed package
+`projects`. The project of closed tasks also holds one reviewed task, whose
+decision brief (task challenge) compares its checks with the last approval.
+The edit hook runs with the payloads of Claude Code, Codex and Gemini CLI. Python caches the bytecode in that folder, as an installed package
 does, even when PYTHONDONTWRITEBYTECODE is set. The time of each command is the
 median of N runs; "x start" divides it by the time of openguildkit --version,
-so the figure stays comparable between a fast laptop and a slow CI runner.
+and "x python" by a bare interpreter start, so the figure stays comparable
+between a fast laptop and a slow CI runner.
 The report says whether the commands read the bundled catalog from
 registry/catalog.bundle.json, as the wheel ships it: run
 python scripts/build_catalog_bundle.py first to time what a team installs.
@@ -52,7 +56,9 @@ APPROVED = 5
 PACKAGES = 200
 MERGED = 200
 FLEET = 30
+CHALLENGED = "challenged"  # the reviewed task of the project of closed tasks
 DEPENDENCY_FILES = 50_000
+SOURCE_FILES = 5_000  # in the web project, outside node_modules: a bug consult looks for the code its brief names
 BUG_BRIEF = ("The status page crashes: `renderStatus()` returns the wrong label in src/app.ts and `missingHelper()` "
              "is never called.")
 GIT_IDENTITY = ("-c", "user.name=Bench", "-c", "user.email=bench@example.test", "-c", "commit.gpgsign=false")
@@ -105,13 +111,7 @@ def in_process(project: Path, *args, typed: str | None = None) -> str:
 
 def approve(project: Path, task_id: str) -> None:
     """Consult the example task, record the example review and approve it, as a person at a terminal does."""
-    in_process(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
-    in_process(project, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
-    template = json.loads(in_process(project, "task", "template", task_id))
-    review = {"consultation_id": template["consultation_id"],
-              **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))}
-    write_json(project / "review.json", review)
-    in_process(project, "task", "review", task_id, "--file", project / "review.json")
+    reviewed(project, task_id)
     in_process(project, "task", "decide", task_id, "--approve", "--by", "Camille Example", "--reason", "Agreed",
                typed=task_id)
 
@@ -201,14 +201,35 @@ def closed_tasks(folder: Path) -> Path:
         write_task(tasks / f"{task_id}.json", {**record, "id": task_id, "decision": {
             **record["decision"], "seal": seal({**payload, "task": task_id})}})
         in_process(folder, "task", "export", task_id)
+    reviewed(folder, CHALLENGED)
     return folder
 
 
+def reviewed(project: Path, task_id: str) -> None:
+    """Consult the example task and record the example review: its decision waits for a person."""
+    in_process(project, "task", "new", "--file", EXAMPLE / "brief.md", "--id", task_id)
+    in_process(project, "task", "consult", task_id, "--answers", EXAMPLE / "answers.json")
+    template = json.loads(in_process(project, "task", "template", task_id))
+    write_json(project / "review.json", {"consultation_id": template["consultation_id"],
+                                         **json.loads((EXAMPLE / "review.json").read_text(encoding="utf-8"))})
+    in_process(project, "task", "review", task_id, "--file", project / "review.json")
+
+
 def web_project(folder: Path, dependencies: int) -> Path:
-    """The example project with a front end and a node_modules of that many files, as npm install leaves it."""
+    """The example project in a Git repository, with a front end of SOURCE_FILES source files and a node_modules of
+    that many files, as npm install leaves it (Git ignores it)."""
     project = example_project(folder)
     (project / "src").mkdir()
     (project / "src" / "app.ts").write_text("export function renderStatus() { return 'open'; }\n", encoding="utf-8")
+    for index in range(SOURCE_FILES - 1):
+        module = project / "services" / f"svc-{index // 100:02d}"
+        module.mkdir(parents=True, exist_ok=True)
+        (module / f"file_{index}.ts").write_text(f"export function render{index}() {{ return {index}; }}\n",
+                                                 encoding="utf-8")
+    (project / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+    git(project, "init", "-q")
+    git(project, "add", "-A")
+    git(project, "commit", "-qm", "Start")
     for index in range(dependencies):
         package = project / "node_modules" / f"pkg-{index // 50:04d}" / "lib"
         package.mkdir(parents=True, exist_ok=True)
@@ -245,7 +266,15 @@ def fleet(folder: Path) -> Path:
     return folder
 
 
-def edit_hook(project: Path) -> str:
+def edit_hook(project: Path, host: str = "claude") -> str:
+    """The input of the edit hook of Claude Code (Edit), Codex (apply_patch) or Gemini CLI (write_file)."""
+    if host == "codex":
+        return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "apply_patch", "cwd": str(project),
+                           "tool_input": {"command": "*** Begin Patch\n*** Update File: src/app.py\n@@\n-print('app')\n"
+                                                     "+print('status')\n*** End Patch\n"}})
+    if host == "gemini":
+        return json.dumps({"hook_event_name": "BeforeTool", "tool_name": "write_file", "cwd": str(project),
+                           "tool_input": {"file_path": str(project / "src" / "app.py"), "content": "print('status')\n"}})
     return json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Edit", "cwd": str(project),
                        "tool_input": {"file_path": str(project / "src" / "app.py")}})
 
@@ -289,13 +318,18 @@ def scenarios(base: Path, dependencies: int = DEPENDENCY_FILES) -> list[tuple[st
         ("catalog --json", lambda: cli(plain, "catalog", "--json")),
         ("init", fresh_init),
         ("task consult", consult),
-        ("task consult, bug, with node_modules", consult_bug),
+        (f"task consult, bug, {SOURCE_FILES} source files", consult_bug),
         (f"task list ({TASKS} tasks)", lambda: cli(big, "task", "list")),
         (f"check ({TASKS} tasks)", lambda: cli(big, "check")),
         (f"task list ({TASKS} closed tasks)", lambda: cli(closed, "task", "list")),
         (f"check ({TASKS} closed tasks)", lambda: cli(closed, "check")),
+        (f"task challenge ({TASKS} closed tasks)", lambda: cli(closed, "task", "challenge", CHALLENGED)),
         ("references search", lambda: cli(plain, "references", "security")),
         (f"guard --hook pre-edit ({TASKS} tasks)", lambda: cli(big, "guard", "--hook", "pre-edit", stdin=edit_hook(big))),
+        (f"guard --hook pre-edit, Codex ({TASKS} tasks)",
+         lambda: cli(big, "guard", "--hook", "pre-edit", stdin=edit_hook(big, "codex"))),
+        (f"guard --hook pre-edit, Gemini CLI ({TASKS} tasks)",
+         lambda: cli(big, "guard", "--hook", "pre-edit", stdin=edit_hook(big, "gemini"))),
         (f"guard --hook pre-edit (Git, {APPROVED} approvals)",
          lambda: cli(in_git, "guard", "--hook", "pre-edit", stdin=edit_hook(in_git))),
         ("guard --hook pre-edit, guard off", lambda: cli(plain, "guard", "--hook", "pre-edit", stdin=edit_hook(plain))),
@@ -317,9 +351,9 @@ def measure(repeat: int = 3, dependencies: int = DEPENDENCY_FILES) -> dict:
             run()  # warm the file cache and the bytecode
             runs = [run() for _ in range(repeat)]
             results[name] = {"median": statistics.median(runs), "runs": runs}
-        start = results["start (--version)"]["median"]
+        start, floor = results["start (--version)"]["median"], results["python -c pass"]["median"]
         for item in results.values():
-            item["x_start"] = item["median"] / start
+            item["x_start"], item["x_python"] = item["median"] / start, item["median"] / floor
         return results
     finally:
         shutil.rmtree(base, ignore_errors=True)
@@ -338,15 +372,16 @@ def report(results: dict) -> dict:
         "python": platform.python_version(),
         "platform": platform.platform(terse=True),
         "catalog_bundle": catalog_bundle(),
-        "results": {name: {"median_s": round(item["median"], 3), "x_start": round(item["x_start"], 1)}
-                    for name, item in results.items()},
+        "results": {name: {"median_s": round(item["median"], 3), "x_start": round(item["x_start"], 1),
+                           "x_python": round(item.get("x_python", 0), 1)} for name, item in results.items()},
     }
 
 
 def table(results: dict) -> str:
     width = max(map(len, results))
-    lines = [f"{'command':<{width}}  median s  x start", f"{'-' * width}  --------  -------"]
-    lines += [f"{name:<{width}}  {item['median']:8.3f}  {item['x_start']:7.1f}" for name, item in results.items()]
+    lines = [f"{'command':<{width}}  median s  x start  x python", f"{'-' * width}  --------  -------  --------"]
+    lines += [f"{name:<{width}}  {item['median']:8.3f}  {item['x_start']:7.1f}  {item.get('x_python', 0):8.1f}"
+              for name, item in results.items()]
     lines.append("Bundled catalog read from registry/catalog.bundle.json, as the wheel ships it." if catalog_bundle()
                  else "Bundled catalog read from its record files: no up-to-date registry/catalog.bundle.json, which "
                       "the wheel ships (python scripts/build_catalog_bundle.py).")

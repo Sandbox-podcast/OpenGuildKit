@@ -1,6 +1,7 @@
 """Shared CLI capture, isolated subprocess caches and small project fixtures."""
 
 import contextlib
+import importlib.util
 import io
 import os
 import shutil
@@ -13,7 +14,10 @@ from unittest.mock import patch
 from openguildkit.cli import main
 from tests import GIT_ENVIRONMENT
 
-_PYCACHE = tempfile.TemporaryDirectory(prefix="ogk-test-pycache-")
+# scripts/run_tests.py runs each test file in its own process and gives them one bytecode folder to share, so the
+# children of every file do not compile the package again (#451).
+_SHARED_PYCACHE = os.environ.get("OPENGUILDKIT_TEST_PYCACHE")
+_PYCACHE = None if _SHARED_PYCACHE else tempfile.TemporaryDirectory(prefix="ogk-test-pycache-")
 
 
 def subprocess_environment(overrides=None):
@@ -22,7 +26,7 @@ def subprocess_environment(overrides=None):
     if overrides:
         environment.update(overrides)
     environment.pop("PYTHONDONTWRITEBYTECODE", None)
-    environment["PYTHONPYCACHEPREFIX"] = _PYCACHE.name
+    environment["PYTHONPYCACHEPREFIX"] = _SHARED_PYCACHE or _PYCACHE.name
     return environment
 
 
@@ -78,6 +82,22 @@ class CapturedCli:
     cli = run_cli
 
 
+def registry_days_on_the_real_clock(test) -> None:
+    """Check the days the bundled tool registry was read (verified, pin_read) on the real clock while the test stops
+    the clock at the day of an upgrade fixture: a registry read after that day is not in the future (#489)."""
+    from openguildkit import clock, tools
+
+    real_now, validate_day = clock.real_now, tools.validate_day
+
+    def validate_on_the_real_clock(value, label):
+        with patch("openguildkit.clock.real_now", real_now):
+            validate_day(value, label)
+
+    registry = patch("openguildkit.tools.validate_day", validate_on_the_real_clock)
+    registry.start()
+    test.addCleanup(registry.stop)
+
+
 def openguildkit_on_path(test) -> Path:
     """Put an openguildkit launcher on the PATH for the test, as pipx or uv would: host apply and check fail while
     the hooks cannot find the command, and a source checkout does not install it. Returns the launchers' folder."""
@@ -104,3 +124,11 @@ def copy_initialized_project(test, profile: Path, destination: Path) -> None:
         cls._initialized_project = Path(template.name)
         run_cli(cls._initialized_project, "init", "--answers", profile)
     shutil.copytree(cls._initialized_project, destination, dirs_exist_ok=True)
+
+
+def load_script(path: Path):
+    """Import a script of scripts/ (or a copy of one) as a module, without running its main()."""
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

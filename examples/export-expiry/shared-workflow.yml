@@ -24,19 +24,19 @@ jobs:
   observe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           repository: Sandbox-podcast/OpenGuildKit
           ref: ${{ inputs.comparison_commit }}
           path: comparison
           persist-credentials: false
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           repository: ${{ inputs.policy_repository }}
           ref: ${{ inputs.policy_commit }}
           path: policy
           persist-credentials: false
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 2026-07-20 v7.0.1
         with:
           ref: ${{ inputs.target_commit }}
           path: target
@@ -50,7 +50,7 @@ jobs:
           --policy-repo policy --policy-commit "$POLICY_COMMIT"
           --target-repo target --commit "$TARGET_COMMIT"
           --output shared-check-result
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # 2026-10-07 v7.0.2
         with:
           name: shared-export-check
           path: shared-check-result

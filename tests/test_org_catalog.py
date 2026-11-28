@@ -1,8 +1,10 @@
 """An organization catalog, pinned at a commit of a local Git copy (RFC #446): an option, off by default."""
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -377,6 +379,82 @@ class OrgCatalogTests(unittest.TestCase):
         self.cli("update", "--apply")
         self.cli("sync")
         self.assertEqual(len(self.lock()["organization_history"]), 3)
+
+    def test_issue_454_a_pin_and_a_stop_are_audit_events_and_the_export_rebuilds_them(self):
+        """Issue #454: following or leaving an organization catalog changes the rules, and the audit log said nothing."""
+        with patch.dict(os.environ, {"OPENGUILDKIT_AUDIT_LOG": "1"}):
+            self.pin(self.first)
+            self.cli("org-catalog", "off", "--by", "CM", "--reason", "Back to the bundled catalog", typed="off")
+        log = self.root / ".openguildkit" / "audit" / "audit.jsonl"
+        pinned, stopped = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual((pinned["event"], pinned["by"], pinned["commit"]), ("org-catalog.pinned", "Camille Martin", self.first))
+        self.assertEqual((stopped["event"], stopped["by"], stopped["commit"]), ("org-catalog.off", "CM", self.first))
+        self.assertNotIn("bundled catalog", log.read_text(encoding="utf-8"))
+        exported = [json.loads(line) for line in self.cli("audit", "export").stdout.splitlines()]
+        self.assertEqual([(item["event"], item["commit"]) for item in exported if item["event"].startswith("org-")],
+                         [("org-catalog.pinned", self.first), ("org-catalog.off", self.first)])
+
+    FAKE_GH = """#!/bin/sh
+printf '%s\\n' "$*" >> "$FAKE_LOG"
+case "$*" in
+    *"--jq .sha"*) echo 0123456789abcdef0123456789abcdef01234567 ;;
+    *"pr create"*)
+        while [ $# -gt 0 ]; do
+            if [ "$1" = "--body-file" ]; then cat "$2" > "$FAKE_LOG.body"; fi
+            shift
+        done ;;
+esac
+"""
+
+    def run_update_step(self) -> tuple[list[str], str | None]:
+        """The pull request step of integrations/github/openguildkit-org-catalog-update.yml, run with a fake gh, the
+        real git and jq, and this checkout's openguildkit, in the project with the catalog checked out next to it."""
+        from tests.test_workflows import parse, steps
+
+        workflow = parse(REPO / "integrations" / "github" / "openguildkit-org-catalog-update.yml")
+        step = next(item for item in steps(workflow["jobs"]["propose"]) if item.get("name", "").startswith("Propose"))
+        tools = self.base / "bin"
+        tools.mkdir(exist_ok=True)
+        (tools / "gh").write_text(self.FAKE_GH, encoding="utf-8")
+        (tools / "openguildkit").write_text(f'#!/bin/sh\nPYTHONPATH="{REPO / "src"}" exec "{sys.executable}" -m '
+                                            'openguildkit "$@"\n', encoding="utf-8")
+        for tool in tools.iterdir():
+            tool.chmod(0o755)
+        if not (self.root / "org-catalog").exists():
+            shutil.copytree(self.org, self.root / "org-catalog")
+        git(self.root, "init", "-q", "-b", "main")
+        git(self.root, "add", "-A")
+        git(self.root, "-c", "user.name=t", "-c", "user.email=t@example.org", "commit", "-q", "-m", "project")
+        log = self.base / "gh.log"
+        log.unlink(missing_ok=True)
+        environment = {**os.environ, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "FAKE_LOG": str(log),
+                       "GH_TOKEN": "fake", "BASE": "main", "GITHUB_REPOSITORY": "acme/portal"}
+        result = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", step["run"]], cwd=self.root, env=environment,
+                                capture_output=True, text=True, timeout=120, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        body = Path(f"{log}.body")
+        return (log.read_text(encoding="utf-8").splitlines() if log.exists() else []), \
+            (body.read_text(encoding="utf-8") if body.exists() else None)
+
+    @unittest.skipUnless(os.name == "posix" and shutil.which("jq"), "the template runs bash and jq on ubuntu-latest")
+    def test_issue_457_the_scheduled_template_opens_a_pull_request_that_shows_the_new_commit_and_pins_nothing(self):
+        """Issue #457: each repository pinned each new commit of the organization catalog by hand, with nothing to
+        tell it that one was out."""
+        self.pin_named(self.first)
+        lock = self.lock()
+        calls, body = self.run_update_step()
+        self.assertEqual((calls, body), ([], None), "the lock pins the head: no pull request")
+        write_record(self.org, "packs", pack("org-api"))
+        second = self.commit("Second edition")
+        shutil.rmtree(self.root / "org-catalog")
+        shutil.copytree(self.org, self.root / "org-catalog")
+        calls, body = self.run_update_step()
+        self.assertTrue(any(call.startswith("pr create --head openguildkit/org-catalog-" + second[:12]) for call in calls),
+                        calls)
+        self.assertIn("+ packs/org-api 1.0.0", body)
+        self.assertIn(f"openguildkit org-catalog set --repo PATH-OF-YOUR-COPY --commit {second} --name acme --by "
+                      "INITIALS --reason WHY", body)
+        self.assertEqual(self.lock(), lock, "the job pins nothing")
 
     def test_issue_457_a_project_that_never_pins_one_has_no_history_and_the_same_output(self):
         """Issue #457: a project without an organization catalog reads and writes what it did before."""

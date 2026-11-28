@@ -1,0 +1,36 @@
+/* The rules of src/styles/pro.css that only the Atelier Nova demo applies (#500). */
+.mode-focus .topbar .identity { min-height: 36px; border-radius: 8px; }
+.mode-focus .guide-link { border-radius: 8px; background: var(--surface); color: var(--text-2); }
+.mode-focus .guide-link:hover { background: var(--surface-2); }
+.mode-focus .guide { box-shadow: -10px 0 32px rgb(15 36 30 / 10%); }
+.mode-focus .resume-work { border-radius: var(--radius); background: var(--surface); overflow: hidden; box-shadow: 0 1px 3px rgb(15 36 30 / 4%); }
+.mode-focus .resume-primary { background: #edf8f1; border: 0; }
+.mode-focus .resume-primary, .mode-focus .resume-project { padding: 16px 20px; }
+.mode-focus .resume-action, .mode-focus .resume-project > a { text-decoration: none; }
+.mode-focus .resume-project > .resume-all-projects { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px; width: fit-content; color: var(--accent); }
+.mode-focus :is(.resume-action, .resume-project > a):is(:hover, :focus-visible) { text-decoration: underline; }
+.mode-focus .tooltip [role='tooltip'] { color: var(--text); background: var(--surface); }
+.mode-focus .diff .add { color: var(--success); background: var(--tint-success); }
+.mode-focus .diff .del { color: var(--danger); background: var(--tint-danger); }
+.mode-focus .timeline li { border-color: var(--border); }
+.mode-focus .board-col.drop { box-shadow: inset 0 0 0 2px var(--accent); background: var(--tint-data); }
+.mode-focus :is(.gallery-canvas, .slide-stage, .landing-frame, .timeline-bar span:nth-child(2n)) { background: var(--surface-2); }
+.mode-focus .expert-card { text-align: left; align-items: flex-start; padding: 16px; }
+.mode-focus .expert-card .portrait-frame { padding: 0; box-shadow: none; border-radius: 8px; }
+.mode-focus .expert-card .portrait-frame img { width: 44px; height: 44px; border-radius: 8px; }
+.mode-focus .expert-card .class { color: var(--text); }
+.mode-focus .expert-profile-art { border: 0; padding: 0; min-width: 0; background: none; }
+.mode-focus .expert-profile-art img { border-radius: 12px; }
+.mode-focus .council-table .seat-name { border: 0; }
+.mode-focus .seat .portrait-frame { box-shadow: none; border-radius: 8px; }
+.mode-focus .entry-home { padding: 74px clamp(16px, 4vw, 48px) 42px; }
+.mode-focus :is(.entry-hero, .entry-grid) { max-width: 1120px; }
+.mode-focus .entry-hero { min-height: auto; border-radius: 18px; background: var(--surface); box-shadow: 0 1px 3px rgb(15 36 30 / 5%); }
+.mode-focus .entry-copy { padding: clamp(20px, 5vw, 60px); }
+.mode-focus .entry-copy h1 { max-width: 18ch; font-size: clamp(1.9rem, 4vw, 3.15rem); font-weight: 660; letter-spacing: -0.045em; }
+.mode-focus .entry-copy p { max-width: 48ch; }
+.mode-focus .entry-copy .brand-hero { margin-bottom: 20px; }
+.mode-focus .entry-actions .btn { min-height: 44px; }
+@media (max-width: 480px) {
+  .mode-focus .resume-primary, .mode-focus .resume-project { padding: 12px; }
+}

@@ -3,9 +3,13 @@
 `task new --requested-by NAME` records the requester. A person turns `separate-requester` on in the profile at a
 terminal (profile_cli); then every new task names its requester, task decide refuses an approval by that person,
 and guard --ci refuses a record whose approver is its requester when the base revision has the option on. Names are
-compared without case or spaces. A signed approval compares the requester to the signer's principal too: the code
-does not link a principal to a person's name, so a requester named otherwise than their principal is not caught there.
+compared without case or spaces. A signed approval compares the requester to the signer's principal too; in a project
+with signed approvals, task new takes as requester only a principal of the allowed signers file, so that comparison is
+exact (#475).
 """
+
+import fnmatch
+from pathlib import Path
 
 from .doc_links import doc_link
 
@@ -29,8 +33,25 @@ def same_person(first: object, second: object) -> bool:
     return "".join(first.split()).casefold() == "".join(second.split()).casefold() != ""
 
 
-def declared(name: str | None, profile: dict) -> str | None:
-    """The requester task new records: the name given, on one line, and required when the option is on."""
+def principals(root: Path, relative: str) -> list[str]:
+    """The principals of an allowed signers file (ssh-keygen ALLOWED SIGNERS: the first field of each line, comma
+    separated, possibly patterns). Refused, naming the file, when it cannot be read."""
+    try:
+        text = (root / relative).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise ValueError(f"The allowed signers file {relative} cannot be read ({getattr(error, 'strerror', None) or error}), "
+                         "so the requester cannot be checked against its principals. Nothing was written.") from None
+    found = []
+    for line in text.splitlines():
+        words = line.split()
+        if words and not words[0].startswith("#"):
+            found += [item for item in words[0].strip('"').split(",") if item and not item.startswith("!")]
+    return list(dict.fromkeys(found))
+
+
+def declared(name: str | None, profile: dict, root: Path | None = None) -> str | None:
+    """The requester task new records: the name given, on one line, and required when the option is on. With the
+    option on in a project with signed approvals, it is a principal of the allowed signers file."""
     if name is None:
         if active(profile):
             raise ValueError("This project separates who requests a task from who approves it (profile "
@@ -40,6 +61,15 @@ def declared(name: str | None, profile: dict) -> str | None:
     if not name.strip() or "\n" in name or "\r" in name:
         raise ValueError("--requested-by takes the name of the person who asked for the work, on one line. "
                          "Nothing was written.")
+    approval = profile.get("approval") or {}
+    if root is not None and active(profile) and approval.get("mode") == "signed":
+        relative = approval.get("allowed_signers", "")
+        known = principals(root, relative)
+        if not any(fnmatch.fnmatchcase(name.strip(), item) for item in known):
+            raise ValueError(f"{name.strip()} is not a principal of {relative}: in a project with signed approvals, the "
+                             f"requester is named as their key signs ({', '.join(known[:10]) or 'no principal'}), so "
+                             f"that they cannot approve their own request under another name ({section()}). Nothing "
+                             "was written.")
     return name.strip()
 
 

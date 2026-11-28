@@ -123,6 +123,10 @@ class CliCoverageTests(unittest.TestCase):
         missing = [" ".join(path) for path in command_paths() if not _pattern(path).search(sources)]
         self.assertEqual(missing, [], "Add a test that runs each of these commands through the CLI.")
 
+    def test_the_fleet_view_of_host_check_is_invoked_by_a_test(self):
+        """Issue #476: host check --matrix --json prints the coverage of every host; an option, not a mode, so named here."""
+        self.assertIsNotNone(_pattern(("host", "check", "--matrix", "--json")).search(_test_sources()))
+
     def test_the_search_does_not_match_a_bare_mention(self):
         self.assertIsNone(_pattern(("task", "waive")).search('help = "task waive needs a terminal"'))
         self.assertIsNotNone(_pattern(("task", "waive")).search('run_cli("task", "waive", TASK_ID)'))

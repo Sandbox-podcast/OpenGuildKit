@@ -5,7 +5,7 @@
 # YYYY-MM", with each finding and the profile command a person could type. The retrospective issue still open from
 # an earlier month is updated instead, so there is one at a time; once a person closes this month's issue, the
 # month opens no other. The job writes nothing to the repository and runs none of the commands it lists: a person
-# reads the issue and types the ones the team agrees with (docs/workflow.md#retrospective).
+# reads the issue and types the ones the team agrees with (docs/workflow/retrospective.md).
 name: OpenGuildKit retrospective
 
 on:

@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from . import light_lane
+from . import lazy_re, light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
@@ -30,7 +30,7 @@ BEGIN = "<!-- BEGIN OPENGUILDKIT -->"
 END = "<!-- END OPENGUILDKIT -->"
 # The layout of the managed block, written in its stamp. Raise it when a release changes the block without changing
 # the profile: the stamp then differs, and check calls the block out of date instead of calling its lines hand edits.
-INSTRUCTIONS_LAYOUT = 2
+INSTRUCTIONS_LAYOUT = 3
 ALREADY_INITIALIZED = (
     "Project is already initialized. Change its profile with openguildkit profile (adopt, decline, add, remove, "
     "set); openguildkit profile --help lists them."
@@ -422,7 +422,7 @@ def _default_packs(stack: list[str], components: list[dict], patterns: list, cat
     return [pack_id for pack_id in packs if pack_id not in brought]
 
 
-COMPONENT_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+COMPONENT_ID = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 def _components(value) -> list[dict]:
@@ -481,7 +481,7 @@ def _personal_data(value) -> bool | None:
 
 
 DECISION_FIELDS = ("by", "on", "reason")
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+DATE = lazy_re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _decision_text(value, field: str) -> str:
@@ -700,6 +700,31 @@ def pattern_ids(profile: dict) -> list[str]:
     return [pattern_selection(entry)[0] for entry in profile.get("patterns", [])]
 
 
+def restricted_paths(profile: dict) -> list[str]:
+    """The path patterns that `restricted_paths` of .openguildkit/project.json closes to the agent; none when it is
+    absent. Refused, with the file named, when it is not a list of {"paths": [project paths]} (a "class" text and a list
+    of "boards" may come with each): a path is relative to the project, without .. and without parentheses."""
+    entries = profile.get("restricted_paths")
+    if entries is None:
+        return []
+    shape = ('restricted_paths in .openguildkit/project.json must be a list of objects such as {"paths": '
+             '["data/customers/**"], "class": "restricted", "boards": ["security"]}: paths are project paths without a '
+             'leading / or .., and without parentheses.')
+    paths = []
+    for entry in entries if isinstance(entries, list) else [None]:
+        listed = entry.get("paths") if isinstance(entry, dict) else None
+        if (not isinstance(entry, dict) or set(entry) - {"paths", "class", "boards"} or not isinstance(listed, list)
+                or not listed or any(not isinstance(item, str) or not item.strip() or item.startswith(("/", "\\"))
+                                     or ".." in item.split("/") or any(char in item for char in "()\r\n")
+                                     for item in listed)
+                or not isinstance(entry.get("class", ""), str)
+                or (not isinstance(entry.get("boards", []), list)
+                    or any(not isinstance(item, str) for item in entry.get("boards", [])))):
+            raise ValueError(shape)
+        paths += [item.strip() for item in listed]
+    return list(dict.fromkeys(paths))
+
+
 def validate_profile(answers: dict, catalog: dict) -> dict:
     fields = {
         "schema_version", "name", "sector", "stack", "components", "roles", "patterns", "packs",
@@ -830,8 +855,9 @@ def validate_profile(answers: dict, catalog: dict) -> dict:
         if not isinstance(answers["frozen"], dict) or set(answers["frozen"]) != set(DECISION_FIELDS):
             raise ValueError("frozen must name by, on and reason")
         profile["frozen"] = _decision(answers["frozen"], "frozen")
-    # Folders closed to the agent (hosts.py reads them when host apply and host check act, and refuses a bad shape).
+    # Folders closed to the agent: the edit hook refuses them, host apply writes them into the host settings.
     if answers.get("restricted_paths"):
+        restricted_paths(answers)
         profile["restricted_paths"] = answers["restricted_paths"]
     ask_every_rule = answers.get("ask_every_rule", False)
     if type(ask_every_rule) is not bool:
@@ -1261,7 +1287,7 @@ def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -
     return resolved
 
 
-_CHECK_FOLDER = re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
+_CHECK_FOLDER = lazy_re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
 
 
 def check_component(command: str, components: list[dict]) -> str | None:
@@ -1481,9 +1507,9 @@ def render_instructions(profile: dict, catalog: dict) -> str:
     return "\n".join(lines)
 
 
-_MARKER_LINE = re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
-_IMPORT_LINE = re.compile(r"[ \t]*(@AGENTS\.md|@\./AGENTS\.md)[ \t]*")
-_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+_MARKER_LINE = lazy_re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
+_IMPORT_LINE = lazy_re.compile(r"[ \t]*(@AGENTS\.md|@\./AGENTS\.md)[ \t]*")
+_FENCE = lazy_re.compile(r" {0,3}(`{3,}|~{3,})")
 BOM = "\ufeff"
 
 
@@ -1540,7 +1566,7 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
-_FINGERPRINT_LINE = re.compile(r"<!-- openguildkit profile [0-9a-f]{64}(?: layout \d+)? -->")
+_FINGERPRINT_LINE = lazy_re.compile(r"<!-- openguildkit profile [0-9a-f]{64}(?: layout \d+)? -->")
 
 
 def hand_edits(current: str, generated: str) -> list[str]:
