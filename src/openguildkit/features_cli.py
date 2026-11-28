@@ -13,6 +13,7 @@ from pathlib import Path
 from . import profile_changes
 from .cli_surface import add_by
 from .command import Command
+from .errors import OgkError
 from .features import feature_options, features_view, load_features, profile_names
 from .project import load_profile
 from .records import Catalog, Profile
@@ -58,7 +59,7 @@ def _targets(names: list[str], features: list[dict], tools: dict) -> list[str]:
         key = name.strip().casefold()
         found = options[key] if key in options else options.get(resolve_tool(name.strip(), tools))
         if not found:
-            raise ValueError(f"{name} is not an option of a feature. Run openguildkit features list, or add any tool "
+            raise OgkError("OGK-FEATURE-001", f"{name} is not an option of a feature. Run openguildkit features list, or add any tool "
                              "of the registry with openguildkit profile add tool.")
         targets.extend(tool for tool in found if tool not in targets)
     return targets
@@ -73,11 +74,11 @@ def _edit(args, features: list[dict], tools: dict):
             present = profile_names(profile, tool_id, tools)
             if enable and present or not enable and not present:
                 state = "already on" if enable else "not on"
-                raise ValueError(f"{tool_id} is {state}. Nothing was written.")
+                raise OgkError("OGK-FEATURE-002", f"{tool_id} is {state}. Nothing was written.")
             uses = [feature["id"] for feature in features
                     if any(option["tool"] == tool_id for option in feature["options"])]
             if not enable and len(uses) > 1:
-                raise ValueError(
+                raise OgkError("OGK-FEATURE-003", 
                     f"{tools[tool_id]['title']} serves several features: {', '.join(uses)}. "
                     "Nothing was written. Use profile remove tool to remove it from the whole profile.")
             names = [*names, tools[tool_id]["title"]] if enable else [name for name in names if name not in present]

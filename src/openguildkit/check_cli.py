@@ -109,17 +109,17 @@ def _require_sarif_options(args) -> None:
     the standard output, so say which one to type."""
     if args.command == "host" and args.format == "sarif":
         if args.mode != "scan":
-            raise ValueError("--format sarif writes the findings of the scan: type openguildkit host scan --format sarif.")
+            raise OgkError("OGK-CHECK-002", "--format sarif writes the findings of the scan: type openguildkit host scan --format sarif.")
         if args.json:
-            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+            raise OgkError("OGK-CHECK-003", "--format sarif and --json both print the result on the standard output: use one of them. "
                              "Type openguildkit host scan --format sarif for code scanning, or openguildkit host scan "
                              "--json for a program.")
     if args.command == "guard" and args.format == "sarif":
         if not args.ci:
-            raise ValueError("--format sarif writes the result of the CI check: type openguildkit guard --ci "
+            raise OgkError("OGK-CHECK-004", "--format sarif writes the result of the CI check: type openguildkit guard --ci "
                              "--format sarif.")
         if args.json:
-            raise ValueError("--format sarif and --json both print the result on the standard output: use one of them. "
+            raise OgkError("OGK-CHECK-005", "--format sarif and --json both print the result on the standard output: use one of them. "
                              "Type openguildkit guard --ci --format sarif for code scanning, or openguildkit guard --ci "
                              "--json for a program.")
 
@@ -181,7 +181,7 @@ def _host(command: Command) -> int:
     args = command.args
     _require_sarif_options(args)
     if args.strict and args.mode != "scan" or args.allow and args.mode not in ("scan", "managed"):
-        raise ValueError(f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
+        raise OgkError("OGK-CHECK-006", f"{'--strict' if args.strict else '--allow'} is an option of openguildkit host scan.")
     root, state = command.root, command.state
     if args.matrix:  # The coverage of every host, from the tables of the code: no project.
         return host_coverage.run(args)

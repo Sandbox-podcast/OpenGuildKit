@@ -320,7 +320,7 @@
         {
           "file": "src/openguildkit/trace_cli.py",
           "symbol": "trace",
-          "line": 66
+          "line": 67
         }
       ],
       "in_dossier": [

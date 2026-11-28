@@ -16,6 +16,12 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-ALERTS-007` | `alerts.py:set_status` | Give the reason for dismissing the alert with --reason. | tests/test_alerts.py |
 | `OGK-ALERTS-008` | `alerts.py:set_status` | Name the person who reviewed the alert with --by. | tests/test_alerts.py |
 | `OGK-ALERTS-009` | `alerts.py:accept_alert` | Name the person with --by and say why the risk is accepted with --reason. | tests/test_alerts.py |
+| `OGK-AUDIT-001` | `audit_cli.py:run` | The audit log {path.as_posix()} cannot be read: {error.strerror or error}. | tests/test_audit_log.py |
+| `OGK-AUDIT-002` | `audit_log.py:log_path` | {VARIABLE} is 1 or the name of a file in {FOLDER}/ (letters, digits, dot, dash), not {value[:40]!r} | tests/test_audit_log.py |
+| `OGK-AUDIT-003` | `audit_log.py:_append` | {FOLDER} or its file is a link or leaves the project: nothing is written | tests/test_audit_log.py |
+| `OGK-AUDIT-004` | `audit_log.py:_append` | {FOLDER}/.gitignore is a link: nothing is written | tests/test_audit_log.py |
+| `OGK-AUDIT-005` | `audit_log.py:_bad` | --since is a day written YYYY-MM-DD, not {text[:40]!r}. | tests/test_audit_log.py |
+| `OGK-AUDIT-006` | `trace_cli.py:project_file` | {path} is outside the project {root.as_posix()}. Name a file inside it, or run the command with --project set to the project that holds the file. | tests/test_trace.py |
 | `OGK-BOARD-001` | `board_entries.py:required_text` | {field} must contain text. | tests/e2e/test_board_passes.py |
 | `OGK-BOARD-002` | `board_entries.py:_text_list` | {field} must be a list of strings. | tests/test_robustness.py |
 | `OGK-BOARD-003` | `board_entries.py:_evidence_day` | {field}: got {received_value(value)}; write the date YYYY-MM-DD. | tests/e2e/test_board_passes.py |
@@ -35,11 +41,35 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-CATALOG-003` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: write it in value, a number with its unit such as "90 % of cases" ({records['description']}). | tests/test_recorded_values.py |
 | `OGK-CATALOG-004` | `catalog_queries.py:recorded_value` | {check_id} records the {records['name']}: {problem} ({records['description']}). | tests/test_recorded_values.py |
 | `OGK-CHECK-001` | `check_cli.py:check` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit check --format sarif for code scanning, or openguildkit check --json for a program. | tests/test_json_output.py |
+| `OGK-CHECK-002` | `check_cli.py:_require_sarif_options` | --format sarif writes the findings of the scan: type openguildkit host scan --format sarif. | tests/test_host_scan.py |
+| `OGK-CHECK-003` | `check_cli.py:_require_sarif_options` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit host scan --format sarif for code scanning, or openguildkit host scan --json for a program. | tests/test_host_scan.py |
+| `OGK-CHECK-004` | `check_cli.py:_require_sarif_options` | --format sarif writes the result of the CI check: type openguildkit guard --ci --format sarif. | tests/test_sarif_commands.py |
+| `OGK-CHECK-005` | `check_cli.py:_require_sarif_options` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit guard --ci --format sarif for code scanning, or openguildkit guard --ci --json for a program. | tests/test_sarif_commands.py |
+| `OGK-CHECK-006` | `check_cli.py:_host` | {'--strict' if args.strict else '--allow'} is an option of openguildkit host scan. | tests/test_host_scan.py |
+| `OGK-CHECK-007` | `sarif.py:_clean_path` | A finding's path must be relative to the project root, without '..': {path!r}. | tests/test_sarif.py |
+| `OGK-CHECK-008` | `sarif.py:_prepared` | No rule describes the finding code {code!r}: add it to the rules the command passes. | tests/test_sarif.py |
+| `OGK-CHECK-009` | `sarif.py:_prepared` | The level of a finding must be error, warning or note, not {level!r} ({code}). | tests/test_sarif.py |
+| `OGK-CHECK-010` | `sarif.py:_prepared` | A finding needs a message ({code}). | tests/test_sarif.py |
+| `OGK-CHECK-011` | `sarif.py:_prepared` | The line of a finding must be a positive whole number, not {line!r} ({code}). | tests/test_sarif.py |
+| `OGK-CHECK-012` | `sarif.py:_rule` | The rule {code} lacks its {key}. | tests/test_sarif.py |
 | `OGK-CI-001` | `ci.py:_committed_bytes` | Git could not read {args[-1]} in {repo}. Fetch the required commit first. | tests/e2e/test_export_ci.py |
 | `OGK-CI-002` | `ci.py:_committed_file` | Use a full lowercase Git commit SHA. | tests/e2e/test_export_ci.py |
 | `OGK-CI-003` | `ci.py:_committed_file` | The supplied SHA must identify a commit directly. | tests/e2e/test_export_ci.py |
 | `OGK-CI-004` | `ci.py:read_policy_pack` | --policy-repo reads only the central export rule ({POLICY_PATH}), and commit {commit[:12]} holds an organization policy ({ORG_POLICY}). Pin it at a terminal: openguildkit org-catalog set --repo PATH --commit SHA --by INITIALS --reason WHY; in CI: openguildkit guard --ci --org-policy PATH --org-commit SHA. | tests/test_org_policy.py |
 | `OGK-CI-005` | `ci.py:check_export` | Select the {EXPORT_EXPIRY_ID} pack in the trusted project profile. | tests/test_exit_codes.py |
+| `OGK-CONTROL-001` | `controls.py:_require_line` | {where} must be a non-empty line of text. | tests/test_controls.py |
+| `OGK-CONTROL-002` | `controls.py:_mapping` | {where}: unknown field {key} in maps_to. | tests/test_controls.py |
+| `OGK-CONTROL-003` | `controls.py:_mapping` | {where}: an entry of maps_to needs {key}: a clause is entered with the source read and the day it was read, and a cell without them stays empty. | tests/test_controls.py |
+| `OGK-CONTROL-004` | `controls.py:_mapping` | {where}: reference {entry['reference']!r} is not a reference of the catalog. | tests/test_controls.py |
+| `OGK-CONTROL-005` | `controls.py:_mapping` | {where}: reference {entry['reference']!r} is not one of the frameworks of the page: add it to frameworks first. | tests/test_controls.py |
+| `OGK-CONTROL-006` | `controls.py:_mapping` | {where}: clause is a locator of at most {MAX_CLAUSE} characters, not a text of the framework. | tests/test_controls.py |
+| `OGK-CONTROL-007` | `controls.py:_mapping` | {where}: quote is at most {MAX_QUOTE} characters: the words the cell relies on, not the clause. | tests/test_controls.py |
+| `OGK-CONTROL-008` | `controls.py:_mapping` | {where}: fit is {' or '.join(FITS)}. | tests/test_controls.py |
+| `OGK-CONTROL-009` | `controls.py:_mapping` | {where}: a clause the control matches has no gap: say partial and what is missing. | tests/test_controls.py |
+| `OGK-CONTROL-010` | `controls.py:_mapping` | {where}: source is the https address of the page read. | tests/test_controls.py |
+| `OGK-CONTROL-011` | `controls.py:_mapping` | {where}: checked is the day the source was read, YYYY-MM-DD, not in the future. | tests/test_controls.py |
+| `OGK-CONTROL-012` | `controls.py:_frameworks` | framework_notes holds one note per framework, in the order of frameworks: how it was read, or why it was not. | tests/test_controls.py |
+| `OGK-CONTROL-013` | `controls.py:validate` | The control {where} is listed twice. | tests/test_controls.py |
 | `OGK-CORE-001` | `clock.py:_source_date_epoch` | SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it. | tests/test_clock.py |
 | `OGK-CORE-002` | `detect.py:_json_manifest` | {path.as_posix()}: JSON nested too deeply | tests/test_clean_errors.py |
 | `OGK-CORE-003` | `git.py:required` | {needs} needs Git: it is not installed or not on the PATH. | tests/test_guard.py |
@@ -65,6 +95,12 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-DOCS-002` | `docs_cli.py:deliverable` | {unknown('deliverable', args.id, 'deliverable list')} | tests/test_error_forms.py |
 | `OGK-DOCS-003` | `references.py:find_references` | Unknown reference family: {family_id}. Run openguildkit references. | tests/e2e/test_cli_flow.py |
 | `OGK-DOCS-004` | `references.py:find_references` | Unknown reference ID: {record_id}. Run openguildkit references QUERY. | tests/test_error_forms.py |
+| `OGK-EVIDENCE-001` | `evidence_cli.py:run` | --output {shown} already holds files: give a new folder, or an empty one. Nothing was written. | tests/test_evidence.py |
+| `OGK-EVIDENCE-002` | `evidence_cli.py:_day` | {option} must be a day written YYYY-MM-DD. | tests/test_evidence.py |
+| `OGK-EVIDENCE-003` | `evidence_cli.py:_verify` | {path.as_posix()} is not there: name the folder that `evidence export` wrote. | tests/test_evidence.py |
+| `OGK-FEATURE-001` | `features_cli.py:_targets` | {name} is not an option of a feature. Run openguildkit features list, or add any tool of the registry with openguildkit profile add tool. | tests/test_features.py |
+| `OGK-FEATURE-002` | `features_cli.py:edit` | {tool_id} is {state}. Nothing was written. | tests/test_features.py |
+| `OGK-FEATURE-003` | `features_cli.py:edit` | {tools[tool_id]['title']} serves several features: {', '.join(uses)}. Nothing was written. Use profile remove tool to remove it from the whole profile. | tests/test_features.py |
 | `OGK-GUARD-001` | `allowlist.py:load_allow` | The allow list {path.as_posix()} cannot be read: {getattr(error, 'strerror', None) or error}. | tests/test_allow_list_scan.py |
 | `OGK-GUARD-002` | `allowlist.py:load_allow` | The allow list {path.as_posix()} must be a JSON object with the keys {', '.join(AXES)} only, each a list of non-empty text, alone or under the key allow; a server may be an object with server and name, a name of letters, digits, - and _. | tests/test_managed_settings.py |
 | `OGK-GUARD-003` | `guard.py:edited_paths` | the hook input names no tool input | tests/test_robustness.py |
@@ -91,6 +127,12 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-HOST-008` | `hosts.py:_apply_codex` | {path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. Remove it yourself, or set research to local-only. | tests/test_host_research.py |
 | `OGK-HOST-009` | `workstation.py:policy` | {path.as_posix()} cannot be read as the workstation policy: {error} | tests/test_managed_settings.py |
 | `OGK-HOST-010` | `workstation.py:policy` | {path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only. | tests/test_managed_settings.py |
+| `OGK-INIT-001` | `connect_cli.py:_mcp` | Supply --project PATH to open a project MCP server. | tests/test_project_mcp.py |
+| `OGK-INIT-002` | `init_cli.py:_confirm_rule_plan` | Setup cancelled. Nothing was written. | tests/test_first_run.py |
+| `OGK-INIT-003` | `init_cli.py:_require_answers` | The setup answers leave out {plural(len(missing), 'question')} that {'needs' if len(missing) == 1 else 'need'} an answer. Nothing was written.
+{lines} | tests/test_setup_questionnaire.py |
+| `OGK-INIT-004` | `init_cli.py:init` | {ALREADY_INITIALIZED} | tests/e2e/test_cli_flow.py |
+| `OGK-INIT-005` | `init_cli.py:init` | init needs a terminal for its questions. Without one, print them with openguildkit init --questions, save the answers as JSON, then run openguildkit init --answers PATH. | tests/e2e/test_cli_flow.py |
 | `OGK-LANE-001` | `short_lane.py:normalize_entry` | {entry!r} is not a path: write a folder or file glob such as docs/** or README.md. | tests/test_short_lane.py |
 | `OGK-LANE-002` | `short_lane.py:normalize_entry` | {entry!r} is not a path of the short lane: {problem}. | tests/test_short_lane.py |
 | `OGK-LANE-003` | `short_lane.py:normalize_entries` | {label} needs a list of at least one path, such as docs/**. | tests/test_short_lane.py |
@@ -384,6 +426,8 @@ Fix these points in the file and send it again: openguildkit task submit {args.i
 | `OGK-TOOLS-017` | `tools_cli.py:_scenario` | {examined} Name the tools: openguildkit tools scenario TOOL [TOOL ...] (those with a mock: openguildkit tools list --mocks). | tests/test_doc_examples.py |
 | `OGK-TOOLS-018` | `tools_cli.py:_call` | --json lists the tools of the mock: run openguildkit tools call {args.id} --json, without a tool name. | tests/test_tools.py |
 | `OGK-TOOLS-019` | `tools_cli.py:_call` | --args is not valid JSON: {error} | tests/test_tools.py |
+| `OGK-WEB-001` | `webui.py:launch_key` | Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it. | tests/test_webui.py |
+| `OGK-WEB-002` | `webui.py:save_profile` | the profile is a JSON object | tests/test_webui.py |
 
 ## JSON output
 

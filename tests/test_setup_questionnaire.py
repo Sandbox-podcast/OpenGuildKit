@@ -139,6 +139,7 @@ class InitCommandTests(CapturedCli, unittest.TestCase):
         return read_json(self.root / ".openguildkit" / "project.json")
 
     def test_answers_without_personal_data_are_refused_with_the_question_named(self):
+        # OGK-INIT-003
         for answers in ({}, {"name": "X", "sector": "general", "stack": ["Python"]}):
             with self.subTest(answers=answers):
                 write_json(self.answers, answers)

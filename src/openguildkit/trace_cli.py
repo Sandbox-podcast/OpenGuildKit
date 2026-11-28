@@ -15,6 +15,7 @@ from pathlib import Path
 from . import git
 from .command import Command
 from .decisions import exported_records
+from .errors import OgkError
 from .guard_records import exported_decisions
 from .lock import project_catalog
 from .project import load_profile
@@ -56,7 +57,7 @@ def project_file(root: Path, path: Path) -> str:
     try:
         relative = target.relative_to(root)
     except ValueError:
-        raise ValueError(f"{path} is outside the project {root.as_posix()}. Name a file inside it, or run the command "
+        raise OgkError("OGK-AUDIT-006", f"{path} is outside the project {root.as_posix()}. Name a file inside it, or run the command "
                          "with --project set to the project that holds the file.") from None
     if not relative.parts:
         raise ValueError("Name a file of the project, not its root folder.")

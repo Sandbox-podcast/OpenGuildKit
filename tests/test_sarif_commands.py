@@ -525,9 +525,10 @@ class OptionTests(SarifProject):
         self.assertIn("--format sarif", result.stderr)
         self.assertIn("--json", result.stderr)
         self.assertIn("one of them", result.stderr)
-        self.assertTrue(result.stderr.startswith("OpenGuildKit:"), result.stderr)
+        self.assertTrue(result.stderr.startswith("OpenGuildKit [OGK-CHECK-005]: "), result.stderr)
 
     def test_sarif_without_ci_is_refused_and_names_the_command_that_writes_it(self):
+        # OGK-CHECK-004
         self.init()
         for arguments in (("guard",), ("guard", "--hook", "prompt")):
             with self.subTest(arguments=arguments):

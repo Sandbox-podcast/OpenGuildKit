@@ -11,6 +11,7 @@ from .check_cli import pending_catalog_changes, warn_unsigned
 from .command import Command
 from .detect import components_for_profile, detect_stack, detected_project_name
 from .doc_links import doc_link
+from .errors import OgkError
 from .hosts import HOOK_HOSTS
 from .lock import apply_lock, build_lock, installed_catalog, read_lock, unshipped_records, write_lock
 from .patterns import patterns_to_review
@@ -297,7 +298,7 @@ def _confirm_rule_plan(plan: dict) -> None:
     print("Write this profile and these rules? [Y/n]", file=sys.stderr)
     print("> ", end="", file=sys.stderr, flush=True)
     if input().strip().casefold() not in ("", "y", "yes", "o", "oui"):
-        raise ValueError("Setup cancelled. Nothing was written.")
+        raise OgkError("OGK-INIT-002", "Setup cancelled. Nothing was written.")
 
 
 def _require_answers(answers: dict, questions: list[dict]) -> None:
@@ -308,7 +309,7 @@ def _require_answers(answers: dict, questions: list[dict]) -> None:
         lines = "\n".join(f"- {question['id']}: {question['prompt']} Answer "
                           f"{', '.join(choice['id'] for choice in question.get('choices', []))} or unsure "
                           f"({question['unsure']})." for question in missing)
-        raise ValueError(f"The setup answers leave out {plural(len(missing), 'question')} that {'needs' if len(missing) == 1 else 'need'} an answer. Nothing was "
+        raise OgkError("OGK-INIT-003", f"The setup answers leave out {plural(len(missing), 'question')} that {'needs' if len(missing) == 1 else 'need'} an answer. Nothing was "
                          f"written.\n{lines}")
 
 
@@ -319,9 +320,9 @@ def init(args, root: Path, state: Path, catalog: Catalog) -> None:
         print_json(questions)
         return
     if (state / "project.json").exists():
-        raise ValueError(ALREADY_INITIALIZED)
+        raise OgkError("OGK-INIT-004", ALREADY_INITIALIZED)
     if not args.answers and not interactive():
-        raise ValueError("init needs a terminal for its questions. Without one, print them with openguildkit init "
+        raise OgkError("OGK-INIT-005", "init needs a terminal for its questions. Without one, print them with openguildkit init "
                          "--questions, save the answers as JSON, then run openguildkit init --answers PATH.")
     answers = read_json(args.answers) if args.answers else _interactive_init(questions, catalog, registry)
     if args.answers and isinstance(answers, dict):

@@ -285,11 +285,13 @@ class ProjectSetupTests(CliTestCase):
         self.run_cli("check")
 
     def test_init_refuses_to_run_twice(self):
+        # OGK-INIT-004
         self.init_example()
         result = self.run_cli("init", "--answers", EXAMPLE / "profile.json", expect=1)
         self.assertIn("already initialized", result.stderr)
 
     def test_init_without_terminal_needs_answers(self):
+        # OGK-INIT-005
         result = self.run_cli("init", expect=1)
         self.assertIn("--answers", result.stderr)
 

@@ -36,7 +36,7 @@ from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 from . import cli, profile_changes, task_files
-from .errors import error_line, named_command
+from .errors import OgkError, error_line, named_command
 from .lock import package_version
 from .storage import SCHEMA_VERSION, write_text
 from .web_requests import (
@@ -477,7 +477,7 @@ def launch_key() -> str:
     if not value:
         return secrets.token_urlsafe(32)
     if not re.fullmatch(r"[A-Za-z0-9_-]{32,128}", value):
-        raise ValueError(f"Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it.")
+        raise OgkError("OGK-WEB-001", f"Set {KEY_VARIABLE} to 32 to 128 letters, digits, - or _, or unset it.")
     return value
 
 
@@ -620,7 +620,7 @@ class WebApp:
         try:
             profile = json.loads(text)
             if not isinstance(profile, dict):
-                raise ValueError("the profile is a JSON object")
+                raise OgkError("OGK-WEB-002", "the profile is a JSON object")
         except ValueError as error:
             raise Refused(f"Invalid JSON: {error}", status=HTTPStatus.BAD_REQUEST, reason="invalid-profile") from None
         who = _decision_line(by, "by", "web interface")

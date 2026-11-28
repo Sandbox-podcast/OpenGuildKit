@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import audit_log
 from .command import Command
+from .errors import OgkError
 
 
 def add_parser(commands) -> None:
@@ -35,7 +36,7 @@ def run(command: Command) -> int:
     try:
         count, problem = audit_log.verify(path)
     except OSError as error:
-        raise ValueError(f"The audit log {path.as_posix()} cannot be read: {error.strerror or error}.") from error
+        raise OgkError("OGK-AUDIT-001", f"The audit log {path.as_posix()} cannot be read: {error.strerror or error}.") from error
     if problem:
         print(f"OpenGuildKit: {path.as_posix()}: {count} {'event' if count == 1 else 'events'} intact, then {problem}.",
               file=sys.stderr)

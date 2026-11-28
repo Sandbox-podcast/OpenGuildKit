@@ -82,9 +82,11 @@ class FeatureCommandTests(unittest.TestCase):
         self.run_cli("features", "disable", "jira", "--by", "Camille", "--reason", "We moved to Linear")
         self.assertNotIn("tools", self.profile())
         _, error = self.run_cli("features", "disable", "jira", "--by", "Camille", "--reason", "Again", code=1)
+        # OGK-FEATURE-002
         self.assertIn("jira is not on. Nothing was written.", error)
 
     def test_shared_github_is_listed_in_each_use_and_cannot_be_disabled_from_a_feature(self):
+        # OGK-FEATURE-003
         self.run_cli("features", "enable", "github", "--by", "Camille", "--reason", "Source control")
         uses = [feature for feature, tools in self.on().items() if "github" in tools]
         self.assertGreaterEqual(len(uses), 3)
@@ -95,6 +97,7 @@ class FeatureCommandTests(unittest.TestCase):
         self.assertEqual(self.profile(), before)
 
     def test_a_tool_outside_the_features_goes_through_profile_add_tool(self):
+        # OGK-FEATURE-001
         _, error = self.run_cli("features", "enable", "figma", "--by", "Camille", "--reason", "Design", code=1)
         self.assertIn("openguildkit profile add tool", error)
         _, error = self.run_cli("features", "enable", "jira", "--by", "Camille", "--reason", "Again", code=1)
