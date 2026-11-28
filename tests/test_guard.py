@@ -367,7 +367,7 @@ class GuardTests(CapturedCli, unittest.TestCase):
         with patch.dict(os.environ, {"PATH": str(self.root)}):
             output, error = self.run_cli("guard", "--ci", "--base", "main", code=1)
         self.assertEqual(output, "")
-        self.assertEqual(error, "OpenGuildKit: guard --ci needs Git: it is not installed or not on the PATH.\n")
+        self.assertEqual(error, "OpenGuildKit [OGK-CORE-003]: guard --ci needs Git: it is not installed or not on the PATH.\n")
 
     @unittest.skipIf(shutil.which("git") is None, "needs git")
     def test_ci_reads_accented_names_and_records_exported_before_they_were(self):

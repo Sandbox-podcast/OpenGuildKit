@@ -32,6 +32,8 @@ import re
 import sys
 from datetime import date, datetime, timezone
 
+from .errors import OgkError
+
 _SECONDS = re.compile(r"[0-9]+")
 _announced: set[str] = set()
 
@@ -45,7 +47,7 @@ def _source_date_epoch() -> datetime | None:
             raise ValueError
         fixed = datetime.fromtimestamp(int(value), timezone.utc)
     except (OverflowError, OSError, ValueError):
-        raise ValueError("SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it.") from None
+        raise OgkError("OGK-CORE-001", "SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it.") from None
     _announce(value, fixed)
     return fixed
 

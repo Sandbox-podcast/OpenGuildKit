@@ -95,6 +95,7 @@ class ClockTests(unittest.TestCase):
             self.assertEqual(len(set(local_days.values())), 2, local_days)
 
     def test_a_malformed_source_date_epoch_is_a_clear_error(self):
+        # OGK-CORE-001
         for value in ("yesterday", "-5", "1.5", "²", "99999999999999999999"):
             with self.subTest(value=value), patch.dict(os.environ, {"SOURCE_DATE_EPOCH": value}):
                 with self.assertRaisesRegex(ValueError, "SOURCE_DATE_EPOCH"):

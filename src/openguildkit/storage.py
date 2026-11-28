@@ -14,6 +14,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from .errors import OgkError
+
 # Windows refuses to replace a file while another process reads it, and to read it while it is
 # being replaced; POSIX systems do neither.
 RETRIES_BUSY_TARGET = os.name == "nt"
@@ -32,7 +34,7 @@ def unique_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"duplicate JSON field {key!r}")
+            raise OgkError("OGK-CORE-008", f"duplicate JSON field {key!r}")
         result[key] = value
     return result
 
@@ -61,9 +63,9 @@ def parse_json(content: bytes, label: str) -> dict:
     try:
         data = _loads(content, unique_fields)
     except ValueError as error:
-        raise ValueError(f"Invalid JSON in {label}: {error}") from error
+        raise OgkError("OGK-CORE-009", f"Invalid JSON in {label}: {error}") from error
     if not isinstance(data, dict):
-        raise ValueError(f"Expected a JSON object in {label}")
+        raise OgkError("OGK-CORE-010", f"Expected a JSON object in {label}")
     return data
 
 
@@ -161,7 +163,7 @@ def _replace(source: Path, target: Path) -> None:
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink() and (not path.exists() or path.is_file() or path.is_dir()):
-        raise ValueError(f"Refusing to replace a symbolic link: {path}")
+        raise OgkError("OGK-CORE-011", f"Refusing to replace a symbolic link: {path}")
     if path.exists() and not path.is_file() and not path.is_dir():
         # A device or a pipe, such as /dev/null, cannot be replaced by a renamed file: write to it.
         with path.open("wb") as handle:
@@ -271,7 +273,7 @@ def _held_lock(lock_file: Path):
         handle.seek(0)
         while not _try_lock(handle):
             if time.monotonic() >= deadline:
-                raise ValueError("Another OpenGuildKit command is writing this project. Try again.")
+                raise OgkError("OGK-CORE-012", "Another OpenGuildKit command is writing this project. Try again.")
             time.sleep(LOCK_POLL_SECONDS)
         try:
             yield

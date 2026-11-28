@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 
 from . import clock
+from .errors import InternalError
 
 VARIABLE = "OPENGUILDKIT_AUDIT_LOG"
 VERSION = 1
@@ -110,7 +111,7 @@ def record(root: Path, event: str, **fields) -> None:
         if path is None:
             return
         if event not in EVENTS:
-            raise ValueError(f"unknown event {event}")
+            raise InternalError(f"unknown event {event}")
         shown = {key: value for key, value in fields.items() if key in EVENTS[event] and value not in (None, "", [])}
         shown = {key: [_squeezed(item) for item in value[:MAX_PATHS]] if isinstance(value, list) else _squeezed(value)
                  for key, value in shown.items()}

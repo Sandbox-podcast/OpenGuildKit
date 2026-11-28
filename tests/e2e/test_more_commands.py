@@ -133,7 +133,7 @@ class BlockerCommandTests(ReviewedTaskTestCase):
         if os.name != "posix":
             return
         code, _, stderr = self.in_terminal(clear, "wrong-id")
-        self.assertTrue(stderr.strip().endswith("OpenGuildKit: Clearing cancelled."), stderr)
+        self.assertTrue(stderr.strip().endswith("OpenGuildKit [OGK-CORE-013]: Clearing cancelled."), stderr)
         code, stdout, stderr = self.in_terminal(clear, TASK_ID)
         self.assertEqual((code, stdout.strip()), (0, "cleared"), stderr)
         listing = self.run_cli("task", "blockers", TASK_ID).stdout
@@ -182,7 +182,7 @@ class WaiverCommandTests(ReviewedTaskTestCase):
         self.assertIn("cannot grant waivers", stderr)
         code, _, stderr = self.in_terminal(self.waive(), "wrong-id")
         self.assertEqual(code, 1)
-        self.assertTrue(stderr.strip().endswith("OpenGuildKit: Waiver cancelled."), stderr)
+        self.assertTrue(stderr.strip().endswith("OpenGuildKit [OGK-CORE-013]: Waiver cancelled."), stderr)
         code, stdout, stderr = self.in_terminal(self.waive(), TASK_ID)
         self.assertEqual((code, stdout.strip()), (0, "waived"), stderr)
         self.assertIn("security:2 [waived by Camille Martin]", self.run_cli("task", "blockers", TASK_ID).stdout)

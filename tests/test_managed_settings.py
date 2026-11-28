@@ -100,6 +100,7 @@ class GeneratorTests(Folder):
         self.assertEqual(edit["onFailure"], "block")
 
     def test_a_host_or_a_system_that_is_not_listed_is_refused(self):
+        # OGK-CORE-005
         self.managed("--host", "cursor", "--os", "linux", code=2)
         self.managed("--host", "codex", "--os", "plan9", code=2)
         self.assertIn("needs --host", self.managed("--os", "linux", code=1).stderr)

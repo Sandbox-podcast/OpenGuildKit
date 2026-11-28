@@ -11,6 +11,8 @@ Tests: tests/test_terminal.py
 import os
 import sys
 
+from .errors import OgkError
+
 
 def interactive() -> bool:
     """True when standard input is a terminal a person types in."""
@@ -34,7 +36,7 @@ def typed(expected: str, prompt: str, *, refusal: str | Exception, cancelled: st
         raise refusal if isinstance(refusal, Exception) else ValueError(refusal)
     print(prompt, end="", file=sys.stderr, flush=True)
     if input().strip() != expected:
-        raise ValueError(cancelled)
+        raise OgkError("OGK-CORE-013", cancelled)
 
 
 def console(descriptor: int) -> bool:

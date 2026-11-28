@@ -8,6 +8,19 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | Code | Raised by | Message | Tests |
 |---|---|---|---|
 | `OGK-CHECK-001` | `check_cli.py:check` | --format sarif and --json both print the result on the standard output: use one of them. Type openguildkit check --format sarif for code scanning, or openguildkit check --json for a program. | tests/test_json_output.py |
+| `OGK-CORE-001` | `clock.py:_source_date_epoch` | SOURCE_DATE_EPOCH must be a whole number of seconds since 1970-01-01 UTC. Fix or unset it. | tests/test_clock.py |
+| `OGK-CORE-002` | `detect.py:_json_manifest` | {path.as_posix()}: JSON nested too deeply | tests/test_clean_errors.py |
+| `OGK-CORE-003` | `git.py:required` | {needs} needs Git: it is not installed or not on the PATH. | tests/test_guard.py |
+| `OGK-CORE-004` | `lock.py:_validated_lock` | {path}: {collection}/{record_id} is not an object. Restore the file from Git, or delete it and run openguildkit update --apply, which locks the catalog installed on this machine. | tests/e2e/test_catalog_lock.py |
+| `OGK-CORE-005` | `managed.py:run` | host managed needs --host (claude-code, codex or gemini-cli) and --os (macos, linux or windows). | tests/test_managed_settings.py |
+| `OGK-CORE-006` | `managed.py:run` | host managed prints the file as it is deployed, so --json is not an option of it. | tests/test_command_output_budget.py |
+| `OGK-CORE-007` | `patterns.py:check_pattern_choices` | Choose one pattern in {group}: {selected[group]} or {pattern_id}. | tests/test_patterns.py |
+| `OGK-CORE-008` | `storage.py:unique_fields` | duplicate JSON field {key!r} | tests/test_robustness.py |
+| `OGK-CORE-009` | `storage.py:parse_json` | Invalid JSON in {label}: {error} | tests/test_clean_errors.py |
+| `OGK-CORE-010` | `storage.py:parse_json` | Expected a JSON object in {label} | tests/test_robustness.py |
+| `OGK-CORE-011` | `storage.py:write_text` | Refusing to replace a symbolic link: {path} | tests/test_storage.py |
+| `OGK-CORE-012` | `storage.py:_held_lock` | Another OpenGuildKit command is writing this project. Try again. | tests/e2e/test_concurrency.py |
+| `OGK-CORE-013` | `terminal.py:typed` | {cancelled} | tests/e2e/test_more_commands.py, tests/test_terminal.py |
 | `OGK-TASK-001` | `tasks.py:dependencies` | A task cannot wait for itself: {task_id}. | tests/test_error_codes.py |
 | `OGK-TASK-002` | `tasks.py:dependencies` | Task {task_id} cannot wait for {cycle[1]}: that would close a cycle ({' -> '.join(cycle)}). Remove that --after. | tests/test_error_codes.py |
 | `OGK-TASK-003` | `tasks.py:create_task` | The task ID is empty. Omit --id to generate one. | tests/test_error_codes.py |

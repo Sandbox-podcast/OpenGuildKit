@@ -15,6 +15,7 @@ import re
 from http import HTTPStatus
 from pathlib import Path
 
+from .errors import InternalError
 from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
@@ -104,7 +105,7 @@ class Refused(Exception):
     def __init__(self, message: str, command: str | None = None, status: HTTPStatus = HTTPStatus.FORBIDDEN, *,
                  reason: str):
         if reason not in REFUSALS:
-            raise ValueError(f"Unknown refusal code: {reason}")
+            raise InternalError(f"Unknown refusal code: {reason}")
         super().__init__(message)
         self.command = command
         self.status = status

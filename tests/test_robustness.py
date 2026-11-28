@@ -228,6 +228,7 @@ class InputFileTests(FuzzTestCase):
                   self.record_loads({"draft", "consulting"}))
 
     def test_review_files(self):
+        # OGK-CORE-008, OGK-CORE-010
         self.consulted()
         review = self.review()
         self.fuzz("task review --file", review, lambda path: self.cli("task", "review", TASK, "--file", path),

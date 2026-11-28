@@ -34,7 +34,7 @@
         {
           "file": "src/openguildkit/terminal.py",
           "symbol": "interactive",
-          "line": 15
+          "line": 17
         }
       ],
       "in_dossier": [
@@ -92,12 +92,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 253
+          "line": 254
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 303
+          "line": 304
         },
         {
           "file": "src/openguildkit/hosts.py",

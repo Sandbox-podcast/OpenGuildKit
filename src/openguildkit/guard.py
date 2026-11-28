@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 from . import incident, lazy_re, short_lane
 from .catalog import load_catalog
 from .decisions import DECISIONS_DIR, base_commit, revisions_outside_history
+from .errors import InternalError
 from .lock import LOCK_FILE, apply_lock, read_lock
 from .org_catalog import organization_in
 from .project import STATE_DIR, load_profile, project_root, restricted_paths, state_path
@@ -258,7 +259,7 @@ def hook_answer(event: str, mode: str, outcome: str, detail: str = "", dialect: 
     observe lets it through and says it is flagged.
     """
     if outcome not in HOOK_OUTCOMES:
-        raise ValueError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
+        raise InternalError(f"Unknown guard outcome {outcome!r}: one of {', '.join(HOOK_OUTCOMES)}.")
     if mode == "off" or outcome == "outside":
         return 0, "", ""
     refuse = mode in ("enforce", UNKNOWN_MODE)

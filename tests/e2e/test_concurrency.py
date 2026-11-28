@@ -125,7 +125,7 @@ class LockTests(ConcurrencyTestCase):
         )[0]
         elapsed = time.monotonic() - started
         self.assertEqual(code, 1)
-        self.assertEqual(stderr.strip(), f"OpenGuildKit: {LOCK_MESSAGE}")
+        self.assertEqual(stderr.strip(), f"OpenGuildKit [OGK-CORE-012]: {LOCK_MESSAGE}")
         self.assertGreaterEqual(elapsed, 0.5)
         self.assertLess(elapsed, 30)
         self.assertEqual(self.task_files(), [])
