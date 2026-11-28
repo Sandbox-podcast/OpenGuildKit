@@ -19,17 +19,18 @@ from .storage import write_text
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
 # The hosts whose hooks `host apply` writes and `host check` reports.
 HOOK_HOSTS = ("claude-code", "codex", "gemini-cli")
-# Agent tools with a hook that can refuse a tool, whose pages, read on the day given, document no path of the file an
-# edit tool is about to change in the input of that hook (integrations/README.md, "Hooks of other tools"). The guard
-# needs that path, so they are not hosts: host check and host scan say what is left when their files are present.
+# Agent tools with a hook that can refuse a tool, whose pages (with the titles docs/host-coverage.md shows), read on
+# the day given, document no path of the file an edit tool is about to change in the input of that hook
+# (integrations/README.md, "Hooks of other tools"). The guard needs that path, so they are not hosts: host check and
+# host scan say what is left when their files are present.
 UNHOOKED_TOOLS = {
     "cursor": {"name": "Cursor", "files": (".cursor", ".cursorrules"),
-               "pages": ("https://cursor.com/docs/agent/hooks",), "read": "2026-11-26"},
+               "pages": ("https://cursor.com/docs/agent/hooks",), "titles": ("Hooks",), "read": "2026-11-26"},
     "copilot": {"name": "GitHub Copilot",
                 "files": (".github/copilot-instructions.md", ".github/instructions", ".github/hooks"),
                 "pages": ("https://docs.github.com/en/copilot/reference/hooks-reference",
                           "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-hooks-reference"),
-                "read": "2026-11-26"},
+                "titles": ("Hooks reference", "Copilot CLI hooks reference"), "read": "2026-11-26"},
 }
 
 

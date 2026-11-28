@@ -587,6 +587,21 @@
       "doc": "docs/architecture.md"
     },
     {
+      "module": "src/openguildkit/host_coverage.py",
+      "role": "The coverage of each host and surface (hook before an edit, approval commands refused), with the pages read; `host check --matrix` prints it and docs/host-coverage.md carries its table.",
+      "entry": [
+        "add_options",
+        "markdown_table",
+        "matrix",
+        "run"
+      ],
+      "tests": [
+        "tests/test_cli_coverage.py",
+        "tests/test_doc_pages.py"
+      ],
+      "doc": "docs/host-coverage.md"
+    },
+    {
       "module": "src/openguildkit/hosts.py",
       "role": "Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions.",
       "entry": [

@@ -80,6 +80,7 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `project_checks.py` | Proposes the project's test commands at setup and explains why a check command failed. |
 | `agent_workflow.py` | The task workflow that the managed block of `AGENTS.md` teaches every agent. |
 | `integrations.py` | Installs the agent skill and the subagents shipped with this version. |
+| `host_coverage.py` | The coverage of each host and surface (hook before an edit, approval commands refused), with the pages read; `host check --matrix` prints it and docs/host-coverage.md carries its table. |
 | `hosts.py` | Writes the settings and hooks a host agent can enforce (Claude Code, Codex, Gemini CLI) and reports which rules stay instructions. |
 | `incident.py` | Incident response, off by default (#481): a freeze that stops the edit hook and `guard --ci`, and a longest age of an approval, both set with `profile set`. |
 | `questionnaire.py` | The task questionnaire, its follow-ups and the check of the answers. |
