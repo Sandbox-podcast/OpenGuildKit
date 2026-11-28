@@ -509,6 +509,18 @@ def result_warnings(task: dict, profile: dict, relevance: dict | None = None) ->
         if item["status"] == "not-applicable" and item["pack"] in selected_packs and item["pack"] in sweeping:
             warnings.append(f"Pack {item['pack']} was declared not applicable as a whole by {item['owner']}, although "
                             "the task's answers select it. Check each of its rules.")
+    warnings += _same_reason_warnings(checks, reported)
+    passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
+              and item["status"] == "passed"]
+    warnings += _evidence_warnings(passed)
+    warnings += _shared_rule_evidence(checks, reported)
+    warnings += _criteria_warnings(result)
+    return warnings
+
+
+def _same_reason_warnings(checks: dict, reported: dict) -> list[str]:
+    """Answers the task's answers select, declared not applicable with the same reason as others."""
+    warnings = []
     not_applicable = [item for item in reported.values() if item["status"] == "not-applicable" and "via_pack" not in item]
     reasons: dict[str, list[str]] = {}
     for item in not_applicable:
@@ -520,10 +532,12 @@ def result_warnings(task: dict, profile: dict, relevance: dict | None = None) ->
             warnings.append(f"{shown} {'is' if len(selected) == 1 else 'are'} selected by the task's "
                             f"answers yet declared not applicable with the same reason as {plural(len(names) - 1, 'other answer')}. "
                             "Give the reason that applies to each.")
-    passed = [item for item in result.get("checks", []) if checks.get(item["check"], {}).get("kind") == "evidence"
-              and item["status"] == "passed"]
-    warnings += _evidence_warnings(passed)
-    warnings += _shared_rule_evidence(checks, reported)
+    return warnings
+
+
+def _criteria_warnings(result: dict) -> list[str]:
+    """Criteria met on evidence that says it was not run, or on a command that has not passed."""
+    warnings = []
     statuses = {item["check"]: item["status"] for item in result.get("checks", [])}
     for criterion in result.get("criteria", []):
         if criterion["status"] == "met" and NOT_RUN.search(criterion["evidence"]):
