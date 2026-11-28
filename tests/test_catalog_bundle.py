@@ -3,7 +3,6 @@ wheel is built, and a process reads it instead of the record files while they ke
 
 import contextlib
 import importlib.util
-import io
 import json
 import os
 import shutil
@@ -16,7 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import catalog
-from openguildkit.cli import main
+from tests import support
 
 REPO = Path(__file__).resolve().parents[1]
 REGISTRY = REPO / "src" / "openguildkit" / "registry"
@@ -112,11 +111,7 @@ class CatalogBundleTests(unittest.TestCase):
         self.assertEqual(folders.call_count, len(catalog.COLLECTION_FIELDS))
 
     def run_cli(self, root: Path, *arguments) -> str:
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()) as error:
-            code = main(["--project", str(root), *map(str, arguments)])
-        self.assertEqual(code, 0, error.getvalue())
-        return output.getvalue()
+        return support.run_cli(root, *arguments).stdout
 
     def test_catalog_json_and_a_new_lock_are_the_same_with_and_without_the_bundle(self):
         """Issue #533: reading the bundle must not change a byte of what a command prints or locks."""
