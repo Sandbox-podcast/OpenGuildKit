@@ -30,7 +30,7 @@ BEGIN = "<!-- BEGIN OPENGUILDKIT -->"
 END = "<!-- END OPENGUILDKIT -->"
 # The layout of the managed block, written in its stamp. Raise it when a release changes the block without changing
 # the profile: the stamp then differs, and check calls the block out of date instead of calling its lines hand edits.
-INSTRUCTIONS_LAYOUT = 2
+INSTRUCTIONS_LAYOUT = 3
 ALREADY_INITIALIZED = (
     "Project is already initialized. Change its profile with openguildkit profile (adopt, decline, add, remove, "
     "set); openguildkit profile --help lists them."
