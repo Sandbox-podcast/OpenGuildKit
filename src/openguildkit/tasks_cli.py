@@ -1580,7 +1580,7 @@ def _new(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     brief = args.file.read_text(encoding="utf-8-sig") if args.file else args.brief
     require_instructions(args, root, state, profile, catalog)
     lane = light_lane.declare(args.lane, args.paths, profile)
-    requested_by = requester.declared(args.requested_by, profile)
+    requested_by = requester.declared(args.requested_by, profile, root)
     with project_lock(state):
         record = state / DECISIONS_DIR / f"{args.id}.json" if args.id else None
         if record is not None and record.is_file() and not task_path(state, args.id).is_file():
