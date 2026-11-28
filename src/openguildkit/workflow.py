@@ -9,10 +9,18 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from . import clock, lazy_re, light_lane, owners
+from . import clock, lazy_re, owners, short_lane
 from .consultation import (
-    CHOICES, CONTEST_ITEM, EVIDENCE_SOURCES, answer_lines, json_section, market_references, one_based, scope_lines,
-    storybook_references, tool_references,
+    CHOICES,
+    CONTEST_ITEM,
+    EVIDENCE_SOURCES,
+    answer_lines,
+    json_section,
+    market_references,
+    one_based,
+    scope_lines,
+    storybook_references,
+    tool_references,
 )
 from .questionnaire import ASSUMPTIONS
 from .routing import normalize_text, trigger_matches
@@ -22,7 +30,7 @@ from .wording import plural
 
 class TaskStateError(ValueError):
     """An action refused because of the task's status. The message says what is refused; the command line adds the
-    status and the next command that runs in it (tasks.state_refusal)."""
+    status and the next command that runs in it (tasks_status.state_refusal)."""
 
 
 def _text(value: object, field: str) -> str:
@@ -429,7 +437,7 @@ def validate_board_entry(consultation: dict, entry: object, root: Path | None = 
 
 def validate_review(consultation: dict, review: dict, root: Path | None = None) -> dict:
     """Require a recommendation for every board in the recorded consultation; report every board's problems at once."""
-    # kept: the passes a reopened approval kept (tasks.kept_passes); only task review --summary records it.
+    # kept: the passes a reopened approval kept (tasks_review.kept_passes); only task review --summary records it.
     allowed = {"consultation_id", "summary", "boards", "execution", "warnings", "evidence_item", "blocker_item", "kept"}
     if not isinstance(review, dict) or not {"consultation_id", "summary", "boards"} <= review.keys() \
             or not review.keys() <= allowed:
@@ -940,7 +948,7 @@ def _assumption_lines(task: dict, review: dict) -> list[str]:
 
 
 def challenge_report(task: dict, lines: list[str] | None = None, root: Path | None = None) -> str:
-    """The decision brief: the lines the person reads before deciding (tasks.decision_text, the same as the
+    """The decision brief: the lines the person reads before deciding (tasks_review.decision_text, the same as the
     approval prompt), then each board's challenge as JSON. With the project root, the code owners of what the task
     touches, read from CODEOWNERS and never recorded."""
     if "review" not in task:
@@ -1156,7 +1164,7 @@ def handoff(task: dict, evidence: list[dict] | None = None, checks: list[dict] |
             "Implement the approved scope. Apply the recorded rules and conventions, "
             "run the relevant project checks and report the results. Bring scope "
             "changes and unresolved decisions back to the user."
-        ) + light_lane.handoff_note(task)
+        ) + short_lane.handoff_note(task)
     if status != "approved":
         heading += f" (task {status})"
         instruction = (

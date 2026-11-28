@@ -1,7 +1,8 @@
 import unittest
 
 from openguildkit.catalog import load_catalog
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.consultation import consult
 from openguildkit.questionnaire import validate_answers
 from openguildkit.routing import select_boards

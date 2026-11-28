@@ -11,10 +11,10 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.profile_cli import check_proposal
-from openguildkit.project import (
-    profile_fingerprint, render_instructions, rule_plan, rules_in_force, validate_profile,
-)
+from openguildkit.profile_changes import check_proposal
+from openguildkit.project import rules_in_force, validate_profile
+from openguildkit.project_instructions import render_instructions
+from openguildkit.project_rules import profile_fingerprint, rule_plan
 from openguildkit.results import expected_checks
 from openguildkit.storage import write_json
 from tests.support import run_cli
@@ -148,7 +148,7 @@ class RuleDeclineCommandTests(unittest.TestCase):
                 self.assertIn(f"openguildkit profile adopt rule {RULE}", error)
 
     def test_the_web_page_cannot_decline_a_rule(self):
-        from openguildkit.profile_cli import Weakening, save_edited
+        from openguildkit.profile_changes import Weakening, save_edited
         edited = {**self.profile(), "declined_rules": [{"id": RULE, "by": "S", "on": "2026-11-21", "reason": "x"}]}
         with self.assertRaises(Weakening):
             save_edited(self.root, self.root / ".openguildkit", edited, "S", "x")

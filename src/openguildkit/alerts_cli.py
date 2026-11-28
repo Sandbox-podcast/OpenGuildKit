@@ -10,10 +10,11 @@ from .alerts import (
     task_brief, unhandled_alerts,
 )
 from .cli_surface import add_by
+from .command import Command
 from .results import DONE_STATUSES
 from .storage import json_text, project_lock, read_json, write_json
 from .tasks import create_task, read_task, task_path
-from .terminal import interactive
+from .terminal import typed
 from .wording import plural
 
 
@@ -57,11 +58,8 @@ def add_parser(commands) -> None:
 
 def _confirm_person(alert_id: str, what: str) -> None:
     """A person types the alert ID at an interactive terminal, as for a waiver."""
-    if not interactive():
-        raise ValueError(f"To {what} {alert_id}, a person runs the command at an interactive terminal.")
-    print(f"Type {alert_id} to {what} it: ", end="", file=sys.stderr, flush=True)
-    if input().strip() != alert_id:
-        raise ValueError("Cancelled.")
+    typed(alert_id, f"Type {alert_id} to {what} it: ", cancelled="Cancelled.",
+          refusal=f"To {what} {alert_id}, a person runs the command at an interactive terminal.")
 
 
 def _print_alerts(alerts: list[dict], data: dict, as_json: bool) -> None:
@@ -150,7 +148,8 @@ def _alert_tasks(args, state: Path) -> None:
         print("Open them with openguildkit alerts tasks --open, then consult each task.")
 
 
-def run(args, state: Path) -> None:
+def run(command: Command) -> None:
+    args, state = command.args, command.state
     action = args.alerts_action
     if action == "tasks":
         _alert_tasks(args, state)

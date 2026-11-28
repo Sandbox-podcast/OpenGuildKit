@@ -31,8 +31,8 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
-from . import cli, profile_cli, tasks
-from .lock import installed_catalog, package_version
+from . import cli, profile_changes, tasks
+from .lock import package_version
 from .sensitive import credential_kind
 from .shell import shell_command
 from .storage import project_lock, write_text
@@ -912,13 +912,13 @@ class WebApp:
         state = self.root / ".openguildkit"
         if not (state / "project.json").is_file():
             raise Refused(REFUSALS["not-initialized"], status=HTTPStatus.CONFLICT, reason="not-initialized")
-        result, failure = self.runner.call(lambda: profile_cli.save_edited(self.root, state, profile, who, why))
-        if isinstance(failure, profile_cli.Weakening):
+        result, failure = self.runner.call(lambda: profile_changes.save_edited(self.root, state, profile, who, why))
+        if isinstance(failure, profile_changes.Weakening):
             raise Refused(f"{failure} {HUMAN_ONLY_TEXT}", terminal_command(self.root, failure.changes[0][1]),
                           reason="weakens-protection")
         # Nothing is written when the save fails: the profile on disk is still the previous one.
         result["restored"] = failure is not None
-        if isinstance(failure, profile_cli.InvalidProfile):
+        if isinstance(failure, profile_changes.InvalidProfile):
             result["reason"] = "invalid-profile"
         return result
 
@@ -930,11 +930,6 @@ def _decision_line(value, field: str, default: str) -> str:
     if not isinstance(value, str) or not value.strip() or "\n" in value or "\r" in value:
         raise Refused(f"{field} must be a non-empty single line.", status=HTTPStatus.BAD_REQUEST, reason="bad-request")
     return value.strip()
-
-
-def weakening_changes(root: Path, before: dict, after: dict) -> list[tuple[str, list[str]]]:
-    """What a hand-edited profile weakens, by the profile commands' own rule, each with the command to type."""
-    return profile_cli.weakening_changes(before, after, installed_catalog(None, root / ".openguildkit")[0])
 
 
 class LocalServer(ThreadingHTTPServer):

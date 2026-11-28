@@ -10,7 +10,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import org_catalog
 from openguildkit.catalog import load_catalog
 from tests.support import copy_initialized_project, run_cli
 
@@ -69,7 +68,7 @@ class OrgCatalogTests(unittest.TestCase):
 
     def test_a_project_that_does_not_use_it_runs_no_git_and_keeps_its_lock(self):
         before = (self.root / ".openguildkit" / "catalog.lock.json").read_bytes()
-        with patch.object(org_catalog.subprocess, "run", side_effect=AssertionError("git ran")):
+        with patch.object(subprocess, "run", side_effect=AssertionError("git ran")):
             self.cli("check")
             self.cli("sync")
             self.cli("update", "--apply")

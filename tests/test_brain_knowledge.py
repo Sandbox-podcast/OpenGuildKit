@@ -8,7 +8,7 @@ from pathlib import Path
 from openguildkit.brains import brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
-from openguildkit.project import resolved_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.references import load_references, with_pattern_references
 from openguildkit.consultation import board_brief, consult
 
@@ -139,7 +139,7 @@ class ConsultKnowledgeTests(unittest.TestCase):
         out; every_board works it out for each board of the catalog first, as task consult did before."""
         from unittest.mock import patch
 
-        from openguildkit import brains, tasks_cli
+        from openguildkit import brains, tasks_consult_cli
         from tests.support import run_cli
 
         computed = []
@@ -157,7 +157,7 @@ class ConsultKnowledgeTests(unittest.TestCase):
         run_cli(root, "task", "new", "--file", self.EXAMPLE / "brief.md", "--id", "status")
         with patch("openguildkit.brains.brief_knowledge", counted), \
                 patch("openguildkit.consultation.uuid4", return_value=type("Id", (), {"hex": "0" * 32})()), \
-                patch.object(tasks_cli, "BriefKnowledge", eager if every_board else brains.BriefKnowledge):
+                patch.object(tasks_consult_cli, "BriefKnowledge", eager if every_board else brains.BriefKnowledge):
             run_cli(root, "task", "consult", "status", "--answers", self.EXAMPLE / "answers.json")
         record = json.loads((root / ".openguildkit" / "tasks" / "status.json").read_text(encoding="utf-8"))
         for moment in ("created_at", "updated_at"):

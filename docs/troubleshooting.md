@@ -2,7 +2,9 @@
 
 For: an administrator or a developer who reads a refusal of `openguildkit` and wants to know the cause and the next command, and the agent that meets one.
 
-Each row starts with the beginning of a message as the CLI prints it, after the `OpenGuildKit: ` prefix. `tests/test_doc_pages.py` fails when a message of this page is no longer in the code. A command prints its error on standard error and exits with 1; [exit codes](exit-codes.md) lists the exceptions.
+Each row starts with the beginning of a message as the CLI prints it, after the `OpenGuildKit: ` prefix.
+`tests/test_doc_pages.py` fails when a message of this page is no longer in the code.
+A command prints its error on standard error and exits with 1; [exit codes](exit-codes.md) lists the exceptions.
 
 ## Setup
 

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from .cli_surface import add_by
+from .command import Command
 from .market import (
     KINDS, MARKET_DIR, add_competitor, add_observation, describe, dossier_gaps, dossier_path, due_issue, due_sources,
     load_dossier, mark_checked, mark_provided, new_dossier, record_change, save_dossier, set_paused, set_unknown, watch_source,
@@ -143,7 +144,8 @@ def _person_reviews(args, dossier: dict, research: str) -> None:
                      f"openguildkit market provided {args.dossier} --url {url} --by INITIALS{then}.")
 
 
-def run(args, state: Path, profile: dict) -> None:
+def run(command: Command) -> None:
+    args, state, profile = command.args, command.state, command.profile
     if args.mode == "due":
         return _due(args, state, profile.get("research", "local-only"))
     if not args.dossier:

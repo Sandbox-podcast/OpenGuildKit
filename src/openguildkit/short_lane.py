@@ -12,8 +12,7 @@ matches whole project paths: `*` and `?` stay inside a folder, `**` is a whole s
 
 import re
 
-from .doc_links import doc_link
-from .wording import plural
+# The edit hook loads this module: doc_links and wording are imported in the functions that use them (#539).
 
 LANE = "light"
 MAX_PATHS = 50
@@ -129,6 +128,8 @@ def normalize_entry(entry: object) -> str:
 def normalize_entries(values: object, label: str) -> list[str]:
     """The paths of light_paths or of a task, each normalized, without repeats, in one order: a list that never
     covers rules, dependencies, the profile or agent instructions (ExcludedPath names the first that does)."""
+    from .doc_links import doc_link
+
     if not isinstance(values, list) or not values:
         raise ValueError(f"{label} needs a list of at least one path, such as docs/**.")
     entries = sorted({normalize_entry(item) for item in values})
@@ -198,6 +199,8 @@ def files_outside(task_paths: list[str], light_paths: list[str], files: list[str
 def outside_message(task_id: str, task_paths: list[str], light_paths: list[str], outside: list[str], where: str) -> str:
     """The changed files of a short-lane task that are outside its paths, in one sentence; where says whose light_paths
     the paths are held to."""
+    from .wording import plural
+
     shown = ", ".join(outside[:10]) + (f" and {len(outside) - 10} more" if len(outside) > 10 else "")
     return (f"Short-lane task {task_id} covers only {', '.join(task_paths)}, within the light_paths of {where} "
             f"({', '.join(light_paths)}), and {plural(len(outside), 'changed file')} {'is' if len(outside) == 1 else 'are'} outside: {shown}. "
@@ -395,6 +398,8 @@ def scope_line(lane: dict) -> str:
 
 
 def next_line(task_id: str, paths: list[str]) -> str:
+    from .doc_links import doc_link
+
     return (f"Short lane for {', '.join(paths)}: no questions. Next: openguildkit task consult {task_id} convenes the one "
             f"board its paths call for; run its pass (task pass {task_id} BOARD), submit the entry, record the review "
             f"(task review {task_id} --summary TEXT), and the person decides, as on the full path "

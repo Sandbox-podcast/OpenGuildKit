@@ -10,11 +10,12 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
-from . import lazy_re, light_lane
+from . import lazy_re, short_lane
 from .catalog import rule_check
 from .detect import SKIPPED_DIRECTORIES, walk
 from .patterns import is_stack_pattern, pattern_selection
-from .project import rule_text, rules_in_force
+from .project import rules_in_force
+from .project_instructions import rule_text
 from .questionnaire import ASSUMPTIONS, SURFACE_MEANINGS, as_list, open_points, validate_answers
 from .relevance import BASELINE_PACKS, judge_rules, pack_relevance
 from .routing import select_boards, touched_components
@@ -24,7 +25,7 @@ from .wording import plural
 
 def profile_settings(profile: dict) -> dict:
     """The project settings besides the packs and checks that decide which boards review a task and which rules it is
-    asked. A change of one voids the approvals (project.profile_fingerprint), and the message names it."""
+    asked. A change of one voids the approvals (project_rules.profile_fingerprint), and the message names it."""
     return {
         "boards": sorted(profile.get("boards", [])), "required boards": sorted(profile.get("required_boards", [])),
         "required rules": sorted(profile.get("required_rules", [])), "roles": sorted(profile.get("roles", [])),
@@ -50,7 +51,7 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
         "checks": profile.get("checks", []),
         "research": research,
         "open_points": open_points(task["brief"], answers),
-        # The settings an approval rests on besides the rules, so a later change can be named (tasks.rule_changes).
+        # The settings an approval rests on besides the rules, so a later change can be named (tasks_approval.rule_changes).
         "settings": profile_settings(profile),
     }
     if task.get("rounds"):
@@ -67,8 +68,8 @@ def _scope_snapshot(profile: dict, catalog: dict, task: dict, answers: dict) -> 
     for field in ("roles", "components", "patterns", "declined", "resolutions", "declined_rules"):
         if profile.get(field):
             scope[field] = profile[field]
-    if light_lane.is_light(task):
-        scope["lane"] = {"id": light_lane.LANE, "paths": task["paths"]}
+    if short_lane.is_light(task):
+        scope["lane"] = {"id": short_lane.LANE, "paths": task["paths"]}
     return deepcopy(scope)
 
 
@@ -194,7 +195,7 @@ def scope_lines(scope: dict) -> list[str]:
             f"{item['id']} by {item['by']} on {item['on']}: {item['reason']}" for item in scope["declined_rules"]) + ".")
     lines.append(f"- Research: {scope['research']}.")
     if scope.get("lane"):
-        lines.append(light_lane.scope_line(scope["lane"]))
+        lines.append(short_lane.scope_line(scope["lane"]))
     for control in scope.get("host_controls", []):
         lines.append(f"- Host control {control['id']}: {control['status']}. {control.get('title', '')}".rstrip())
     if scope.get("tools"):
@@ -639,7 +640,7 @@ def consult(
 ) -> dict:
     """Route a scoped task and prepare a review request for the host agent."""
     answers = validate_answers(task["answers"])
-    selected = select_boards(profile, catalog, task, answers, selection, light_lane.proposed_routing(task, profile, catalog))
+    selected = select_boards(profile, catalog, task, answers, selection, short_lane.proposed_routing(task, profile, catalog))
     routing, delegations = selected["routing"], selected["delegations"]
     scope = _scope_snapshot(profile, catalog, task, answers)
     if host_controls:

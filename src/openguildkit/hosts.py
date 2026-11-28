@@ -14,9 +14,10 @@ import tomllib
 from pathlib import Path
 
 from . import audit_log
-from .doc_links import doc_link
 from .project import restricted_paths
 from .storage import load_json, write_text
+
+# The edit hook loads this module: doc_links is imported in the functions that use it (#539).
 
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
 # The hosts whose hooks `host apply` writes and `host check` reports.
@@ -454,6 +455,8 @@ def board_control(root: Path, host: str, guard: str) -> dict:
 
 def approval_warning(profile: dict) -> str | None:
     """One line when the guard enforces but approvals are only sealed locally."""
+    from .doc_links import doc_link
+
     if profile.get("guard", "off") != "enforce" or (profile.get("approval") or {}).get("mode") == "signed":
         return None
     return ("OpenGuildKit: guard is enforce but approvals are not signed: a local seal only detects accidental edits, "

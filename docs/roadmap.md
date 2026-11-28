@@ -2,7 +2,8 @@
 
 For: anyone who decides whether to adopt OpenGuildKit or to contribute to it.
 
-This page separates what exists from what is planned. Open an issue to discuss or claim an item.
+This page separates what exists from what is planned.
+Open an issue to discuss or claim an item.
 
 ## Available
 
@@ -44,15 +45,19 @@ This page separates what exists from what is planned. Open an issue to discuss o
 **Catalog**
 
 - Rule packs, patterns, references with editions and links to the rules that apply them, regulation packs (GDPR, DORA, NIS2, AI Act, Cyber Resilience Act), a weekly link check, a verification date on every source and a weekly edition watch.
-- Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure, aerospace, automotive and software publishers, with EU packs. Aerospace carries EASA Part-IS and the process controls around DO-178C and DO-326A, automotive UN Regulations No 155 and No 156.
+- Sectors that preselect their regulation patterns for the person to confirm or decline: financial services, insurance, healthcare, public sector, e-commerce, education, critical infrastructure, aerospace, automotive and software publishers, with EU packs.
+  Aerospace carries EASA Part-IS and the process controls around DO-178C and DO-326A, automotive UN Regulations No 155 and No 156.
 - A first national layer for France on top of the EU packs: health data hosting, RGAA accessibility, public sector security, cookies and trackers, and e-invoicing.
 - Stack patterns with a detection of the manifest, among them Rust (`Cargo.toml`), Kotlin servers on Ktor, Symfony, Svelte and SvelteKit, React Native and Expo, Flutter (`pubspec.yaml`), dbt, Apache Airflow, and Elixir with Phoenix (`mix.exs`), next to the web, mobile and cloud stacks.
 
 ## Next
 
-- Finish the Codex validation of [#23](https://github.com/Sandbox-podcast/OpenGuildKit/issues/23): the Codex report of 21 November 2026 shows evidence, a decision and results up to `done`, but no disagreement between boards, and the hooks and rules that `host apply` writes for Codex were never seen in a live session. What is left is in the [host validation scenario](../examples/host-validation/README.md#what-the-reports-show-for-issue-23).
+- Finish the Codex validation of [#23](https://github.com/Sandbox-podcast/OpenGuildKit/issues/23): the Codex report of 21 November 2026 shows evidence, a decision and results up to `done`, but no disagreement between boards, and the hooks and rules that `host apply` writes for Codex were never seen in a live session.
+  What is left is in the [host validation scenario](../examples/host-validation/README.md#what-the-reports-show-for-issue-23).
 - National packs for other countries than France, more sectors, and more stacks. #268 asks to rank them from the pilot.
 
 ## How items move up
 
-An item moves to "Next" when someone volunteers to own it and a steward of the domain agrees with the scope (see [GOVERNANCE.md](../GOVERNANCE.md)). Schema changes go through an RFC issue first. Open issues track the work in progress.
+An item moves to "Next" when someone volunteers to own it and a steward of the domain agrees with the scope (see [GOVERNANCE.md](../GOVERNANCE.md)).
+Schema changes go through an RFC issue first.
+Open issues track the work in progress.

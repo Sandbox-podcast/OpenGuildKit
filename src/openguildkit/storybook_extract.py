@@ -5,13 +5,13 @@ components with their props, literal defaults and string-union prop types, the e
 index files, and CSS and SCSS stylesheets. Each item keeps the file and line it comes from.
 """
 
-import hashlib
 import json
 import re
 from datetime import date
 from pathlib import Path
 
 from . import clock
+from .storage import file_sha256
 from .storybook import JS_IDENTIFIER, MODULE_SUFFIXES, OUTSIDE, committed_path, source_files
 
 MAX_FILE_BYTES = 1_000_000
@@ -756,7 +756,7 @@ def extract(root: Path, sources: list[Path], previews: list[Path] | None = None,
         "schema_version": 1,
         "extracted": today.isoformat(),
         "sources": [committed_path(root, path) for path in sources],
-        "previews": [{"path": committed_path(root, path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        "previews": [{"path": committed_path(root, path), "sha256": file_sha256(path)}
                      for path in previews or []],
         "scanned": scanned,
         "components": components,

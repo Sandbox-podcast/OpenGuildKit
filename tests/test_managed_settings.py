@@ -150,6 +150,34 @@ class GeneratorTests(Folder):
         self.assertIn("is an option of openguildkit host scan",
                       run_cli(self.root, "host", "check", "--allow", packages, expect=1).stderr)
 
+    def test_issue_480_a_named_server_becomes_the_same_lock_in_codex_and_gemini_cli(self):
+        """Issue #480: Codex and Gemini CLI name each allowed MCP server, and the allow list held no name."""
+        named = self.root / "named.json"
+        write_json(named, {"mcp_servers": [{"server": "https://mcp.example.com/mcp", "name": "docs"},
+                                           {"server": "command:basecamp", "name": "basecamp"}]})
+        codex = tomllib.loads(self.managed("--host", "codex", "--os", "linux", "--allow", named).stdout)
+        self.assertEqual(codex["mcp_servers"], {"docs": {"identity": {"url": "https://mcp.example.com/mcp"}},
+                                                "basecamp": {"identity": {"command": "basecamp"}}})
+        gemini = self.managed("--host", "gemini-cli", "--os", "linux", "--allow", named)
+        self.assertEqual(json.loads(gemini.stdout)["mcp"], {"allowed": ["docs", "basecamp"]})
+        self.assertIn("mcp.allowed matches a server by its name only", gemini.stderr)
+        addresses = self.root / "addresses.json"
+        write_json(addresses, {"mcp_servers": [{"server": "https://mcp.example.com/mcp", "name": "docs"}]})
+        claude = json.loads(self.managed("--host", "claude-code", "--os", "linux", "--allow", addresses).stdout)
+        self.assertEqual(claude["allowedMcpServers"], [{"serverUrl": "https://mcp.example.com/mcp"}])
+        package = self.root / "package.json"
+        write_json(package, {"mcp_servers": [{"server": "npm:@playwright/mcp", "name": "playwright"}, "command:basecamp"]})
+        codex = self.managed("--host", "codex", "--os", "linux", "--allow", package)
+        self.assertNotIn("mcp_servers", tomllib.loads(codex.stdout))
+        self.assertIn("The allow list is not written for codex", codex.stderr)
+        gemini = self.managed("--host", "gemini-cli", "--os", "linux", "--allow", package)
+        self.assertNotIn("mcp", json.loads(gemini.stdout))
+        self.assertIn("The allow list is not written for gemini-cli", gemini.stderr)
+        for entry in ({"server": "command:x", "name": "a b"}, {"server": "command:x"}, {"name": "x"}):
+            write_json(package, {"mcp_servers": [entry]})
+            self.assertIn("allow list", run_cli(self.root, "host", "managed", "--host", "codex", "--os", "linux",
+                                                "--allow", package, expect=1).stderr)
+
 
 class NoProfileTests(Folder):
     def hook(self, stdin=EDIT, code=0):

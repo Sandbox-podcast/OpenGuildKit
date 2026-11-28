@@ -13,14 +13,14 @@ the pins stay in `organization_history`.
 
 import hashlib
 import os
-import subprocess
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 from typing import NoReturn
 
-from . import git, lazy_re
-from .shell import shell_word
+from . import lazy_re
+
+# The edit hook loads this module: git and shell are imported in the functions that use them (#539).
 
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
 # The organization policy (RFC #452, org_policy.py): one file at the root, read and fingerprinted with the records
@@ -43,24 +43,20 @@ _PLACE: ContextVar[tuple[Path, dict[str, str]] | None] = ContextVar("org_catalog
 # Files already read in this process, by copy and commit: a commit's files cannot change.
 _READ: dict[tuple[str, str], dict] = {}
 _READ_KEPT = 8
-
-
-def _git(repo: Path, *arguments: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
-    """Run Git on the local copy, with every way to reach a network turned off."""
-    result = git.run(repo, *arguments, stdin=stdin, offline=True)
-    if result is None:
-        raise ValueError("Reading the organization catalog needs Git: it is not installed or not on the PATH.")
-    return result
+# What a missing Git stops (git.required).
+_NEEDS_GIT = "Reading the organization catalog"
 
 
 def _is_repository(repo: Path) -> bool:
     """True when the folder is the top of a Git working copy or a bare repository, not a folder inside another one."""
+    from . import git
+
     if not repo.is_dir():
         return False
-    top = _git(repo, "rev-parse", "--show-toplevel")
+    top = git.required(repo, "rev-parse", "--show-toplevel", needs=_NEEDS_GIT, offline=True)
     if top.returncode == 0 and top.stdout.strip():
         return Path(os.fsdecode(top.stdout.strip())).resolve() == repo.resolve()
-    bare = _git(repo, "rev-parse", "--is-bare-repository", "--absolute-git-dir")
+    bare = git.required(repo, "rev-parse", "--is-bare-repository", "--absolute-git-dir", needs=_NEEDS_GIT, offline=True)
     lines = bare.stdout.split()
     return bare.returncode == 0 and len(lines) == 2 and lines[0] == b"true" \
         and Path(os.fsdecode(lines[1])).resolve() == repo.resolve()
@@ -109,7 +105,10 @@ def _named_folder(name: str, named: dict[str, str]) -> Path:
 def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
     """(path, object) of each record file at the commit: COLLECTION/NAME.json, and the policy file at the root, plain
     files only."""
-    listing = _git(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE)
+    from . import git
+
+    listing = git.required(repo, "ls-tree", "-r", "-z", commit, "--", *COLLECTIONS, POLICY_FILE, needs=_NEEDS_GIT,
+                           offline=True)
     if listing.returncode:
         raise ValueError(f"Git could not list the files of {commit[:12]} in {repo}.")
     files = []
@@ -128,9 +127,12 @@ def _listed_files(repo: Path, commit: str) -> list[tuple[str, str]]:
 
 def _contents(repo: Path, objects: list[str]) -> list[bytes]:
     """The content of each object, read by one `git cat-file --batch`."""
+    from . import git
+
     if not objects:
         return []
-    result = _git(repo, "cat-file", "--batch", stdin="".join(f"{obj}\n" for obj in objects).encode("ascii"))
+    result = git.required(repo, "cat-file", "--batch", stdin="".join(f"{obj}\n" for obj in objects).encode("ascii"),
+                          needs=_NEEDS_GIT, offline=True)
     if result.returncode:
         raise ValueError(f"Git could not read the organization catalog in {repo}.")
     output, position, contents = result.stdout, 0, []
@@ -154,6 +156,9 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
     """The record files of the organization catalog at the commit, with their fingerprint. Raises with the command
     that fixes it when the copy or the commit is missing. repo is what the lock calls the copy (its path, or its name
     with the folder given as `folder`)."""
+    from . import git
+    from .shell import shell_word
+
     if not FULL_COMMIT.fullmatch(commit):
         raise ValueError(f"Give the full commit SHA of the organization catalog, not {commit!r}: git -C "
                          f"{shell_word(repo)} rev-parse COMMIT prints it.")
@@ -166,7 +171,8 @@ def read_files(repo: str, commit: str, root: Path, folder: Path | None = None) -
     if not _is_repository(folder):
         raise ValueError(f"The organization catalog {shown} is not a Git repository on this machine. Clone it at that "
                          f"path, or point the project at your copy at a terminal: {SET_COMMAND}.")
-    found = _git(folder, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
+    found = git.required(folder, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}", needs=_NEEDS_GIT,
+                         offline=True)
     if found.returncode or found.stdout.strip() != commit.encode("ascii"):
         raise ValueError(f"Commit {commit[:12]} of the organization catalog is not in {shown}: run git -C "
                          f"{shell_word(str(folder) if named else repo)} fetch, then the command again, or "

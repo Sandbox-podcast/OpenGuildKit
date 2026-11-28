@@ -12,7 +12,6 @@ from functools import lru_cache
 from . import lazy_re
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
 
-
 _STRUCTURED_ROUTES = {
     "kind": {
         "feature": {
@@ -683,7 +682,7 @@ def select_boards(profile: dict, catalog: dict, task: dict, answers: dict, selec
     """Apply the project's required boards and the requester's changes to the proposed routing.
 
     selection: {"add": [ids], "remove": [ids], "reason": text, "delegate": {board: person}}
-    proposed: the routing a short-lane task is given (light_lane.proposed_routing) in place of the words of the brief.
+    proposed: the routing a short-lane task is given (short_lane.proposed_routing) in place of the words of the brief.
     Returns {"routing": {...}, "adjustments": [...], "delegations": {...}}.
     """
     selection = selection or {}

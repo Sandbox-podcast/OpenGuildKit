@@ -10,7 +10,7 @@ import json
 import unittest
 
 from openguildkit.results import evidence_fingerprint, evidence_state
-from openguildkit.tasks import _clearance_payload, resolve_blocker
+from openguildkit.tasks_blockers import _clearance_payload, resolve_blocker
 from openguildkit.storage import read_json
 from tests.test_approval_lifecycle import ApprovalCase
 from tests import test_results

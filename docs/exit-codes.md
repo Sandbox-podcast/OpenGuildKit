@@ -2,7 +2,8 @@
 
 For: the person who writes a CI job or a script around `openguildkit`, and the agent that reads its result.
 
-Read the code of a command in two steps: the general rule below, then the table of the commands that depart from it. The table is read by `tests/test_exit_codes.py`, which runs one case for each row.
+Read the code of a command in two steps: the general rule below, then the table of the commands that depart from it.
+The table is read by `tests/test_exit_codes.py`, which runs one case for each row.
 
 ## The general rule
 
@@ -13,7 +14,9 @@ Read the code of a command in two steps: the general rule below, then the table 
 | 2 | A usage error of the command line (an unknown option, a missing argument), printed by the parser |
 | 130 | Cancelled with Ctrl+C |
 
-Code 1 covers two different things on most commands: the project does not conform, or the command could not evaluate it. The message on stderr tells them apart, not the code. The only commands that give a code of their own to a command that could not run are `ci-check` (2) and `tools apply`.
+Code 1 covers two different things on most commands: the project does not conform, or the command could not evaluate it.
+The message on stderr tells them apart, not the code.
+The only commands that give a code of their own to a command that could not run are `ci-check` (2) and `tools apply`.
 
 ## The commands that depart from it
 
@@ -32,9 +35,13 @@ Code 1 covers two different things on most commands: the project does not confor
 
 ## What each stream carries
 
-Standard output carries the result the command was asked for; a redirected result holds nothing else. Standard error carries the errors, the warnings (`Warning: ...`), the notes and the next step. `tests/test_error_forms.py` fails when a `Warning:` line is printed to standard output.
+Standard output carries the result the command was asked for; a redirected result holds nothing else.
+Standard error carries the errors, the warnings (`Warning: ...`), the notes and the next step.
+`tests/test_error_forms.py` fails when a `Warning:` line is printed to standard output.
 A list that is empty says so on one line (`No share recorded.`), and an error about a file names it in words, never as the `[Errno 2]` text of Python.
 
 ## Open decision
 
-A job cannot tell a project that does not conform from a command that could not evaluate it on `check`, `guard --ci` and `host scan`: both give 1. Reserving a distinct code, such as 3, would change what every existing job reads. The maintainer decides; until then, read the message on stderr, or the `ci-check` convention above.
+A job cannot tell a project that does not conform from a command that could not evaluate it on `check`, `guard --ci` and `host scan`: both give 1.
+Reserving a distinct code, such as 3, would change what every existing job reads.
+The maintainer decides; until then, read the message on stderr, or the `ci-check` convention above.

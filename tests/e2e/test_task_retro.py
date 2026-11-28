@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import clock
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.retro import MAX_REASON
 from openguildkit.storage import write_json
 from tests.support import run_cli
@@ -565,7 +565,7 @@ class RefusalTests(unittest.TestCase):
         record = json.loads(path.read_text(encoding="utf-8"))
         record.update(completed=False, status="approved")
         record.pop("completed_at", None)
-        record["record_sha256"] = record_digest(record)
+        record["record_sha256"] = export_digest(record)
         write_json(path, record)
         (self.root / ".openguildkit" / "tasks" / "done-one.json").unlink()
         error = cli(self.root, "task", "retro", "done-one", code=1).stderr

@@ -18,7 +18,7 @@ from openguildkit.decisions import (
     PAYLOAD_VERSIONS,
     check_decision_seal,
     decision_payload,
-    record_digest,
+    export_digest,
     seal,
     signing_time_of,
 )
@@ -373,7 +373,7 @@ class SealTests(AuditCase):
 
         self.assertIsNone(_record_fault(record, "r.json", self.fingerprint(), {"mode": "local"}, self.root, {}))
         record["decision"]["at"] = "2024-01-01T00:00:00+00:00"
-        record["record_sha256"] = record_digest(record)
+        record["record_sha256"] = export_digest(record)
         fault = _record_fault(record, "r.json", self.fingerprint(), {"mode": "local"}, self.root, {})
         self.assertIsNotNone(fault, "a record whose date was changed after it was sealed passes")
         self.assertEqual(fault[0], "decision-record-invalid")

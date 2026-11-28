@@ -16,7 +16,8 @@ from itertools import islice
 from pathlib import Path
 
 from .storage import parse_json
-from .wording import plural
+
+# The edit hook loads this module: wording is imported in the functions that use it (#539).
 
 CHECK_KINDS = ("file-exists", "text", "field", "size", "command")
 FIELD_OPERATORS = ("equals", "one_of", "min", "max", "integer")
@@ -276,6 +277,8 @@ def _read_bounded(path: Path) -> bytes | None:
 
 
 def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
+    from .wording import plural
+
     paths, too_many = matching_paths(root, check["paths"])
     if too_many:
         return False, f"More than {MAX_FILES} files match: narrow the paths of the check."
@@ -313,6 +316,8 @@ def _text_outcome(root: Path, check: dict) -> tuple[bool, str]:
 
 def _size_outcome(root: Path, check: dict) -> tuple[bool, str]:
     """Measure the files the paths name, without reading them: the largest is the evidence."""
+    from .wording import plural
+
     paths, too_many = matching_paths(root, check["paths"])
     if too_many:
         return False, f"More than {MAX_FILES} files match: narrow the paths of the check."

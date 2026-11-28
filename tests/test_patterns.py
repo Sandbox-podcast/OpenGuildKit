@@ -2,7 +2,8 @@ import unittest
 
 from openguildkit.catalog import load_catalog
 from openguildkit.patterns import check_pattern_choices, recommend_patterns
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 
 
 class PatternTests(unittest.TestCase):

@@ -1,13 +1,19 @@
 # Threat model
 
-For: a security architect who reads the model before authorizing the tool, and the administrator who answers the questions that follow. It covers one tenant: one team, its repositories and its agents.
+For: a security architect who reads the model before authorizing the tool, and the administrator who answers the questions that follow.
+It covers one tenant: one team, its repositories and its agents.
 
-OpenGuildKit makes a team's agents follow a written path and keeps the record of who decided. It is not a sandbox: it cannot stop an agent from using its tools. This page gathers, in one place, what is protected, against whom, by which control and where, and what stays open. Every statement rests on a sentence of another page or on a test, which `tests/test_doc_pages.py` finds again.
+OpenGuildKit makes a team's agents follow a written path and keeps the record of who decided.
+It is not a sandbox: it cannot stop an agent from using its tools.
+This page gathers, in one place, what is protected, against whom, by which control and where, and what stays open.
+Every statement rests on a sentence of another page or on a test, which `tests/test_doc_pages.py` finds again.
 
 ## Assumptions
 
-- The person at the terminal is trusted: they approve, sign and decide. An approval needs them at an interactive terminal.
-- The host agent and the model are not trusted to follow instructions. What they do is outside this tool ([SECURITY.md](../SECURITY.md#out-of-scope)).
+- The person at the terminal is trusted: they approve, sign and decide.
+  An approval needs them at an interactive terminal.
+- The host agent and the model are not trusted to follow instructions.
+  What they do is outside this tool ([SECURITY.md](../SECURITY.md#out-of-scope)).
 - Git holds the history: the base revision of a pull request, and the files `guard --ci` reads from it, are what the pull request cannot change.
 - The CI workflow that runs `guard --ci` is the team's, and a pull request cannot edit it once it is protected ([protect the check](../integrations/README.md#protect-the-check)).
 - The CLI makes no call to a model and opens no network connection of its own, one command a person asks for aside ([design decisions](architecture.md#design-decisions)).
@@ -43,7 +49,8 @@ The profile (`.openguildkit/project.json`), the catalog lock, the allowed signer
 
 ## Residual risks
 
-Each risk names the sentence or the test that establishes it. The quoted words are in the page named.
+Each risk names the sentence or the test that establishes it.
+The quoted words are in the page named.
 
 | Risk | Established by |
 |---|---|

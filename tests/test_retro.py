@@ -15,14 +15,16 @@ from pathlib import Path
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import command_parser
 from openguildkit.consultation import consult
-from openguildkit.project import resolved_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
 from openguildkit.catalog import validate_entry
 from openguildkit.project import DRAFT_MARK
 from openguildkit.retro import (
     DEFAULT_MINIMUM, MAX_REASON, draft_pack, facts_of_record, facts_of_task, project_summary, proposals, recurrences,
     render_project, render_task, task_retro,
 )
-from openguildkit.tasks import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP, record_review
+from openguildkit.tasks_closing import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
+from openguildkit.tasks_review import record_review
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 # Names that must never reach what the retrospective prints: the fields that hold a person are not copied.

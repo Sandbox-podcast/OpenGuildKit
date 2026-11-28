@@ -8,11 +8,12 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.project import resolved_profile, validate_profile
-from openguildkit.tasks import (
-    _record_problem, archived_round, cited_evidence, record_consultation, record_decision, record_review,
-    resolve_blocker, verification_blocker_problems,
-)
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import resolved_profile
+from openguildkit.tasks_blockers import resolve_blocker, verification_blocker_problems
+from openguildkit.tasks_closing import record_decision
+from openguildkit.tasks_record import task_record_problem
+from openguildkit.tasks_review import archived_round, cited_evidence, record_consultation, record_review
 from openguildkit.consultation import consult
 from openguildkit.workflow import blocker_list, blocker_resolutions, exported_blockers
 from tests.test_approval_lifecycle import ApprovalCase
@@ -83,11 +84,11 @@ class ClearanceAccessTests(unittest.TestCase):
         self.assertEqual(archived, {**archived_round(self.approved), "reopened": archived["reopened"]})
 
     def test_records_with_either_field_read_without_error_and_keep_their_clearances(self):
-        self.assertIsNone(_record_problem(self.approved))
+        self.assertIsNone(task_record_problem(self.approved))
         # Before the field of phase verification, a clearance given after approval sat with the others.
         older = copy.deepcopy(self.approved)
         older["blocker_resolutions"]["security:1"] = older.pop("verification_blocker_resolutions")["security:1"]
-        self.assertIsNone(_record_problem(older))
+        self.assertIsNone(task_record_problem(older))
         self.assertEqual(blocker_list(older)[0]["resolution"]["evidence"], "local/proof.txt")
         self.assertEqual(verification_blocker_problems(older, self.profile), [])
         self.assertIn("local/proof.txt", cited_evidence(older))

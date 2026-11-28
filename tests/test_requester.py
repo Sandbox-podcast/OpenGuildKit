@@ -16,10 +16,11 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import profile_cli, requester
+from openguildkit import profile_changes, requester
 from openguildkit.catalog import load_catalog
-from openguildkit.decisions import check_decision_seal, decision_payload, record_digest
-from openguildkit.project import profile_fingerprint, validate_profile
+from openguildkit.decisions import check_decision_seal, decision_payload, export_digest
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
 
 from tests.support import run_cli
@@ -176,12 +177,12 @@ class ActivationTests(ProjectCase):
         catalog = load_catalog()
         before = self.profile()
         after = {**before, "separate_requester": True}
-        on, = profile_cli.weakening_changes(before, after, catalog)
+        on, = profile_changes.weakening_changes(before, after, catalog)
         self.assertEqual(on[1], ["profile", "set", "separate-requester", "on", "--by", "INITIALS", "--reason", "WHY"])
-        off, = profile_cli.weakening_changes(after, before, catalog)
+        off, = profile_changes.weakening_changes(after, before, catalog)
         self.assertEqual(off[1], ["profile", "set", "separate-requester", "off", "--by", "INITIALS", "--reason", "WHY"])
-        with self.assertRaises(profile_cli.Weakening):
-            profile_cli.save_edited(self.root, self.root / ".openguildkit", after, "Page", "Edited in the page")
+        with self.assertRaises(profile_changes.Weakening):
+            profile_changes.save_edited(self.root, self.root / ".openguildkit", after, "Page", "Edited in the page")
         self.assertNotIn("separate_requester", self.profile())
 
     def test_the_option_is_not_part_of_what_an_approval_rests_on_and_voids_none(self):
@@ -350,7 +351,7 @@ class CiTests(GitCase):
         path = self.root / ".openguildkit" / "decisions" / "retry.json"
         record = json.loads(path.read_text(encoding="utf-8"))
         forged = {**record, "requested_by": "Someone Else"}
-        forged["record_sha256"] = record_digest(forged)
+        forged["record_sha256"] = export_digest(forged)
         write_json(path, forged)
         self.commit_all("Forge")
         result = self.ci(code=1)

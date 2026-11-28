@@ -2,26 +2,34 @@
 
 For: a security officer who sends what OpenGuildKit did to a SIEM, and an administrator who turns the log on.
 
-The decision records and the history of the profile say what the rules are and who approved. They are states, not events: a refusal of the guard in `enforce` writes nothing, and an approval withdrawn before its export leaves no trace in a file Git carries.
+The decision records and the history of the profile say what the rules are and who approved.
+They are states, not events: a refusal of the guard in `enforce` writes nothing, and an approval withdrawn before its export leaves no trace in a file Git carries.
 The audit log keeps the acts of OpenGuildKit itself as events, for the security operations team of a company that collects them with its own log agent.
-It is off by default. It is not a log of what the agent does: it records the refusals of the guard hook and the acts of the people who approve, withdraw and change the rules.
+It is off by default.
+It is not a log of what the agent does: it records the refusals of the guard hook and the acts of the people who approve, withdraw and change the rules.
 
 ## Turn it on
 
-A person sets one of these on the workstation. Nothing else changes while it is off: a refusal leaves the files of the project as they were.
+A person sets one of these on the workstation.
+Nothing else changes while it is off: a refusal leaves the files of the project as they were.
 
-- `OPENGUILDKIT_AUDIT_LOG=1` in the environment of the agent and of the person's terminal writes `.openguildkit/audit/audit.jsonl`. A file name (`OPENGUILDKIT_AUDIT_LOG=soc.jsonl`) picks another file of that folder; a path, a name with a slash or a name that starts with a dot is refused.
-- `"audit_log": true` (or a file name) in the workstation policy, `/etc/openguildkit/config.json` (on macOS also `/Library/Application Support/OpenGuildKit/config.json`, on Windows `%ProgramData%\OpenGuildKit\config.json`), which an administrator deploys and no variable can move. A policy file with another key, or that is not JSON, is refused with its name.
+- `OPENGUILDKIT_AUDIT_LOG=1` in the environment of the agent and of the person's terminal writes `.openguildkit/audit/audit.jsonl`.
+  A file name (`OPENGUILDKIT_AUDIT_LOG=soc.jsonl`) picks another file of that folder; a path, a name with a slash or a name that starts with a dot is refused.
+- `"audit_log": true` (or a file name) in the workstation policy, `/etc/openguildkit/config.json` (on macOS also `/Library/Application Support/OpenGuildKit/config.json`, on Windows `%ProgramData%\OpenGuildKit\config.json`), which an administrator deploys and no variable can move.
+  A policy file with another key, or that is not JSON, is refused with its name.
 
-The folder is `.openguildkit/audit/`. Git ignores it (the folder holds its own `.gitignore`), and the guard refuses an agent's edit of anything in it, even under an approved task: only the commands of OpenGuildKit write there.
-A collector rule points at `.openguildkit/audit/*.jsonl` of each clone. The command opens no connection.
+The folder is `.openguildkit/audit/`.
+Git ignores it (the folder holds its own `.gitignore`), and the guard refuses an agent's edit of anything in it, even under an approved task: only the commands of OpenGuildKit write there.
+A collector rule points at `.openguildkit/audit/*.jsonl` of each clone.
+The command opens no connection.
 
 A log that cannot be written (a full disk, a link in place of the folder, a bad name) says so in one line on standard error and changes nothing else: the hook still refuses, the approval still happens.
 A link in place of the folder or the file is never followed.
 
 ## The lines
 
-Each line is a JSON object on its own line, ASCII only, with `v` (1), `at` (UTC), `event`, `project` (the name of the project folder) and `prev`, the SHA-256 of the line before it, or 64 zeros for the first. The other fields depend on the event:
+Each line is a JSON object on its own line, ASCII only, with `v` (1), `at` (UTC), `event`, `project` (the name of the project folder) and `prev`, the SHA-256 of the line before it, or 64 zeros for the first.
+The other fields depend on the event:
 
 | Event | Written when | Other fields |
 |---|---|---|
@@ -37,7 +45,8 @@ Each line is a JSON object on its own line, ASCII only, with `v` (1), `at` (UTC)
 | `org-catalog.off` | `org-catalog off` | `by`, `commit` (the commit left) |
 | `host.applied` | `host apply` writes a file | `host`, `paths` (the files written) |
 
-A reason, a brief, the content of an edit and any credential never go in. `by` and `signer` are personal data, listed in [personal data](personal-data.md#files-that-stay-on-one-machine).
+A reason, a brief, the content of an edit and any credential never go in.
+`by` and `signer` are personal data, listed in [personal data](personal-data.md#files-that-stay-on-one-machine).
 One example of each event, which `tests/test_audit_log.py` reads and checks against the schema:
 
 ```
@@ -65,7 +74,8 @@ openguildkit audit verify PATH             # a copy, or an export
 
 It prints `3 events, chain intact` and exits 0, or exits 1 and names the first line that no longer follows the line before it (`line 3 does not follow line 2`): a line was changed or removed, or one was inserted.
 A line that follows the chain but is not an event of the table above (an unknown event, a field its event does not carry, a missing `at`) is named too, with what is wrong.
-The chain detects a change in the middle of the file. Removing the last lines, or changing the last one, leaves a chain that is intact: keep the hash of the last line in the collector to catch that.
+The chain detects a change in the middle of the file.
+Removing the last lines, or changing the last one, leaves a chain that is intact: keep the hash of the last line in the collector to catch that.
 Whoever can write the file can also rewrite the whole chain from the first changed line: the log shows tampering by an agent that cannot recompute it, not by a person with the file system.
 
 ## Export for a SIEM
@@ -76,11 +86,13 @@ openguildkit audit export --since 2026-11-01 > events.jsonl
 
 The file of the audit log is already one event per line, which a log agent collects as it grows.
 `audit export` serves another need: it rebuilds events for the days before the log was on, from what the repository holds, the approvals of `.openguildkit/decisions/*.json`, the changes of the profile in `.openguildkit/project.json` and the pins and stops of the organization catalog in `.openguildkit/catalog.lock.json`, oldest first, chained like the log, each marked `"reconstructed":true`.
-The history of the profile and of the organization catalog keeps a day and no time, so a `profile.changed`, `org-catalog.pinned` or `org-catalog.off` event of an export is dated 00:00:00 UTC of that day. Withdrawals, refusals and the other events are in the live log only.
+The history of the profile and of the organization catalog keeps a day and no time, so a `profile.changed`, `org-catalog.pinned` or `org-catalog.off` event of an export is dated 00:00:00 UTC of that day.
+Withdrawals, refusals and the other events are in the live log only.
 
 ## The date of an approval
 
-An approval is sealed: the seal is a SHA-256 over what was approved. The date of the decision (`decision.at`) is under neither the seal nor a signature, so a record can be moved to another day without the seal noticing.
+An approval is sealed: the seal is a SHA-256 over what was approved.
+The date of the decision (`decision.at`) is under neither the seal nor a signature, so a record can be moved to another day without the seal noticing.
 The audit log has no seal format of its own for the date: it rests on `signed_at`, the field a signer already adds to a signed approval (docs/workflow.md, "Signed approvals").
 A person who turns the audit log on has each local approval carry `signed_at`, the time of its decision, in its payload and under its seal.
 Changing `decision.at` or `decision.signed_at` in the task or in the exported record then breaks the seal, and `guard --ci` refuses a record whose date differs from the sealed one.

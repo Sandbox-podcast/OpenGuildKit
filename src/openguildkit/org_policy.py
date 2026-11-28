@@ -20,7 +20,8 @@ from typing import NoReturn
 from . import requester
 from .lock import read_lock
 from .org_catalog import POLICY_FILE, copies_read_from, organization_in, read_files
-from .project import STATE_DIR, resolved_profile
+from .project import STATE_DIR
+from .project_rules import resolved_profile
 from .storage import read_json
 
 GUARD_ORDER = ("off", "observe", "enforce")

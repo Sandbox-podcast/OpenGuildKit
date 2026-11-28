@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.catalog import load_catalog
-from openguildkit.profile_cli import check_proposal
+from openguildkit.profile_changes import check_proposal
 from openguildkit.project import load_profile, validate_profile
 from openguildkit.storage import write_json
 from tests.support import run_cli

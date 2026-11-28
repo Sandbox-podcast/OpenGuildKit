@@ -10,7 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.cli import _prompt_checks, main
+from openguildkit.cli import main
+from openguildkit.init_cli import _prompt_checks
 from openguildkit.detect import detect_stack
 from openguildkit.project_checks import failure_message, propose_checks
 from openguildkit.storage import write_json

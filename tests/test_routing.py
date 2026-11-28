@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.project import check_component, task_scope_profile, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import check_component, task_scope_profile
 from openguildkit.storage import write_json
 from openguildkit.consultation import consult
 from openguildkit.questionnaire import require_concerns, validate_answers

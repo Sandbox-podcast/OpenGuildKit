@@ -15,7 +15,9 @@ import unittest
 from pathlib import Path
 
 from openguildkit.catalog import load_catalog
-from openguildkit.project import BEGIN, END, rule_plan, validate_profile
+from openguildkit.project import validate_profile
+from openguildkit.project_instructions import BEGIN, END
+from openguildkit.project_rules import rule_plan
 from openguildkit.storage import write_json
 from openguildkit.workflow import handoff
 

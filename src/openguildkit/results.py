@@ -18,12 +18,13 @@ from urllib.parse import urlsplit
 from . import lazy_re
 from .catalog import recorded_value, rule_check
 from .decisions import changed_paths_since, git_revision
-from .project import STATE_DIR, rule_text
+from .project import STATE_DIR
 from .project_checks import failure_message
+from .project_instructions import rule_text
 from .relevance import DECISION_REASON, evidence_owner, judge_rules, sensitive_area
 from .rule_checks import evaluate_check, validate_path
 from .sensitive import redact_data
-from .storage import write_text
+from .storage import file_sha256, write_text
 from .wording import plural
 from .workflow import is_decision_task
 
@@ -226,7 +227,7 @@ def evidence_fingerprint(root: Path, value: str) -> str:
         names = sorted(item.relative_to(path).as_posix() for item in path.rglob("*")
                        if item.is_file() and not _UNLISTED & set(item.relative_to(path).parts))
         return "sha256:" + hashlib.sha256("\n".join(names).encode("utf-8")).hexdigest()
-    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    return "sha256:" + file_sha256(path)
 
 
 def evidence_state(root: Path, value: str, fingerprint: str | None) -> str:
@@ -646,7 +647,7 @@ def _journal_problems(task: dict, root: Path | None) -> list[str]:
         path = root / evidence
         if not path.is_file():
             problems.append(f"{name}: the journal {evidence} is missing, so its sha256 cannot be confirmed.")
-        elif hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
+        elif file_sha256(path) != item["sha256"]:
             problems.append(f"{name}: the journal {evidence} no longer matches the recorded sha256.")
     return problems
 

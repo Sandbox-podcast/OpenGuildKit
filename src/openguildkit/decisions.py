@@ -8,7 +8,6 @@ certificate of an authority (a `cert-authority` line); an approver who adds sign
 payload has the approval, once recorded, verified at that time, so that an expiry later on voids none.
 """
 
-import hashlib
 import json
 import re
 import shutil
@@ -16,19 +15,18 @@ import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from . import clock, git
-from .storage import read_json
+from . import clock
+from .storage import canonical_sha256, read_json
+
+# The edit hook loads this module: git is imported in the functions that use it (#539).
 
 NAMESPACE = "openguildkit-decision"
 
 
-def _sha256(value: object) -> str:
-    canonical = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
 def git_revision(root: Path) -> dict | None:
     """The commit the project is at, and whether files differ from it. None outside a Git repository."""
+    from . import git
+
     head = git.text(root, "rev-parse", "--verify", "HEAD")
     if head is None:
         return None
@@ -38,6 +36,8 @@ def git_revision(root: Path) -> dict | None:
 
 def changed_paths_since(root: Path, commit: str) -> list[str]:
     """Changes to tracked and staged files between an approved commit and the working tree."""
+    from . import git
+
     change = git.names(root, "diff", "--name-only", "--no-renames", commit, "--")
     if change is None:
         raise ValueError("Could not compare the project files with the approved Git revision.")
@@ -70,16 +70,16 @@ def exported_rounds(task: dict) -> list[dict]:
 
 def shared_digest(brief: str, summary: str, boards: list[dict], rounds: list[dict]) -> str:
     """The digest of what an exported record shows of the approval; the approval's seal covers it."""
-    return _sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
+    return canonical_sha256({"brief": brief, "summary": summary, "boards": boards, "rounds": rounds})
 
 
 def task_shared_digest(task: dict) -> str:
     return shared_digest(task["brief"], task["review"]["summary"], exported_boards(task["review"]), exported_rounds(task))
 
 
-def record_digest(record: dict) -> str:
-    """The digest of an exported record, without the field that holds it."""
-    return _sha256({key: value for key, value in record.items() if key != "record_sha256"})
+def export_digest(record: dict) -> str:
+    """The digest of an exported record, without the field that holds it: hexadecimal, unlike catalog.record_digest."""
+    return canonical_sha256({key: value for key, value in record.items() if key != "record_sha256"})
 
 
 # Approvals sealed from version 2 on also cover what their exported record shows; from version 3 on, the payload a
@@ -148,10 +148,10 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
         "task": task["id"],
         "outcome": "approved",
         "consultation_id": task["consultation"]["id"],
-        "scope_sha256": _sha256(task["consultation"]["scope"]),
-        "review_sha256": _sha256(task["review"]),
+        "scope_sha256": canonical_sha256(task["consultation"]["scope"]),
+        "review_sha256": canonical_sha256(task["review"]),
         "profile_fingerprint": task["profile_fingerprint"],
-        "blocker_resolutions_sha256": _sha256(task.get("blocker_resolutions", {})),
+        "blocker_resolutions_sha256": canonical_sha256(task.get("blocker_resolutions", {})),
         "by": by.strip(),
         "reason": reason.strip(),
         "base_revision": base_revision,
@@ -160,7 +160,7 @@ def decision_payload(task: dict, by: str, reason: str, base_revision: dict | Non
     # approval names each protected board whose removal they confirmed.
     adjustments = task["consultation"].get("adjustments")
     if adjustments:
-        payload["adjustments_sha256"] = _sha256(adjustments)
+        payload["adjustments_sha256"] = canonical_sha256(adjustments)
         confirmed = sorted(item["board"] for item in adjustments if item.get("confirmation") == "pending")
         if confirmed:
             payload["confirmed_removals"] = confirmed
@@ -187,7 +187,7 @@ def payload_text(payload: dict) -> str:
 
 
 def seal(payload: dict) -> str:
-    return _sha256(payload)
+    return canonical_sha256(payload)
 
 
 def approval_policy(profile: dict) -> dict:
@@ -200,6 +200,8 @@ def committed_signers(root: Path, relative: str) -> str:
     Refused, naming the file, outside a Git repository, when Git does not track the file, or when the working copy
     differs from HEAD: who may approve changes through a commit a person reviews.
     """
+    from . import git
+
     shown = f"The allowed signers file {relative}"
     retry = "Have the person review and commit it, then sign again."
     inside = git.text(root, "rev-parse", "--is-inside-work-tree")
@@ -267,6 +269,8 @@ PROJECT_FILE = ".openguildkit/project.json"
 def merged_reference(root: Path) -> str | None:
     """The branch that holds reviewed, merged work: the remote's default branch (origin/HEAD, which git clone sets), or
     else the upstream branch the current branch tracks. None when the repository has neither."""
+    from . import git
+
     for reference in ("refs/remotes/origin/HEAD", "@{upstream}"):
         found = git.text(root, "rev-parse", "--verify", "--quiet", "--symbolic-full-name", reference)
         if found and found.strip():
@@ -283,6 +287,8 @@ def signers_at_approval(history: Path, payload: dict, *, merged_only: bool = Fal
     does not hold a signed project.json and its signers file. merged_only also asks that the revision be on the merged
     branch (merged_reference): a commit only this copy holds, which an agent can write and revert, does not count.
     """
+    from . import git
+
     base = payload.get("base_revision")
     commit = base.get("commit") if isinstance(base, dict) else None
     if not isinstance(commit, str) or not commit or commit.startswith("-"):
@@ -366,6 +372,8 @@ def exported_records(state: Path) -> list[tuple[Path, dict | None]]:
 
 def ignored_by_git(root: Path, paths: list[str]) -> set[str]:
     """The project paths that git ignores, so a teammate who pulls the repository will not have them."""
+    from . import git
+
     if not paths:
         return set()
     # -z needs --stdin in check-ignore, which ends with 1 when it ignores none of the paths.
@@ -431,6 +439,8 @@ def revisions_outside_history(root: Path, commits: list[str]) -> set[str]:
     listed, one a rebase, a squash or an amendment replaced is. Outside a Git repository, or for a commit git no
     longer has, nothing is reported, so the approval is judged on the rest.
     """
+    from . import git
+
     wanted = sorted({commit for commit in commits if commit})
     if not wanted:
         return set()

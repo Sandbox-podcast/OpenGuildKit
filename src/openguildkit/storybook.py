@@ -21,7 +21,7 @@ from . import clock
 from .detect import walk
 from .sensitive import refuse_link_credentials
 from .stack_versions import STORYBOOK_VERSION, lower_bounds, parse_range, parse_version, satisfies, version_text
-from .storage import json_text, project_lock, read_json, write_json, write_text
+from .storage import file_sha256, json_text, project_lock, read_json, write_json, write_text
 from .wording import plural
 
 RECORD = "storybook.json"
@@ -346,7 +346,7 @@ def _index_entry(root: Path, ref: str, path: Path, entries: list[dict], today: d
     return {
         "ref": ref,
         "source": committed_path(root, path),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "sha256": file_sha256(path),
         "recorded": today.isoformat(),
         "stories": [{"id": item["id"], "title": item["title"], "name": item["name"]}
                     for item in entries if item["type"] == "story"],
@@ -615,7 +615,7 @@ def propose(root: Path, state: Path, inventory_path: Path | None = None, proposa
     }
     decided = ("status", "name", "props", "args", "note")
     result = {"schema_version": 1, "inventory": {
-        "path": committed_path(root, inventory_path), "sha256": hashlib.sha256(inventory_path.read_bytes()).hexdigest()}}
+        "path": committed_path(root, inventory_path), "sha256": file_sha256(inventory_path)}}
     counts = {"new": 0, "kept": 0, "not_observed": 0}
     for field in ("components", "variants", "tokens"):
         earlier = {item["key"]: item for item in previous[field]}
@@ -868,7 +868,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
             relative = committed_path(root, path)
             digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
             if path.exists():
-                current = hashlib.sha256(path.read_bytes()).hexdigest()
+                current = file_sha256(path)
                 if current == digest:
                     result["unchanged"].append(relative)
                     manifest["files"][relative] = digest

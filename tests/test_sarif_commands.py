@@ -14,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 
 from openguildkit.cli import command_parser
-from openguildkit.decisions import record_digest
+from openguildkit.decisions import export_digest
 from openguildkit.storage import write_json
 
 from tests.support import openguildkit_on_path, run_cli
@@ -313,7 +313,7 @@ class GuardSarifTests(SarifProject):
         self.assertEqual(self.found(document), [])
         # Whoever removes the signature can recompute the record's own digest; the signature check still refuses it.
         unsigned = {**record, "decision": {key: value for key, value in record["decision"].items() if key != "signature"}}
-        unsigned["record_sha256"] = record_digest(unsigned)
+        unsigned["record_sha256"] = export_digest(unsigned)
         self.commit_record(f"{TASK}.json", unsigned)
         document, _ = self.ci(code=1)
         self.assertEqual(self.found(document), [("decision-unsigned", "error", f".openguildkit/decisions/{TASK}.json")])
@@ -473,8 +473,8 @@ class ReportTests(unittest.TestCase):
 RULE_LIKE = re.compile(r"^(?:decision|instructions|host|catalog|task|source|brain|approvals|evidence|guard|policy)-[a-z]+(?:-[a-z]+)*$")
 # The modules that write a rule code, and the words of theirs that look like one and are not: the `task decision-payload`
 # command, and the kind of sharing issue that is not a finding.
-WRITERS = ("check_findings.py", "cli.py", "guard.py", "lock.py", "org_policy.py", "project.py", "requester.py",
-           "tasks_cli.py")
+WRITERS = ("check_findings.py", "check_cli.py", "cli.py", "guard.py", "lock.py", "org_policy.py", "project.py",
+           "project_instructions.py", "requester.py", "tasks_cli.py")
 NOT_CODES = {"decision-payload", "task-absent"}
 
 

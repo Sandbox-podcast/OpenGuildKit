@@ -4,7 +4,7 @@ workstation, and what `host check` reads back of them.
 `openguildkit host managed --host H --os S` prints the file of one host, or writes it into the folder it is given, and
 says where each system expects it and which channel an MDM has. It installs nothing and writes nowhere else. With
 --allow FILE, the allow list of `host scan` (allowlist.py) becomes the locks of the host where the page of the host
-shows a form it maps to. The facts about the hosts (paths, channels, key names) are those of the pages read on
+shows a form it maps to: the models and addresses of Claude Code, and the named servers of Codex and Gemini CLI. The facts about the hosts (paths, channels, key names) are those of the pages read on
 2026-11-28 (PAGES_READ); what no page was read for is marked "à vérifier" and not written.
 
 Entry: add_options, run, only_managed_hooks.
@@ -18,6 +18,7 @@ from pathlib import Path
 from . import allowlist, hosts
 from .doc_links import doc_link
 from .storage import load_json, write_text
+from .wording import plural
 
 OS_NAMES = ("macos", "linux", "windows")
 FRAGMENT = "50-openguildkit.json"
@@ -52,7 +53,9 @@ TARGETS: dict[str, dict] = {
         "where": {"macos": "/Library/Application Support/GeminiCli/", "linux": "/etc/gemini-cli/",
                   "windows": "C:\\ProgramData\\gemini-cli\\"},
         "channel": {},
-        "pages": ("https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md",),
+        "pages": ("https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md",
+                  "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/tools/mcp-server.md",
+                  "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/enterprise.md"),
         "notes": (("This file is the whole system settings file: it replaces one already there, so merge by hand. It "
                    "overrides the other settings files of Gemini CLI, and its keys hooks and hooksConfig.enabled are "
                    "settings of every file ({gemini_page})."),),
@@ -93,14 +96,68 @@ def _codex_hooks(command: str) -> list[str]:
     return lines
 
 
-def _locks(host: str, allow: dict | None) -> tuple[dict, list[str]]:
-    """The keys of the Claude Code file that the allow list becomes, and what is not written, with why."""
+def _unnamed(host: str, allow: dict, why: str) -> str | None:
+    """Why the servers of the list are not written for a host that allows a server by its name, or None."""
+    unnamed = allow["names"].count(None)
+    if not unnamed:
+        return None
+    return (f"The allow list is not written for {host}: {plural(unnamed, 'server')} of the list {'has' if unnamed == 1 else 'have'} "
+            f"no name, and {why}. Give each server a name, or check it with openguildkit host scan --allow FILE in each project.")
+
+
+def _not_read(host: str, allow: dict) -> list[str]:
+    axes = [label for axis, label in (("models", "models"), ("endpoints", "provider addresses")) if axis in allow]
+    return [f"The {' and '.join(axes)} of the list are not written for {host}: no managed key for them was read."] if axes else []
+
+
+def _codex_servers(allow: dict | None) -> tuple[list[str], list[str]]:
+    """The approved list mcp_servers of requirements.toml: a table per server, keyed by its name, with its identity (an
+    address, or the program a server runs), and what is not written, with why."""
+    if allow is None:
+        return [], []
+    left = _not_read("codex", allow)
+    if "mcp_servers" not in allow:
+        return [], left
+    why = _unnamed("codex", allow, "its page approves a server by its name and its identity")
+    servers = allow["mcp_servers"]
+    packages = [item for item in servers if not item.lower().startswith(("http://", "https://", "command:"))]
+    if why is None and packages:
+        why = (f"The allow list is not written for codex: {packages[0]} runs a package, and Codex matches such a server "
+               "by its program and each of its arguments, which the list does not hold. Check it with openguildkit host "
+               "scan --allow FILE in each project.")
+    if why:
+        return [], [why + " A partial list would turn off the other servers.", *left]
+    lines = [] if servers else ["", "[mcp_servers]"]
+    for item, name in zip(servers, allow["names"], strict=True):
+        address = item.lower().startswith(("http://", "https://"))
+        identity = f"url = {json.dumps(item)}" if address else f"command = {json.dumps(item.split(':', 1)[1])}"
+        lines += ["", f"[mcp_servers.{name}]", f"identity = {{ {identity} }}"]
+    return lines, left
+
+
+def _gemini_servers(allow: dict | None) -> tuple[dict, list[str]]:
+    """mcp.allowed of the Gemini CLI system settings: the names of the servers, and what is not written, with why."""
     if allow is None:
         return {}, []
-    if host != "claude-code":
-        page = "the server's name as well as its command or address" if host == "codex" else "names of servers"
-        return {}, [(f"The allow list is not written for {host}: its page asks {page}, which the list does not hold. "
-                     "Check it with openguildkit host scan --allow FILE in each project.")]
+    left = _not_read("gemini-cli", allow)
+    if "mcp_servers" not in allow:
+        return {}, left
+    why = _unnamed("gemini-cli", allow, "mcp.allowed lists servers by name")
+    if why is None and not allow["mcp_servers"]:
+        why = "The allow list is not written for gemini-cli: no page says what an empty mcp.allowed does (à vérifier)."
+    if why:
+        return {}, [why, *left]
+    return {"mcp": {"allowed": list(allow["names"])}}, [
+        ("mcp.allowed matches a server by its name only, and Gemini CLI runs the tools of a listed server without "
+         "asking: a user can define another server under an allowed name. Define each approved server under "
+         "mcpServers in this same file, which a user cannot override (the enterprise page); the list holds no command "
+         "to write there."), *left]
+
+
+def _locks(host: str, allow: dict | None) -> tuple[dict, list[str]]:
+    """The keys of the Claude Code file that the allow list becomes, and what is not written, with why."""
+    if allow is None or host != "claude-code":
+        return {}, []
     keys, left = {}, []
     if "models" in allow:
         keys["availableModels"] = allow["models"]
@@ -120,14 +177,16 @@ def _locks(host: str, allow: dict | None) -> tuple[dict, list[str]]:
 def _content(host: str, command: str, block: bool, allow: dict | None = None) -> tuple[str, list[str]]:
     locks, left = _locks(host, allow)
     if host == "codex":
+        servers, left = _codex_servers(allow)
         return ("\n".join(["# Managed by OpenGuildKit: deploy it with your MDM (openguildkit host managed --host codex).",
-                           "[features]", "hooks = true", *_codex_hooks(command)]) + "\n"), left
+                           "[features]", "hooks = true", *servers, *_codex_hooks(command)]) + "\n"), left
     if host == "claude-code":
         settings = {"hooks": hosts.guard_hooks(host, _quoted(command), block),
                     "permissions": {"deny": list(hosts.CLAUDE_APPROVAL_RULES), "disableBypassPermissionsMode": "disable"},
                     **locks}
     else:
-        settings = {"hooks": hosts.guard_hooks(host, _quoted(command)), "hooksConfig": {"enabled": True}}
+        locks, left = _gemini_servers(allow)
+        settings = {"hooks": hosts.guard_hooks(host, _quoted(command)), "hooksConfig": {"enabled": True}, **locks}
     return json.dumps(settings, indent=2, ensure_ascii=False) + "\n", left
 
 

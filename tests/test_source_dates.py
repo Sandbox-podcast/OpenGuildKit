@@ -19,7 +19,7 @@ from openguildkit import clock
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog
 from openguildkit.deliverables import _validate as validate_deliverable, load_deliverables
 from openguildkit.lock import read_lock
-from openguildkit.project import profile_fingerprint
+from openguildkit.project_rules import profile_fingerprint
 from openguildkit.references import _validate_family, load_references
 from openguildkit.storage import write_json
 from openguildkit.tools import load_tools

@@ -16,9 +16,10 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit import light_lane, profile_cli, surfaces
-from openguildkit.decisions import check_decision_seal, record_digest
-from openguildkit.project import profile_fingerprint, validate_profile
+from openguildkit import profile_changes, short_lane, surfaces
+from openguildkit.decisions import check_decision_seal, export_digest
+from openguildkit.project import validate_profile
+from openguildkit.project_rules import profile_fingerprint
 from openguildkit.storage import write_json
 from tests.support import registry_days_on_the_real_clock, run_cli, subprocess_environment
 
@@ -28,16 +29,16 @@ DOCS_AND_TESTS = ["docs/**", "tests/**"]
 
 class PathRuleTests(unittest.TestCase):
     def test_an_entry_is_a_folder_or_file_glob_inside_the_project(self):
-        self.assertEqual(light_lane.normalize_entries(["tests/**", "docs/", " docs/** ", "README.md"], "light_paths"),
+        self.assertEqual(short_lane.normalize_entries(["tests/**", "docs/", " docs/** ", "README.md"], "light_paths"),
                          ["README.md", "docs/**", "tests/**"])
         for entry in ("", "  ", "/etc/passwd", "../x", "docs/../x", "docs/./x", "docs//x", "docs\\x", "**", "**/*.md",
                       "docs/[ab].md", "docs/{a,b}", "docs/!x", "docs/a**b", ".", 3, None):
             with self.subTest(entry=entry), self.assertRaises(ValueError):
-                light_lane.normalize_entries([entry], "light_paths")
+                short_lane.normalize_entries([entry], "light_paths")
         with self.assertRaises(ValueError):
-            light_lane.normalize_entries([], "paths")
+            short_lane.normalize_entries([], "paths")
         with self.assertRaises(ValueError):
-            light_lane.normalize_entries([f"docs/f{index}.md" for index in range(light_lane.MAX_PATHS + 1)], "paths")
+            short_lane.normalize_entries([f"docs/f{index}.md" for index in range(short_lane.MAX_PATHS + 1)], "paths")
 
     def test_rules_dependencies_the_profile_and_the_instructions_are_never_in_the_lane(self):
         excluded = (
@@ -52,28 +53,28 @@ class PathRuleTests(unittest.TestCase):
         )
         for path in excluded:
             with self.subTest(path=path):
-                self.assertTrue(light_lane.excluded_reason(path), path)
+                self.assertTrue(short_lane.excluded_reason(path), path)
         for path in ("docs/guide.md", "tests/test_a.py", "README.md", "src/app.py", "docs/package-notes.md",
                      ".github/CODEOWNERS", "CHANGELOG.md", "docs/workflows.md"):
             with self.subTest(path=path):
-                self.assertIsNone(light_lane.excluded_reason(path), path)
+                self.assertIsNone(short_lane.excluded_reason(path), path)
 
     def test_the_lane_never_covers_what_the_host_scan_reads_as_instructions_or_settings(self):
         for entry in (*surfaces.INSTRUCTION_PATHS, *surfaces.CONFIG_PATHS):
             with self.subTest(entry=entry):
-                self.assertTrue(light_lane.excluded_reason(entry), entry)
+                self.assertTrue(short_lane.excluded_reason(entry), entry)
                 if not Path(entry).suffix:  # A folder of the scan: what it holds is out too.
-                    self.assertTrue(light_lane.excluded_reason(f"{entry}/inside.md"), entry)
+                    self.assertTrue(short_lane.excluded_reason(f"{entry}/inside.md"), entry)
 
     def test_a_declared_path_that_names_an_excluded_file_or_reaches_into_a_folder_is_refused(self):
         for entry in (".openguildkit/**", ".openguildkit/project.json", "package.json", "docs/**/package.json",
                       ".github/**", ".github/workflows/*", ".github/workflows/ci.yml", "AGENTS.md", ".claude/**",
                       "**/requirements.txt".replace("**/", "docs/**/")):
             with self.subTest(entry=entry):
-                self.assertTrue(light_lane.declared_excluded(entry), entry)
+                self.assertTrue(short_lane.declared_excluded(entry), entry)
         for entry in ("docs/**", "tests/**", "*.md", "docs/*.md", "README.md", ".github/CODEOWNERS"):
             with self.subTest(entry=entry):
-                self.assertIsNone(light_lane.declared_excluded(entry), entry)
+                self.assertIsNone(short_lane.declared_excluded(entry), entry)
     def test_a_glob_matches_whole_paths_and_a_star_never_crosses_a_folder(self):
         cases = (
             ("docs/**", "docs/guide.md", True), ("docs/**", "docs/api/v1/index.md", True),
@@ -86,17 +87,17 @@ class PathRuleTests(unittest.TestCase):
         )
         for pattern, path, expected in cases:
             with self.subTest(pattern=pattern, path=path):
-                self.assertIs(light_lane.matches(pattern, path), expected)
+                self.assertIs(short_lane.matches(pattern, path), expected)
 
     def test_a_declared_path_is_covered_by_a_folder_of_the_profile_or_by_the_same_glob(self):
         light = ["docs/**", "tests/**", "README.md"]
         for entry in ("docs/**", "docs/guide.md", "docs/api/*.md", "tests/unit/**", "README.md", "tests/**"):
             with self.subTest(entry=entry):
-                self.assertTrue(light_lane.declared_covered(entry, light), entry)
+                self.assertTrue(short_lane.declared_covered(entry, light), entry)
         for entry in ("src/**", "docs", "*.md", "documents/**", "docs-old/**", "CHANGELOG.md", "test/**"):
             with self.subTest(entry=entry):
-                self.assertFalse(light_lane.declared_covered(entry, light), entry)
-        self.assertEqual(light_lane.outside_light_paths(["docs/a.md", "src/b.py", "x.txt"], ["docs/**"]),
+                self.assertFalse(short_lane.declared_covered(entry, light), entry)
+        self.assertEqual(short_lane.outside_light_paths(["docs/a.md", "src/b.py", "x.txt"], ["docs/**"]),
                          ["src/b.py", "x.txt"])
 
     def test_the_board_follows_the_paths_documentation_then_tests_else_engineering(self):
@@ -108,27 +109,27 @@ class PathRuleTests(unittest.TestCase):
         )
         for paths, board in cases:
             with self.subTest(paths=paths):
-                self.assertEqual(light_lane.board_for(paths)[0], board)
-                self.assertIn(paths[0], light_lane.board_for(paths)[1])
+                self.assertEqual(short_lane.board_for(paths)[0], board)
+                self.assertIn(paths[0], short_lane.board_for(paths)[1])
 
     def test_the_boards_the_lane_calls_for_are_boards_of_the_catalog(self):
         from openguildkit.catalog import load_catalog
 
         boards = load_catalog()["boards"]
-        for board in (light_lane.DOCS_BOARD, light_lane.TESTS_BOARD, light_lane.DEFAULT_BOARD):
+        for board in (short_lane.DOCS_BOARD, short_lane.TESTS_BOARD, short_lane.DEFAULT_BOARD):
             self.assertIn(board, boards)
 
     def test_an_excluded_file_stays_outside_a_glob_that_would_match_it(self):
-        self.assertTrue(light_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
-        self.assertFalse(light_lane.covers("docs/example/package.json", ["docs/**"], DOCS_AND_TESTS))
-        self.assertFalse(light_lane.covers("docs/AGENTS.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertTrue(short_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(short_lane.covers("docs/example/package.json", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(short_lane.covers("docs/AGENTS.md", ["docs/**"], DOCS_AND_TESTS))
 
     def test_a_file_is_covered_only_when_the_task_and_the_profile_both_cover_it(self):
-        self.assertTrue(light_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
-        self.assertFalse(light_lane.covers("tests/test_a.py", ["docs/**"], DOCS_AND_TESTS))
-        self.assertFalse(light_lane.covers("docs/guide.md", ["docs/**"], ["tests/**"]))
-        self.assertFalse(light_lane.covers("docs/guide.md", ["docs/**"], []))
-        self.assertFalse(light_lane.covers("Docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertTrue(short_lane.covers("docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(short_lane.covers("tests/test_a.py", ["docs/**"], DOCS_AND_TESTS))
+        self.assertFalse(short_lane.covers("docs/guide.md", ["docs/**"], ["tests/**"]))
+        self.assertFalse(short_lane.covers("docs/guide.md", ["docs/**"], []))
+        self.assertFalse(short_lane.covers("Docs/guide.md", ["docs/**"], DOCS_AND_TESTS))
 
 
 class PageTests(unittest.TestCase):
@@ -137,8 +138,8 @@ class PageTests(unittest.TestCase):
 
     def test_the_page_lists_everything_the_lane_never_covers(self):
         listed = self.section().split("## Never in the lane", 1)[1].split("## ", 1)[0].casefold()
-        never = (*light_lane._MANIFEST_NAMES, *light_lane._AGENT_FOLDERS, *light_lane._INSTRUCTION_NAMES,
-                 *(folder for folder, _ in light_lane._FOLDERS), *light_lane._MANIFEST_SUFFIXES)
+        never = (*short_lane._MANIFEST_NAMES, *short_lane._AGENT_FOLDERS, *short_lane._INSTRUCTION_NAMES,
+                 *(folder for folder, _ in short_lane._FOLDERS), *short_lane._MANIFEST_SUFFIXES)
         self.assertEqual([item for item in never if item not in listed], [])
         for word in ("requirements*.txt", "constraints*.txt"):
             self.assertIn(word, listed)
@@ -283,17 +284,17 @@ class ActivationTests(ProjectCase):
         catalog = load_catalog()
         before = {**self.profile()}
         after = {**before, "light_paths": ["docs/**", "tests/**"]}
-        on = profile_cli.weakening_changes(before, after, catalog)
+        on = profile_changes.weakening_changes(before, after, catalog)
         self.assertEqual(len(on), 1)
         self.assertEqual(on[0][1], ["profile", "set", "light-paths", "docs/**", "tests/**", "--by", "INITIALS", "--reason", "WHY"])
-        self.assertEqual(profile_cli.weakening_changes(after, {**after, "light_paths": ["docs/**"]}, catalog), [])
-        self.assertEqual(profile_cli.weakening_changes(after, before, catalog), [])
-        self.assertEqual(profile_cli.weakening_changes(after, after, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, {**after, "light_paths": ["docs/**"]}, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, before, catalog), [])
+        self.assertEqual(profile_changes.weakening_changes(after, after, catalog), [])
 
     def test_the_web_page_cannot_turn_the_lane_on_and_is_told_the_command(self):
         edited = {**self.profile(), "light_paths": ["docs/**"]}
-        with self.assertRaises(profile_cli.Weakening) as raised:
-            profile_cli.save_edited(self.root, self.root / ".openguildkit", edited, "Page", "Edited in the page")
+        with self.assertRaises(profile_changes.Weakening) as raised:
+            profile_changes.save_edited(self.root, self.root / ".openguildkit", edited, "Page", "Edited in the page")
         self.assertIn("short lane turned on for docs/**", str(raised.exception))
         self.assertNotIn("light_paths", self.profile())
 
@@ -590,7 +591,7 @@ class DecisionTests(LaneCase):
         self.assertIn("holds under the current rules", self.run_cli("task", "list", "--decisions")[0])
         # Whoever widens the paths of the record and recomputes its digest cannot recompute the approval's seal.
         wider = {**record, "paths": ["docs/**", "src/**"]}
-        wider["record_sha256"] = record_digest(wider)
+        wider["record_sha256"] = export_digest(wider)
         write_json(path, wider)
         listing, _ = self.run_cli("task", "list", "--decisions")
         self.assertIn("the lane or the paths of the record are not those that were approved", listing)
@@ -634,7 +635,7 @@ class OutputBudgetTests(LaneCase):
         # The lines the lane adds to the decision and to the handoff are short; the approval prompt that carries them
         # also holds the review, which has its own budget.
         task = self.task()
-        added = [*light_lane.decision_lines(task), light_lane.handoff_note(task), light_lane.scope_line(
+        added = [*short_lane.decision_lines(task), short_lane.handoff_note(task), short_lane.scope_line(
             task["consultation"]["scope"]["lane"])]
         for text in added:
             self.assertLessEqual(len(text.encode("utf-8")), 600, text)
@@ -888,7 +889,7 @@ LANE_CHILD = (
     "import json, sys\n"
     "from pathlib import Path\n"
     "sys.path.insert(0, sys.argv[1])\n"
-    "from tests.test_light_lane import LaneRun\n"
+    "from tests.test_short_lane import LaneRun\n"
     "print(json.dumps(LaneRun(Path(sys.argv[2])).play()))\n"
 )
 

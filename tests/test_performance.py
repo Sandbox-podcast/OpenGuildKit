@@ -118,7 +118,7 @@ class BudgetTableTests(unittest.TestCase):
 
     def test_each_budget_is_at_most_three_times_the_ratio_the_documentation_records(self):
         """Issue #538: budgets were 2.2 to 7.5 times the measure, so a doubling of the hook or the start passed."""
-        page = (REPO / "docs" / "testing.md").read_text(encoding="utf-8")
+        page = (REPO / "docs" / "testing" / "performance.md").read_text(encoding="utf-8")
         rows = page.split("| Command | median s | x start | x python |\n", 1)[1].split("\n\n", 1)[0].splitlines()[1:]
         table = {}
         for line in rows:
@@ -322,7 +322,7 @@ class CheckReadTests(unittest.TestCase):
                 return original(state, task_id)
 
             with patch("openguildkit.tasks.read_task", counting), patch("openguildkit.tasks_cli.read_task", counting), \
-                    patch("openguildkit.guard.read_task", counting), \
+                    patch("openguildkit.guard._read_task", counting), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as error:
                 self.assertEqual(main(["--project", str(root), "check"]), 0, error.getvalue())
         self.assertEqual(sorted(set(reads)), [f"task-{index}" for index in range(6)])
@@ -530,6 +530,28 @@ class StartupTests(unittest.TestCase):
         for module in ("tempfile", "openguildkit.cli", "openguildkit.tools", "openguildkit.mcp_mock"):
             with self.subTest(module=module):
                 self.assertNotIn(module, loaded)
+
+    def test_issue_539_the_active_edit_hook_imports_only_what_it_runs(self):
+        """Issue #539: the active hook imported 42 modules of the package, the task records, the rule plan, the
+        instruction files, the export and the CI checks included, to refuse an edit that no task covers."""
+        from openguildkit import guard
+
+        self.assertEqual(set(guard.NOT_COVERING), set(tasks.STATUSES) - {"approved"})
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.project(folder, "enforce")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(main(["--project", str(root), "task", "new", "A draft.", "--id", "draft"]), 0)
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard", "--hook",
+                            "pre-edit", stdin=hook)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        loaded = {name for name in imported(result.stderr) if name.startswith("openguildkit")}
+        for module in ("tasks", "project_rules", "project_instructions", "project_setup", "ci", "results", "workflow",
+                       "consultation", "sensitive", "detect", "routing", "delivered_review", "org_policy", "roles",
+                       "requester", "git", "shell", "doc_links", "wording", "stack_versions"):
+            with self.subTest(module=module):
+                self.assertNotIn(f"openguildkit.{module}", loaded)
+        self.assertLessEqual(len(loaded), 20, sorted(loaded))
 
     def test_version_answers_without_the_cli(self):
         """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""

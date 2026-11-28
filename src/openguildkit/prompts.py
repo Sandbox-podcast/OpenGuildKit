@@ -2,7 +2,7 @@
 
 import sys
 
-from .project import unsure_answers
+from .project_setup import unsure_answers
 from .terminal import interactive
 
 # A list this long is read by no one and its answer is almost always Enter: only the choices the default keeps are printed.
