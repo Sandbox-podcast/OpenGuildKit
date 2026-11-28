@@ -16,8 +16,7 @@
     "incremental": true,
     "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo",
     "types": ["vite/client", "node"],
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src", "tests", "scripts", "vite.config.ts", "playwright.config.ts"]
 }

@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- Web interface: `web/` type-checks with TypeScript 7.0.2 (`tsc -b`, `paths` relative, no `baseUrl`); TypeScript 6.0.2 stays installed as `typescript` for typescript-eslint, which does not support 7.0, and `npm run check:exports` reads the code with the parser Vite ships instead of the compiler API that 7.0 removed (#554)
 - JSON output: `check`, `task verify`, `task decide` and `task export` take `--json`; under `--json` an error is JSON on standard output (`schema_version`, `error.code`, `error.message`, `error.next`) with the same exit code; `OPENGUILDKIT_JSON_ENVELOPE=1` puts every `--json` answer in `{schema_version, command, data}`, off by default to keep the shape scripts and the web page read (#484)
 - Errors: an error of the task commands starts with its stable code, `OpenGuildKit [OGK-TASK-004]: Task already exists: x`; 13 codes, each raised from one place, are listed with their function and tests in `docs/errors.md` and `docs/agents/errors.json` (`scripts/build_errors.py`), and a test refuses a code raised twice or untested and a rise of the 717 uncoded errors (#487)
 - Types: `records.py` names the fields of a task and a profile (`TypedDict`) and the catalog's collections; `read_task`, `load_profile`, `project_catalog` and the 486 parameters named `task`, `profile` or `catalog` take them, mypy names an unknown key of a task, and mypy errors go from 216 to 209 (#507)

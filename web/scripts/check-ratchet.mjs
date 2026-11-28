@@ -75,7 +75,7 @@ function tool(root, bin, args) {
 }
 
 function unsafeIndexes(root) {
-  const run = tool(root, 'typescript/bin/tsc', ['-p', 'tsconfig.index.json', '--noEmit', '--pretty', 'false']);
+  const run = tool(root, '@typescript/native/bin/tsc', ['-p', 'tsconfig.index.json', '--noEmit', '--pretty', 'false']);
   if (run.status === null || (run.status !== 0 && !/error TS\d+/.test(run.stdout)))
     throw new Error(`tsc failed: ${run.stderr || run.stdout}`);
   return parseTsc(run.stdout);
