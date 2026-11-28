@@ -169,6 +169,53 @@ def resolve_tool(name: str, tools: dict) -> str:
     return matched[0]
 
 
+def _npm_names(folder: Path) -> set[str]:
+    """The dependencies and dev dependencies the package.json of a folder declares."""
+    names: set[str] = set()
+    package = folder / "package.json"
+    if package.is_file() and package.stat().st_size <= MAX_MANIFEST_BYTES:
+        try:
+            data = load_json(package)
+        except (OSError, ValueError):
+            data = {}
+        for section in ("dependencies", "devDependencies"):
+            if isinstance(data, dict) and isinstance(data.get(section), dict):
+                names.update(data[section])
+    return names
+
+
+def _pyproject_names(folder: Path) -> set[str]:
+    """The dependencies and optional dependencies the pyproject.toml of a folder declares, in lower case."""
+    pyproject = folder / "pyproject.toml"
+    if not pyproject.is_file() or pyproject.stat().st_size > MAX_MANIFEST_BYTES:
+        return set()
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        data = {}
+    project = data.get("project", {}) if isinstance(data.get("project"), dict) else {}
+    listed = list(project.get("dependencies", []) or [])
+    for extra in (project.get("optional-dependencies") or {}).values():
+        listed.extend(extra or [])
+    return {re.split(r"[\s\[<>=!~;]", str(item), maxsplit=1)[0].casefold() for item in listed}
+
+
+def _requirement_names(folder: Path) -> set[str]:
+    """The packages the requirements*.txt files of a folder list, in lower case."""
+    names: set[str] = set()
+    for requirements in sorted(folder.glob("requirements*.txt"))[:10]:
+        if requirements.is_file() and requirements.stat().st_size <= MAX_MANIFEST_BYTES:
+            try:
+                lines = requirements.read_text(encoding="utf-8-sig").splitlines()
+            except (OSError, ValueError):
+                lines = []
+            names.update(
+                re.split(r"[\s\[<>=!~;]", line.strip(), maxsplit=1)[0].casefold()
+                for line in lines if line.strip() and not line.lstrip().startswith(("#", "-"))
+            )
+    return names
+
+
 def _manifest_names(root: Path) -> tuple[set[str], set[str]]:
     """Dependency names declared at the project root and one level below."""
     npm, pypi = set(), set()
@@ -176,36 +223,9 @@ def _manifest_names(root: Path) -> tuple[set[str], set[str]]:
         path for path in root.iterdir() if path.is_dir() and path.name not in SKIPPED_DIRECTORIES and not path.name.startswith(".")
     )[:200] if root.is_dir() else []
     for folder in folders:
-        package = folder / "package.json"
-        if package.is_file() and package.stat().st_size <= MAX_MANIFEST_BYTES:
-            try:
-                data = load_json(package)
-            except (OSError, ValueError):
-                data = {}
-            for section in ("dependencies", "devDependencies"):
-                if isinstance(data, dict) and isinstance(data.get(section), dict):
-                    npm.update(data[section])
-        pyproject = folder / "pyproject.toml"
-        if pyproject.is_file() and pyproject.stat().st_size <= MAX_MANIFEST_BYTES:
-            try:
-                data = tomllib.loads(pyproject.read_text(encoding="utf-8-sig"))
-            except (OSError, ValueError):
-                data = {}
-            project = data.get("project", {}) if isinstance(data.get("project"), dict) else {}
-            listed = list(project.get("dependencies", []) or [])
-            for extra in (project.get("optional-dependencies") or {}).values():
-                listed.extend(extra or [])
-            pypi.update(re.split(r"[\s\[<>=!~;]", str(item), maxsplit=1)[0].casefold() for item in listed)
-        for requirements in sorted(folder.glob("requirements*.txt"))[:10]:
-            if requirements.is_file() and requirements.stat().st_size <= MAX_MANIFEST_BYTES:
-                try:
-                    lines = requirements.read_text(encoding="utf-8-sig").splitlines()
-                except (OSError, ValueError):
-                    lines = []
-                pypi.update(
-                    re.split(r"[\s\[<>=!~;]", line.strip(), maxsplit=1)[0].casefold()
-                    for line in lines if line.strip() and not line.lstrip().startswith(("#", "-"))
-                )
+        npm.update(_npm_names(folder))
+        pypi.update(_pyproject_names(folder))
+        pypi.update(_requirement_names(folder))
     return npm, {name.replace("_", "-") for name in pypi if name}
 
 
@@ -411,20 +431,8 @@ def plan_connections(
     read_only: bool = False,
 ) -> list[dict]:
     """One connection per server for the wanted tools ("jira" or "jira/atlassian-rovo"), whatever their case."""
-    if host not in HOSTS:
-        raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
-    if read_only and mock:
-        raise ValueError("--read-only selects a live server. Use --mock separately for synthetic data.")
-    settings = {key.casefold(): value for key, value in (settings or {}).items()}
-    token_env = {key.casefold(): value for key, value in (token_env or {}).items()}
+    settings, token_env = _plan_options(host, mock, settings, token_env, read_only)
     mocks = mocks or []
-    if any(isinstance(value, str) and looks_like_credential(value)
-           for values in settings.values() for value in values.values()):
-        raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
-                         "each person's environment, named with --token-env TOOL=VARIABLE.")
-    if any(not _variable_name(name) for name in token_env.values()):
-        raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
-                         "never the token itself, which stays in each person's environment.")
     plan, by_key = [], {}
     for name in wanted:
         typed, _, server_id = name.partition("/")
@@ -438,15 +446,7 @@ def plan_connections(
         tool = tools[tool_id]
         origin = {"origin": PROJECT_ORIGIN} if tool.get("origin") == PROJECT_ORIGIN else {}
         if mock:
-            if tool_id not in mocks:
-                plan.append({"tool": tool_id, "title": tool["title"], "mode": "mock",
-                             "skipped": "No mock is available for this tool.", **origin})
-                continue
-            plan.append({
-                "tool": tool_id, "title": tool["title"], "server": "mock", "key": tool_id, "mode": "mock",
-                "transport": "stdio", "needs": {"env": [], "settings": []}, "warnings": [],
-                "steps": ["Synthetic data only: no account, no network."], "entry": mock_entry(host, tool_id, log), **origin,
-            })
+            plan.append(_mock_connection(tool_id, tool, mocks, host, log, origin))
             continue
         server = choose_server(tool, server_id or None, community, read_only=read_only)
         if server is None:
@@ -459,62 +459,108 @@ def plan_connections(
             _cover(by_key[server["id"]], tool, server)
             by_key[server["id"]].update(origin)
             continue
-        label = f"{tool_id}/{server['id']}"
-        filled, missing = _settings(server, settings.get(tool_id, {}), label)
-        bearer = token_env.get(tool_id)
-        if bearer is not None and server["transport"] == "stdio":
-            raise ValueError(f"{label}: --token-env names an environment variable, for a remote server.")
-        warnings, steps = [], []
-        if server["publisher"] == "community":
-            warnings.append(f"Community server maintained by {server['maintainer']}: review {server.get('repository', server['source'])} before use.")
-        if server["status"] in ("beta", "preview", "experimental"):
-            warnings.append(f"The publisher marks this server as {server['status']}.")
-        if host == "codex" and server["transport"] == "sse":
-            plan.append({"tool": tool_id, "title": tool["title"], "mode": "live",
-                         "skipped": "Codex connects to streamable HTTP and stdio servers; this one is SSE only."})
-            continue
-        facts = review_facts(tool, server, bearer)
-        if read_only and "read_only" in server:
-            server = _read_only_server(server)
-            steps.append(f"Read-only mode selected: {server['read_only']['how']}")
-        elif read_only:
-            warnings.append(("No read-only mode is documented by the publisher" if "reviewed" in server else
-                             f"No read-only mode is recorded in the registry yet (read {server['source']})")
-                            + ": give the account read-only permissions instead.")
-        if server["transport"] == "sse":
-            warnings.append("SSE transport is deprecated by hosts: prefer a streamable HTTP server when the publisher offers one.")
-        if server["transport"] == "stdio":
-            steps.append(f"Install {server['package']['name']} ({server['package']['registry']}) so that "
-                         f"`{_fill(server['command'], filled)}` runs on each workstation.")
-            if server["env"]:
-                steps.append("Set in each person's environment, never in a file: " + ", ".join(server["env"]) + ".")
-        elif bearer:
-            steps.append(f"Set {bearer} in each person's environment, never in a file.")
-        elif server["auth"] in ("oauth", "oauth-or-token"):
-            steps.append("Each person signs in once: /mcp in Claude Code." if host == "claude-code"
-                         else f"Each person signs in once: codex mcp login {server['id']}.")
-        elif server["auth"] == "api-token":
-            warnings.append("This server needs a token: pass --token-env TOOL=VARIABLE, or see its source for the header it expects.")
-        if missing:
-            described = {item["name"]: item["description"] for item in server.get("settings", [])}
-            steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE ({described[name]})"
-                                                          for name in missing) + ".")
-        item = {
-            "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
-            "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],
-            "status": server["status"], "source": server["source"], "verified": server["verified"],
-            "needs": {"env": list(server["env"]) + ([bearer] if bearer else []), "settings": missing},
-            "settings": filled, "warnings": warnings, "steps": steps, "review": facts,
-            "read_only": bool(read_only and "read_only" in server),
-            "entry": host_entry(host, server, filled, bearer), **origin,
-        }
-        if bearer:
-            item["token_env"] = bearer
-        if "license" in server:
-            item["license"] = server["license"]
-        by_key[server["id"]] = item
+        item = _live_connection(tool_id, tool, server, host, settings.get(tool_id, {}), token_env.get(tool_id),
+                                read_only, origin)
+        if "skipped" not in item:
+            by_key[item["key"]] = item
         plan.append(item)
     return plan
+
+
+def _plan_options(host: str, mock: bool, settings: dict | None, token_env: dict | None,
+                  read_only: bool) -> tuple[dict, dict]:
+    """The settings and token variables of tools connect keyed by tool, whatever their case, once the host and the
+    options are checked: no credential in --set, a variable name in --token-env."""
+    if host not in HOSTS:
+        raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
+    if read_only and mock:
+        raise ValueError("--read-only selects a live server. Use --mock separately for synthetic data.")
+    settings = {key.casefold(): value for key, value in (settings or {}).items()}
+    token_env = {key.casefold(): value for key, value in (token_env or {}).items()}
+    if any(isinstance(value, str) and looks_like_credential(value)
+           for values in settings.values() for value in values.values()):
+        raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
+                         "each person's environment, named with --token-env TOOL=VARIABLE.")
+    if any(not _variable_name(name) for name in token_env.values()):
+        raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
+                         "never the token itself, which stays in each person's environment.")
+    return settings, token_env
+
+
+def _mock_connection(tool_id: str, tool: dict, mocks: list[str], host: str, log: str | None, origin: dict) -> dict:
+    """The connection to the synthetic server of a tool, or why there is none."""
+    if tool_id not in mocks:
+        return {"tool": tool_id, "title": tool["title"], "mode": "mock",
+                "skipped": "No mock is available for this tool.", **origin}
+    return {
+        "tool": tool_id, "title": tool["title"], "server": "mock", "key": tool_id, "mode": "mock",
+        "transport": "stdio", "needs": {"env": [], "settings": []}, "warnings": [],
+        "steps": ["Synthetic data only: no account, no network."], "entry": mock_entry(host, tool_id, log), **origin,
+    }
+
+
+def _live_connection(tool_id: str, tool: dict, server: dict, host: str, given: dict, bearer: str | None,
+                     read_only: bool, origin: dict) -> dict:
+    """The connection to the live server chosen for a tool, with its warnings, steps and host entry; skipped when
+    the host cannot reach its transport."""
+    label = f"{tool_id}/{server['id']}"
+    filled, missing = _settings(server, given, label)
+    if bearer is not None and server["transport"] == "stdio":
+        raise ValueError(f"{label}: --token-env names an environment variable, for a remote server.")
+    warnings, steps = [], []
+    if server["publisher"] == "community":
+        warnings.append(f"Community server maintained by {server['maintainer']}: review {server.get('repository', server['source'])} before use.")
+    if server["status"] in ("beta", "preview", "experimental"):
+        warnings.append(f"The publisher marks this server as {server['status']}.")
+    if host == "codex" and server["transport"] == "sse":
+        return {"tool": tool_id, "title": tool["title"], "mode": "live",
+                "skipped": "Codex connects to streamable HTTP and stdio servers; this one is SSE only."}
+    facts = review_facts(tool, server, bearer)
+    if read_only and "read_only" in server:
+        server = _read_only_server(server)
+        steps.append(f"Read-only mode selected: {server['read_only']['how']}")
+    elif read_only:
+        warnings.append(("No read-only mode is documented by the publisher" if "reviewed" in server else
+                         f"No read-only mode is recorded in the registry yet (read {server['source']})")
+                        + ": give the account read-only permissions instead.")
+    if server["transport"] == "sse":
+        warnings.append("SSE transport is deprecated by hosts: prefer a streamable HTTP server when the publisher offers one.")
+    _access_steps(server, host, filled, bearer, warnings, steps)
+    if missing:
+        described = {item["name"]: item["description"] for item in server.get("settings", [])}
+        steps.append("Still to provide: " + ", ".join(f"--set {tool_id}.{name}=VALUE ({described[name]})"
+                                                      for name in missing) + ".")
+    item = {
+        "tool": tool_id, "title": tool["title"], "server": server["id"], "key": server["id"], "mode": "live",
+        "covers": [tool_id], "publisher": server["publisher"], "transport": server["transport"], "auth": server["auth"],
+        "status": server["status"], "source": server["source"], "verified": server["verified"],
+        "needs": {"env": list(server["env"]) + ([bearer] if bearer else []), "settings": missing},
+        "settings": filled, "warnings": warnings, "steps": steps, "review": facts,
+        "read_only": bool(read_only and "read_only" in server),
+        "entry": host_entry(host, server, filled, bearer), **origin,
+    }
+    if bearer:
+        item["token_env"] = bearer
+    if "license" in server:
+        item["license"] = server["license"]
+    return item
+
+
+def _access_steps(server: dict, host: str, filled: dict, bearer: str | None, warnings: list[str],
+                  steps: list[str]) -> None:
+    """How each person reaches the server: install its package, set its variables, or sign in."""
+    if server["transport"] == "stdio":
+        steps.append(f"Install {server['package']['name']} ({server['package']['registry']}) so that "
+                     f"`{_fill(server['command'], filled)}` runs on each workstation.")
+        if server["env"]:
+            steps.append("Set in each person's environment, never in a file: " + ", ".join(server["env"]) + ".")
+    elif bearer:
+        steps.append(f"Set {bearer} in each person's environment, never in a file.")
+    elif server["auth"] in ("oauth", "oauth-or-token"):
+        steps.append("Each person signs in once: /mcp in Claude Code." if host == "claude-code"
+                     else f"Each person signs in once: codex mcp login {server['id']}.")
+    elif server["auth"] == "api-token":
+        warnings.append("This server needs a token: pass --token-env TOOL=VARIABLE, or see its source for the header it expects.")
 
 
 def _cover(item: dict, tool: dict, server: dict) -> None:
@@ -546,21 +592,33 @@ def _recorded_tool_refs(logs: set[Path], wanted: set[str]) -> set[str]:
     matched = set()
     for path in logs:
         try:
-            with path.open(encoding="utf-8", errors="replace") as journal:
-                for line in journal:
-                    try:
-                        call = json.loads(line)
-                    except (ValueError, RecursionError):
-                        continue
-                    if not isinstance(call, dict) or not isinstance(call.get("arguments"), dict):
-                        continue
-                    matched.update(f"{call.get('tool')}:{value}" for value in call["arguments"].values()
-                                   if isinstance(value, str) and f"{call.get('tool')}:{value}" in wanted)
-                    if wanted <= matched:
-                        return matched
+            if _journal_refs(path, wanted, matched):
+                return matched
         except OSError:
             continue
     return matched
+
+
+def _journal_refs(path: Path, wanted: set[str], matched: set[str]) -> bool:
+    """Add to matched the wanted references the calls of one mock journal carry: True once all are matched."""
+    with path.open(encoding="utf-8", errors="replace") as journal:
+        for line in journal:
+            matched.update(_call_refs(line, wanted))
+            if wanted <= matched:
+                return True
+    return False
+
+
+def _call_refs(line: str, wanted: set[str]) -> set[str]:
+    """The wanted TOOL:VALUE references one journal line of a mock call carries in its arguments."""
+    try:
+        call = json.loads(line)
+    except (ValueError, RecursionError):
+        return set()
+    if not isinstance(call, dict) or not isinstance(call.get("arguments"), dict):
+        return set()
+    return {f"{call.get('tool')}:{value}" for value in call["arguments"].values()
+            if isinstance(value, str) and f"{call.get('tool')}:{value}" in wanted}
 
 
 def tool_evidence_warnings(root: Path, state: Path, boards: list[dict]) -> list[str]:
