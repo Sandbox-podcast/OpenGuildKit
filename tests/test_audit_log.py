@@ -247,6 +247,9 @@ class ExportTests(AuditCase):
         exported = self.root / "events.jsonl"
         exported.write_text(output, encoding="utf-8")
         self.assertIn("2 events, chain intact", self.run_cli("audit", "verify", exported)[0])
+        # Issue #454: on Windows the export written by print ends its lines with \r\n, and verify broke the chain.
+        exported.write_bytes(output.replace("\n", "\r\n").encode("utf-8"))
+        self.assertIn("2 events, chain intact", self.run_cli("audit", "verify", exported)[0])
         self.assertEqual(self.run_cli("audit", "export", "--since", change["at"][:10])[0].count("\n"), 2)
         self.assertEqual(self.run_cli("audit", "export", "--since", "2999-01-01")[0], "")
 
