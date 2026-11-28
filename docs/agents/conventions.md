@@ -329,7 +329,7 @@ Issue #507.
 **Why.** Subagents made 76 % of the cost of this project's sessions.
 `scripts/agent_cost.py` reads one file, counts each message 2.15 times and prints 0 subagents.
 
-**Check.** `AgentCostTests` in `tests/test_agent_native.py`, to extend with a session folder holding one subagent file and two models.
+**Check.** `AgentCostTests` in `tests/test_agent_cost.py`, to extend with a session folder holding one subagent file and two models.
 
 **Today.** Done for the session folder, the message counted once and the price by model (a model without a rate is named, none but one has a rate yet); the total is not yet tied to a task.
 Issue #485.
