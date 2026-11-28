@@ -587,6 +587,7 @@ Show or apply the rules the host agent can enforce, or scan its files.
 - `--command HOOK_COMMAND`: With managed: the command the hooks run (default openguildkit; give a full path).
 - `--allow FILE`: With scan: an allow list of MCP servers, models and provider addresses; what it does not name is an error.
 - `--block-on-failure`: With managed and Claude Code: refuse an edit when the hook cannot start (onFailure block).
+- `--matrix`: With check: print the coverage of every host and surface; needs no project.
 
 ## update
 

@@ -134,11 +134,10 @@ class PathRuleTests(unittest.TestCase):
 
 class PageTests(unittest.TestCase):
     def section(self) -> str:
-        text = (REPO / "docs" / "workflow.md").read_text(encoding="utf-8")
-        return text.split("\n## Short lane\n", 1)[1].split("\n## ", 1)[0]
+        return (REPO / "docs" / "workflow" / "short-lane.md").read_text(encoding="utf-8")
 
     def test_the_page_lists_everything_the_lane_never_covers(self):
-        listed = self.section().split("### Never in the lane", 1)[1].split("### ", 1)[0].casefold()
+        listed = self.section().split("## Never in the lane", 1)[1].split("## ", 1)[0].casefold()
         never = (*light_lane._MANIFEST_NAMES, *light_lane._AGENT_FOLDERS, *light_lane._INSTRUCTION_NAMES,
                  *(folder for folder, _ in light_lane._FOLDERS), *light_lane._MANIFEST_SUFFIXES)
         self.assertEqual([item for item in never if item not in listed], [])
@@ -1004,6 +1003,22 @@ class BeforeTheShortLaneTests(unittest.TestCase):
         revision = patch("openguildkit.doc_links._revision", return_value="main")
         revision.start()
         self.addCleanup(revision.stop)
+        # An upgrade that raises INSTRUCTIONS_LAYOUT asks for one openguildkit sync, which rewrites AGENTS.md alone.
+        run_cli(self.root, "sync")
+
+    def test_the_block_of_the_old_layout_reads_out_of_date_and_sync_rewrites_it_alone(self):
+        """Issue #493: the managed block said --by NAME; changing it without raising its layout reads as hand edits."""
+        (self.root / "AGENTS.md").write_bytes(BEFORE["files"]["AGENTS.md"].encode("utf-8"))
+        check = run_cli(self.root, "check", expect=1)
+        self.assertIn("OpenGuildKit instructions are out of date. Run openguildkit sync.", check.stderr)
+        self.assertNotIn("edited by hand", check.stderr)
+        self.assertEqual(run_cli(self.root, "sync").stdout, "OpenGuildKit instructions updated.\n")
+        block = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("--by NAME", block)
+        self.assertEqual(block.count("--by INITIALS"), 4)
+        for name, content in BEFORE["files"].items():
+            if name != "AGENTS.md":
+                self.assertEqual((self.root / name).read_text(encoding="utf-8"), content, name)
 
     def test_every_command_prints_what_it_printed_before_the_lane(self):
         for name, expected in BEFORE["expected"].items():

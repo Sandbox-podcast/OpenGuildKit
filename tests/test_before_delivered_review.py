@@ -34,6 +34,8 @@ class BeforeDeliveredReviewTests(unittest.TestCase):
         clock = patch("openguildkit.clock.real_now", return_value=datetime.fromisoformat(BEFORE["now"]))
         clock.start()
         self.addCleanup(clock.stop)
+        # An upgrade that raises INSTRUCTIONS_LAYOUT asks for one openguildkit sync, which rewrites AGENTS.md alone.
+        run_cli(self.root, "sync")
 
     def run_old(self, command: str):
         result = run_cli(self.root, *shlex.split(command), expect=None)
