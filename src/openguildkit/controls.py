@@ -91,11 +91,8 @@ def _mapping(entry: object, where: str, frameworks: list) -> None:
         raise ValueError(f"{where}: checked is the day the source was read, YYYY-MM-DD, not in the future.")
 
 
-def validate(data: dict) -> None:
-    """Refuse a registry that names an unknown framework, a control twice, or a clause without its source and its day."""
-    if not isinstance(data, dict) or data.keys() != {"schema_version", "frameworks", "framework_notes", "controls"} \
-            or data["schema_version"] != 1:
-        raise ValueError("controls.json holds schema_version 1, frameworks, framework_notes and controls.")
+def _frameworks(data: dict) -> list:
+    """The frameworks of the registry, each a reference of the catalog listed once with a note on how it was read."""
     frameworks = data["frameworks"]
     unknown = [item for item in frameworks if item not in _references()]
     if unknown or len(set(frameworks)) != len(frameworks):
@@ -106,6 +103,15 @@ def validate(data: dict) -> None:
                          "why it was not.")
     for name in frameworks:
         _require_line(notes[name], f"framework_notes: {name}")
+    return frameworks
+
+
+def validate(data: dict) -> None:
+    """Refuse a registry that names an unknown framework, a control twice, or a clause without its source and its day."""
+    if not isinstance(data, dict) or data.keys() != {"schema_version", "frameworks", "framework_notes", "controls"} \
+            or data["schema_version"] != 1:
+        raise ValueError("controls.json holds schema_version 1, frameworks, framework_notes and controls.")
+    frameworks = _frameworks(data)
     seen = set()
     for item in data["controls"]:
         if not isinstance(item, dict) or item.keys() != FIELDS or not ID.fullmatch(str(item["id"])):
