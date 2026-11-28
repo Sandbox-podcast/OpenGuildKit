@@ -116,13 +116,14 @@ class CleanErrorTests(unittest.TestCase):
             stderr = io.StringIO()
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
                 self.assertEqual(main(["--project", str(missing), *command]), 1)
-            self.assertEqual(stderr.getvalue().strip(), f"OpenGuildKit: The project folder {missing.as_posix()} does not "
+            self.assertEqual(stderr.getvalue().strip(), f"OpenGuildKit [OGK-CLI-001]: The project folder {missing.as_posix()} does not "
                              "exist. Check --project, or create the folder and run openguildkit init in it.")
         (self.root / "file.txt").write_text("x", encoding="utf-8")
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             self.assertEqual(main(["--project", str(self.root / "file.txt"), "check"]), 1)
         self.assertIn("file.txt is not a folder", stderr.getvalue())
+        self.assertTrue(stderr.getvalue().startswith("OpenGuildKit [OGK-CLI-002]: The project folder "), stderr.getvalue())
 
     def test_hand_edited_task_records_are_reported_as_damaged(self):
         self.init()

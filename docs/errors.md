@@ -98,6 +98,10 @@ The register holds the message of each code as the code writes it and the tests 
 - `check_export`: OGK-CI-005
 - `read_policy_pack`: OGK-CI-004
 
+### cli.py
+
+- `main`: OGK-CLI-001, OGK-CLI-002
+
 ### clock.py
 
 - `_source_date_epoch`: OGK-CORE-001
