@@ -175,6 +175,74 @@ def _setup_warnings(root: Path, framework: str) -> list[str]:
     return warnings
 
 
+def _variants_by_component(proposals: dict, components: dict, skipped: list) -> dict[str, list]:
+    """The validated variants of each validated component; a variant of another component is skipped."""
+    by_component: dict[str, list] = {key: [] for key in components}
+    for variant in proposals["variants"]:
+        if variant["status"] != "validated":
+            continue
+        if variant["component"] in by_component:
+            by_component[variant["component"]].append(variant)
+        else:
+            skipped.append({"key": variant["key"], "reason": "its component is not validated"})
+    return by_component
+
+
+def _component_story(key: str, component: dict, variants: list, out: Path, root: Path, framework: str,
+                     skipped: list, warnings: list) -> tuple[Path, str] | None:
+    """The story file of a validated component and its text, or None when it has no definition in the project."""
+    if "file" not in component or "export" not in component:
+        skipped.append({"key": key, "reason": "no definition in the application"})
+        return None
+    if component["file"].startswith(OUTSIDE):
+        skipped.append({"key": key, "reason": f"defined outside the project ({component['file']}); copy it into "
+                                              "the project or extract from a folder next to it"})
+        return None
+    name = key.split(":", 1)[1]
+    args = _story_args(component)
+    missing = [prop for prop in component.get("required_props", []) if prop not in args
+               and (not variants or any(prop not in variant["props"] for variant in variants))]
+    if missing:
+        warnings.append(f"{name}: add sample args for {', '.join(missing)} in the proposals or the story.")
+    return out / f"{name}.stories.tsx", _story_file(component, variants, args, out, root, framework)
+
+
+def _token_tree(proposals: dict, skipped: list) -> dict:
+    """The validated tokens as a Design Tokens tree grouped by the dotted parts of their names."""
+    tokens: dict = {}
+    for item in proposals["tokens"]:
+        if item["status"] != "validated":
+            continue
+        token = _dtcg_token(item)
+        if token is None:
+            skipped.append({"key": item["key"], "reason": "no Design Tokens type for this value"})
+            continue
+        group = tokens
+        *parents, last = item["name"].split(".")
+        for part in parents:
+            group = group.setdefault(part, {})
+        group[last] = token
+    return tokens
+
+
+def _write_generated_file(root: Path, path: Path, content: str, manifest: dict, result: dict) -> None:
+    """Write one generated file unless it is unchanged or the team changed it since it was generated."""
+    relative = committed_path(root, path)
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    if path.exists():
+        current = file_sha256(path)
+        if current == digest:
+            result["unchanged"].append(relative)
+            manifest["files"][relative] = digest
+            return
+        if manifest["files"].get(relative) != current:
+            result["kept"].append(relative)
+            return
+    write_text(path, content)
+    manifest["files"][relative] = digest
+    result["written"].append(relative)
+
+
 def generate(root: Path, state: Path, proposals_path: Path | None = None, out: Path | None = None,
              framework: str | None = None) -> dict:
     """Write DTCG tokens, CSF3 stories and an index for the validated proposals only.
@@ -189,50 +257,19 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
         raise ValueError("Generate the design system inside the project.")
     components = {item["key"]: item for item in proposals["components"] if item["status"] == "validated"}
     files: dict[Path, str] = {}
-    skipped = []
-    warnings = []
-    by_component: dict[str, list] = {key: [] for key in components}
-    for variant in proposals["variants"]:
-        if variant["status"] != "validated":
-            continue
-        if variant["component"] in by_component:
-            by_component[variant["component"]].append(variant)
-        else:
-            skipped.append({"key": variant["key"], "reason": "its component is not validated"})
+    skipped: list[dict] = []
+    warnings: list[str] = []
+    by_component = _variants_by_component(proposals, components, skipped)
     names = [item["key"].split(":", 1)[1] for item in components.values()]
     if len(set(name.casefold() for name in names)) != len(names):
         raise ValueError("Two validated components share a name.")
     for key, component in components.items():
-        if "file" not in component or "export" not in component:
-            skipped.append({"key": key, "reason": "no definition in the application"})
-            continue
-        if component["file"].startswith(OUTSIDE):
-            skipped.append({"key": key, "reason": f"defined outside the project ({component['file']}); copy it into "
-                                                  "the project or extract from a folder next to it"})
-            continue
-        name = key.split(":", 1)[1]
-        args = _story_args(component)
-        variants = by_component[key]
-        missing = [prop for prop in component.get("required_props", []) if prop not in args
-                   and (not variants or any(prop not in variant["props"] for variant in variants))]
-        if missing:
-            warnings.append(f"{name}: add sample args for {', '.join(missing)} in the proposals or the story.")
-        files[out / f"{name}.stories.tsx"] = _story_file(component, variants, args, out, root, framework)
+        story = _component_story(key, component, by_component[key], out, root, framework, skipped, warnings)
+        if story is not None:
+            files[story[0]] = story[1]
     if files:
         warnings.extend(_setup_warnings(root, framework))
-    tokens: dict = {}
-    for item in proposals["tokens"]:
-        if item["status"] != "validated":
-            continue
-        token = _dtcg_token(item)
-        if token is None:
-            skipped.append({"key": item["key"], "reason": "no Design Tokens type for this value"})
-            continue
-        group = tokens
-        *parents, last = item["name"].split(".")
-        for part in parents:
-            group = group.setdefault(part, {})
-        group[last] = token
+    tokens = _token_tree(proposals, skipped)
     if tokens:
         files[out / "design.tokens.json"] = json_text(tokens)
     exported = [component for component in components.values()
@@ -245,20 +282,7 @@ def generate(root: Path, state: Path, proposals_path: Path | None = None, out: P
         manifest = read_json(manifest_path) if manifest_path.exists() else {"schema_version": 1, "files": {}}
         result = {"framework": framework, "written": [], "unchanged": [], "kept": [], "skipped": skipped}
         for path, content in sorted(files.items(), key=lambda item: item[0].as_posix()):
-            relative = committed_path(root, path)
-            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-            if path.exists():
-                current = file_sha256(path)
-                if current == digest:
-                    result["unchanged"].append(relative)
-                    manifest["files"][relative] = digest
-                    continue
-                if manifest["files"].get(relative) != current:
-                    result["kept"].append(relative)
-                    continue
-            write_text(path, content)
-            manifest["files"][relative] = digest
-            result["written"].append(relative)
+            _write_generated_file(root, path, content, manifest, result)
         result["left"] = sorted(path for path in manifest["files"]
                                 if path not in {committed_path(root, item) for item in files} and (root / path).exists())
         write_json(manifest_path, manifest)
