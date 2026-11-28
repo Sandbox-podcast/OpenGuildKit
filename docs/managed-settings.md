@@ -37,8 +37,21 @@ The Gemini CLI file replaces the system file already there: merge it by hand.
 | Axis of the list | Claude Code | Codex | Gemini CLI |
 |---|---|---|---|
 | `models` | `availableModels`, the list as it is: a model outside it cannot be selected | not written: no managed key for models was read | not written: no key that restricts models was read |
-| `mcp_servers` | `allowedMcpServers`, one `serverUrl` entry per address, when the list names only addresses; an empty list blocks every server users add | not written: an approved server of `requirements.toml` is matched by its name and its identity, and the list holds no name | not written: `mcp.allowed` lists servers by name |
+| `mcp_servers` | `allowedMcpServers`, one `serverUrl` entry per address, when the list names only addresses; an empty list blocks every server users add | the approved list `[mcp_servers]` of `requirements.toml`, a table per server keyed by its `name`, with `identity = { url = ... }` for an address and `identity = { command = ... }` for `command:PROGRAM`, when every server has a name and none is a package; an empty list turns off every server | `mcp.allowed`, the names of the servers, when every server has a name and the list is not empty |
 | `endpoints` | not written: no managed key for a provider address was read | not written | not written |
+
+Codex and Gemini CLI allow a server by its name, so a server of the list may carry one:
+
+```json
+{"allow": {"mcp_servers": [{"server": "https://mcp.example.com/mcp", "name": "docs"}, {"server": "command:basecamp", "name": "basecamp"}]}}
+```
+
+The name is the one the projects give the server in their host settings (the key under `mcpServers` or `[mcp_servers]`), made of letters, digits, `-` and `_`, and two servers cannot share one.
+`host scan` reads the `server` alone.
+A list where a server has no name is not written for Codex and Gemini CLI, and neither is a Codex list with a package (`npm:`, `pypi:`, `docker:`): Codex matches such a server by its program and each of its arguments, which the list does not hold, and a partial list would turn off the servers it leaves out.
+`mcp.allowed` of Gemini CLI matches a name only, and Gemini CLI runs the tools of a listed server without asking: its enterprise page advises defining each approved server under `mcpServers` of the same system file, which a user cannot override.
+The list holds no command to write there, so add those definitions by hand.
+What an empty `mcp.allowed` does is on no page: à vérifier, and not written.
 
 A list that names a server by package or command (`npm:@playwright/mcp`, `command:basecamp`) leaves `allowedMcpServers` out: Claude Code matches a local server by its exact command line (`serverCommand`), which the list does not hold, and a list with only the addresses would block every other local server.
 What is not written is said on standard error, or in the output with `--output`. Without `--allow`, the files are as above.
@@ -49,8 +62,8 @@ What is not written is said on standard error, or in the output with `--output`.
 The paths, the channels and the key names come from these pages, read on 2026-11-28:
 
 - Claude Code: https://code.claude.com/docs/en/managed-settings.md (the files, the folder `managed-settings.d/` next to `managed-settings.json` in the system folder of each system, the profile and the registry key) and https://code.claude.com/docs/en/settings-reference.md (`allowManagedHooksOnly`, `permissions.disableBypassPermissionsMode` and its value `"disable"`, `availableModels`, `allowedMcpServers` and its entries `serverName`, `serverCommand`, `serverUrl`).
-- Codex: https://learn.chatgpt.com/docs/enterprise/managed-configuration.md (`requirements.toml`, `/etc/codex/` on Linux and macOS, the MDM key, the pin of `[features].hooks`, the approved list `mcp_servers`) and https://developers.openai.com/codex/hooks.md (managed hooks under `[hooks]` of `requirements.toml`, `allow_managed_hooks_only`).
-- Gemini CLI: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md (the system settings file and its places, which overrides the other files; `hooks`, `hooksConfig.enabled` and `mcp.allowed` among the settings of every file).
+- Codex: https://learn.chatgpt.com/docs/enterprise/managed-configuration.md (`requirements.toml`, `/etc/codex/` on Linux and macOS, the MDM key, the pin of `[features].hooks`, the approved list `mcp_servers`: a table per server name with an `identity` of `command` or `url`, a server enabled only when its name and its identity match, an empty list that turns off every server, no key for models or provider addresses) and https://developers.openai.com/codex/hooks.md (managed hooks under `[hooks]` of `requirements.toml`, `allow_managed_hooks_only`).
+- Gemini CLI: https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/reference/configuration.md (the system settings file and its places, which overrides the other files; `hooks`, `hooksConfig.enabled` and `mcp.allowed` among the settings of every file; no setting that restricts models), https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/tools/mcp-server.md (`mcp.allowed`, a list of server names, the keys of `mcpServers`) and https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/enterprise.md (`mcp.allowed` in the system file, the tool calls of a listed server approved without asking, a server defined in the system file that a user cannot override).
 
 Not written, by choice:
 

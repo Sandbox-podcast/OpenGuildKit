@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `host managed --allow FILE`: a server of the allow list may carry a `name` (`{"server": ..., "name": ...}`), and a list whose servers all have one becomes the approved `[mcp_servers]` of Codex `requirements.toml` (address or program as identity) and `mcp.allowed` of Gemini CLI, per their pages read on 2026-11-28 (#480)
 - `tools status` and `init --questions`: a `.mcp.json` or `package.json` nested too deeply now stops the command with exit 1 and one line `OpenGuildKit: <path>: JSON nested too deeply`, instead of being left aside with exit 0; a file that is not valid JSON is still left aside (#460)
 - JSON files of a project: a file nested too deeply (200 000 `[`) in the tools, deliverables or tool mocks of the catalog, or in `.claude/settings.json`, is refused in one line `OpenGuildKit: <path>: JSON nested too deeply` instead of a Python traceback; in `.mcp.json` or `package.json` it is left aside like any invalid file (#460)
 - `task verify`: a check that runs past its time limit keeps what it printed as text in its log, accents and line breaks included, instead of `b'...'` (#510)
