@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -6,7 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright's bundled browser instead (after `npx playwright install chromium`).
  */
 const channel = process.env.PW_CHANNEL ?? 'chrome';
-const port = Number(process.env.PW_PORT ?? 5201);
+// A port of each copy of the repository, drawn from its path: two copies run their journeys at once (#518).
+const ownPort = 5201 + (parseInt(createHash('sha256').update(process.cwd()).digest('hex').slice(0, 8), 16) % 1000);
+const port = Number(process.env.PW_PORT ?? ownPort);
 const preview = process.env.PW_BASE_URL;
 
 export default defineConfig({

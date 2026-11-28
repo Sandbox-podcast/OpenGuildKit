@@ -158,6 +158,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 - Tests: `tests/test_dead_code.py` resolves each read to the module it reaches through the imports, so a function no longer passes for used because another module has one of the same name; it finds `webui.weakening_changes` and `patterns.VERSION_PATTERN`, listed as pending until their removal from `src/` (#511)
 - Contributors: `scripts/check_fast.py`, `scripts/run_tests.py` and `scripts/build_map.py` tell a Python older than 3.11 so in one line, and `python scripts/doctor.py` prints one line for each missing tool or wrong version (Python, Git, Node of `.nvmrc`, npm, `origin/main`, `web/node_modules`) and exits 1 (#520)
 - CI coordinator: the `ci-coordinator` job runs `tsc --checkJs` on `bin/`, `lib/` and `pilot/` (`integrations/ci/jsconfig.json`) and fails when the count of errors passes its ceiling, 59 today, which each fix lowers (#531)
+- Web journeys: `npm run e2e` and `npm run e2e:project` draw their default ports from the path of the copy of the repository (5201 to 6200, and four ports from 7322 to 11321), so two copies run their journeys at once; `PW_PORT` and `PW_PROJECT_PORT` still choose them (#518)
 
 ## 0.17.0
 

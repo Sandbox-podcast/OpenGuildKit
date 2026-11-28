@@ -64,11 +64,11 @@ Régénère les captures de `docs/captures-apres` (RPG) et `docs/captures-pro` a
 
 - Les décisions réservées au terminal (valider, retirer une validation, déroger, lever un blocage sans signature, autoriser une action externe, accepter ou écarter une alerte critique) ne passent jamais par l'interface. Ne « simplifie » pas `check_request` dans `src/openguildkit/webui.py`.
 - Après `npm run build`, une page ouverte doit être rechargée : les noms des fichiers changent.
-- `npm run e2e:project` refuse de démarrer si le port 7322 (`PW_PROJECT_PORT`) ou l’un des deux suivants est occupé, par exemple par le serveur d'une exécution précédente.
+- `npm run e2e:project` refuse de démarrer si son port (`PW_PROJECT_PORT`, tiré du chemin de la copie du dépôt entre 7322 et 11318) ou l’un des trois suivants est occupé, par exemple par le serveur d'une exécution précédente.
 - Le serveur garde le catalogue entre deux commandes (le cache de `catalog.py`, invalidé quand un fichier change) : un nouveau fichier que lit le chargement du catalogue doit entrer dans sa signature.
 - Pour mesurer, n'utilise pas un onglet en arrière-plan : Chrome y ralentit les minuteries. Utilise `npm run measure:project`.
 - Ne lance pas `npm ci` quand un serveur `vite` tourne sur ce dossier : Windows verrouille `@rolldown/.../*.node`. Arrête les serveurs d'abord, ou répare avec `npm install`.
-- Teste la démonstration sur un autre port que celui de ton serveur de développement (5199) : le localStorage est propre à chaque origine. `playwright.config.ts` utilise 5201 par défaut (`PW_PORT`).
+- Teste la démonstration sur un autre port que celui de ton serveur de développement (5199) : le localStorage est propre à chaque origine. `playwright.config.ts` tire par défaut un port entre 5201 et 6200 du chemin de la copie du dépôt (`PW_PORT`), si bien que deux copies lancent leurs parcours en même temps.
 - Les chaînes de l'interface sont en français avec l'apostrophe typographique `’` : les tests comparent des messages.
 - Démonstration : les règles métier vivent dans `src/domain` ; les composants appellent `dispatch(cmd.x, …)`. Mode réel : les règles sont celles de la CLI ; le front ne duplique aucune garde, il affiche le refus de la CLI.
 
