@@ -7,7 +7,6 @@ with who, when and why. Nothing here runs for a project that never calls them.
 """
 
 import os
-import sys
 from pathlib import Path
 
 from . import audit_log, org_policy_cli
@@ -43,7 +42,7 @@ from .project import load_profile, sync_instructions
 from .shell import shell_word
 from .storage import print_json, project_lock
 from .tasks import tasks_touched
-from .terminal import interactive
+from .terminal import typed
 
 __all__ = ["add_parser", "run", "unaccepted_replacements"]
 
@@ -80,11 +79,8 @@ def add_parser(commands) -> None:
 
 def _confirm(target: str, what: str) -> None:
     """A person types the target at an interactive terminal."""
-    if not interactive():
-        raise ValueError(f"To {what}, a person runs the command at an interactive terminal.")
-    print(f"Type {target} to {what}: ", end="", file=sys.stderr, flush=True)
-    if input().strip() != target:
-        raise ValueError("Cancelled. Nothing was written.")
+    typed(target, f"Type {target} to {what}: ", cancelled="Cancelled. Nothing was written.",
+          refusal=f"To {what}, a person runs the command at an interactive terminal.")
 
 
 def _person(args) -> dict:

@@ -1,5 +1,6 @@
 """A person at a terminal: standard input must be a console, not only a device whose isatty() is true (#357)."""
 
+import ast
 import io
 import os
 import re
@@ -52,6 +53,36 @@ class InteractiveTests(unittest.TestCase):
         callers = [path.name for path in SOURCE.rglob("*.py")
                    if path.name != "terminal.py" and re.search(r"stdin\.isatty\(", path.read_text(encoding="utf-8"))]
         self.assertEqual(callers, [])
+
+    def test_typed_refuses_without_a_terminal_and_compares_what_the_person_types(self):
+        """Issue #461: the act a person types is written once, and it reads nothing without a terminal."""
+        with patch("sys.stdin", io.StringIO("")), patch("builtins.input") as asked:
+            with self.assertRaisesRegex(ValueError, "^Run it at a terminal.$"):
+                terminal.typed("t1", "Type t1: ", refusal="Run it at a terminal.", cancelled="Cancelled.")
+            asked.assert_not_called()
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value=" t1 "), \
+                patch("sys.stderr", io.StringIO()) as stderr:
+            terminal.typed("t1", "Type t1: ", refusal="no", cancelled="Cancelled.")
+            self.assertEqual(stderr.getvalue(), "Type t1: ")
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="t2"), \
+                patch("sys.stderr", io.StringIO()), self.assertRaisesRegex(ValueError, "^Cancelled.$"):
+            terminal.typed("t1", "Type t1: ", refusal="no", cancelled="Cancelled.")
+
+    def test_no_module_compares_what_a_person_types_but_the_terminal_module(self):
+        """Issue #461: an ID typed at the prompt is compared in terminal.typed only (yes or no questions aside)."""
+        def reads_input(node):
+            return any(isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "input"
+                       for call in ast.walk(node))
+
+        comparisons = []
+        for path in sorted(SOURCE.rglob("*.py")):
+            if path.name == "terminal.py":
+                continue
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Compare) and any(isinstance(op, (ast.Eq, ast.NotEq)) for op in node.ops) \
+                        and reads_input(node):
+                    comparisons.append(f"{path.name}:{node.lineno}")
+        self.assertEqual(comparisons, [])
 
 
 class ActsOfAPersonTests(ResultCase):

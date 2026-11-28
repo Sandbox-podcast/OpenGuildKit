@@ -133,7 +133,7 @@ from .tasks import (
     waits_line,
     write_task,
 )
-from .terminal import interactive
+from .terminal import interactive, typed
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
 from .wording import plural
 from .workflow import (
@@ -595,6 +595,16 @@ def _selection(args) -> dict:
     return {"add": args.add, "remove": args.remove, "reason": args.reason, "delegate": delegate}
 
 
+def _save_decided(state: Path, task: dict, result: dict, still_holds=None) -> None:
+    """Write what the person decided, under the lock, unless the task changed while they read and typed."""
+    with project_lock(state):
+        if read_task(state, task["id"]) != task:
+            raise ValueError("The task changed while you were deciding. Review it and retry.")
+        if still_holds:
+            still_holds()
+        write_task(task_path(state, task["id"]), result)
+
+
 def _read_consultation(task: dict) -> dict:
     if "consultation" not in task:
         raise TaskStateError("The task has no consultation yet.")
@@ -604,20 +614,16 @@ def _read_consultation(task: dict) -> dict:
 def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> None:
     """The person withdraws an approval at their terminal, as they gave it: never an agent."""
     result = revoke_approval(task, args.by, args.reason)
+    refusal = ("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own terminal, "
+               "as they approved.")
     if not interactive():
-        raise ValueError("Withdrawing an approval is the person's act: they run openguildkit task revoke in their own "
-                         "terminal, as they approved.")
+        raise ValueError(refusal)
     problem = approval_problem(task, profile, catalog, root)
     if problem:
         print(f"OpenGuildKit: {problem['message']}", file=sys.stderr)
-    print(f"Type {args.id} to withdraw the approval {task['decision']['by']} gave on {task['decision']['at'][:10]}: ",
-          end="", file=sys.stderr, flush=True)
-    if input().strip() != args.id:
-        raise ValueError("Withdrawal cancelled.")
-    with project_lock(state):
-        if read_task(state, args.id) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_task(task_path(state, args.id), result)
+    typed(args.id, f"Type {args.id} to withdraw the approval {task['decision']['by']} gave on "
+          f"{task['decision']['at'][:10]}: ", refusal=refusal, cancelled="Withdrawal cancelled.")
+    _save_decided(state, task, result)
     audit_log.record(root, "task.revoked", task=args.id, by=args.by)
     print(result["status"])
     print(f"The guard no longer counts {args.id}. Next: {reconsult_command(args.id)}, or close the work in a linked "
@@ -687,26 +693,21 @@ def _decide(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
         # A signed approval shows the same text: the signature replaces the typed ID, not the reading.
         print("\n".join(_decision_prompt(state, task, profile, register)), file=sys.stderr)
         if signature is None:
-            print(f"Type {args.id} to approve the reviewed scope: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != args.id:
-                raise ValueError("Approval cancelled.")
+            typed(args.id, f"Type {args.id} to approve the reviewed scope: ", cancelled="Approval cancelled.",
+                  refusal="Approval requires a person at an interactive terminal.")
         for board in removals:
-            print(f"The agent removed the {board} board, which the data answer selected. "
-                  f"Type {board} to confirm the removal: ", end="", file=sys.stderr, flush=True)
-            if input().strip() != board:
-                raise ValueError(
-                    f"Approval cancelled: the removal of the {board} board was not confirmed. "
-                    "Request changes and consult again with it."
-                )
-    with project_lock(state):
-        if read_task(state, args.id) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
+            typed(board, f"The agent removed the {board} board, which the data answer selected. "
+                  f"Type {board} to confirm the removal: ", refusal="Approval requires a person at an interactive "
+                  "terminal.", cancelled=f"Approval cancelled: the removal of the {board} board was not confirmed. "
+                  "Request changes and consult again with it.")
+    def still_holds() -> None:
         if args.approve:
-            catalog = project_catalog(args, state)
-            profile = load_profile(state, catalog)
-            require_current_scope(task, profile, catalog)
-            require_instructions(args, root, state, profile, catalog)
-        write_task(task_path(state, args.id), result)
+            current = project_catalog(args, state)
+            current_profile = load_profile(state, current)
+            require_current_scope(task, current_profile, current)
+            require_instructions(args, root, state, current_profile, current)
+
+    _save_decided(state, task, result, still_holds)
     if args.approve:
         audit_log.record(root, "task.approved", task=args.id, by=args.by, signer=args.signer, seal=result["decision"]["seal"])
     print(result["status"])
@@ -839,8 +840,9 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
             + "\n- ".join(set_aside) + f"\nA person confirms each: openguildkit task complete {args.id} --by INITIALS, "
             "at a terminal.")
     if args.by:
+        refusal = "Closing a task with --by needs the person at an interactive terminal."
         if not interactive():
-            raise ValueError("Closing a task with --by needs the person at an interactive terminal.")
+            raise ValueError(refusal)
         for group in closed["result"]["closing"]["open_points"]:
             print(f"{group['group']}:", file=sys.stderr)
             for point in group["points"]:
@@ -849,9 +851,8 @@ def _closing(args, state: Path, task: dict, profile: dict, relevance: dict, root
             print("Data protection, security or AI rules declared not applicable, which you confirm:", file=sys.stderr)
             for line in set_aside:
                 print(f"  - {line}", file=sys.stderr)
-        print(f"Type {args.id} to close it as {closed['status']}: ", end="", file=sys.stderr, flush=True)
-        if input().strip() != args.id:
-            raise ValueError("Closing cancelled.")
+        typed(args.id, f"Type {args.id} to close it as {closed['status']}: ", refusal=refusal,
+              cancelled="Closing cancelled.")
     return closed
 
 
@@ -888,6 +889,7 @@ def _print_closing(task: dict, listed: bool = False) -> None:
 
 
 MIN_REASON_WORDS = 3
+DECLARATION_REFUSAL = "Declaring whether a command can run needs the person at an interactive terminal."
 
 
 def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
@@ -898,7 +900,7 @@ def _declaration_checks(args, task: dict, profile: dict, check_id: str) -> dict:
     if not (args.by or "").strip():
         raise ValueError("Name the person with --by INITIALS.")
     if not interactive():
-        raise ValueError("Declaring whether a command can run needs the person at an interactive terminal.")
+        raise ValueError(DECLARATION_REFUSAL)
     return commands
 
 
@@ -915,10 +917,8 @@ def _cannot_run(args, root: Path, state: Path, task: dict, profile: dict, releva
     if ran and ran[0]["status"] == "passed":
         raise ValueError(f"{args.cannot_run} passes in this environment: nothing to declare. Run task verify "
                          f"{args.id} to record it as passed.")
-    print(f"Type {args.id} to record that {args.cannot_run} (`{commands[args.cannot_run]}`) cannot run here: ",
-          end="", file=sys.stderr, flush=True)
-    if input().strip() != args.id:
-        raise ValueError("Cancelled.")
+    typed(args.id, f"Type {args.id} to record that {args.cannot_run} (`{commands[args.cannot_run]}`) cannot run "
+          "here: ", refusal=DECLARATION_REFUSAL, cancelled="Cancelled.")
     return {"check": args.cannot_run, "status": "skipped", "reason": " ".join(args.reason.split()),
             "owner": args.by.strip(), "cannot_run": True}
 
@@ -1098,23 +1098,13 @@ def _resolve(args, root: Path, state: Path, profile: dict, catalog: dict, task: 
     result = resolve_blocker(task, args.blocker, details, profile, root)
     # A signed clearance is the person's act through their key; otherwise the person types the task ID.
     if action == "clear" and "signature" not in details:
-        if not details["terminal"]:
-            raise ValueError(
-                "Clearing a blocker is the person's act: show them the evidence, and they run task clear in "
-                "their own terminal."
-            )
-        print(f"Type {args.id} to clear {args.blocker} with {args.evidence}: ", end="", file=sys.stderr,
-              flush=True)
-        if input().strip() != args.id:
-            raise ValueError("Clearing cancelled.")
+        typed(args.id, f"Type {args.id} to clear {args.blocker} with {args.evidence}: ", cancelled="Clearing "
+              "cancelled.", refusal="Clearing a blocker is the person's act: show them the evidence, and they run "
+              "task clear in their own terminal.")
     if action == "waive":
-        print(f"Type {args.id} to waive {args.blocker} until {args.until}: ", end="", file=sys.stderr, flush=True)
-        if input().strip() != args.id:
-            raise ValueError("Waiver cancelled.")
-    with project_lock(state):
-        if read_task(state, args.id) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_task(task_path(state, args.id), result)
+        typed(args.id, f"Type {args.id} to waive {args.blocker} until {args.until}: ", cancelled="Waiver cancelled.",
+              refusal="A waiver needs a person at an interactive terminal.")
+    _save_decided(state, task, result)
     audit_log.record(root, f"blocker.{details['kind']}", task=args.id, blocker=args.blocker, by=args.by,
                      signer=details.get("signer"), until=details.get("until"))
     print(details["kind"])
@@ -1533,17 +1523,14 @@ def _decision_payload(args, root: Path, state: Path, profile: dict, catalog: dic
 
 def _authorize(args, root: Path, state: Path, profile: dict, catalog: dict, task: dict) -> int | None:
     """A person allows or refuses an external action outside the authorized scope."""
+    refusal = "Allowing an external action requires a person at an interactive terminal."
     if args.allow and not interactive():
-        raise ValueError("Allowing an external action requires a person at an interactive terminal.")
+        raise ValueError(refusal)
     result = record_authorization(task, args.external_action, args.target, args.allow, args.by, args.reason)
     if args.allow:
-        print(f"Type {args.id} to allow {args.external_action} on {args.target}: ", end="", file=sys.stderr, flush=True)
-        if input().strip() != args.id:
-            raise ValueError("Authorization cancelled.")
-    with project_lock(state):
-        if read_task(state, args.id) != task:
-            raise ValueError("The task changed while you were deciding. Review it and retry.")
-        write_task(task_path(state, args.id), result)
+        typed(args.id, f"Type {args.id} to allow {args.external_action} on {args.target}: ", refusal=refusal,
+              cancelled="Authorization cancelled.")
+    _save_decided(state, task, result)
     entry = result["authorizations"][-1]
     audit_log.record(root, "task.authorized", task=args.id, action=entry["action"], target=entry["target"],
                      decision=entry["decision"], by=entry["by"])
