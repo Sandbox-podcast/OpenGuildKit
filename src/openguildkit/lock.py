@@ -22,26 +22,11 @@ from .ci import read_policy_pack
 from .org_catalog import organization_in, validate_history, validate_pin
 from .patterns import pattern_selection
 from .project import RuleError, check_instructions, selected_packs
+from .startup import package_version
 from .storage import file_signature, read_json, write_json
 
 LOCK_FILE = "catalog.lock.json"
 COLLECTIONS = ("packs", "boards", "sectors", "patterns")
-
-
-def package_version() -> str:
-    """The installed version, or the version of the source checkout the CLI runs from."""
-    from importlib import metadata  # Slow to import, and only the version needs it.
-
-    try:
-        return metadata.version("openguildkit")
-    except metadata.PackageNotFoundError:
-        pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
-        try:
-            import tomllib
-
-            return tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"] + "+source"
-        except (OSError, KeyError, ValueError):
-            return "unknown"
 
 
 def lock_path(state: Path) -> Path:

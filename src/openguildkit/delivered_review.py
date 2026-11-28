@@ -8,12 +8,11 @@ whose diff no board reviewed closes as before.
 """
 
 import json
-import re
 import shutil
 import subprocess
 from pathlib import Path
 
-from . import clock
+from . import clock, lazy_re
 from .sensitive import redact_credentials
 from .storage import print_json, project_lock, read_json, write_json
 from .wording import plural
@@ -24,8 +23,8 @@ ACTIONS = ("fix", "defer", "decision")
 # The diff printed in one brief. The rest is one git command away, which the brief prints.
 DIFF_LIMIT = 6000
 FINDINGS_GROUP = "Findings on the delivered diff"
-_COMMIT = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
-_HUNK = re.compile(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+_COMMIT = lazy_re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
+_HUNK = lazy_re.compile(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 HELP = "Have each board review the diff the task delivered, then record its findings."
 FORMAT = {"board": "BOARD", "findings": [{"file": "path/of/the/change.py", "line": 42, "severity": "blocking",
                                           "action": "fix", "finding": "What is wrong, and where the diff shows it."}]}

@@ -12,7 +12,6 @@ hook never waits and concurrent commands each leave a complete index.
 
 import json
 import os
-import tempfile
 from pathlib import Path
 
 from .storage import file_signature
@@ -39,15 +38,15 @@ def _read_index(directory: Path) -> tuple[dict, int]:
 
 def latest_approval_at(record: object) -> str | None:
     """When the record was last approved, earlier rounds included; None when it never was or cannot say."""
-    latest = None
-    try:
-        for entry in [*record.get("rounds", []), record]:  # type: ignore[union-attr]
-            decision = entry.get("decision") or {}
-            if decision.get("outcome") == "approved" and isinstance(decision.get("at"), str) and \
-                    (latest is None or decision["at"] > latest):
-                latest = decision["at"]
-    except (AttributeError, TypeError):
+    if not isinstance(record, dict):
         return None
+    rounds = record.get("rounds")
+    latest = None
+    for entry in [*(rounds if isinstance(rounds, list) else []), record]:
+        decision = entry.get("decision") if isinstance(entry, dict) else None
+        if isinstance(decision, dict) and decision.get("outcome") == "approved" and isinstance(decision.get("at"), str) \
+                and (latest is None or decision["at"] > latest):
+            latest = decision["at"]
     return latest
 
 
@@ -65,6 +64,8 @@ def _write_index(directory: Path, entries: dict) -> None:
     """Replace the index in one step; a failure leaves the previous one, which only costs time."""
     # Not sorted: the entries come in file name order, and a line keeps the order of the fields task list prints.
     content = json.dumps({"schema_version": SCHEMA_VERSION, "tasks": entries}, separators=(",", ":"))
+    import tempfile  # Not for the hook that only reads the index (#539).
+
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(dir=directory, prefix=f"{INDEX_FILE}.", suffix=".tmp", delete=False) as handle:

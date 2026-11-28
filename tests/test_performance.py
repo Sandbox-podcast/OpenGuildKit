@@ -11,6 +11,7 @@ ceiling against hangs. The bug consult runs with a small node_modules here: the
 walk never enters it, which tests/test_project_walk.py checks without a clock.
 """
 
+import argparse
 import contextlib
 import importlib.util
 import io
@@ -437,6 +438,93 @@ class StartupTests(unittest.TestCase):
                               ["--project", "--version", "guard", "--hook", "pre-edit"], ["--version"], []):
                 with self.subTest(arguments=arguments):
                     self.assertIsNone(hook_call(arguments))
+
+    def project(self, folder: str, guard: str) -> Path:
+        """An initialized example project with that guard mode."""
+        root = Path(folder)
+        profile = {**json.loads((bench.EXAMPLE / "profile.json").read_text(encoding="utf-8")), "guard": guard}
+        write_json(root / "profile.json", profile)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--project", str(root), "init", "--answers", str(root / "profile.json")]), 0)
+        return root
+
+    def test_the_edit_hook_of_a_project_whose_guard_is_off_imports_no_guard(self):
+        """Issue #539: with guard: off, the hook imported the guard and 150 modules before reading the profile."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.project(folder, "off")
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            for event in ("pre-edit", "prompt"):
+                with self.subTest(event=event):
+                    result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard",
+                                    "--hook", event, stdin=hook)
+                    self.assertEqual((result.returncode, result.stdout), (0, ""), result.stderr)
+                    loaded = imported(result.stderr)
+                    self.assertEqual(sorted(name for name in loaded if name.startswith("openguildkit.")),
+                                     ["openguildkit.startup", "openguildkit.storage"])
+
+    def test_the_active_edit_hook_leaves_out_tempfile_and_the_deferred_commands(self):
+        """Issue #539: the hook imported tempfile, and with it shutil's compressors and random, to write nothing."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.project(folder, "enforce")
+            hook = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(root / "app.py")}})
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "guard", "--hook",
+                            "pre-edit", stdin=hook)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        loaded = imported(result.stderr)
+        for module in ("tempfile", "openguildkit.cli", "openguildkit.tools", "openguildkit.mcp_mock"):
+            with self.subTest(module=module):
+                self.assertNotIn(module, loaded)
+
+    def test_version_answers_without_the_cli(self):
+        """Issue #539: --version imported the whole CLI, 115 to 138 ms for 23 ms of interpreter."""
+        result = python("-X", "importtime", "-m", "openguildkit", "--version")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertRegex(result.stdout, r"^openguildkit \S+\n$")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            main(["--version"])
+        self.assertEqual(output.getvalue(), result.stdout)
+        self.assertEqual(sorted(name for name in imported(result.stderr) if name.startswith("openguildkit.")),
+                         ["openguildkit.startup"])
+
+    def test_task_list_leaves_out_the_deferred_command_modules(self):
+        """Issue #539: every command imported the alerts, market, Storybook and tools commands and the mock MCP server."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.project(folder, "off")
+            result = python("-X", "importtime", "-m", "openguildkit", "--project", str(root), "task", "list")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        loaded = imported(result.stderr)
+        for module in ("alerts_cli", "storybook_cli", "market_cli", "tools_cli", "mcp_mock"):
+            with self.subTest(module=module):
+                self.assertNotIn(f"openguildkit.{module}", loaded)
+
+    def test_a_deferred_command_has_the_same_line_in_the_root_help_as_in_its_module(self):
+        """Issue #539: the root's help gives the line of a command whose module it does not import."""
+        from openguildkit import cli, cli_surface, project, startup
+
+        def lines(parser):
+            group = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
+            return {item.dest: item.help for item in group._choices_actions}
+
+        full, light = lines(cli.command_parser()), lines(cli.command_parser(frozenset(cli_surface.DEFERRED_COMMANDS)))
+        self.assertEqual(light, full)
+        self.assertEqual(cli_surface.deferred_modules(["--project", "alerts", "task", "list"]),
+                         frozenset(cli_surface.DEFERRED_COMMANDS))
+        self.assertNotIn("alerts_cli", cli_surface.deferred_modules(["--project=x", "alerts", "--help"]))
+        self.assertEqual(cli_surface.deferred_modules(["--", "alerts"]), frozenset())
+        self.assertEqual(startup.STATE_DIR, project.STATE_DIR)
+
+    def test_importing_the_cli_compiles_fewer_than_30_expressions(self):
+        """Issue #539: importing the CLI compiled 123 to 138 regular expressions, 10 ms before any command ran."""
+        count = ("import re._compiler as compiler\n"
+                 "calls = []\n"
+                 "original = compiler.compile\n"
+                 "compiler.compile = lambda *args: calls.append(args) or original(*args)\n"
+                 "import openguildkit.cli\n"
+                 "print(len(calls))\n")
+        result = python("-c", count)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertLess(int(result.stdout), 30)
 
     def test_the_installed_command_starts_from_the_same_entry_point_as_python_m(self):
         project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))

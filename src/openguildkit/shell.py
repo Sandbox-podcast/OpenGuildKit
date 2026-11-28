@@ -6,15 +6,16 @@ the form follows the platform: PowerShell on Windows, a POSIX shell elsewhere. c
 """
 
 import os
-import re
+
+from . import lazy_re
 
 # Words any shell reads as typed. A tilde inside a word, as in a Windows short path (RUNNER~1), is read by no shell;
 # a leading one, or one after = or :, may stand for a home folder, and zsh reads a leading = as a command path.
-_POSIX_PLAIN = re.compile(r"[\w@%+:,./-][\w@%+=:,./-]*(?:(?<=[\w%+,./@-])~[\w@%+=:,./-]*)*")
+_POSIX_PLAIN = lazy_re.compile(r"[\w@%+:,./-][\w@%+=:,./-]*(?:(?<=[\w%+,./@-])~[\w@%+=:,./-]*)*")
 # PowerShell also reads a comma as a list and a leading @ as splatting.
-_POWERSHELL_PLAIN = re.compile(r"[\w%+=:./-][\w@%+=:./-]*(?:(?<=[\w%+./@-])~[\w@%+=:./-]*)*")
+_POWERSHELL_PLAIN = lazy_re.compile(r"[\w%+=:./-][\w@%+=:./-]*(?:(?<=[\w%+./@-])~[\w@%+=:./-]*)*")
 # PowerShell closes a single-quoted string at any of these; doubling one keeps it.
-_POWERSHELL_QUOTES = re.compile("['‘’‚‛]")
+_POWERSHELL_QUOTES = lazy_re.compile("['‘’‚‛]")
 
 
 def shell_word(value: str, powershell: bool | None = None) -> str:

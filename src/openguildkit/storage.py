@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import stat
-import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -113,6 +112,8 @@ def write_text(path: Path, content: str) -> None:
         return
     if path.exists() and read_bytes(path) == content.encode("utf-8"):
         return
+    import tempfile  # Only a write needs it, and it imports shutil, random and the compressors (#539).
+
     with tempfile.NamedTemporaryFile(
         dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
     ) as temporary:

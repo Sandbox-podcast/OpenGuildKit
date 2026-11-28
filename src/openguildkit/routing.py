@@ -9,6 +9,7 @@ import re
 import unicodedata
 from functools import lru_cache
 
+from . import lazy_re
 from .questionnaire import FOLLOW_UPS, SURFACE_MEANINGS, as_list
 
 
@@ -140,10 +141,10 @@ NO_DISCIPLINE = (
 )
 
 
-_APOSTROPHES = re.compile("[\u2019\u2018\u02bc\u00b4`]")
+_APOSTROPHES = lazy_re.compile("[\u2019\u2018\u02bc\u00b4`]")
 
 
-_SEPARATORS = re.compile(r"[/_|]")
+_SEPARATORS = lazy_re.compile(r"[/_|]")
 
 
 _PLURAL = "(?:s|es|x)?"
@@ -266,7 +267,7 @@ _CHANGE_WORDS = frozenset((
 
 
 # "payments are out of scope", "paiements hors périmètre": a negation written after the subject.
-_AFTER_NEGATION = re.compile(
+_AFTER_NEGATION = lazy_re.compile(
     r"^(?:\S+\s+){0,2}?(?:out of scope|not in scope|outside the scope|hors (?:du )?(?:perimetre|scope|sujet)|"
     r"not (?:concerned|affected)|pas concernee?s?)(?![\w-])"
 )
@@ -280,7 +281,7 @@ _LIST_WORDS = frozenset((
 
 
 # A clause ends at punctuation, a line break or a contrasting conjunction.
-_CLAUSE_END = re.compile(r"[.,;:!?()\[\]{}\n\r\u2022\u2013\u2014]")
+_CLAUSE_END = lazy_re.compile(r"[.,;:!?()\[\]{}\n\r\u2022\u2013\u2014]")
 
 
 _CLAUSE_WORDS = frozenset(("but", "however", "yet", "although", "though", "whereas", "mais", "cependant"))

@@ -9,7 +9,7 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from . import clock, light_lane, owners
+from . import clock, lazy_re, light_lane, owners
 from .consultation import (
     CHOICES, CONTEST_ITEM, EVIDENCE_SOURCES, answer_lines, json_section, market_references, one_based, scope_lines,
     storybook_references, tool_references,
@@ -38,11 +38,11 @@ def _text_list(value: object, field: str) -> list[str]:
 
 
 DATED_SOURCES = ("public", "measurement", "interview")
-_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-_REVISION = re.compile(r"[0-9a-f]{7,64}")
+_DATE = lazy_re.compile(r"\d{4}-\d{2}-\d{2}")
+_REVISION = lazy_re.compile(r"[0-9a-f]{7,64}")
 
 
-_LOCATION = re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
+_LOCATION = lazy_re.compile(r"(?:::.*|#.*|:\d+(?:-\d+)?)$")
 
 
 def _evidence_day(value: object, field: str) -> str:

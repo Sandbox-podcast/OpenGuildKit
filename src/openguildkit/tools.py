@@ -16,10 +16,9 @@ import re
 import tomllib
 from pathlib import Path
 
-from . import clock
+from . import clock, lazy_re
 from .catalog import CatalogError, package_file, unique_fields, validate_day
 from .detect import MAX_MANIFEST_BYTES, SKIPPED_DIRECTORIES
-from .mcp_mock import apply_scenario, check_synthetic, validate_mock
 from .sensitive import looks_like_credential
 from .storage import read_json, write_json, write_text
 
@@ -45,16 +44,16 @@ CODEX_CONFIG_FILE = Path(".codex") / "config.toml"
 CODEX_BLOCK_START = "# >>> OpenGuildKit tools (openguildkit tools apply rewrites this block)\n"
 CODEX_BLOCK_END = "# <<< OpenGuildKit tools\n"
 
-_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-_ENV = re.compile(r"[A-Z][A-Z0-9_]{1,63}")
-_VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
-_SETTING = re.compile(r"\{([a-z][a-z0-9_]*)\}")
-_SECRET_WORD = re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
-_INLINE_VALUE = re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
+_ID = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+_ENV = lazy_re.compile(r"[A-Z][A-Z0-9_]{1,63}")
+_VARIABLE = lazy_re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
+_SETTING = lazy_re.compile(r"\{([a-z][a-z0-9_]*)\}")
+_SECRET_WORD = lazy_re.compile(r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|bearer)")
+_INLINE_VALUE = lazy_re.compile(r"^-{0,2}[A-Za-z0-9_.-]*=(.+)$")
 # A plain value: a name, a host, or a path on the workstation, absolute ones included.
-_SETTING_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}|/[A-Za-z0-9][A-Za-z0-9._:/@-]{0,198}")
+_SETTING_VALUE = lazy_re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}|/[A-Za-z0-9][A-Za-z0-9._:/@-]{0,198}")
 # What a publisher writes in place of a value the reader fills in: /path/to/server, <your-site>.
-_STAND_IN = re.compile(r"(?i)path/to/|[<>]")
+_STAND_IN = lazy_re.compile(r"(?i)path/to/|[<>]")
 TOOL_FIELDS = {"id", "title", "vendor", "summary", "homepage", "brains", "servers"}
 TOOL_OPTIONAL = {"aliases", "detect", "api", "notes"}
 SERVER_FIELDS = {
@@ -360,6 +359,8 @@ def load_mock(tool_id: str, extra_dir: Path | None = None) -> dict:
     candidates = [package_file("registry", "tool-mocks", f"{tool_id}.json")]
     if extra_dir is not None:
         candidates.insert(0, extra_dir / f"{tool_id}.json")
+    from .mcp_mock import apply_scenario, validate_mock  # Only the mocks need it (#539).
+
     for path in candidates:
         if path.is_file():
             try:
@@ -426,6 +427,8 @@ def scenario_records(tool_ids: list[str], project: str, tools: dict, task_id: st
             collections[name].insert(0, _task_record(collection, task_id, brief))
         if collections:
             records[tool_id] = collections
+    from .mcp_mock import check_synthetic
+
     check_synthetic(records, "The scenario")
     about = (f"Starting scenario for {project}, written by openguildkit tools scenario on {clock.today().isoformat()}. "
              "Except the task's own record, these are the bundled sample records about a fictional support portal: "

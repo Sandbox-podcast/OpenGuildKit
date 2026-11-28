@@ -645,6 +645,19 @@
       ]
     },
     {
+      "module": "src/openguildkit/lazy_re.py",
+      "role": "Regular expressions compiled when a command first uses them, so that importing a module compiles none.",
+      "entry": [
+        "compile"
+      ],
+      "tests": [
+        "tests/test_performance.py",
+        "tests/test_routing.py",
+        "tests/test_sensitive.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
       "module": "src/openguildkit/light_lane.py",
       "role": "The short lane for a change a person declares trivial: the paths it covers, what it never covers (rules, dependencies, the profile, agent instructions) and the one board its paths call for.",
       "entry": [
@@ -673,7 +686,6 @@
       "module": "src/openguildkit/lock.py",
       "role": "Pins the catalog records a project uses in `catalog.lock.json`; `update` shows and applies a newer catalog.",
       "entry": [
-        "package_version",
         "lock_path",
         "read_lock",
         "central_policy",
@@ -1232,6 +1244,20 @@
       ],
       "tests": [
         "tests/test_detect_versions.py"
+      ],
+      "doc": "docs/architecture.md"
+    },
+    {
+      "module": "src/openguildkit/startup.py",
+      "role": "What `__main__` reads before importing the rest of the package: the version, and the guard mode a profile declares.",
+      "entry": [
+        "package_version",
+        "declared_mode",
+        "guard_declared_off"
+      ],
+      "tests": [
+        "tests/test_performance.py",
+        "tests/test_guard.py"
       ],
       "doc": "docs/architecture.md"
     },

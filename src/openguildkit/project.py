@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
-from . import light_lane
+from . import lazy_re, light_lane
 from .agent_workflow import AGENT_WORKFLOW, RULE_PACKS_NOTE
 from .catalog import rule_check
 from .clock import today
@@ -422,7 +422,7 @@ def _default_packs(stack: list[str], components: list[dict], patterns: list, cat
     return [pack_id for pack_id in packs if pack_id not in brought]
 
 
-COMPONENT_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+COMPONENT_ID = lazy_re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 def _components(value) -> list[dict]:
@@ -481,7 +481,7 @@ def _personal_data(value) -> bool | None:
 
 
 DECISION_FIELDS = ("by", "on", "reason")
-DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+DATE = lazy_re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _decision_text(value, field: str) -> str:
@@ -1261,7 +1261,7 @@ def task_scope_profile(profile: dict, catalog: dict, component_ids: list[str]) -
     return resolved
 
 
-_CHECK_FOLDER = re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
+_CHECK_FOLDER = lazy_re.compile(r"""\s*cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)\s*&&""")
 
 
 def check_component(command: str, components: list[dict]) -> str | None:
@@ -1481,9 +1481,9 @@ def render_instructions(profile: dict, catalog: dict) -> str:
     return "\n".join(lines)
 
 
-_MARKER_LINE = re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
-_IMPORT_LINE = re.compile(r"[ \t]*(@AGENTS\.md|@\./AGENTS\.md)[ \t]*")
-_FENCE = re.compile(r" {0,3}(`{3,}|~{3,})")
+_MARKER_LINE = lazy_re.compile("(" + re.escape(BEGIN) + "|" + re.escape(END) + r")[ \t]*")
+_IMPORT_LINE = lazy_re.compile(r"[ \t]*(@AGENTS\.md|@\./AGENTS\.md)[ \t]*")
+_FENCE = lazy_re.compile(r" {0,3}(`{3,}|~{3,})")
 BOM = "\ufeff"
 
 
@@ -1540,7 +1540,7 @@ def merged_instructions(current: str, generated: str, label: str = "AGENTS.md") 
     return current[:matches[0][1]] + block + current[matches[1][2]:]
 
 
-_FINGERPRINT_LINE = re.compile(r"<!-- openguildkit profile [0-9a-f]{64}(?: layout \d+)? -->")
+_FINGERPRINT_LINE = lazy_re.compile(r"<!-- openguildkit profile [0-9a-f]{64}(?: layout \d+)? -->")
 
 
 def hand_edits(current: str, generated: str) -> list[str]:

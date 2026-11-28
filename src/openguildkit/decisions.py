@@ -14,7 +14,6 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -257,6 +256,8 @@ def _ssh_verify(signers: str, payload: dict, signature: str, signer: str, at: st
     (ssh-keygen's YYYYMMDDHHMMSSZ) instead of now when it is given."""
     if shutil.which("ssh-keygen") is None:
         raise ValueError("Verifying a signed approval needs ssh-keygen (OpenSSH 8.1 or later).")
+    import tempfile  # Only a signature check needs it: the edit hook starts without it (#539).
+
     with tempfile.TemporaryDirectory() as directory:
         signature_path = Path(directory) / "decision.sig"
         signature_path.write_text(signature, encoding="utf-8")

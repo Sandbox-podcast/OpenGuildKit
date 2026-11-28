@@ -107,6 +107,8 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `doc_links.py` | The https address of a documentation page for a message that cites it, at the tag of the installed version (`main` for a source checkout). |
 | `errors.py` | The one-line forms of the errors a person reads: a file that cannot be opened, in words, and an unknown identifier with the command that lists them. |
 | `storage.py` | Writes files atomically, refuses symbolic links, and serialises writing commands with the project lock. |
+| `lazy_re.py` | Regular expressions compiled when a command first uses them, so that importing a module compiles none. |
+| `startup.py` | What `__main__` reads before importing the rest of the package: the version, and the guard mode a profile declares. |
 | `alerts.py` | The dependency alert register, from the reports of the project's own scanners. |
 | `market.py` | Market dossiers: competitors, dated observations, what is still unknown. |
 | `features.py` | The features: a purpose, its lead tool and three alternatives from the tool registry, and which are on. |

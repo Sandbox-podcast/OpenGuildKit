@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
-from . import light_lane
+from . import lazy_re, light_lane
 from .catalog import rule_check
 from .detect import SKIPPED_DIRECTORIES, walk
 from .patterns import is_stack_pattern, pattern_selection
@@ -505,14 +505,14 @@ _CODE_SUFFIXES = (
 )
 
 
-_CODE_PATH = re.compile(r"(?<![\w/.-])((?:[\w.-]+/)*[\w-]+\.(?:" + "|".join(_CODE_SUFFIXES) + r"))(?![\w-])")
+_CODE_PATH = lazy_re.compile(r"(?<![\w/.-])((?:[\w.-]+/)*[\w-]+\.(?:" + "|".join(_CODE_SUFFIXES) + r"))(?![\w-])")
 
 
-_CODE_NAME = re.compile(r"`([A-Za-z_][\w.]{2,})(?:\(\))?`|(?<![\w.])([A-Za-z_]\w{2,})\(\)")
+_CODE_NAME = lazy_re.compile(r"`([A-Za-z_][\w.]{2,})(?:\(\))?`|(?<![\w.])([A-Za-z_]\w{2,})\(\)")
 
 
 # "function missingFn" in prose: a name written like code (camelCase or snake_case) after the word.
-_NAMED_FUNCTION = re.compile(r"\b(?:function|fonction|method|méthode)\s+([a-z_]\w*(?:[A-Z_]\w*)+)\b", re.IGNORECASE)
+_NAMED_FUNCTION = lazy_re.compile(r"\b(?:function|fonction|method|méthode)\s+([a-z_]\w*(?:[A-Z_]\w*)+)\b", re.IGNORECASE)
 
 
 MAX_SCANNED_FILES = 5000
@@ -609,7 +609,7 @@ def code_lookup(text: str, root: Path) -> tuple[list[str], list[str]]:
         unresolved = [path for path in unresolved if Path(path).name not in found[0]]
         remaining -= found[1]
     else:
-        files = []
+        files: list[Path] = []
         for item in _source_files(root):
             if len(files) == MAX_SCANNED_FILES:
                 unread = {Path(path).name for path in unresolved} | remaining
@@ -949,8 +949,8 @@ def board_brief(consultation: dict, board_id: str, shared_from: str | None = Non
         *(f"- Open point: {point}" for point in scope.get("open_points", [])),
         *([f"- Code named in the brief and not found: {', '.join(scope['code_not_found'])}."]
           if scope.get("code_not_found") else []),
-        *([f"- Code named in the brief that the search, stopped at {MAX_SCANNED_FILES:,} source files, did not "
-           f"reach: {', '.join(scope['code_not_searched'])}."] if scope.get("code_not_searched") else []),
+        *([(f"- Code named in the brief that the search, stopped at {MAX_SCANNED_FILES:,} source files, did not "
+            f"reach: {', '.join(scope['code_not_searched'])}.")] if scope.get("code_not_searched") else []),
         # A subagent gets this pass and nothing else: the alerts the consultation carries reach each board.
         *_alert_lines(scope),
         "",
