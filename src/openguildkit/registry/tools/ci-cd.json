@@ -63,13 +63,14 @@
           "command": "npx",
           "args": [
             "-y",
-            "@azure-devops/mcp",
+            "@azure-devops/mcp@2.11.1",
             "{organization}"
           ],
           "package": {
             "registry": "npm",
             "name": "@azure-devops/mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth-or-token",
           "env": [],
           "settings": [

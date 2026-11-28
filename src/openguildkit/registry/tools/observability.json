@@ -38,12 +38,13 @@
             "APPD_ENVIRONMENT",
             "-e",
             "APPD_API_TOKEN",
-            "appdynamics/appdynamics-mcp-server:latest"
+            "appdynamics/appdynamics-mcp-server:26.10.0-336"
           ],
           "package": {
             "registry": "docker",
             "name": "appdynamics/appdynamics-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "APPD_ENVIRONMENT",
@@ -246,12 +247,13 @@
           "transport": "stdio",
           "command": "uvx",
           "args": [
-            "mcp-grafana"
+            "mcp-grafana@2.2.0"
           ],
           "package": {
             "registry": "pypi",
             "name": "mcp-grafana"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "GRAFANA_URL",
@@ -268,7 +270,7 @@
           "read_only": {
             "how": "The --disable-write flag turns off the write tools.",
             "args": [
-              "mcp-grafana",
+              "mcp-grafana@2.2.0",
               "--disable-write"
             ]
           }

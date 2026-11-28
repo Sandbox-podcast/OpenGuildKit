@@ -349,12 +349,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "@smartbear/mcp@latest"
+            "@smartbear/mcp@0.45.0"
           ],
           "package": {
             "registry": "npm",
             "name": "@smartbear/mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "SWAGGER_API_KEY",

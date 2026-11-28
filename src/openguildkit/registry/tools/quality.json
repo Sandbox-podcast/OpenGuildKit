@@ -74,12 +74,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "chrome-devtools-mcp@latest"
+            "chrome-devtools-mcp@1.14.0"
           ],
           "package": {
             "registry": "npm",
             "name": "chrome-devtools-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "unknown",
@@ -129,7 +130,6 @@
           "args": [
             "run",
             "--init",
-            "--pull=always",
             "-i",
             "--rm",
             "-e",
@@ -138,12 +138,13 @@
             "SONARQUBE_ORG",
             "-e",
             "SONARQUBE_URL",
-            "sonarsource/sonarqube-mcp"
+            "sonarsource/sonarqube-mcp:1.33.0.5260"
           ],
           "package": {
             "registry": "docker",
             "name": "sonarsource/sonarqube-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "SONARQUBE_TOKEN",
@@ -163,7 +164,6 @@
             "args": [
               "run",
               "--init",
-              "--pull=always",
               "-i",
               "--rm",
               "-e",
@@ -174,7 +174,7 @@
               "SONARQUBE_READ_ONLY=true",
               "-e",
               "SONARQUBE_URL",
-              "sonarsource/sonarqube-mcp"
+              "sonarsource/sonarqube-mcp:1.33.0.5260"
             ]
           },
           "reviewed": "2026-11-21"

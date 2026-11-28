@@ -60,12 +60,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "chrome-devtools-mcp@latest"
+            "chrome-devtools-mcp@1.14.0"
           ],
           "package": {
             "registry": "npm",
             "name": "chrome-devtools-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "unknown",
@@ -153,12 +154,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "chrome-devtools-mcp@latest"
+            "chrome-devtools-mcp@1.14.0"
           ],
           "package": {
             "registry": "npm",
             "name": "chrome-devtools-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [],
           "status": "unknown",

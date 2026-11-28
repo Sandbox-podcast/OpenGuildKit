@@ -174,12 +174,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "@automattic/mcp-wordpress-remote@latest"
+            "@automattic/mcp-wordpress-remote@0.5.5"
           ],
           "package": {
             "registry": "npm",
             "name": "@automattic/mcp-wordpress-remote"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "WP_API_URL",

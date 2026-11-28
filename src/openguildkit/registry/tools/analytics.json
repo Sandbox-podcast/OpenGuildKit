@@ -71,12 +71,15 @@
           "command": "pipx",
           "args": [
             "run",
+            "--spec",
+            "analytics-mcp==1.1.0",
             "analytics-mcp"
           ],
           "package": {
             "registry": "pypi",
             "name": "analytics-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "oauth",
           "env": [
             "GOOGLE_APPLICATION_CREDENTIALS",

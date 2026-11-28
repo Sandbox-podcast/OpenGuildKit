@@ -74,13 +74,14 @@
           "command": "uvx",
           "args": [
             "--from",
-            "mcp-apache-spark-history-server",
+            "mcp-apache-spark-history-server==1.1.0",
             "spark-mcp"
           ],
           "package": {
             "registry": "pypi",
             "name": "mcp-apache-spark-history-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "none",
           "env": [
             "SHS_MCP__TRANSPORT",
@@ -186,12 +187,13 @@
           "command": "npx",
           "args": [
             "-y",
-            "@contentful/mcp-server"
+            "@contentful/mcp-server@1.24.9"
           ],
           "package": {
             "registry": "npm",
             "name": "@contentful/mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "CONTENTFUL_MANAGEMENT_ACCESS_TOKEN",
@@ -305,12 +307,13 @@
           "transport": "stdio",
           "command": "uvx",
           "args": [
-            "dbt-mcp"
+            "dbt-mcp@2.10.3"
           ],
           "package": {
             "registry": "pypi",
             "name": "dbt-mcp"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "DBT_PROJECT_DIR",
@@ -401,13 +404,14 @@
           "command": "npx",
           "args": [
             "-y",
-            "mongodb-mcp-server@latest",
+            "mongodb-mcp-server@3.4.0",
             "--readOnly"
           ],
           "package": {
             "registry": "npm",
             "name": "mongodb-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "MDB_MCP_CONNECTION_STRING",
@@ -514,7 +518,7 @@
           "command": "npx",
           "args": [
             "-y",
-            "@toolbox-sdk/server",
+            "@toolbox-sdk/server@1.18.0",
             "--prebuilt=postgres",
             "--stdio"
           ],
@@ -522,6 +526,7 @@
             "registry": "npm",
             "name": "@toolbox-sdk/server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "POSTGRES_HOST",
@@ -572,7 +577,7 @@
           "command": "uvx",
           "args": [
             "--from",
-            "redis-mcp-server@latest",
+            "redis-mcp-server==0.5.1",
             "redis-mcp-server",
             "--url",
             "redis://localhost:6379/0"
@@ -581,6 +586,7 @@
             "registry": "pypi",
             "name": "redis-mcp-server"
           },
+          "pin_read": "2026-11-28",
           "auth": "api-token",
           "env": [
             "REDIS_HOST",
