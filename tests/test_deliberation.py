@@ -6,7 +6,8 @@ from pathlib import Path
 
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
-from openguildkit.tasks import record_deliberation, record_review
+from openguildkit.tasks_closing import record_deliberation
+from openguildkit.tasks_review import record_review
 from openguildkit.consultation import consult
 from openguildkit.workflow import challenge_report, decision_summary, deliberation_request, verdict_lines
 

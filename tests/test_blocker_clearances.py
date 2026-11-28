@@ -9,10 +9,10 @@ from pathlib import Path
 
 from openguildkit.catalog import load_catalog
 from openguildkit.project import resolved_profile, validate_profile
-from openguildkit.tasks import (
-    record_problem, archived_round, cited_evidence, record_consultation, record_decision, record_review,
-    resolve_blocker, verification_blocker_problems,
-)
+from openguildkit.tasks_blockers import resolve_blocker, verification_blocker_problems
+from openguildkit.tasks_closing import record_decision
+from openguildkit.tasks_record import record_problem
+from openguildkit.tasks_review import archived_round, cited_evidence, record_consultation, record_review
 from openguildkit.consultation import consult
 from openguildkit.workflow import blocker_list, blocker_resolutions, exported_blockers
 from tests.test_approval_lifecycle import ApprovalCase

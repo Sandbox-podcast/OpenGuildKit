@@ -10,10 +10,11 @@ from .mcp_protocol import INVALID_PARAMS, ProtocolError, ToolServer, serve
 from .project import Fingerprints, load_profile, rule_plan
 from .results import RESULT_STATUSES
 from .sensitive import redact_credentials
-from .tasks import (
-    STATUSES, approval_problem, expired_on, list_tasks, next_command, next_step, read_task, stale_review_message,
-    task_path,
-)
+from .tasks import list_tasks, read_task, task_path
+from .tasks_approval import approval_problem, stale_review_message
+from .tasks_blockers import expired_on
+from .tasks_record import STATUSES
+from .tasks_status import next_command, next_step
 from .workflow import blocker_list
 
 REVISION = re.compile(r"(?:[a-f0-9]{40}|[a-f0-9]{64})")

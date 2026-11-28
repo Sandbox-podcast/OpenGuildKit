@@ -88,51 +88,35 @@ from .routing import select_boards, trigger_matches
 from .sensitive import input_warnings, redact_credentials, redact_data
 from .shell import shell_word
 from .storage import print_json, project_lock, read_json
-from .tasks import (
+from .tasks import create_task, last_approval, list_tasks, read_task, task_path, waiting_for, waits_line, write_task
+from .tasks_approval import approval_problem, decided_message, require_approval, require_current_scope
+from .tasks_blockers import expired_on, require_blocker_status, resolve_blocker, verification_blocker_problems
+from .tasks_closing import (
     ACTIONS,
     SENSITIVE_GROUP,
-    STATUSES,
-    approval_problem,
-    assemble_review,
-    board_brief_problem,
-    cited_evidence,
     complete_task,
-    create_task,
-    decided_message,
-    decision_text,
-    decision_words,
     defer_evidence,
-    earlier_sequential_pass,
-    expired_on,
-    last_approval,
-    list_tasks,
-    next_step,
-    pass_progress,
-    passes_left,
     points_left_open,
-    previous_round_line,
-    read_task,
     record_authorization,
-    record_consultation,
     record_decision,
     record_deliberation,
     record_result,
-    record_review,
-    require_approval,
-    require_blocker_status,
-    require_current_scope,
-    resolve_blocker,
     revoke_approval,
-    start_pass,
-    state_refusal,
-    submit_pass,
-    task_path,
-    timestamp,
-    verification_blocker_problems,
-    waiting_for,
-    waits_line,
-    write_task,
 )
+from .tasks_record import STATUSES, board_brief_problem, timestamp
+from .tasks_review import (
+    assemble_review,
+    cited_evidence,
+    decision_text,
+    earlier_sequential_pass,
+    pass_progress,
+    previous_round_line,
+    record_consultation,
+    record_review,
+    start_pass,
+    submit_pass,
+)
+from .tasks_status import decision_words, next_step, passes_left, state_refusal
 from .terminal import interactive, typed
 from .tools import connected_tools, load_tools, match_tools, tool_evidence_warnings
 from .wording import plural
@@ -637,7 +621,7 @@ def _revoke(args, root: Path, state: Path, profile: dict, catalog: dict, task: d
 
 def _decision_prompt(state: Path, task: dict, profile: dict, register: dict) -> list[str]:
     """What the person reads before approving, the same at the approval prompt and in task decision-payload: the
-    previous round, the decision text (tasks.decision_text, also task challenge's), the brief, the summary and each
+    previous round, the decision text (tasks_review.decision_text, also task challenge's), the brief, the summary and each
     board's advice."""
     recall = previous_round_line(task)
     review = validate_review(task["consultation"], task["review"])
@@ -1608,7 +1592,7 @@ def _list(args, root: Path, state: Path, profile: dict, catalog: dict) -> None:
     if args.ready:
         rows = [row for row in rows if row["status"] not in (*DONE_STATUSES, "unreadable") and not row.get("waiting_for")]
     # A task listed from the line the index keeps is not in read: that line holds only while the exported record of
-    # its ID is its own, or there is none (tasks.kept_line).
+    # its ID is its own, or there is none (tasks_status.kept_line).
     clashes = _id_clashes(root, state, read)
     for row in rows:
         if row["id"] in clashes:

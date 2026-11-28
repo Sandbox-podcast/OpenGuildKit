@@ -91,7 +91,13 @@ The CLI is the only writer. `openguildkit ui` starts `webui.py`, which serves th
 | `consultation.py` | Prepares the consultation: scope snapshot, review request and each board's brief with the rules that concern the task. |
 | `workflow.py` | Checks the boards' review entries and evidence, the deliberation, the decision brief, the blockers and the handoff. |
 | `owners.py` | Reads the project's CODEOWNERS with GitHub's syntax and names the owners of the paths a task touches, for the decision brief and the handoff; never written into a record. |
-| `tasks.py` | Task records and their state machine, from draft to done, with blockers, approvals and their withdrawal. |
+| `tasks.py` | Reads, writes and creates task records, lists the tasks and follows the tasks each one waits for. |
+| `tasks_record.py` | The shape of a task record: the fields each part may hold, the checks of a record read from disk and of a brief, and the time stamp records carry. |
+| `tasks_approval.py` | Whether an approval still holds: the rules and settings changed since it, the scope it covered, and the messages for a task already decided or a stale review. |
+| `tasks_blockers.py` | Blockers of an approved task: clearing one with evidence, waiving one within the project's policy, and the waivers that expired. |
+| `tasks_review.py` | The consultation and the boards' review of a task: the rounds kept on a new consultation, the sequential passes, and the text a person reads before deciding. |
+| `tasks_closing.py` | Deciding and closing a task: the decision and its withdrawal, authorizations of external actions, the result, evidence handed to a follow-up task, and the points left open. |
+| `tasks_status.py` | The next step of a task and the command that takes it, what its status refuses, and the line of the task list, kept while nothing it was built from changed. |
 | `task_index.py` | Each task's status without parsing every record, so the edit hook reads only the tasks that can cover an edit, and task list skips the records it does not list and lists closed tasks from the line it kept. |
 | `decisions.py` | Seals an approval to what was approved, verifies signed approvals against the allowed signers in Git, and reads exported records. |
 | `results.py` | Records what was delivered for an approved task and the checks that prove it. |

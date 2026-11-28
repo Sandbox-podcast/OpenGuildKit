@@ -50,16 +50,12 @@ from .startup import MODES as MODES  # The modes, named here for the callers of 
 from .startup import UNKNOWN_MODE, declared_mode
 from .storage import parse_json, read_json, write_json
 from .task_index import tasks_with_status
-from .tasks import (
-    STALE_DAYS,
-    STATUSES,
-    approval_problem,
-    days_since,
-    evidence_states,
-    expired_waiver_problem,
-    read_task,
-    task_path,
-)
+from .tasks import read_task, task_path
+from .tasks_approval import approval_problem
+from .tasks_blockers import expired_waiver_problem
+from .tasks_closing import evidence_states
+from .tasks_record import STATUSES
+from .tasks_status import STALE_DAYS, days_since
 from .terminal import interactive
 from .wording import plural
 from .workflow import TaskStateError, exported_blockers, mock_evidence
@@ -89,7 +85,7 @@ def _age_days(moment: str) -> int | None:
 
 
 def covering_approvals(root: Path, state: Path, profile: dict, catalog: dict) -> list[dict]:
-    """Approved tasks, not yet done, whose approval still holds (tasks.approval_problem).
+    """Approved tasks, not yet done, whose approval still holds (tasks_approval.approval_problem).
 
     The status index skips the records that are not approved without parsing them; every other record is read
     and checked in full, so the index never decides what is covered. One git call checks the approved revisions of
@@ -873,7 +869,7 @@ def exported_decisions(root: Path, state: Path, profile: dict, fingerprint: str 
                        tasks: dict | None = None) -> list[dict]:
     """Every exported decision of the repository, teammates' included, and whether it still holds.
 
-    The record's twin of tasks.approval_problem: the same wording, an error for an approval not yet completed
+    The record's twin of tasks_approval.approval_problem: the same wording, an error for an approval not yet completed
     and a note for a completed one, whose record is history. tasks holds the task records the caller already read,
     by ID; a local task it lacks is read here.
     """

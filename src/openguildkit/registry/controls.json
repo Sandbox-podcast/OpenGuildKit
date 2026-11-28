@@ -21,7 +21,7 @@
         {
           "file": "src/openguildkit/tasks_cli.py",
           "symbol": "_decide",
-          "line": 644
+          "line": 634
         },
         {
           "file": "src/openguildkit/terminal.py",
@@ -47,12 +47,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "hook_answer",
-          "line": 266
+          "line": 262
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "guard_hook",
-          "line": 316
+          "line": 312
         },
         {
           "file": "src/openguildkit/hosts.py",
@@ -86,7 +86,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_record_fault",
-          "line": 734
+          "line": 730
         }
       ],
       "in_dossier": [
@@ -149,7 +149,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1132
+          "line": 1128
         }
       ],
       "in_dossier": [
@@ -170,7 +170,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "ci_guard",
-          "line": 1132
+          "line": 1128
         }
       ],
       "in_dossier": [],
@@ -189,12 +189,12 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "export_decision",
-          "line": 438
+          "line": 434
         },
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "exported_decisions",
-          "line": 872
+          "line": 868
         },
         {
           "file": "src/openguildkit/trace_cli.py",
@@ -224,7 +224,7 @@
         {
           "file": "src/openguildkit/guard.py",
           "symbol": "_rules_hold",
-          "line": 728
+          "line": 724
         },
         {
           "file": "src/openguildkit/cli.py",
@@ -249,7 +249,7 @@
         {
           "file": "src/openguildkit/profile_cli.py",
           "symbol": "write_change",
-          "line": 641
+          "line": 638
         },
         {
           "file": "src/openguildkit/profile_cli.py",
@@ -327,7 +327,7 @@
         {
           "file": "src/openguildkit/projects_cli.py",
           "symbol": "_inventory",
-          "line": 176
+          "line": 177
         }
       ],
       "in_dossier": [],

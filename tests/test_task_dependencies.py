@@ -5,7 +5,8 @@ import json
 import unittest
 
 from openguildkit.storage import write_json
-from openguildkit.tasks import record_problem, waiting_for
+from openguildkit.tasks import waiting_for
+from openguildkit.tasks_record import record_problem
 from tests.test_approval_lifecycle import EXAMPLE, ApprovalCase
 
 

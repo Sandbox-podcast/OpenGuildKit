@@ -2,7 +2,8 @@
 
 import unittest
 
-from openguildkit.tasks import _approved_step, points_left_open
+from openguildkit.tasks_closing import points_left_open
+from openguildkit.tasks_status import _approved_step
 
 
 def closed_task(**extra) -> dict:
