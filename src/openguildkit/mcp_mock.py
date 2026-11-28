@@ -17,6 +17,7 @@ import json
 import re
 from pathlib import Path
 
+from .errors import OgkError
 from .mcp_protocol import INVALID_PARAMS, ToolServer
 from .mcp_protocol import ProtocolError as MockError
 from .mcp_protocol import serve as serve_stdio
@@ -49,7 +50,7 @@ def _validate_records(mock: dict, tool_id: str) -> None:
         if "key" in collection:
             values = [_norm(item.get(collection["key"])) for item in collection["items"]]
             if None in values or len(set(values)) != len(values):
-                raise ValueError(f"{label}: every item needs a unique {collection['key']}.")
+                raise OgkError("OGK-MCP-001", f"{label}: every item needs a unique {collection['key']}.")
         refs = collection.get("refs", {})
         if not isinstance(refs, dict) or any(target not in records or "key" not in records[target] for target in refs.values()):
             raise ValueError(f"{label}: refs maps a field to a collection that has a key.")
@@ -123,7 +124,7 @@ def validate_mock(mock: object, tool_id: str) -> dict:
             raise ValueError(f"Mock {tool_id}/{name}: the last response is the default and has no when.")
     problems = reference_problems(mock)
     if problems:
-        raise ValueError(f"Mock {tool_id}: {problems[0]}")
+        raise OgkError("OGK-MCP-002", f"Mock {tool_id}: {problems[0]}")
     return mock
 
 
@@ -177,7 +178,7 @@ def check_synthetic(data, label: str) -> None:
     text = json.dumps(data, ensure_ascii=False)
     for match in _EMAIL.finditer(text):
         if not match.group(1).casefold().endswith(_RESERVED_DOMAINS):
-            raise ValueError(f"{label}: {match.group(0)} is not a test address. Use a reserved domain such as example.test.")
+            raise OgkError("OGK-MCP-003", f"{label}: {match.group(0)} is not a test address. Use a reserved domain such as example.test.")
 
 
 def apply_scenario(mock: dict, collections: object, label: str) -> dict:
@@ -187,7 +188,7 @@ def apply_scenario(mock: dict, collections: object, label: str) -> dict:
     unknown = sorted(set(collections) - set(mock.get("records", {})))
     if unknown:
         known = ", ".join(mock.get("records", {})) or "none"
-        raise ValueError(f"{label}: {mock['tool']} has no collection {unknown[0]}. Known: {known}.")
+        raise OgkError("OGK-MCP-004", f"{label}: {mock['tool']} has no collection {unknown[0]}. Known: {known}.")
     check_synthetic(collections, label)
     records = {name: {**collection, "items": collections.get(name, collection["items"])}
                for name, collection in mock["records"].items()}
@@ -195,7 +196,7 @@ def apply_scenario(mock: dict, collections: object, label: str) -> dict:
     try:
         return validate_mock({**mock, "records": records, "instructions": instructions}, mock["tool"])
     except ValueError as error:
-        raise ValueError(f"{label}: {error}") from error
+        raise OgkError("OGK-MCP-005", f"{label}: {error}") from error
 
 
 def is_generic(mock: dict) -> bool:

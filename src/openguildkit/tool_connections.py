@@ -12,6 +12,7 @@ import os
 import tomllib
 from pathlib import Path
 
+from .errors import OgkError
 from .storage import NestedTooDeeply, load_json, read_json, write_json, write_text
 
 HOSTS = ("claude-code", "codex")
@@ -83,7 +84,7 @@ def _mcp_file(path: Path) -> dict:
     try:
         data = load_json(path) if path.is_file() else {}
     except ValueError as error:
-        raise ValueError(f"{path.as_posix()} is not valid JSON: {error}") from error
+        raise OgkError("OGK-TOOLS-001", f"{path.as_posix()} is not valid JSON: {error}") from error
     if not isinstance(data, dict) or not isinstance(data.setdefault("mcpServers", {}), dict):
         raise ValueError(f"{path.as_posix()} must hold a JSON object with mcpServers.")
     return data
@@ -113,7 +114,7 @@ def _write_host(root: Path, host: str, connections: list[dict], removed: set[str
     taken = own.get("mcp_servers", {}) if isinstance(own.get("mcp_servers", {}), dict) else {}
     clash = sorted(set(managed) & set(taken))
     if clash:
-        raise ValueError(f"{path} already defines mcp_servers.{clash[0]} outside the OpenGuildKit block. Rename or remove it first.")
+        raise OgkError("OGK-TOOLS-002", f"{path} already defines mcp_servers.{clash[0]} outside the OpenGuildKit block. Rename or remove it first.")
     block = ""
     if managed:
         block = CODEX_BLOCK_START + "\n".join(_codex_table(key, managed[key]) for key in sorted(managed)) + CODEX_BLOCK_END
@@ -129,7 +130,7 @@ def check_settings(plan: list[dict]) -> None:
     blocked = [f"{item['tool']}: provide {', '.join(item['needs']['settings'])}"
                for item in plan if "skipped" not in item and item["needs"]["settings"]]
     if blocked:
-        raise ValueError("Settings are missing. " + "; ".join(blocked) + ".")
+        raise OgkError("OGK-TOOLS-003", "Settings are missing. " + "; ".join(blocked) + ".")
 
 
 def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> dict:
@@ -145,7 +146,7 @@ def apply_connections(root: Path, state: Path, host: str, plan: list[dict]) -> d
             existing = _mcp_file(path)["mcpServers"]
             for item in accepted:
                 if item["key"] in existing and (host, item["key"]) not in connections and existing[item["key"]] != item["entry"]:
-                    raise ValueError(f"{path} already defines {item['key']} with other settings. Rename or remove it first.")
+                    raise OgkError("OGK-TOOLS-004", f"{path} already defines {item['key']} with other settings. Rename or remove it first.")
     for item in accepted:
         record = {key: item[key] for key in ("key", "tool", "server", "mode", "entry") if key in item}
         record["host"] = host
@@ -207,7 +208,7 @@ def _host_entries(root: Path, host: str) -> dict:
             return _mcp_file(path)["mcpServers"]
         except ValueError as error:
             if isinstance(error.__cause__, NestedTooDeeply):
-                raise ValueError(f"{path.as_posix()}: {error.__cause__}") from error
+                raise OgkError("OGK-TOOLS-005", f"{path.as_posix()}: {error.__cause__}") from error
             return {}
     path = root / CODEX_CONFIG_FILE
     if not path.is_file():

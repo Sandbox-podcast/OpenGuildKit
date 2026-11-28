@@ -520,6 +520,7 @@ class GeminiHostListTests(GeminiCase):
         self.assertNotIn("This host has no hook", output)
 
     def test_tools_commands_say_which_host_the_project_has(self):
+        # OGK-TOOLS-013
         self.init("observe")
         _, error = self.run_cli("tools", "apply", "jira", "--mock", code=1)
         self.assertIn("the project's host is gemini-cli", error)

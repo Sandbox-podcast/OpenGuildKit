@@ -56,6 +56,11 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-HOST-008` | `hosts.py:_apply_codex` | {path.as_posix()} sets web_search = "disabled" but the research policy is public-sources. Remove it yourself, or set research to local-only. | tests/test_host_research.py |
 | `OGK-HOST-009` | `workstation.py:policy` | {path.as_posix()} cannot be read as the workstation policy: {error} | tests/test_managed_settings.py |
 | `OGK-HOST-010` | `workstation.py:policy` | {path.as_posix()} must be a JSON object with the keys {', '.join(KEYS)} only. | tests/test_managed_settings.py |
+| `OGK-MCP-001` | `mcp_mock.py:_validate_records` | {label}: every item needs a unique {collection['key']}. | tests/test_tools.py |
+| `OGK-MCP-002` | `mcp_mock.py:validate_mock` | Mock {tool_id}: {problems[0]} | tests/test_tools.py |
+| `OGK-MCP-003` | `mcp_mock.py:check_synthetic` | {label}: {match.group(0)} is not a test address. Use a reserved domain such as example.test. | tests/test_tools.py |
+| `OGK-MCP-004` | `mcp_mock.py:apply_scenario` | {label}: {mock['tool']} has no collection {unknown[0]}. Known: {known}. | tests/test_tools.py |
+| `OGK-MCP-005` | `mcp_mock.py:apply_scenario` | {label}: {error} | tests/test_tools.py |
 | `OGK-ORG-001` | `org_catalog.py:parse_copies` | --org-catalog takes NAME=PATH, such as acme=../acme-catalog, not {item!r}. | tests/test_org_catalog.py |
 | `OGK-ORG-002` | `org_catalog.py:_named_folder` | This machine has no copy of the organization catalog {name!r}: set {variable_name(name)} to your Git copy of it (guard --ci: --org-catalog {name}=PATH). | tests/test_org_catalog.py |
 | `OGK-ORG-003` | `org_catalog.py:read_files` | Give the full commit SHA of the organization catalog, not {commit!r}: git -C {shell_word(repo)} rev-parse COMMIT prints it. | tests/test_org_catalog.py |
@@ -159,6 +164,25 @@ A code is raised from one place and keeps its meaning when its words change: sea
 | `OGK-TASK-011` | `tasks_cli.py:_run` | Task {args.id} exists here only as the exported record {record.relative_to(root).as_posix()}, a teammate's task or an earlier one: read it with openguildkit task show {args.id} or openguildkit task list --decisions. | tests/test_error_codes.py |
 | `OGK-TASK-012` | `tasks_cli.py:_run` | {problem['message']} | tests/test_approval_lifecycle.py, tests/test_error_codes.py, tests/test_upgrade.py |
 | `OGK-TASK-013` | `tasks_decide_cli.py:_save_decided` | The task changed while you were deciding. Review it and retry. | tests/test_error_codes.py |
+| `OGK-TOOLS-001` | `tool_connections.py:_mcp_file` | {path.as_posix()} is not valid JSON: {error} | tests/test_clean_errors.py |
+| `OGK-TOOLS-002` | `tool_connections.py:_write_host` | {path} already defines mcp_servers.{clash[0]} outside the OpenGuildKit block. Rename or remove it first. | tests/test_tools.py |
+| `OGK-TOOLS-003` | `tool_connections.py:check_settings` | {'Settings are missing. ' + '; '.join(blocked) + '.'} | tests/test_tools.py |
+| `OGK-TOOLS-004` | `tool_connections.py:apply_connections` | {path} already defines {item['key']} with other settings. Rename or remove it first. | tests/test_tools.py |
+| `OGK-TOOLS-005` | `tool_connections.py:_host_entries` | {path.as_posix()}: {error.__cause__} | tests/test_clean_errors.py |
+| `OGK-TOOLS-006` | `tools.py:resolve_tool` | Unknown tool: {name}. Run openguildkit tools list. | tests/test_tools.py |
+| `OGK-TOOLS-007` | `tools.py:choose_server` | {tool['id']}/{server_id} is a community server: review its source, then pass --community. | tests/test_tools.py |
+| `OGK-TOOLS-008` | `tools.py:_settings` | {label}: {item['name']} must be a plain value such as a name or a host, never a credential. | tests/test_tools.py |
+| `OGK-TOOLS-009` | `tools.py:_settings` | {label} has no setting {', '.join(unknown)}. | tests/test_tools.py |
+| `OGK-TOOLS-010` | `tools.py:_plan_options` | --read-only selects a live server. Use --mock separately for synthetic data. | tests/test_tools.py |
+| `OGK-TOOLS-011` | `tools.py:_plan_options` | --set must be a plain value such as a name or a host, never a credential: a token stays in each person's environment, named with --token-env TOOL=VARIABLE. | tests/test_tools.py |
+| `OGK-TOOLS-012` | `tools.py:_plan_options` | --token-env names an environment variable, such as JIRA_TOKEN, for a remote server; never the token itself, which stays in each person's environment. | tests/test_tools.py |
+| `OGK-TOOLS-013` | `tools_cli.py:_host` | OpenGuildKit writes MCP settings for {' and '.join(HOSTS)}, and the project's host is {host or 'not set'}. Add --host {HOSTS[0]} or --host {HOSTS[1]} to this command to write them for that agent, or change the project's host with openguildkit profile set host. For another agent, run openguildkit tools plan ID --host codex and adapt the server settings to that agent. | tests/test_gemini_host.py |
+| `OGK-TOOLS-014` | `tools_cli.py:_confirm_live` | {f"Review the plan of {', '.join(live)} (openguildkit tools plan), then write it with: " + _apply_command(args, host, plan, tools) + ' --yes'} | tests/e2e/test_tool_mocks.py |
+| `OGK-TOOLS-015` | `tools_cli.py:_confirm_live` | Nothing written: the plan was not accepted. | tests/test_tools.py |
+| `OGK-TOOLS-016` | `tools_cli.py:_scenario` | .openguildkit/catalog/tool-mocks/{SCENARIO} exists. Edit it, or pass --force to replace it. | tests/test_tools.py |
+| `OGK-TOOLS-017` | `tools_cli.py:_scenario` | {examined} Name the tools: openguildkit tools scenario TOOL [TOOL ...] (those with a mock: openguildkit tools list --mocks). | tests/test_doc_examples.py |
+| `OGK-TOOLS-018` | `tools_cli.py:_call` | --json lists the tools of the mock: run openguildkit tools call {args.id} --json, without a tool name. | tests/test_tools.py |
+| `OGK-TOOLS-019` | `tools_cli.py:_call` | --args is not valid JSON: {error} | tests/test_tools.py |
 
 ## JSON output
 

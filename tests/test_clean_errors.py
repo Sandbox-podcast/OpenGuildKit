@@ -66,7 +66,7 @@ class CleanErrorTests(unittest.TestCase):
 
     def test_json_nested_too_deeply_in_a_file_of_the_project_is_one_line(self):
         """Issue #460: a file of 200 000 [ then 200 000 ] gave a RecursionError traceback in six commands."""
-        # OGK-CORE-002
+        # OGK-CORE-002, OGK-TOOLS-001, OGK-TOOLS-005
         write_json(self.root / "profile.json", {"personal_data": "no", "name": "Portal", "stack": ["Python"],
                                                 "host": "claude-code", "guard": "observe"})
         self.run_cli("init", "--answers", self.root / "profile.json", code=0)

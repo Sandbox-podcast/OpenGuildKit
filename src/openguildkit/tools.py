@@ -24,6 +24,7 @@ from . import clock, lazy_re
 from .catalog import CatalogError, package_file
 from .detect import SKIPPED_DIRECTORIES
 from .detect_manifest import MAX_MANIFEST_BYTES
+from .errors import OgkError
 from .records import Profile
 from .sensitive import looks_like_credential
 from .storage import load_json, unique_fields
@@ -171,7 +172,7 @@ def resolve_tool(name: str, tools: dict) -> str:
         return name
     matched, _ = match_tools([name], tools)
     if not matched:
-        raise ValueError(f"Unknown tool: {name}. Run openguildkit tools list.")
+        raise OgkError("OGK-TOOLS-006", f"Unknown tool: {name}. Run openguildkit tools list.")
     return matched[0]
 
 
@@ -277,7 +278,7 @@ def choose_server(tool: dict, server_id: str | None = None, community: bool = Fa
         if server is None:
             raise ValueError(f"{tool['id']} has no server {server_id}. Known: {', '.join(s['id'] for s in servers) or 'none'}.")
         if server["publisher"] == "community" and not community:
-            raise ValueError(f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
+            raise OgkError("OGK-TOOLS-007", f"{tool['id']}/{server_id} is a community server: review its source, then pass --community.")
         return server
     usable = [item for item in servers if item["status"] != "deprecated" and (community or item["publisher"] == "vendor")]
     usable.sort(key=lambda item: (item["publisher"] != "vendor", read_only and "read_only" not in item,
@@ -292,12 +293,12 @@ def _settings(server: dict, values: dict, label: str) -> tuple[dict, list[str]]:
         if value is None:
             missing.append(item["name"])
         elif not isinstance(value, str) or not SETTING_VALUE.fullmatch(value) or SECRET_WORD.search(item["name"]):
-            raise ValueError(f"{label}: {item['name']} must be a plain value such as a name or a host, never a credential.")
+            raise OgkError("OGK-TOOLS-008", f"{label}: {item['name']} must be a plain value such as a name or a host, never a credential.")
         else:
             filled[item["name"]] = value
     unknown = sorted(set(values) - {item["name"] for item in server.get("settings", [])})
     if unknown:
-        raise ValueError(f"{label} has no setting {', '.join(unknown)}.")
+        raise OgkError("OGK-TOOLS-009", f"{label} has no setting {', '.join(unknown)}.")
     return filled, missing
 
 
@@ -480,15 +481,15 @@ def _plan_options(host: str, mock: bool, settings: dict | None, token_env: dict 
     if host not in HOSTS:
         raise ValueError(f"Choose a host to write for: {', '.join(HOSTS)}.")
     if read_only and mock:
-        raise ValueError("--read-only selects a live server. Use --mock separately for synthetic data.")
+        raise OgkError("OGK-TOOLS-010", "--read-only selects a live server. Use --mock separately for synthetic data.")
     settings = {key.casefold(): value for key, value in (settings or {}).items()}
     token_env = {key.casefold(): value for key, value in (token_env or {}).items()}
     if any(isinstance(value, str) and looks_like_credential(value)
            for values in settings.values() for value in values.values()):
-        raise ValueError("--set must be a plain value such as a name or a host, never a credential: a token stays in "
+        raise OgkError("OGK-TOOLS-011", "--set must be a plain value such as a name or a host, never a credential: a token stays in "
                          "each person's environment, named with --token-env TOOL=VARIABLE.")
     if any(not _variable_name(name) for name in token_env.values()):
-        raise ValueError("--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
+        raise OgkError("OGK-TOOLS-012", "--token-env names an environment variable, such as JIRA_TOKEN, for a remote server; "
                          "never the token itself, which stays in each person's environment.")
     return settings, token_env
 

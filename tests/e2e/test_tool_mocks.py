@@ -280,6 +280,7 @@ class ProjectConnectionTests(unittest.TestCase):
         self.assertFalse(config.exists())
 
     def test_live_connections_for_claude_code_name_variables_only(self):
+        # OGK-TOOLS-014
         unconfirmed = cli(self.project, "tools", "apply", "jira", "--host", "claude-code", check=False, stdin="")
         self.assertEqual(unconfirmed.returncode, 1)
         self.assertIn("--yes", unconfirmed.stderr)
