@@ -8,12 +8,14 @@ and tells the requester which rules remain instructions or human checks.
 import json
 import os
 import re
+import shlex
 import shutil
 import tomllib
 from pathlib import Path
 
 from . import audit_log
 from .doc_links import doc_link
+from .project import restricted_paths
 from .storage import write_text
 
 HOSTS = ("claude-code", "codex", "gemini-cli", "other")
@@ -71,34 +73,35 @@ CLAUDE_PROTECTED_RULES = tuple(f"Edit(/{path})" for path in PROTECTED_PATHS)
 OUTDATED_PROTECTED_RULES = tuple(f"Edit(./{path})" for path in PROTECTED_PATHS)
 
 
-def restricted_paths(profile: dict) -> list[str]:
-    """The path patterns that `restricted_paths` of .openguildkit/project.json closes to the agent; none when it is
-    absent. Refused, with the file named, when it is not a list of {"paths": [project paths]} (a "class" text and a list
-    of "boards" may come with each): a path is relative to the project, without .. and without parentheses."""
-    entries = profile.get("restricted_paths")
-    if entries is None:
-        return []
-    shape = ('restricted_paths in .openguildkit/project.json must be a list of objects such as {"paths": '
-             '["data/customers/**"], "class": "restricted", "boards": ["security"]}: paths are project paths without a '
-             'leading / or .., and without parentheses.')
-    paths = []
-    for entry in entries if isinstance(entries, list) else [None]:
-        listed = entry.get("paths") if isinstance(entry, dict) else None
-        if (not isinstance(entry, dict) or set(entry) - {"paths", "class", "boards"} or not isinstance(listed, list)
-                or not listed or any(not isinstance(item, str) or not item.strip() or item.startswith(("/", "\\"))
-                                     or ".." in item.split("/") or any(char in item for char in "()\r\n")
-                                     for item in listed)
-                or not isinstance(entry.get("class", ""), str)
-                or (not isinstance(entry.get("boards", []), list)
-                    or any(not isinstance(item, str) for item in entry.get("boards", [])))):
-            raise ValueError(shape)
-        paths += [item.strip() for item in listed]
-    return list(dict.fromkeys(paths))
-
-
 def restricted_rules(profile: dict) -> list[str]:
     """The Claude Code rules for those paths: its file tools may neither read nor edit them."""
-    return [f"{tool}(/{path})" for path in restricted_paths(profile) for tool in ("Read", "Edit")]
+    return _path_rules(restricted_paths(profile))
+
+
+def _path_rules(paths: list[str]) -> list[str]:
+    return [f"{tool}(/{path})" for path in paths for tool in ("Read", "Edit")]
+
+
+# The words profile set restricted-paths adds to its line of the history for the paths it lifts (profile_cli.py).
+LIFTED = "lifted:"
+
+
+def lifted_rules(profile: dict) -> list[str]:
+    """The Read and Edit rules of the paths a `profile set restricted-paths` lifted, as the history of the profile
+    names them, and that the profile does not close again: host apply wrote them, so it removes them. A path lifted by
+    an edit of project.json, by hand or in the web page, is not in that history: its rules stay until a person removes
+    them."""
+    lifted = []
+    for change in profile.get("changes", []):
+        text = change.get("change", "") if isinstance(change, dict) else ""
+        found = re.fullmatch(rf"set restricted-paths .* \({LIFTED} (.+)\)", text) if isinstance(text, str) else None
+        if found:
+            try:
+                lifted += shlex.split(found.group(1))
+            except ValueError:  # A history line edited by hand: its paths are left alone.
+                continue
+    now = set(restricted_paths(profile))
+    return _path_rules([path for path in dict.fromkeys(lifted) if path not in now])
 
 
 def signers_rule(profile: dict) -> str | None:
@@ -592,7 +595,8 @@ def apply_host_settings(root: Path, profile: dict) -> list[str]:
         if profile.get("guard", "off") != "off":
             wanted += CLAUDE_PROTECTED_RULES
         wanted += restricted_rules(profile)
-        deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES]
+        lifted = [rule for rule in lifted_rules(profile) if rule not in wanted]
+        deny[:] = [rule for rule in deny if rule not in OUTDATED_PROTECTED_RULES and rule not in lifted]
         deny.extend(rule for rule in wanted if rule not in deny)
         if not local_only:
             deny[:] = [rule for rule in deny if rule not in CLAUDE_RESEARCH_RULES]

@@ -43,7 +43,7 @@ A field marked "absent when empty" is written only when it holds something. Date
 | `declined_rules` | List of `{"id": "PACK/RULE", "by", "on", "reason"}`: rules set aside while their pack stays in force. Absent when empty | Absent | `profile decline rule PACK/RULE`; `profile adopt rule PACK/RULE` restores one |
 | `separate_requester` | `true`, or absent: the requester of a task may not approve it | Absent | `profile set separate-requester on\|off` ([requester and approver](workflow.md#requester-and-approver)) |
 | `frozen` | `{"by", "on", "reason"}`, or absent: the edit hook refuses every edit and `guard --ci` every change but the one that lifts it | Absent | `profile set freeze on\|off`; lifting it needs a person at a terminal ([incident response](workflow.md#incident-response)) |
-| `restricted_paths` | List of `{"paths": [globs], "class": TEXT, "boards": [board IDs]}`; a path is inside the project, without `..` or parentheses | Absent | By hand; `host apply` writes the deny rules ([paths the team closes to the agent](../integrations/README.md#paths-the-team-closes-to-the-agent)) |
+| `restricted_paths` | List of `{"paths": [globs], "class": TEXT, "boards": [board IDs]}`; a path is inside the project, without `..` or parentheses | Absent | `profile set restricted-paths PATH...` or `none` (lifting a path needs a terminal), or by hand; the edit hook refuses an edit of them, `host apply` writes the deny rules ([paths the team closes to the agent](../integrations/README.md#paths-the-team-closes-to-the-agent)) |
 
 ## Check a profile
 

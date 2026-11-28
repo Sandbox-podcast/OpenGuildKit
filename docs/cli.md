@@ -316,11 +316,11 @@ Remove entries from a list.
 
 ### profile set
 
-Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, the freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), or a setup answer.
+Set the host, guard, research policy, sector, approval mode, waiver policy, whether every rule is asked, the paths of the short lane, whether the requester of a task may approve it, the freeze of the project, the longest age of an approval, who clears a board's blockers (approver-roles), the paths closed to the agents (restricted-paths), or a setup answer.
 
-- `FIELD`: The setting to change. One of: approval, approver-roles, ask-every-rule, freeze, guard, host, light-paths, max-approval-age, people-decisions, personal-data, research, sector, separate-requester, waivers.
+- `FIELD`: The setting to change. One of: approval, approver-roles, ask-every-rule, freeze, guard, host, light-paths, max-approval-age, people-decisions, personal-data, research, restricted-paths, sector, separate-requester, waivers.
 - `VALUE`: Its new value (light-paths: a folder or file glob such as 'docs/**', or none).
-- `[PATH ...]`: light-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.
+- `[PATH ...]`: light-paths and restricted-paths: more paths. approver-roles: the people of the role (VALUE is the board), or none.
 - `--signers PATH`: approval signed: the allowed signers file, a path inside the project.
 - `--approver NAME`: approval signed: a person whose signature approves a task; repeat for each.
 - `--allowed-by NAME`: waivers allowed: a person who may waive a blocker; repeat for each.
