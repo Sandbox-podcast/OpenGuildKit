@@ -285,9 +285,9 @@ def decision_sections(task: Task) -> dict[str, list[str]]:
                          f"`.openguildkit/decisions/{task_id}.json`"]}
 
 
-def _decision_refusal(deliverable: dict, task: Task) -> ValueError:
+def _decision_refusal(deliverable: dict, task: Task) -> OgkError:
     kind = task.get("answers", {}).get("kind") or "unanswered"
-    return ValueError(f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
+    return OgkError("OGK-RESULT-035", f"{deliverable['id']} is written from a decision task, and {task['id']} is a {kind} task. "
                       "Open a decision task (answer kind decision at task consult) for the choice to record, or pick "
                       "another template: openguildkit deliverable list.")
 

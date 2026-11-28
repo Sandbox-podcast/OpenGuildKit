@@ -41,9 +41,9 @@ def _shape(task: Task) -> str:
     return f"Run openguildkit task result {task['id']} --template for the shape."
 
 
-def _refusal(task: Task, message: str) -> ValueError:
+def _refusal(task: Task, message: str) -> OgkError:
     """A refused result names what is accepted and the template that shows it."""
-    return ValueError(f"{message} {_shape(task)}")
+    return OgkError("OGK-RESULT-033", f"{message} {_shape(task)}")
 
 
 class _Problems:

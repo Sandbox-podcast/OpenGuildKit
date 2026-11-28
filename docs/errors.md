@@ -417,6 +417,9 @@ The register holds the message of each code as the code writes it and the tests 
 | `OGK-RESULT-029` | `retro.py:facts_of_record` |
 | `OGK-RESULT-031` | `retro.py:write_draft` |
 | `OGK-RESULT-032` | `delivered_review.py:require_reviewable` |
+| `OGK-RESULT-033` | `result_form.py:_refusal` |
+| `OGK-RESULT-034` | `retro.py:_refusal` |
+| `OGK-RESULT-035` | `deliverables.py:_decision_refusal` |
 | `OGK-ROUTE-001` | `routing.py:select_boards` |
 | `OGK-ROUTE-002` | `routing.py:select_boards` |
 | `OGK-ROUTE-003` | `routing.py:select_boards` |

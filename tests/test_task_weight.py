@@ -78,6 +78,7 @@ class RevisionAndClosingTests(ResultCase):
         self.assertEqual(self.record()["result"]["revision"], head)
 
     def test_a_result_without_a_revision_is_still_refused_before_any_is_recorded(self):
+        # OGK-RESULT-033
         self.approved()
         write_json(self.root / "result.json", {"criteria": [], "checks": self.rule_outcomes()})
         _, error = self.run_cli("task", "result", TASK, "--file", self.root / "result.json", code=1)
