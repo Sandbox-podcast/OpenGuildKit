@@ -4,6 +4,7 @@ What changes for a team that uses OpenGuildKit, version by version. Versions fol
 
 ## Unreleased
 
+- `tests/test_performance.py`: each budget is at most three times the ratio `docs/testing.md` records, so a doubling fails; the edit hook is held to a bare interpreter start, not to `--version`; `scripts/bench.py` adds `task challenge` on 500 closed tasks and the Codex and Gemini CLI hook payloads, and prints "x python" (#538)
 - Start: `--version` answers without importing the CLI (95 to 34 ms), the edit hook of a project whose guard is off ends before importing the guard (76 to 32 ms), commands other than `alerts`, `market`, `storybook` and `tools` start without those modules and the mock MCP server, and the regular expressions compile at first use: 23 compiled by the CLI's import instead of 128 (#539)
 - `task consult` of a bug looks for the code its brief names in the file the brief names first, then with one `git grep` over every source file of a Git repository; outside Git, a walk stopped at 5,000 source files says so instead of calling the rest absent (`code_not_searched`): 2.1 s to 1.2 s at 20,000 files (#536)
 - `task retro --all`, `task challenge` and `task decide`: the objections between boards scan each text once for every board's domain instead of once per pair of boards, and an ASCII text is folded at once: `task retro --all` at 1,000 tasks from 13.4 s to 6.6 s, same output (#540)

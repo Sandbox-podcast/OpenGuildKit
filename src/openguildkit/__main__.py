@@ -86,7 +86,9 @@ def _run_hook(event: str, project: Path | None, console: bool) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv[1:] if argv is None else list(argv)
-    if arguments == ["--version"]:  # Without the CLI, whose import costs four times the interpreter's start (#539).
+    bare = arguments[2:] if arguments[:1] == ["--project"] else arguments[1:] if arguments[:1] and \
+        arguments[0].startswith("--project=") else arguments
+    if bare == ["--version"]:  # Without the CLI, whose import costs four times the interpreter's start (#539).
         from .startup import package_version
 
         print(f"openguildkit {package_version()}")

@@ -1,14 +1,15 @@
-"""Performance: time budgets that catch a slowdown of an order of magnitude.
+"""Performance: time budgets that catch a doubling of a command's time.
 
 The measures come from scripts/bench.py: real processes, median of three runs.
 Budgets are ratios to the time of openguildkit --version measured in the same
-run, so a slow CI runner slows the budget down with the commands. Each budget is
-at most ten times the lowest ratio recorded (docs/testing.md, or the commit that
-added the command to the benchmark), so a tenfold regression fails, and at least
-three times the highest ratio seen, so a busy machine passes. The start itself is
-held to a ratio of a bare interpreter start, and every command to an absolute
-ceiling against hangs. The bug consult runs with a small node_modules here: the
-walk never enters it, which tests/test_project_walk.py checks without a clock.
+run, so a slow CI runner slows the budget down with the commands; the edit hook's
+are ratios to a bare interpreter start, so that a slower --version does not loosen
+them. Each budget is at most three times the ratio docs/testing.md records (#538),
+so a doubling fails, and a run over budget is measured once more before failing,
+so a burst of load passes. The start itself is held to a ratio of a bare
+interpreter start, and every command to an absolute ceiling against hangs. The bug
+consult runs with a small node_modules here: the walk never enters it, which
+tests/test_project_walk.py checks without a clock.
 """
 
 import argparse
@@ -38,31 +39,34 @@ spec = importlib.util.spec_from_file_location("openguildkit_bench", SCRIPT)
 bench = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bench)
 
-# Times openguildkit --version: at most ten times the lowest ratio recorded, and at least three times the highest.
+# Times openguildkit --version, each about 2.5 times the highest ratio of the table in docs/testing.md and at most
+# three times it (#538): a command twice as slow fails. A run over budget is measured once more before failing.
 BUDGETS = {
-    "catalog --json": 6,
-    "init": 6,
-    "task consult": 9,
-    f"task consult, bug, {bench.SOURCE_FILES} source files": 18,
-    f"task list ({bench.TASKS} tasks)": 13,
-    f"check ({bench.TASKS} tasks)": 29,
-    # Issue #534: three times the highest ratio seen, as the rule above says: 1.5 to 2.9 for task list, which read every
-    # record at 16 times the start before; 10 to 17 for check, at 24 before. Counting the reads of a record catches the
-    # return to two or three reads (ClosedTaskReadTests); the time only catches an order of magnitude.
-    f"task list ({bench.TASKS} closed tasks)": 9,
-    f"check ({bench.TASKS} closed tasks)": 51,
-    "references search": 6,
-    f"guard --hook pre-edit ({bench.TASKS} tasks)": 5,
-    f"guard --hook pre-edit (Git, {bench.APPROVED} approvals)": 13,
-    "guard --hook pre-edit, guard off": 4,
-    f"guard --hook prompt ({bench.TASKS} tasks)": 5,
-    f"detect (monorepo, {bench.PACKAGES} packages)": 11,
-    f"init (monorepo, {bench.PACKAGES} packages)": 11,
-    # Three times the highest ratio measured (3.0 to 4.1); 34 with one git show per record on the base (issue #532).
-    f"guard --ci ({bench.MERGED} records on the base)": 13,
-    f"projects --surfaces ({bench.FLEET} projects)": 50,
+    "catalog --json": 31,
+    "init": 21,
+    "task consult": 29,
+    f"task consult, bug, {bench.SOURCE_FILES} source files": 38,
+    f"task list ({bench.TASKS} tasks)": 62,
+    f"check ({bench.TASKS} tasks)": 66,
+    f"task list ({bench.TASKS} closed tasks)": 19,
+    f"check ({bench.TASKS} closed tasks)": 128,
+    f"task challenge ({bench.TASKS} closed tasks)": 22,
+    "references search": 22,
+    f"detect (monorepo, {bench.PACKAGES} packages)": 20,
+    f"init (monorepo, {bench.PACKAGES} packages)": 25,
+    f"guard --ci ({bench.MERGED} records on the base)": 39,
+    f"projects --surfaces ({bench.FLEET} projects)": 113,
 }
-START_BUDGET = 25  # times a bare interpreter start
+# The edit hook, in times a bare interpreter start (x python): a slower --version does not loosen them (#538).
+HOOK_BUDGETS = {
+    f"guard --hook pre-edit ({bench.TASKS} tasks)": 27,
+    f"guard --hook pre-edit, Codex ({bench.TASKS} tasks)": 22,
+    f"guard --hook pre-edit, Gemini CLI ({bench.TASKS} tasks)": 24,
+    f"guard --hook pre-edit (Git, {bench.APPROVED} approvals)": 28,
+    "guard --hook pre-edit, guard off": 4,
+    f"guard --hook prompt ({bench.TASKS} tasks)": 27,
+}
+START_BUDGET = 4  # times a bare interpreter start; 1.4 to 1.6 measured (#539)
 CEILING_SECONDS = 60
 DEPENDENCY_FILES = 500  # in the web project's node_modules; scripts/bench.py uses 50 000
 
@@ -81,10 +85,11 @@ class PerformanceTests(unittest.TestCase):
     @staticmethod
     def over_budget(results):
         start = results["start (--version)"]["median"] / results["python -c pass"]["median"]
-        return start >= START_BUDGET or any(results[name]["x_start"] >= budget for name, budget in BUDGETS.items())
+        return start >= START_BUDGET or any(results[name]["x_start"] >= budget for name, budget in BUDGETS.items()) \
+            or any(results[name]["x_python"] >= budget for name, budget in HOOK_BUDGETS.items())
 
     def test_every_measured_command_has_a_budget(self):
-        self.assertEqual(set(self.results) - {"python -c pass", "start (--version)"}, set(BUDGETS))
+        self.assertEqual(set(self.results) - {"python -c pass", "start (--version)"}, {*BUDGETS, *HOOK_BUDGETS})
 
     def test_the_cli_starts_quickly(self):
         start = self.results["start (--version)"]["median"]
@@ -98,6 +103,34 @@ class PerformanceTests(unittest.TestCase):
                 self.assertLess(item["median"], CEILING_SECONDS)
                 self.assertLess(item["x_start"], budget, f"{name}: {item['median']:.3f} s, "
                                 f"{item['x_start']:.1f} times the start; budget {budget}")
+
+    def test_the_edit_hook_stays_within_its_budget_against_a_bare_interpreter(self):
+        for name, budget in HOOK_BUDGETS.items():
+            with self.subTest(command=name):
+                item = self.results[name]
+                self.assertLess(item["median"], CEILING_SECONDS)
+                self.assertLess(item["x_python"], budget, f"{name}: {item['median']:.3f} s, "
+                                f"{item['x_python']:.1f} times a bare interpreter; budget {budget}")
+
+
+class BudgetTableTests(unittest.TestCase):
+    """The budgets follow the ratios docs/testing.md records, without a clock."""
+
+    def test_each_budget_is_at_most_three_times_the_ratio_the_documentation_records(self):
+        """Issue #538: budgets were 2.2 to 7.5 times the measure, so a doubling of the hook or the start passed."""
+        page = (REPO / "docs" / "testing.md").read_text(encoding="utf-8")
+        rows = page.split("| Command | median s | x start | x python |\n", 1)[1].split("\n\n", 1)[0].splitlines()[1:]
+        table = {}
+        for line in rows:
+            name, _, start, floor = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
+            table[name] = {"x_start": float(start.split(" to ")[1]), "x_python": float(floor.split(" to ")[1])}
+        documented = {**{name: (budget, "x_start") for name, budget in BUDGETS.items()},
+                      **{name: (budget, "x_python") for name, budget in HOOK_BUDGETS.items()},
+                      "start (--version)": (START_BUDGET, "x_python")}
+        self.assertEqual(sorted(set(documented) - set(table)), [])
+        for name, (budget, ratio) in documented.items():
+            with self.subTest(command=name):
+                self.assertLessEqual(budget, 3 * table[name][ratio])
 
 
 class BenchReportTests(unittest.TestCase):
@@ -486,6 +519,10 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), result.stdout)
         self.assertEqual(sorted(name for name in imported(result.stderr) if name.startswith("openguildkit.")),
                          ["openguildkit.startup"])
+        with tempfile.TemporaryDirectory() as folder:  # As scripts/bench.py and a script in a project call it.
+            placed = python("-X", "importtime", "-m", "openguildkit", "--project", folder, "--version")
+        self.assertEqual(placed.stdout, result.stdout)
+        self.assertNotIn("openguildkit.cli", imported(placed.stderr))
 
     def test_task_list_leaves_out_the_deferred_command_modules(self):
         """Issue #539: every command imported the alerts, market, Storybook and tools commands and the mock MCP server."""
