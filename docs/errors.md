@@ -622,10 +622,30 @@ The register holds the message of each code as the code writes it and the tests 
 
 - `project_file`: OGK-AUDIT-006
 
+### web_requests.py
+
+- `_resolve`: OGK-WEB-013, OGK-WEB-014, OGK-WEB-015, OGK-WEB-016
+- `_resolved`: OGK-WEB-010
+- `check_paths`: OGK-WEB-011, OGK-WEB-012
+- `check_request`: OGK-WEB-003, OGK-WEB-004, OGK-WEB-005, OGK-WEB-006, OGK-WEB-007, OGK-WEB-008, OGK-WEB-009
+- `read`: OGK-WEB-017, OGK-WEB-018, OGK-WEB-019, OGK-WEB-020
+- `write`: OGK-WEB-021, OGK-WEB-022, OGK-WEB-023, OGK-WEB-024, OGK-WEB-025
+
 ### webui.py
 
+- `_body`: OGK-WEB-040, OGK-WEB-041, OGK-WEB-042, OGK-WEB-043, OGK-WEB-044, OGK-WEB-045
+- `_decision_line`: OGK-WEB-056
+- `_options`: OGK-WEB-026
+- `_static`: OGK-WEB-038
+- `_with_uploads`: OGK-WEB-030, OGK-WEB-031, OGK-WEB-032, OGK-WEB-033
+- `do_GET`: OGK-WEB-034, OGK-WEB-035, OGK-WEB-036, OGK-WEB-037
+- `do_POST`: OGK-WEB-039
+- `handle`: OGK-WEB-046, OGK-WEB-047
 - `launch_key`: OGK-WEB-001
-- `save_profile`: OGK-WEB-002
+- `parse`: OGK-WEB-027
+- `run`: OGK-WEB-028, OGK-WEB-029
+- `save_prefs`: OGK-WEB-048, OGK-WEB-049, OGK-WEB-050, OGK-WEB-051
+- `save_profile`: OGK-WEB-002, OGK-WEB-052, OGK-WEB-053, OGK-WEB-054, OGK-WEB-055
 
 ### workflow.py
 
