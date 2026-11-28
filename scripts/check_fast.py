@@ -159,7 +159,8 @@ def _command(name: str) -> tuple[bool, str]:
     if result.returncode == 0:
         return True, ""
     output = (result.stderr or result.stdout[-4000:]) if npm_arguments is None else result.stdout + result.stderr
-    return False, f"===== {' '.join(command[-2:] if npm_arguments else command[2:4])} failed ({what})\n{output.rstrip()}"
+    shown = f"npm {' '.join(npm_arguments)}" if npm_arguments else "openguildkit catalog"
+    return False, f"===== {shown} failed ({what})\n{output.rstrip()}"
 
 
 def main(argv: list[str] | None = None) -> int:
