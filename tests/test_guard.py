@@ -11,8 +11,8 @@ from unittest.mock import patch
 from openguildkit.decisions import export_digest
 from openguildkit.guard import HOOK_OUTCOMES, MODES, UNKNOWN_MODE, hook_answer
 from openguildkit.storage import write_json
-
-from tests.support import CapturedCli, openguildkit_on_path, run_cli as run_project
+from tests.support import CapturedCli, openguildkit_on_path
+from tests.support import run_cli as run_project
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 TASK = "request-status"

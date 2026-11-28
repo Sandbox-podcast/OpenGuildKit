@@ -6,7 +6,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-
 # Revisions up to 2025-11-25 open with an initialize handshake. From 2026-07-28 every request
 # names its protocol version in params._meta and the server keeps no connection state.
 LEGACY_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")

@@ -6,11 +6,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
 from openguildkit.patterns import is_stack_pattern
 from openguildkit.rule_checks import evaluate_check
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

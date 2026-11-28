@@ -11,16 +11,20 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
 from openguildkit.cli import main
 from openguildkit.project import profile_recommendations, validate_profile
 from openguildkit.project_rules import resolved_profile
 from openguildkit.project_setup import init_questions
 from openguildkit.rule_checks import (
-    MAX_FILE_BYTES, MAX_FILES, MAX_SIZE_BYTES, describe_check, evaluate_check, validate_check,
+    MAX_FILE_BYTES,
+    MAX_FILES,
+    MAX_SIZE_BYTES,
+    describe_check,
+    evaluate_check,
+    validate_check,
 )
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

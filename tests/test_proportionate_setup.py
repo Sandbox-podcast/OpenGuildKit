@@ -11,15 +11,15 @@ from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
 
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
 from openguildkit.cli import main
+from openguildkit.consultation import _board_template
 from openguildkit.init_cli import _print_preselection
-from openguildkit.prompts import prompt_questions
 from openguildkit.project import profile_recommendations, validate_profile
 from openguildkit.project_rules import RULE_WARNING, rule_plan
 from openguildkit.project_setup import init_questions, setup_profile
+from openguildkit.prompts import prompt_questions
 from openguildkit.storage import write_json
-from openguildkit.consultation import _board_template
 from tests.support import run_cli
 
 FINTECH = {"name": "payflow", "sector": "financial-services", "personal_data": "yes",

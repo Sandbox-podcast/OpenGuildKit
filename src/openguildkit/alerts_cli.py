@@ -5,9 +5,24 @@ from pathlib import Path
 
 from . import requester
 from .alerts import (
-    SEVERITIES, STATUS_CHOICES, STATUSES, accept_alert, alert_task_id, find_alert, import_report, link_alert,
-    load_register, migrate_task, needs_person, save_register, set_severity, set_status, summary, task_alerts,
-    task_brief, unhandled_alerts,
+    SEVERITIES,
+    STATUS_CHOICES,
+    STATUSES,
+    accept_alert,
+    alert_task_id,
+    find_alert,
+    import_report,
+    link_alert,
+    load_register,
+    migrate_task,
+    needs_person,
+    save_register,
+    set_severity,
+    set_status,
+    summary,
+    task_alerts,
+    task_brief,
+    unhandled_alerts,
 )
 from .cli_surface import add_by
 from .command import Command

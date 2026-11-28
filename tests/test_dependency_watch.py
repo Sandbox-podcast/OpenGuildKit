@@ -10,7 +10,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 from tests.test_workflows import parse, run_text, steps
 

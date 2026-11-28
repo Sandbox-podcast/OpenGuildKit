@@ -19,7 +19,6 @@ from pathlib import Path
 from openguildkit.consultation import board_brief
 from openguildkit.integrations import packaged_file
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

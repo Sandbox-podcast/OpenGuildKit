@@ -11,7 +11,6 @@ from openguildkit.project import validate_profile
 from openguildkit.project_instructions import BEGIN
 from openguildkit.project_rules import rule_plan
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 LANGUAGE_PACKS = {"Python": "services-api", "React": "apps-web", "TypeScript": "apps-web"}

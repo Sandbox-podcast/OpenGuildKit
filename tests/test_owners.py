@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from openguildkit import owners
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"

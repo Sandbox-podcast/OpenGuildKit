@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit import clock
-from openguildkit.catalog import CatalogError, validate_entry, load_catalog
+from openguildkit.catalog import CatalogError, load_catalog, validate_entry
 from openguildkit.cli import main
 from openguildkit.prompts import prompt_choices
 from openguildkit.storage import write_json

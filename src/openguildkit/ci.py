@@ -10,7 +10,6 @@ from .project_rules import profile_fingerprint, resolved_profile
 from .rule_checks import compare_field, parse_fields
 from .storage import parse_json
 
-
 POLICY_PATH = f"packs/{EXPORT_EXPIRY_ID}.json"
 ORG_POLICY = "policy.json"  # org_policy.py
 FULL_COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")

@@ -13,7 +13,6 @@ from openguildkit.consultation import pack_rules
 from openguildkit.project import load_profile
 from openguildkit.relevance import pack_relevance
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 # A project on personal data with the GDPR pattern, and the regulations and methods a task on secrets, money or AI

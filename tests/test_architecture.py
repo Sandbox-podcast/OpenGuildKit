@@ -6,7 +6,14 @@ import unittest
 from pathlib import Path
 
 from openguildkit import (
-    alerts_cli, market_cli, profile_cli, projects_cli, storybook_cli, tasks_cli, tools_cli, trace_cli,
+    alerts_cli,
+    market_cli,
+    profile_cli,
+    projects_cli,
+    storybook_cli,
+    tasks_cli,
+    tools_cli,
+    trace_cli,
 )
 
 REPO = Path(__file__).resolve().parents[1]

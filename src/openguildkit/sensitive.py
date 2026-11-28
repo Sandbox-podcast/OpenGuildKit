@@ -5,8 +5,8 @@ answers, review entries and public evidence all go through it, without reading t
 A message about a match names the field and the kind of value, never the value.
 """
 
-from ipaddress import ip_address
 import re
+from ipaddress import ip_address
 from urllib.parse import parse_qsl, urlsplit
 
 from . import lazy_re

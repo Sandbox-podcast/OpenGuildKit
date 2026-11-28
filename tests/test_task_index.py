@@ -11,7 +11,6 @@ from unittest.mock import patch
 from openguildkit import guard, task_index, tasks
 from openguildkit.results import evidence_fingerprint
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, run_cli
 from tests.test_performance import close_and_export
 

@@ -15,7 +15,6 @@ from pathlib import Path
 
 from tests.support import copy_initialized_project, run_cli, subprocess_environment
 
-
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "request-status"
 TASK_ID = "request-status"

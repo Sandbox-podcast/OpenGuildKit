@@ -14,7 +14,13 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from . import clock
 from .catalog import (
-    CatalogError, package_file, record_files, validate_fields, validate_id, validate_list, validate_sources,
+    CatalogError,
+    package_file,
+    record_files,
+    validate_fields,
+    validate_id,
+    validate_list,
+    validate_sources,
     validate_text,
 )
 from .storage import write_text

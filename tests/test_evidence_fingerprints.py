@@ -10,10 +10,10 @@ import json
 import unittest
 
 from openguildkit.results import evidence_fingerprint, evidence_state
-from openguildkit.tasks_blockers import _clearance_payload, resolve_blocker
 from openguildkit.storage import read_json
-from tests.test_approval_lifecycle import ApprovalCase
+from openguildkit.tasks_blockers import _clearance_payload, resolve_blocker
 from tests import test_results
+from tests.test_approval_lifecycle import ApprovalCase
 from tests.test_results import GDPR_RECORD, ResultCase
 
 CHANGED_GROUP = "Evidence changed since it was accepted"

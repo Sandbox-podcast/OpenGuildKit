@@ -10,7 +10,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.storage import read_json, write_json
-
 from tests.support import CapturedCli
 
 REPO = Path(__file__).resolve().parents[1]

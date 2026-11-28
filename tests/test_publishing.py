@@ -2,8 +2,8 @@ import contextlib
 import importlib.util
 import io
 import json
-import re
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -18,7 +18,6 @@ from unittest.mock import patch
 from openguildkit import clock, publishing
 from openguildkit.catalog import load_catalog
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli, run_cli
 
 REPO = Path(__file__).resolve().parents[1]

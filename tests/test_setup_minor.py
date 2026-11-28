@@ -6,7 +6,6 @@ import unittest
 from pathlib import Path
 
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 

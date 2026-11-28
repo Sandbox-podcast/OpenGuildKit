@@ -16,7 +16,6 @@ from pathlib import Path
 from openguildkit.cli import command_parser
 from openguildkit.decisions import export_digest
 from openguildkit.storage import write_json
-
 from tests.support import openguildkit_on_path, run_cli
 from tests.test_sarif import machine_paths, structure_problems
 
@@ -454,7 +453,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report.items, [])
 
     def test_every_kind_of_approval_problem_of_a_task_has_a_rule(self):
-        from openguildkit.check_findings import Report, RULES
+        from openguildkit.check_findings import RULES, Report
 
         report = Report(True)
         kinds = ("no-seal", "invalid-seal", "earlier-rules", "unsigned", "invalid-signature", "outside-history")

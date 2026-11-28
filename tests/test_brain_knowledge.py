@@ -1,6 +1,6 @@
 import contextlib
-import json
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,9 +8,9 @@ from pathlib import Path
 from openguildkit.brains import brain_knowledge, brief_knowledge, consultation_context, knowledge_gaps
 from openguildkit.catalog import load_catalog
 from openguildkit.cli import main
+from openguildkit.consultation import board_brief, consult
 from openguildkit.project_rules import resolved_profile
 from openguildkit.references import load_references, with_pattern_references
-from openguildkit.consultation import board_brief, consult
 
 
 def families_with(*references):

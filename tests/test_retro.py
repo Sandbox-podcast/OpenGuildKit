@@ -12,16 +12,23 @@ import shlex
 import unittest
 from pathlib import Path
 
-from openguildkit.catalog import load_catalog
+from openguildkit.catalog import load_catalog, validate_entry
 from openguildkit.cli import command_parser
 from openguildkit.consultation import consult
-from openguildkit.project import validate_profile
+from openguildkit.project import DRAFT_MARK, validate_profile
 from openguildkit.project_rules import resolved_profile
-from openguildkit.catalog import validate_entry
-from openguildkit.project import DRAFT_MARK
 from openguildkit.retro import (
-    DEFAULT_MINIMUM, MAX_REASON, draft_pack, facts_of_record, facts_of_task, project_summary, proposals, recurrences,
-    render_project, render_task, task_retro,
+    DEFAULT_MINIMUM,
+    MAX_REASON,
+    draft_pack,
+    facts_of_record,
+    facts_of_task,
+    project_summary,
+    proposals,
+    recurrences,
+    render_project,
+    render_task,
+    task_retro,
 )
 from openguildkit.tasks_closing import NOT_RUN_GROUP, OTHER_RULES_GROUP, SENSITIVE_GROUP, VERDICTS_GROUP
 from openguildkit.tasks_review import record_review

@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .test_cli_flow import CliTestCase
 
-
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "export-expiry"
 POLICY = Path("packs/export-link-expiry.json")
 # The Node coordinator's test suite judges the same cases with openguildkit-ci check.

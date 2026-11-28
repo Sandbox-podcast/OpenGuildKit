@@ -14,10 +14,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from openguildkit.cli import main
+from openguildkit.consultation import code_not_found
 from openguildkit.detect import SKIPPED_DIRECTORIES, detect_stack, walk
 from openguildkit.project_checks import propose_checks
 from openguildkit.storybook_extract import extract
-from openguildkit.consultation import code_not_found
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "request-status"
 COMPONENT = "export function {name}() {{ return <button className=\"x\">Go</button>; }}\n"

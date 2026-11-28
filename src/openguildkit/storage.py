@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-
 # Windows refuses to replace a file while another process reads it, and to read it while it is
 # being replaced; POSIX systems do neither.
 RETRIES_BUSY_TARGET = os.name == "nt"

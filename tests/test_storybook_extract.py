@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from openguildkit.cli import main
 from openguildkit import storybook, storybook_cli
+from openguildkit.cli import main
 from openguildkit.storage import read_json, write_json
 from openguildkit.storybook import PROPOSALS, generate, propose, validate_proposals
 from openguildkit.storybook_extract import _strip_js_comments, extract, normalize_color

@@ -8,7 +8,6 @@ from openguildkit.catalog import load_catalog
 from openguildkit.project import validate_profile
 from openguildkit.project_instructions import BEGIN, END, merged_instructions
 from openguildkit.storage import write_json
-
 from tests.support import CapturedCli
 
 
