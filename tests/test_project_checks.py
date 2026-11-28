@@ -195,5 +195,60 @@ class FailureTests(ProjectTests):
         self.assertNotIn("message", record["result"]["checks"][0])
 
 
+class SuggestedChecksTests(unittest.TestCase):
+    def folder(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        return Path(temporary.name)
+
+    def commands(self, root, *components):
+        detected = {"components": [{"path": path} for path in components]}
+        return [item["command"] for item in propose_checks(root, detected)]
+
+    def test_the_commands_a_repository_points_to_are_proposed_and_nothing_is_run(self):
+        root = self.folder()
+        self.assertEqual(self.commands(root), [])
+        (root / "package.json").write_text(json.dumps({"scripts": {"test": "jest", "lint": "eslint ."}}), encoding="utf-8")
+        (root / "tests").mkdir()
+        (root / "tests" / "test_app.py").write_text("", encoding="utf-8")
+        (root / "pom.xml").write_text("<project/>", encoding="utf-8")
+        (root / "api").mkdir()
+        (root / "api" / "Api.csproj").write_text("<Project/>", encoding="utf-8")
+        before = sorted(path.relative_to(root).as_posix() for path in root.rglob("*"))
+        self.assertEqual(self.commands(root, ".", "api"), ["npm test", "npm run lint", "cd api && dotnet test"])
+        self.assertEqual(sorted(path.relative_to(root).as_posix() for path in root.rglob("*")), before)
+
+    def test_the_placeholder_npm_test_script_and_pytest_configuration(self):
+        root = self.folder()
+        (root / "package.json").write_text(
+            json.dumps({"scripts": {"test": 'echo "Error: no test specified" && exit 1'}}), encoding="utf-8")
+        (root / "pyproject.toml").write_text("[tool.pytest.ini_options]\n", encoding="utf-8")
+        self.assertEqual(self.commands(root), ["python -m pytest"])
+
+    def test_the_suggested_unittest_command_runs_tests_at_the_project_root(self):
+        root = self.folder()
+        (root / "test_root.py").write_text(
+            "import unittest\n"
+            "class RootTest(unittest.TestCase):\n"
+            "    def test_root(self): pass\n",
+            encoding="utf-8",
+        )
+        (command,) = self.commands(root)
+        result = subprocess.run([sys.executable, *command.split()[1:]], cwd=root, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Ran 1 test", result.stderr)
+
+    def test_init_proposes_them_in_the_checks_question_for_the_person_to_confirm(self):
+        root = self.folder()
+        (root / "go.mod").write_text("module example.org/app\n", encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(main(["--project", str(root), "init", "--questions"]), 0)
+        question = next(item for item in json.loads(out.getvalue()) if item["id"] == "checks")
+        self.assertEqual([item["command"] for item in question["proposed"]], ["go test ./..."])
+        self.assertEqual(question["default"], [])
+        self.assertIn("confirm or remove each one", question["prompt"])
+
+
 if __name__ == "__main__":
     unittest.main()

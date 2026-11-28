@@ -214,9 +214,11 @@ def build(current: dict, root: Path = ROOT) -> dict:
     for name in names:
         path = f"src/openguildkit/{name}"
         item = dict(by_module.get(path) or {"module": path, "role": "", "entry": [], "tests": [], "doc": "docs/architecture.md"})
-        item["tests"] = sorted(set(item.get("tests", [])) | importers[name])
+        kept = {test for test in item.get("tests", []) if (root / test).is_file()}  # A removed test file leaves.
+        item["tests"] = sorted(kept | importers[name])
         modules.append(item)
-    paths = [item for item in current.get("paths", []) if item.get("generated") != "fixture"]
+    paths = [{**item, "tests": [test for test in item["tests"] if (root / test).is_file()]}
+             for item in current.get("paths", []) if item.get("generated") != "fixture"]
     paths = sorted([*paths, *fixture_entries(root)], key=lambda item: item["path"])
     return {"modules": modules, "paths": paths, "commands": command_entries(root)}
 

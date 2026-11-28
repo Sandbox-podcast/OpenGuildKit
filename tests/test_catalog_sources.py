@@ -9,6 +9,7 @@ from urllib.parse import unquote, urlsplit
 
 from openguildkit.catalog import CatalogError, validate_entry, load_catalog, tracking_parameters
 from openguildkit.references import load_references
+from openguildkit.storage import read_json, write_json
 from openguildkit.tools import load_tools
 
 # The address each source publishes for its pages, checked offline: getbem.com answers 404 for /naming/
@@ -176,6 +177,17 @@ class BundledSourceTests(unittest.TestCase):
         self.assertEqual(wrong, [])
         self.assertTrue(any(urlsplit(url).hostname == "getbem.com" for _, url in urls))
         self.assertIsNone(CANONICAL["getbem.com"].fullmatch("/naming/"))
+
+
+class ExecutableCatalogTests(unittest.TestCase):
+    def test_central_pack_cannot_be_replaced_by_a_project_pack(self):
+        sample = Path(__file__).resolve().parents[1] / "examples/export-expiry/policy/packs/export-link-expiry.json"
+        pack = read_json(sample)
+        with tempfile.TemporaryDirectory() as directory:
+            project_catalog = Path(directory)
+            write_json(project_catalog / "packs" / sample.name, pack)
+            with self.assertRaisesRegex(CatalogError, "duplicate packs ID"):
+                load_catalog(project_catalog, central_policy=("0" * 40, pack))
 
 
 if __name__ == "__main__":

@@ -106,7 +106,7 @@ Read it by the step you are at: find the code, diagnose a failure, fix and prove
 
 **Check.** `tests/test_architecture.py`, to extend: each module has its test file or is in an exception list that can only shrink; no test file name contains `fixes`, `audit`, `core` or `misc`.
 
-**Today.** 54 % of modules. Issue #488.
+**Today.** 54 % of modules; `test_core.py` and `test_audit_fixes.py` are gone, their 15 tests moved to `test_approval_lifecycle.py`, `test_catalog_sources.py`, `test_upgrades.py`, `test_alerts.py` and `test_project_checks.py`. Issue #488.
 
 ## Diagnose
 
